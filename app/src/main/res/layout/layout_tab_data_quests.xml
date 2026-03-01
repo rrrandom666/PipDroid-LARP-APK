@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_local_map"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_data_quests_main"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ScrollView
+            android:id="@+id/scroll_tab_data_quests"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:fadeScrollbars="false"
+            android:overScrollMode="never"
+            android:scrollbarAlwaysDrawVerticalTrack="true"
+            android:scrollbarSize="3dp"
+            android:scrollbarStyle="insideInset"
+            android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+            android:scrollbars="vertical"
+            android:verticalScrollbarPosition="left"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.925"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.425">
+
+            <LinearLayout
+                android:id="@+id/linearlayout_tab_data_quests_container"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry6"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry6"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry6"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry6_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry6"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry6"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry5"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry5"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry5"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry5_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry5"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry5"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry4"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry4"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry4"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry4_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry4"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry4"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry3"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry3"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry3"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry3_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry3"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry3"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry2"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry2"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry2"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry2_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry2"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry2"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_data_quests_entry1"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_left_spacer_entry1"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <Button
+                        android:id="@+id/btn_data_quests_entry1"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/data_quests_entry1_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_data_quests_left_spacer_entry1"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_data_quests_right_spacer_entry1"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_data_quests_descriptions"
+            android:layout_width="0.0dip"
+            android:layout_height="fill_parent"
+            android:layout_marginTop="10dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintLeft_toRightOf="@id/scroll_tab_data_quests"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="1.0">
+
+            <ScrollView
+                android:id="@+id/scroll_tab_data_quests_text"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:fadeScrollbars="false"
+                android:overScrollMode="never"
+                android:scrollbarAlwaysDrawVerticalTrack="true"
+                android:scrollbarSize="3dp"
+                android:scrollbarStyle="insideInset"
+                android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+                android:scrollbars="vertical"
+                android:verticalScrollbarPosition="right"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.925"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="parent">
+
+                <TextView
+                    android:id="@+id/tv_data_quests_quests_text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginEnd="5dp"
+                    app:layout_constraintBottom_toBottomOf="@id/scroll_tab_data_quests_text"
+                    app:layout_constraintStart_toStartOf="@id/scroll_tab_data_quests_text"
+                    app:layout_constraintEnd_toEndOf="@id/scroll_tab_data_quests_text"
+                    app:layout_constraintTop_toTopOf="@id/scroll_tab_data_quests_text"
+                    android:text="@string/data_quests_entry6_description"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"/>
+
+            </ScrollView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

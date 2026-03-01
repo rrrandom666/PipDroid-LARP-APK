@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/linearlayout_tab_status_buttons"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:layout_gravity="center"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_cnd"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="fill_parent"
+        android:layout_height="0.0dip"
+        android:layout_weight="1.0"
+        android:minWidth="48dip"
+        android:minHeight="30dip"
+        android:text="@string/title_stats_CND" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_rad"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.0"
+        android:minWidth="48dip"
+        android:minHeight="30dip"
+        android:text="@string/title_stats_RAD" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_eff"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.0"
+        android:minWidth="48dip"
+        android:minHeight="30dip"
+        android:text="@string/title_stats_EFF" />
+</LinearLayout>

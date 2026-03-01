@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@color/pip_background_darker"
+    tools:context=".MainActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintlayoutTutorial"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_base"
+            layout="@layout/layout_tab_tutorial_base"
+            android:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintlayoutMain"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/title_constraintLayout"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:minHeight="48dip"
+            app:layout_constraintEnd_toEndOf="@id/main_constraintLayout"
+            app:layout_constraintHeight_percent="0.1"
+            app:layout_constraintStart_toStartOf="@id/main_constraintLayout"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <include
+                android:id="@+id/inc_layout_tab_stats_title"
+                layout="@layout/layout_tab_stats_title"
+                android:visibility="visible" />
+
+            <include
+                android:id="@+id/inc_layout_tab_items_title"
+                layout="@layout/layout_tab_items_title"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/inc_layout_tab_data_title"
+                layout="@layout/layout_tab_data_title"
+                android:visibility="gone" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottom_constraintLayout"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:minHeight="48dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.1"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <include
+                android:id="@+id/inc_layout_tab_stats_bottom"
+                layout="@layout/layout_tab_stats_bottom"
+                android:visibility="visible" />
+
+            <include
+                android:id="@+id/inc_layout_tab_items_bottom"
+                layout="@layout/layout_tab_items_bottom"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/inc_layout_tab_data_bottom"
+                layout="@layout/layout_tab_data_bottom"
+                android:visibility="gone" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/main_constraintLayout"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toTopOf="@id/bottom_constraintLayout"
+            app:layout_constraintEnd_toEndOf="@id/bottom_constraintLayout"
+            app:layout_constraintStart_toStartOf="@id/bottom_constraintLayout"
+            app:layout_constraintTop_toBottomOf="@id/title_constraintLayout">
+
+            <LinearLayout
+                android:id="@+id/tab_linearLayout"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <FrameLayout
+                    android:id="@android:id/tabcontent"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent">
+
+                    <include
+                        android:id="@+id/inc_layout_filter_modification"
+                        layout="@layout/layout_filter_modification"
+                        android:visibility="gone" />
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/layout_stats"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <include
+                            android:id="@+id/inc_layout_tab_stats_status"
+                            layout="@layout/layout_tab_stats_status"
+                            android:visibility="visible" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_stats_special"
+                            layout="@layout/layout_tab_stats_special"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_stats_skills"
+                            layout="@layout/layout_tab_stats_skills"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_stats_perks"
+                            layout="@layout/layout_tab_stats_perks"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_stats_general"
+                            layout="@layout/layout_tab_stats_general"
+                            android:visibility="gone" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/layout_items"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_weapons"
+                            layout="@layout/layout_tab_items_weapons"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_apparel"
+                            layout="@layout/layout_tab_items_apparel"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_aid"
+                            layout="@layout/layout_tab_items_aid"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_misc"
+                            layout="@layout/layout_tab_items_misc"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_ammo"
+                            layout="@layout/layout_tab_items_ammo"
+                            android:visibility="gone" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/layout_data"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <include
+                            android:id="@+id/inc_layout_tab_data_local_map"
+                            layout="@layout/layout_tab_data_local_map"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_data_world_map"
+                            layout="@layout/layout_tab_data_world_map"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_data_quests"
+                            layout="@layout/layout_tab_data_quests"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_data_misc"
+                            layout="@layout/layout_tab_data_misc"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_data_radio"
+                            layout="@layout/layout_tab_data_radio"
+                            android:visibility="gone" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </FrameLayout>
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <ImageView
+        android:id="@+id/img_scanline"
+        android:layout_width="fill_parent"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintHeight_percent="0.25"
+        app:layout_constraintStart_toStartOf="parent"
+        app:srcCompat="@drawable/scanline_xml" />
+
+    <ImageView
+        android:id="@+id/img_screenglare"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@drawable/screenglare_alpha"
+        android:scaleType="fitXY"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/fl_flashlight"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@color/white"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

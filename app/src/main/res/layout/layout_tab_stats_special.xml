@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_special"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:id="@+id/scroll_tab_special"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:fadeScrollbars="false"
+        android:overScrollMode="never"
+        android:scrollbarAlwaysDrawVerticalTrack="true"
+        android:scrollbarSize="3dp"
+        android:scrollbarStyle="insideInset"
+        android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+        android:scrollbars="vertical"
+        android:verticalScrollbarPosition="left"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.925"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.425">
+
+    <LinearLayout
+        android:id="@+id/linearlayout_tab_stats_special_container"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_stats_special_strength"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_strength"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_strength"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/stats_special_strength"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_strength"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_strength_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_strength_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_strength"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_strength"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_perception"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_perception"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_perception"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_perception"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_perception"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_perception_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_perception_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_perception"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_perception"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_endurance"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_endurance"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_endurance"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_endurance"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_endurance"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_endurance_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_endurance_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_endurance"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_endurance"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_charisma"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_charisma"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_charisma"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_charisma"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_charisma"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_charisma_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_charisma_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_charisma"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_charisma"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_intelligence"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_intelligence"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_intelligence"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_intelligence"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_intelligence"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_intelligence_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_intelligence_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_intelligence"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_intelligence"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_agility"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_agility"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_agility"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_agility"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_agility"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_agility_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_agility_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_agility"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_agility"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_luck"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dp">
+
+            <TextView
+                android:id="@+id/tv_special_left_spacer_luck"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.03" />
+
+            <Button
+                android:id="@+id/btn_special_luck"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/special_luck"
+                android:textAllCaps="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tv_special_left_spacer_luck"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_luck_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:text="@string/special_luck_value"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_special_right_spacer_luck"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_special_right_spacer_luck"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </LinearLayout>
+    </ScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_special_descriptions"
+        android:layout_width="0.0dip"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/scroll_tab_special"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/img_special_selected"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toTopOf="@id/layout_tab_special_descriptions_text"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.4"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/special_strength" />
+
+        <ImageView
+            android:id="@+id/img_special_selected_border"
+            style="@style/ColorTintStyle"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            app:layout_constraintStart_toStartOf="@id/layout_tab_special_descriptions_text"
+            app:layout_constraintTop_toTopOf="@id/layout_tab_special_descriptions_text"
+            app:srcCompat="@drawable/img_top_right" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_special_descriptions_text"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.425"
+            app:layout_constraintHorizontal_bias="0.7"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="1.0"
+            app:layout_constraintWidth_percent="0.925">
+
+            <ScrollView
+                android:id="@+id/scrollview_special_descriptions_text"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginTop="8.0dip"
+                android:fadeScrollbars="false"
+                android:overScrollMode="never"
+                android:scrollbarAlwaysDrawVerticalTrack="true"
+                android:scrollbars="none"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.95"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="1.0"
+                app:layout_constraintWidth_percent="0.98">
+
+                <TextView
+                    android:id="@+id/tv_special_descriptions_text"
+                    style="@style/TextStyle"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/special_strength_description"
+                    android:textAllCaps="false" />
+            </ScrollView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

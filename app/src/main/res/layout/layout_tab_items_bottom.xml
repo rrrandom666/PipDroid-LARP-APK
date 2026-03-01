@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_items_bottom"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ImageView
+        android:id="@+id/img_bottom_left"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/img_bottom_link_1"
+        app:layout_constraintDimensionRatio="W, 1.5:1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintWidth_percent="0.03"
+        app:srcCompat="@drawable/botton_left_img" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_weapons"
+        style="@style/BottomButtonStyle"
+        tools:ignore="TouchTargetSizeCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/items_weapons"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_1"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_left"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_link_1"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_weapons"
+        app:layout_constraintEnd_toStartOf="@id/btn_items_apparel"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_items_weapons"
+        app:layout_constraintTop_toTopOf="@id/btn_items_weapons"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_apparel"
+        style="@style/BottomButtonStyle"
+        tools:ignore="TouchTargetSizeCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:text="@string/items_apparel"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_2"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_link_1"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_link_2"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_apparel"
+        app:layout_constraintEnd_toStartOf="@id/btn_items_aid"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_items_apparel"
+        app:layout_constraintTop_toTopOf="@id/btn_items_apparel"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_aid"
+        style="@style/BottomButtonStyle"
+        tools:ignore="TouchTargetSizeCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/items_aid"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_3"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_link_2"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_link_3"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_aid"
+        app:layout_constraintEnd_toStartOf="@id/btn_items_misc"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_items_aid"
+        app:layout_constraintTop_toTopOf="@id/btn_items_aid"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_misc"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/items_misc"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_4"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_link_3"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="TouchTargetSizeCheck" />
+
+    <ImageView
+        android:id="@+id/img_bottom_link_4"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_misc"
+        app:layout_constraintEnd_toStartOf="@id/btn_items_ammo"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_items_misc"
+        app:layout_constraintTop_toTopOf="@id/btn_items_misc"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_ammo"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/items_ammo"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_right"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_link_4"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="TouchTargetSizeCheck" />
+
+    <ImageView
+        android:id="@+id/img_bottom_right"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/img_bottom_link_4"
+        app:layout_constraintDimensionRatio="W, 1.5:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.03"
+        app:srcCompat="@drawable/botton_right_img" />
+</androidx.constraintlayout.widget.ConstraintLayout>

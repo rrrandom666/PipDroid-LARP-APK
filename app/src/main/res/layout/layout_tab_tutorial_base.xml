@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintlayoutTutorialContent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/constraintlayoutTutorialBtns"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toTopOf="@id/layout_tutorial_welcome_save"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_welcome"
+            layout="@layout/layout_tab_tutorial_welcome"
+            android:visibility="visible" />
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_whatsnew"
+            layout="@layout/layout_tab_tutorial_whatsnew"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_1_stats"
+            layout="@layout/layout_tab_tutorial_1_stats"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_2_items"
+            layout="@layout/layout_tab_tutorial_2_items"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_3_data"
+            layout="@layout/layout_tab_tutorial_3_data"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_4_settings"
+            layout="@layout/layout_tab_tutorial_4_settings"
+            android:visibility="gone" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintlayoutTutorialBtns"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/constraintlayoutTutorialContent"
+        android:layout_width="wrap_content"
+        android:layout_height="0.0dip"
+        android:paddingRight="10dp"
+        android:paddingLeft="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <Button
+            android:id="@+id/btn_tutorial_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Close"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btn_nextpage" />
+
+        <Button
+            android:id="@+id/btn_nextpage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/next"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btn_tutorial_close"
+            app:layout_constraintBottom_toTopOf="@id/btn_previouspage"            />
+
+        <Button
+            android:id="@+id/btn_previouspage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/previous"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btn_nextpage"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:enabled="false"/>
+
+         />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tutorial_welcome_save"
+        android:layout_width="0.0dip"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/constraintlayoutTutorialContent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/constraintlayoutTutorialBtns"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp">
+
+        <CheckBox
+            android:id="@+id/cbox_tutorial_welcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Tutorial at Start"
+            android:checked="true"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_tutorial_welcome_save"/>
+
+        <Button
+            android:id="@+id/btn_tutorial_welcome_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/cbox_tutorial_welcome" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

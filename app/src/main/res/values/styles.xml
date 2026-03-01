@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- TITLE STYLES-->
+    <style name="TopTitleStyle">
+        <item name="android:paddingTop">2.0dip</item>
+        <item name="android:paddingLeft">6.0dip</item>
+        <item name="android:paddingRight">6.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="layout_constraintHeight_percent">0.75</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+
+    <!-- BOTTOM-BAR STYLES-->
+    <style name="BottomButtonStyle">
+        <item name="android:background">@drawable/button_selector</item>
+        <item name="android:paddingLeft">8.0dip</item>
+        <item name="android:paddingRight">8.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="layout_constraintHeight_percent">0.75</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+
+    <style name="ColorTintStyle">
+    </style>
+
+    <!-- TEXT STYLES-->
+    <style name="TextStyle">
+        <item name="android:paddingLeft">0.0dip</item>
+        <item name="android:paddingRight">0.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="layout_constraintHeight_percent">0.75</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+    <style name="TextStyleCRIPPLED">
+        <item name="android:paddingLeft">0.0dip</item>
+        <item name="android:paddingRight">0.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+    <style name="CNDEFFRADButtonStyle">
+        <item name="android:background">@drawable/button_selector</item>
+        <item name="android:paddingLeft">8.0dip</item>
+        <item name="android:paddingRight">8.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+    <style name="SettingsButtonStyle">
+        <item name="android:paddingLeft">8.0dip</item>
+        <item name="android:paddingRight">8.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+    <style name="SettingsMenuButtonStyle">
+        <item name="android:color">@color/colorMenuBase</item>
+        <item name="android:paddingLeft">8.0dip</item>
+        <item name="android:paddingRight">8.0dip</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+    <style name="ClockStyle">
+        <item name="android:gravity">center</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">0.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+
+    <style name="Theme.PipDroid.GreenUI" parent="Theme.PipDroid">
+        <item name="colorPrimary">@color/themeGreenCND</item>
+        <item name="android:editTextColor">@color/themeGreen</item>
+        <item name="android:textColor">@color/themeGreen</item>
+        <item name="android:tint">@color/themeGreen</item>
+        <item name="buttonTint">@color/themeGreen</item>
+        <item name="android:textColorHint">@color/themeGreenCND</item>
+        <item name="backgroundTint">@color/themeGreen</item>
+        <item name="colorOnPrimary">@color/themeGreen</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.PipDroid.AmberUI" parent="Theme.PipDroid">
+        <item name="colorPrimary">@color/themeAmberCND</item>
+        <item name="android:editTextColor">@color/themeAmber</item>
+        <item name="android:textColor">@color/themeAmber</item>
+        <item name="android:tint">@color/themeAmber</item>
+        <item name="buttonTint">@color/themeAmber</item>
+        <item name="android:textColorHint">@color/themeAmberCND</item>
+        <item name="backgroundTint">@color/themeAmber</item>
+        <item name="colorOnPrimary">@color/themeAmber</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.PipDroid.WhiteUI" parent="Theme.PipDroid">
+        <item name="colorPrimary">@color/themeWhiteCND</item>
+        <item name="android:editTextColor">@color/themeWhite</item>
+        <item name="android:textColor">@color/themeWhite</item>
+        <item name="android:tint">@color/themeWhite</item>
+        <item name="buttonTint">@color/themeWhite</item>
+        <item name="android:textColorHint">@color/themeWhiteCND</item>
+        <item name="backgroundTint">@color/themeWhite</item>
+        <item name="colorOnPrimary">@color/themeWhite</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.PipDroid.BlueUI" parent="Theme.PipDroid">
+        <item name="colorPrimary">@color/themeBlueCND</item>
+        <item name="android:editTextColor">@color/themeBlue</item>
+        <item name="android:textColor">@color/themeBlue</item>
+        <item name="android:tint">@color/themeBlue</item>
+        <item name="buttonTint">@color/themeBlue</item>
+        <item name="android:textColorHint">@color/themeBlueCND</item>
+        <item name="backgroundTint">@color/themeBlue</item>
+        <item name="colorOnPrimary">@color/themeBlue</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+</resources>

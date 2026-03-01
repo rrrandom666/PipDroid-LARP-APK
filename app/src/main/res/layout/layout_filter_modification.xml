@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_filter_modification"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:background="@drawable/settings_menu_background_green">
+
+<androidx.constraintlayout.widget.ConstraintLayout
+    android:id="@+id/layout_filter_modification_topbuttons"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:paddingBottom="10dp"
+    app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_text">
+
+    <TextView
+        android:id="@+id/tv_filter_modification_title"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Modification"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/btn_filter_modification_close"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text=" X "
+        android:textAllCaps="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+<androidx.constraintlayout.widget.ConstraintLayout
+android:id="@+id/layout_filter_modification_text"
+android:layout_width="0.0dp"
+android:layout_height="wrap_content"
+app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_entries"
+app:layout_constraintEnd_toEndOf="parent"
+app:layout_constraintStart_toStartOf="parent"
+app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_topbuttons">
+
+    <EditText
+        android:id="@+id/et_filter_modification_value"
+        style="@style/SettingsButtonStyle"
+        android:layout_width="0.0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center|left"
+        android:hint="FILTER"
+        android:maxLines="1"
+        android:maxLength="32"
+        android:singleLine="true"
+        android:layout_marginStart="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_filter"/>
+    <Button
+        android:id="@+id/btn_filter_modification_filter"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text="Filter"
+        android:textAllCaps="false"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
+        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_select"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+    <Button
+        android:id="@+id/btn_filter_modification_select"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text="Select ALL"
+        android:textAllCaps="false"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btn_filter_modification_filter"
+        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_clear"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+    <Button
+        android:id="@+id/btn_filter_modification_clear"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text="Clear ALL"
+        android:textAllCaps="false"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_filter_modification_entries"
+        android:layout_width="0.0dp"
+        android:layout_height="0.0dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_bottombuttons"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_text">
+
+        <ScrollView
+            android:id="@+id/scroll_filter_modification"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:fadeScrollbars="false"
+            android:overScrollMode="never"
+            android:scrollbarAlwaysDrawVerticalTrack="true"
+            android:scrollbarSize="3dp"
+            android:scrollbarStyle="insideInset"
+            android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+            android:scrollbars="vertical"
+            android:verticalScrollbarPosition="left"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+                <FrameLayout
+                    android:id="@+id/filter_modification_frame"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                    <!-- Dynamic Entries will be added here -->
+                </FrameLayout>
+        </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_filter_modification_bottombuttons"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_filter_modification_entries"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <Button
+            android:id="@+id/btn_filter_modification_save"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/settings_menu_background_green"
+            android:clickable="false"
+            android:gravity="center|left"
+            android:minWidth="0.0dip"
+            android:minHeight="0.0dip"
+            android:text=" SAVE "
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintVertical_bias="0.0" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

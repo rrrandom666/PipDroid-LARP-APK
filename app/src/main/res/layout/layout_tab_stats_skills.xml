@@ -1,0 +1,824 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_stats_skills"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:id="@+id/scroll_tab_skills"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:fadeScrollbars="false"
+        android:overScrollMode="never"
+        android:scrollbarAlwaysDrawVerticalTrack="true"
+        android:scrollbarSize="3dp"
+        android:scrollbarStyle="insideInset"
+        android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+        android:scrollbars="vertical"
+        android:verticalScrollbarPosition="left"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.925"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.425">
+
+        <LinearLayout
+            android:id="@+id/linearlayout_tab_skills_container"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_barter"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_barter"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_barter"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_barter"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_barter"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_barter_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_barter_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_barter"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_barter"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_big_guns"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_big_guns"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_big_guns"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_big_guns"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_big_guns"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_big_guns_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_big_guns_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_big_guns"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_big_guns"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_energy_weapons"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_energy_weapons"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_energy_weapons"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_energy_weapons"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_energy_weapons"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_energy_weapons_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_energy_weapons_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_energy_weapons"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_energy_weapons"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_explosives"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_explosives"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_explosives"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_explosives"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_explosives"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_explosives_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_explosives_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_explosives"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_explosives"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_lockpick"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_lockpick"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_lockpick"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_lockpick"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_lockpick"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_lockpick_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_lockpick_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_lockpick"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_lockpick"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_medicine"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_medicine"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_medicine"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_medicine"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_medicine"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_medicine_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_medicine_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_medicine"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_medicine"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_melee_weapons"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_melee_weapons"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_melee_weapons"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_melee_weapons"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_melee_weapons"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_melee_weapons_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_melee_weapons_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_melee_weapons"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_melee_weapons"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_repair"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_repair"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_repair"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_repair"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_repair"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_repair_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_repair_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_repair"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_repair"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_science"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_science"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_science"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_science"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_science"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_science_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_science_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_science"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_science"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_small_guns"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_small_guns"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_small_guns"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_small_guns"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_small_guns"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_small_guns_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_small_guns_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_small_guns"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_small_guns"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_sneak"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_sneak"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_sneak"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_sneak"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_sneak"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_sneak_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_sneak_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_sneak"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_sneak"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_speech"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_speech"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_speech"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_speech"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_speech"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_speech_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_speech_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_speech"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_speech"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_skills_unarmed"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6.0dp">
+
+                <TextView
+                    android:id="@+id/tv_skills_left_spacer_unarmed"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.03" />
+
+                <Button
+                    android:id="@+id/btn_skills_unarmed"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/button_unselected"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:minWidth="0.0dip"
+                    android:minHeight="0.0dip"
+                    android:text="@string/skill_unarmed"
+                    android:textAllCaps="false"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/tv_skills_left_spacer_unarmed"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_unarmed_value"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:gravity="center|left"
+                    android:text="@string/skill_unarmed_value"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_skills_right_spacer_unarmed"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_skills_right_spacer_unarmed"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.06" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_skill_descriptions"
+        android:layout_width="0.0dip"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/scroll_tab_skills"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/img_skill_selected"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toTopOf="@id/layout_tab_skill_descriptions_text"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.4"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/skills_barter" />
+
+        <ImageView
+            android:id="@+id/img_skill_selected_border"
+            style="@style/ColorTintStyle"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            app:layout_constraintStart_toStartOf="@id/layout_tab_skill_descriptions_text"
+            app:layout_constraintTop_toTopOf="@id/layout_tab_skill_descriptions_text"
+            app:srcCompat="@drawable/img_top_right" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_skill_descriptions_text"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.425"
+            app:layout_constraintHorizontal_bias="0.7"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="1.0"
+            app:layout_constraintWidth_percent="0.925">
+
+            <ScrollView
+                android:id="@+id/scrollview_skill_descriptions_text"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginTop="8.0dip"
+                android:fadeScrollbars="false"
+                android:overScrollMode="never"
+                android:scrollbarAlwaysDrawVerticalTrack="true"
+                android:scrollbars="none"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.95"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="1.0"
+                app:layout_constraintWidth_percent="0.98">
+
+                <TextView
+                    android:id="@+id/tv_skill_descriptions_text"
+                    style="@style/TextStyle"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/skill_barter_description"
+                    android:textAllCaps="false" />
+            </ScrollView>
+        
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_data_radio"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/linearlayout_tab_radio_container"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:orientation="vertical"
+        android:paddingTop="24.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.375">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_radio_gnr"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dip"
+            android:minHeight="40.0dip">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_radio_gnr_selector"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:visibility="invisible"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.08">
+
+                <ImageView
+                    android:id="@+id/img_tab_radio_gnr_selector"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintDimensionRatio="1:1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.3"
+                    app:srcCompat="@drawable/square" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_tab_radio_gnr"
+                style="@style/TextStyle"
+                layout_constraintBottom_toBottomOf="parent"
+                layout_constraintHorizontal_bias="0.14"
+                layout_constraintTop_toTopOf="parent"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/radio_galaxy_news"
+                android:textAllCaps="false"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toEndOf="@+id/layout_tab_radio_gnr_selector"
+                app:layout_constraintTop_toTopOf="@+id/layout_tab_radio_gnr_selector" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_radio_enclave"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dip"
+            android:minHeight="40.0dip">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_radio_enclave_selector"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:visibility="invisible"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.08">
+
+                <ImageView
+                    android:id="@+id/img_tab_radio_enclave_selector"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintDimensionRatio="1:1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.3"
+                    app:srcCompat="@drawable/square" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_tab_radio_enclave"
+                style="@style/TextStyle"
+                layout_constraintBottom_toBottomOf="parent"
+                layout_constraintHorizontal_bias="0.14"
+                layout_constraintTop_toTopOf="parent"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/radio_enclave"
+                android:textAllCaps="false"
+                app:layout_constraintStart_toEndOf="@+id/layout_tab_radio_enclave_selector"
+                app:layout_constraintTop_toTopOf="@+id/layout_tab_radio_enclave_selector" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_radio_nvr"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dip"
+            android:minHeight="40.0dip">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_radio_nvr_selector"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:visibility="invisible"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.08">
+
+                <ImageView
+                    android:id="@+id/img_tab_radio_nvr_selector"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintDimensionRatio="1:1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.3"
+                    app:srcCompat="@drawable/square" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_tab_radio_nvr"
+                style="@style/TextStyle"
+                layout_constraintBottom_toBottomOf="parent"
+                layout_constraintHorizontal_bias="0.14"
+                layout_constraintTop_toTopOf="parent"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/radio_newvegas"
+                android:textAllCaps="false"
+                app:layout_constraintStart_toEndOf="@+id/layout_tab_radio_nvr_selector"
+                app:layout_constraintTop_toTopOf="@+id/layout_tab_radio_nvr_selector" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_radio_custom"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dip"
+            android:minHeight="40.0dip">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_radio_custom_selector"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:visibility="invisible"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.08">
+
+                <ImageView
+                    android:id="@+id/img_tab_radio_custom_selector"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintDimensionRatio="1:1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_percent="0.3"
+                    app:srcCompat="@drawable/square" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_tab_radio_custom"
+                style="@style/TextStyle"
+                layout_constraintBottom_toBottomOf="parent"
+                layout_constraintHorizontal_bias="0.14"
+                layout_constraintTop_toTopOf="parent"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="@string/radio_custom"
+                android:textAllCaps="false"
+                app:layout_constraintStart_toEndOf="@+id/layout_tab_radio_custom_selector"
+                app:layout_constraintTop_toTopOf="@+id/layout_tab_radio_custom_selector" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_radio_clock"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6.0dip"
+            android:minHeight="40.0dip">
+
+            <TextView
+                android:id="@+id/tv_radio_left_spacer_clock"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.3"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.08" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_tab_radio_clock"
+                style="@style/TextStyle"
+                layout_constraintBottom_toBottomOf="parent"
+                layout_constraintHorizontal_bias="0.14"
+                layout_constraintTop_toTopOf="parent"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:background="@drawable/button_unselected"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:minWidth="0.0dip"
+                android:minHeight="0.0dip"
+                android:text="Clock"
+                android:textAllCaps="false"
+                app:layout_constraintStart_toEndOf="@+id/tv_radio_left_spacer_clock"
+                app:layout_constraintTop_toTopOf="@+id/tv_radio_left_spacer_clock" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_radio_wavesign"
+        android:layout_width="0.0dip"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/linearlayout_tab_radio_container"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/img_radio_box_spacer_TOP"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintHeight_percent="0.125"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="@id/radioWave"
+            app:layout_constraintStart_toStartOf="@id/radioWave"
+            app:layout_constraintBottom_toTopOf="@id/img_radio_box_spacer_TOP"/>
+
+
+        <ImageView
+            android:id="@+id/img_radio_box_side"
+            style="@style/ColorTintStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toTopOf="@id/radioWave"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/img_radio_box_bottom"
+            app:srcCompat="@drawable/radio_box_side" />
+
+        <ImageView
+            android:id="@+id/img_radio_box_spacer1"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintHeight_percent="0.05"
+            app:layout_constraintTop_toBottomOf="@id/img_radio_box_spacer_TOP"
+            app:layout_constraintEnd_toEndOf="@id/radioWave"
+            app:layout_constraintStart_toStartOf="@id/radioWave"
+            app:layout_constraintBottom_toTopOf="@id/radioWave"/>
+
+
+        <com.gauravk.audiovisualizer.visualizer.WaveVisualizer
+            xmlns:custom="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/radioWave"
+            android:scaleType="fitXY"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="@id/img_radio_box_spacer2"
+            app:layout_constraintEnd_toStartOf="@id/img_radio_box_side"
+            app:layout_constraintHeight_percent="0.5"
+            app:layout_constraintHorizontal_bias="0.9"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/img_radio_box_spacer1"
+            app:layout_constraintVertical_bias="0.45"
+            app:layout_constraintWidth_percent="0.8"
+            custom:avDensity="0.9"
+            custom:avType="outline"
+            custom:avColor="@color/themeGreen"
+            custom:avSpeed="fast"
+            custom:avWidth="2dp"/>
+
+        <ImageView
+            android:id="@+id/img_radio_box_spacer2"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintHeight_percent="0.05"
+            app:layout_constraintTop_toBottomOf="@id/radioWave"
+            app:layout_constraintEnd_toEndOf="@id/radioWave"
+            app:layout_constraintStart_toStartOf="@id/radioWave"
+            app:layout_constraintBottom_toTopOf="@id/img_radio_box_bottom"/>
+        
+        <ImageView
+            android:id="@+id/img_radio_box_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toBottomOf="@id/img_radio_box_spacer2"
+            app:layout_constraintEnd_toEndOf="@id/radioWave"
+            app:layout_constraintStart_toStartOf="@id/radioWave"
+            app:layout_constraintBottom_toTopOf="@id/img_radio_box_spacer_BOTTOM"
+            app:srcCompat="@drawable/radio_box_bottom" />
+
+        <ImageView
+            android:id="@+id/img_radio_box_spacer_BOTTOM"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintHeight_percent="0.125"
+            app:layout_constraintTop_toBottomOf="@id/img_radio_box_bottom"
+            app:layout_constraintEnd_toEndOf="@id/radioWave"
+            app:layout_constraintStart_toStartOf="@id/radioWave"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <include
+        android:id="@+id/inc_layout_tab_clock"
+        layout="@layout/layout_tab_clock"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.975"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.975" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

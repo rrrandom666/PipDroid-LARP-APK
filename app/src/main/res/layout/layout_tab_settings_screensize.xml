@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_settings_screensize"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:background="@drawable/settings_menu_background_green">
+
+    <TextView
+        android:id="@+id/tv_screensize"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SCREEN SIZE"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <Button
+        android:id="@+id/btn_settings_screensize_close"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text=" X "
+        android:textAllCaps="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <TextView
+        android:id="@+id/tv_screensize_editting"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="EDITTING MODE\nMUST FINISH BEFORE CLOSING MENU"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/btn_settings_screensize_resize"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btn_settings_screensize_resize"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text="Resize/Move"
+        android:textAllCaps="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_settings_screensize_fullscreen"
+        app:layout_constraintTop_toBottomOf="@id/btn_settings_screensize_close" />
+
+    <Button
+        android:id="@+id/btn_settings_screensize_fullscreen"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/settings_menu_background_green"
+        android:clickable="false"
+        android:gravity="center|left"
+        android:minWidth="0.0dip"
+        android:minHeight="0.0dip"
+        android:text="Fullscreen"
+        android:textAllCaps="false"
+        app:layout_constraintStart_toEndOf="@id/btn_settings_screensize_resize"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_settings_screensize_close"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

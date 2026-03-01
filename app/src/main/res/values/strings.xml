@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PipDroid</string>
+    <string name="app_version">version 2.0.12</string>
+    <string name="cancel">Cancel</string>
+    <string name="exit">Exit</string>
+    <string name="info_dialog_close_link"><a href="https://www.reddit.com/user/malto4">Reddit</a></string>
+    <string name="search_menu_title">Search</string>
+
+    <string name="RAD_RESIST">RAD RESIST</string>
+    <string name="current_rad_value">0</string>
+    <string name="player_name">Player</string>
+    <string name="max">MAX</string>
+    <string name="power_off">Power Off</string>
+    <string name="rad_resist_amount">8%</string>
+    <string name="radaway">RadAway</string>
+    <string name="radx">RadX</string>
+    <string name="rad_cur_value">0</string>
+    <string name="stimpack">Stimpak</string>
+    <string name="radio">Radio</string>
+    <string name="radio_enclave">Enclave Radio</string>
+    <string name="radio_galaxy_news">Galaxy News Radio</string>
+    <string name="radio_newvegas">New Vegas Radio</string>
+    <string name="radio_custom">Custom Radio</string>
+
+    <string name="title_stats">STATS</string>
+    <string name="title_stats_CND">CND</string>
+    <string name="title_stats_EFF">EFF</string>
+    <string name="title_stats_RAD">RAD</string>
+    <string name="title_stats_status">Status</string>
+    <string name="title_stats_status_lvl">1</string>
+    <string name="title_stats_status_hp">720/720</string>
+    <string name="title_stats_status_ap">136/136</string>
+    <string name="title_stats_status_xp">1337/2460</string>
+    <string name="title_stats_status_status_effects">NO STATUS EFFECTS</string>
+
+    <string name="title_items">ITEMS</string>
+    <string name="title_items_wg">89/136</string>
+    <string name="title_items_dt">5.0</string>
+    <string name="title_items_caps">3167</string>
+
+    <string name="title_data">DATA</string>
+    <string name="title_data_location">Megaton</string>
+    <string name="title_data_date">10.21.81</string>
+    <string name="title_data_time">11:35</string>
+
+    <string name="stats_special">S.P.E.C.I.A.L.</string>
+    <string name="stats_special_strength">Strength</string>
+    <string name="special_strength_description">Strength is a measure of your raw physical power. It affects how much you can carry, the power of all melee attacks, and your effectiveness with many heavy weapons.</string>
+    <string name="special_strength_value">10</string>
+    <string name="special_perception">Perception</string>
+    <string name="special_perception_description">A high Perception grants a bonus to the Explosives, Lockpick and Energy Weapons skills, and determines when red compass markings appear (which indicate threats).</string>
+    <string name="special_perception_value">10</string>
+    <string name="special_endurance">Endurance</string>
+    <string name="special_endurance_description">Endurance is a measure of your overall physical fitness. A high Endurance gives bonuses to health, environmental resistances, and the Survival and Unarmed skills.</string>
+    <string name="special_endurance_value">9</string>
+    <string name="special_charisma">Charisma</string>
+    <string name="special_charisma_description">"Having a high Charisma will improve people's disposition toward you, and give bonuses to both the Barter and Speech skills."</string>
+    <string name="special_charisma_value">10</string>
+    <string name="special_intelligence">Intelligence</string>
+    <string name="special_intelligence_description">"Intelligence affects the Science, Repair and medicine skills. The higher your Intelligence, the more Skill Points you'll be able to distribute when you level up."</string>
+    <string name="special_intelligence_value">9</string>
+    <string name="special_agility">Agility</string>
+    <string name="special_agility_description">Agility affects your Guns and Sneak skills, and the number of Action Points available for V.A.T.S.</string>
+    <string name="special_agility_value">9</string>
+    <string name="special_luck">Luck</string>
+    <string name="special_luck_description">Raising your Luck will raise all of your skills a little. Having a high Luck will also improve your critical chance with all weapons.</string>
+    <string name="special_luck_value">10</string>
+
+    <string name="stats_skills">Skills</string>
+    <string name="skill_barter">Barter</string>
+    <string name="skill_barter_description">The Barter skill affects the prices you get for buying and selling items. In general, the higher your Barter skill, the lower your prices on purchased items.</string>
+    <string name="skill_barter_value">100</string>
+    <string name="skill_big_guns">Big Guns</string>
+    <string name="skill_big_guns_description">The Big Guns skill determines your combat effectiveness with all oversized weapons such as the Fat Man, Missile Launcher, Flamer, Minigun and Gatling Laser.</string>
+    <string name="skill_big_guns_value">100</string>
+    <string name="skill_energy_weapons">Energy Weapons</string>
+    <string name="skill_energy_weapons_description">The Energy Weapons skill determines your effectiveness with any weapon that uses Small Energy Cells, Micro Fusion Cells, EC Packs, or Flamer Fuel as ammunition.</string>
+    <string name="skill_energy_weapons_value">100</string>
+    <string name="skill_explosives">Explosives</string>
+    <string name="skill_explosives_description">The Explosives skill determines the ease of disarming any hostile mines and the effectiveness of any explosive weapon (all mines, all grenades, Missile Launcher, Fat Man, etc.).</string>
+    <string name="skill_explosives_value">80</string>
+    <string name="skill_lockpick">Lockpick</string>
+    <string name="skill_lockpick_description">The Lockpick skill is used to open locked doors and containers.</string>
+    <string name="skill_lockpick_value">100</string>
+    <string name="skill_medicine">Medicine</string>
+    <string name="skill_medicine_description">"The Medicine skill determines how many hit points you'll replenish upon using a Stimpak, and the effectiveness of Rad-X and RadAway."</string>
+    <string name="skill_medicine_value">70</string>
+    <string name="skill_melee_weapons">Melee Weapons</string>
+    <string name="skill_melee_weapons_description">The Melee Weapons skill determines your effectiveness with any melee weapon, from the simple lead pipe all the way up to the high-tech Super Sledge.</string>
+    <string name="skill_melee_weapons_value">40</string>
+    <string name="skill_repair">Repair</string>
+    <string name="skill_repair_description">The Repair skill allows you to maintain your weapons and apparel. In addition, Repair allows you to create items and Guns ammunition at reloading benches.</string>
+    <string name="skill_repair_value">100</string>
+    <string name="skill_science">Science</string>
+    <string name="skill_science_description">The Science skill represents your combined scientific knowledge, and is primarily used to hack restricted computer terminals. It can also be used to recycle Energy Weapon ammunition at workbenches.</string>
+    <string name="skill_science_value">100</string>
+    <string name="skill_small_guns">Small Guns</string>
+    <string name="skill_small_guns_description">The Small Guns determines your effectiveness with all conventional projectile weapons, such as 10mm pistol, BB Gun, Assault Rifle, and Combat Shotgun.</string>
+    <string name="skill_small_guns_value">100</string>
+    <string name="skill_sneak">Sneak</string>
+    <string name="skill_sneak_description">"The higher your Sneak skill, the easier it is to remain undetected, steal an item, or pick someone's pocket. Successfully attacking while undetected grants an automatic critical hit."</string>
+    <string name="skill_sneak_value">80</string>
+    <string name="skill_speech">Speech</string>
+    <string name="skill_speech_description">The Speech skill governs how much you can influence someone through dialogue, and gain access to information they might otherwise not want to share.</string>
+    <string name="skill_speech_value">100</string>
+    <string name="skill_unarmed">Unarmed</string>
+    <string name="skill_unarmed_description">The Unarmed skill is used for fighting without a weapon, or with weapons designed for hand-to-hand combat, like Brass Knuckles, Power Fists, and Displacer Gloves.</string>
+    <string name="skill_unarmed_value">50</string>
+
+    <string name="stats_perks">Perks</string>
+    <string name="stats_perks_perk1_name">Adamantium Skeleton</string>
+    <string name="stats_perks_perk1_description">With the Adamantium Skeleton perk, your limbs only receive 50% of the damage they normally would.</string>
+    <string name="stats_perks_perk2_name">Child at Heart</string>
+    <string name="stats_perks_perk2_description">This perk greatly improves your interactions with children, usually in the form of unique dialogue options.</string>
+    <string name="stats_perks_perk3_name">"Grim Reaper's Sprint"</string>
+    <string name="stats_perks_perk3_description">If you kill a target while in V.A.T.S., all of your Action Points are restored upon exiting V.A.T.S.</string>
+    <string name="stats_perks_perk4_name">Mysterious Stranger</string>
+    <string name="stats_perks_perk4_description">Gives you your own personal guardian angel... armed with a fully loaded .44 Magnum. With this perk, the Mysterious Stranger appears occasionally in V.A.T.S. mode to lend a hand, with deadly efficiency.</string>
+    <string name="stats_perks_perk5_name">Power Armor Training</string>
+    <string name="stats_perks_perk5_description">You have received the specialized training needed to move in any form of Power Armor.</string>
+    <string name="stats_perks_perk6_name">Robotics Expert</string>
+    <string name="stats_perks_perk6_description">With the Robotics Expert perk, you do an additional 25% damage to any robot. Also, sneaking up on a hostile robot undetected and deactivating it will put that robot into a permanent shutdown state.</string>
+    <string name="stats_perks_perk7_name">Wild Wasteland</string>
+    <string name="stats_perks_perk7_description">Wild Wasteland unleashes the most bizarre and silly elements of post-apocalyptic America. Not for the faint of heart or the serious of temperament.</string>
+
+    <string name="stats_general">General</string>
+    <string name="stats_general_faction_boomers">Boomers</string>
+    <string name="stats_general_faction_bos">Brotherhood of Steel</string>
+    <string name="stats_general_faction_caesars_legion">Caesars Legion</string>
+    <string name="stats_general_faction_followers_apocalypse">Followers of the Apocalypse</string>
+    <string name="stats_general_faction_freeside">Freeside</string>
+    <string name="stats_general_faction_goodsprings">Goodsprings</string>
+    <string name="stats_general_faction_great_khans">Great Khans</string>
+    <string name="stats_general_faction_ncr">NCR</string>
+    <string name="stats_general_faction_novac">Novac</string>
+    <string name="stats_general_faction_powder_gangers">Powder Gangers</string>
+    <string name="stats_general_faction_primm">Primm</string>
+    <string name="stats_general_faction_the_strip">The Strip</string>
+    <string name="stats_general_faction_white_glove_society">White Glove Society</string>
+
+    <string name="stats_general_faction_karma_idolized">Idolized</string>
+    <string name="stats_general_faction_karma_liked">Liked</string>
+    <string name="stats_general_faction_karma_accepted">Accepted</string>
+    <string name="stats_general_faction_karma_neutral">Neutral</string>
+    <string name="stats_general_faction_karma_shunned">Shunned</string>
+    <string name="stats_general_faction_karma_hated">Hated</string>
+    <string name="stats_general_faction_karma_vilified">Vilified</string>
+
+    <string name="items_weapons">Weapons</string>
+    <string name="items_weapons_10mm_pistol_name">10mm pistol</string>
+    <string name="items_weapons_10mm_pistol_STR">1</string>
+    <string name="items_weapons_10mm_pistol_DPS">54</string>
+    <string name="items_weapons_10mm_pistol_WG">3</string>
+    <string name="items_weapons_10mm_pistol_VAL">225</string>
+    <string name="items_weapons_10mm_pistol_CND">80</string>
+
+    <string name="items_weapons_10mm_ammo">10mm Rounds (12/1038)</string>
+    <string name="items_weapons_alienpowercell_ammo">Alien power cells (10/165)</string>
+    <string name="items_weapons_bb_ammo">BB (100/214)</string>
+    <string name="items_weapons_shotgun_ammo">Shotgun shells (12/86)</string>
+    <string name="items_weapons_mini_nuke_ammo">Mini nukes (1/9)</string>
+    <string name="items_weapons_energy_cell_ammo">Energy cells (30/275)</string>
+    <string name="items_weapons_5mm_ammo">5mm Rounds (240/1426)</string>
+    <string name="items_weapons_microfusion_cells_ammo">Microfusion cells (12/316)</string>
+    <string name="items_weapons_50MG_ammo">.50 MG (8/138)</string>
+    <string name="items_weapons_no_ammo">--</string>
+
+    <string name="items_apparel">Apparel</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_name">NCR Ranger combat armor</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_DT">20</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_WG">30</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_VAL">7500</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_CND">70</string>
+    <string name="items_apparel_ncr_ranger_combat_armor_TYPE">Medium</string>
+    <string name="items_apparel_ncr_ranger_helmet_name">Ranger helmet</string>
+    <string name="items_apparel_ncr_ranger_helmet_DT">4</string>
+    <string name="items_apparel_ncr_ranger_helmet_WG">3</string>
+    <string name="items_apparel_ncr_ranger_helmet_VAL">999</string>
+    <string name="items_apparel_ncr_ranger_helmet_CND">70</string>
+    <string name="items_apparel_ncr_ranger_helmet_TYPE">--</string>
+
+    <string name="items_aid">Aid</string>
+    <string name="items_aid_stimpak_name">Stimpak (10)</string>
+    <string name="items_aid_stimpak_WG">--</string>
+    <string name="items_aid_stimpak_VAL">825</string>
+    <string name="items_aid_stimpak_EFF">HP +8(6s)</string>
+
+    <string name="items_misc">Misc</string>
+    <string name="items_misc_item_1_name">Deathclaw hand</string>
+    <string name="items_misc_item_1_WG">1</string>
+    <string name="items_misc_item_1_VAL">25</string>
+
+    <string name="items_ammo">Ammo</string>
+    <string name="items_ammo_50MG_name">.50 MG (138)</string>
+    <string name="items_ammo_50MG_VAL">828</string>
+    <string name="items_ammo_50MG_WG">0</string>
+
+    <string name="data_worldmap">World Map</string>
+
+    <string name="data_localmap">Local Map</string>
+
+    <string name="data_quests">Quests</string>
+    <string name="data_quests_entry1_name">Baby Steps</string>
+    <string name="data_quests_entry1_description">"- Walk to Dad.
+- Open the playpen's gate.
+- Exit the playpen.
+- Look at the \"You're SPECIAL!\" book.
+- Follow Dad."</string>
+    <string name="data_quests_entry2_name">Growing Up Fast</string>
+    <string name="data_quests_entry2_description">"- Enjoy the party and speak with the guests.
+- Meet Jonas on the Reactor Level.
+- Shoot all three targets with the BB Gun.
+- Use the BB Gun to kill the radroach.
+- Stand next to Dad so Jonas can take the picture."</string>
+    <string name="data_quests_entry3_name">Future Imperfect</string>
+    <string name="data_quests_entry3_description">"- Get to class and talk to Mr. Brotch about the G.O.A.T.
+- Sit down and take the G.O.A.T.
+- Turn in the G.O.A.T. to Mr. Brotch.
+- Exit the classroom."</string>
+    <string name="data_quests_entry4_name">Escape!</string>
+    <string name="data_quests_entry4_description">"- Talk to Amata about her plan to escape the Vault.
+- Enter the Overseer's office.
+- Use the Overseer's computer to access the secret tunnel.
+- Enter the reactor control room.
+- Turn the power back on.
+- Open the Vault door.
+- Escape the Vault."</string>
+    <string name="data_quests_entry5_name">Wasteland Survival Guide</string>
+    <string name="data_quests_entry5_description">"- Ask Moira Brown about her book.
+- Help Moira with Chapter 1.
+- Find Food in the Super-Duper Mart.
+- Find medicine in the Super-Duper Mart. (Optional)
+- Return to Moira.
+- Contract radiation sickness (200 rads).
+- Contract more severe radiation sickness (600 rads). (Optional)
+- Return to Moira.
+- Travel to the playground in Minefield.
+- Bring a landmine to Moira. (Optional)
+- Return to Moira.
+- Help Moira with Chapter 2.
+- Test the repellent on three Mole Rats.
+- Test Stick on seven more Mole Rats. (Optional)"</string>
+    <string name="data_quests_entry6_name">Following in His Footsteps</string>
+    <string name="data_quests_entry6_description">"- Investigate the nearby town of Megaton for information about Dad.
+- Speak to Colin Moriarty about Dad.
+- (Optional) Deal with Silver in Springvale.
+- Continue your search for Dad."</string>
+
+
+
+    <string name="data_misc">Misc</string>
+    <string name="data_misc_entry1_name">How to play Caravan</string>
+    <string name="data_misc_entry1_description">"BUILDING A DECK
+Caravan decks are comprised of at least 30 cards from one or more traditional playing card sets. The deck may have any number of cards of any type that suits a player's strategy, although it cannot have duplicate cards from the same set. For example, a King of Spades from Set A and a King of Spades from the Set B deck is acceptable, but more than one King of Spades from Set A would be illegal.
+
+RULES
+Caravan is played with two players building three opposing piles (or "caravans") of numbered cards. The goal is to outbid your opponent's caravan with the highest value of numbered cards without being too light (under 21) or overburdened (over 26).
+
+The game begins with each player taking eight cards from their deck and placing either one numerical card or ace on each caravan. Players may not discard during this initial round.
+
+Once both players have started their three caravans, each player may do ONE of the following on their turn:
+1. Play one card and draw a new card from his or her deck to their hand.
+2. Discard one card from their hand and draw a new card from his or her deck.
+3. Disband one of their three caravans by removing all cards from that pile.
+
+Caravans have a direction, either ascending or descending numerically, and a suit. The suit is determined with the first card placed on a caravan, the direction by the second. All subsequent cards must continue the numerical direction or match the suit of the previous card. Cards of the same numerical value cannot be played in sequence, regardless of suit. Face cards can be attached to numeric cards in any caravan and affects them in various ways.
+
+CARD VALUES
+Joker: Played against ace, 2-10. Effects change based on whether it's an ace or a numbered card (see below). Multiple jokers may be played on the same card.
+
+Ace: Value of 1. Jokers played on aces remove all other non-face cards of the ace's suit from the table. E.g. a joker played on an Ace of Spades removes all spades (except face cards and that card, specifically) from the table.
+
+2-10: Listed value. Jokers played on these cards remove all other cards of this value from the table. E.g. a joker played on a 4 of Hearts removes all 4s (other than that card, specifically) from the table.
+
+Jack: Played against ace, 2-10. Removes that card, along with any face cards attached to it.
+
+Queen: Played against ace, 2-10. Reverses the current direction of the hand and changes the current suit of the hand. Multiple queens may be played on the same card.
+
+King: Played against ace, 2-10. Adds the value of that card again. E.g. a king played on a 9 adds 9 to that hand. Multiple kings may be played on the same card for multiplicative effects. E.g. 4+ king = 8. 4 + 2 kings = 16.
+
+WINNING
+A player's caravan is considered sold when the value of its cards is over 20 and under 27. The other player may still outbid by increasing the value of their opposing pile while staying within the 21-26 range. When each of the three competing caravans has sold, the game is over. In the event that one of the three caravan values are tied between players, the game continues until all three caravans have sold. The player with two or more sales wins the pot."</string>
+
+    <string name="data_misc_entry2_name">Vault-Tec Vault information</string>
+    <string name="data_misc_entry2_description">"You've downloaded the locations and access codes to Vaults 87, 92, 101, 106 and 108.</string>
+
+    <string name="data_radio">Radio</string>
+
+    <string name="settings">SETTINGS</string>
+    <string name="settings_1_name">Player Name</string>
+    <string name="settings_2_name">Player Level</string>
+    <string name="settings_3_name">C. Radio MP3 Folder</string>
+    <string name="settings_4_name">Screen Resize</string>
+    <string name="settings_5_name">World Map Scaling</string>
+    <string name="settings_6_name">Date Formats</string>
+    <string name="settings_6_value_1">MM/DD/YY</string>
+    <string name="settings_6_value_2">MM/DD/YYYY</string>
+    <string name="settings_6_value_3">DD/MM/YY</string>
+    <string name="settings_6_value_4">DD/MM/YYYY</string>
+    <string name="settings_6_value_5">YYYY/MM/DD</string>
+
+    <string name="settings_7_name">PLACEHOLDER</string>
+
+    <string name="settings_UI_Colour">UI Colour</string>
+    <string name="settings_UI_Colour_1">Green</string>
+    <string name="settings_UI_Colour_2">Amber</string>
+    <string name="settings_UI_Colour_3">White</string>
+    <string name="settings_UI_Colour_4">Blue</string>
+
+    <string name="next">"NEXT"</string>
+    <string name="previous">"PREV"</string>
+    <string name="tutorial_welcome">"----- Welcome to PipDroid! -----
+
+PipDroid is a fan-made, unofficial APP that allows users to live their dream of owning their own PipBoy 3000 MK III.
+
+- COSPLAY YOUR FALLOUT CHARACTER
+Configure your Player name and Level, along with your S.P.E.C.I.A.L. and Skills levels, to represent your play-style.
+
+- CUSTOMIZE THE INTERFACE TO YOUR LIKING
+PipDroid comes in all 4 original colours of PipBoy interface as the Fallout 3 and Fallout New Vegas games. Choose between Green, Amber, White and Blue
+
+- ITEMS
+Look through Weapons, Apparel, Aid, Misc and Ammo to see different items from the Games
+
+- LOCAL AND WORLD MAP
+Use the Local Map to check out the Earth Map through the PipDroid interface. With the World Map, check out locations from both Fallout 3 and Fallout New Vegas
+
+- WASTELAND RADIO
+Listen to wasteland radio stations like Galaxy News Radio, Enclave Radio and New Vegas Radio, or connect to your own Custom Radio, and listen to music from your phone
+
+Check out all PipDroid can do on YouTube - "PipDroid | Functional Pip-Boy Android APP" (by MrMalto4)
+"</string>
+
+    <string name="tutorial_whatsnew1">"----- Whats New with PipDroid v2.0.12 -----
+
+- IMPLEMENTED TUTORIAL SCREEN
+   Due to mass demand, PipDroid now includes a tutorial menu, introducing the APP, presenting new features, and explaining how to navigate and use the APP.
+
+- FACTION REPUTATION MODIFICATION
+   You can now modify your reputation level with all factions inside the APP.
+   Simply press and hold the name of the faction once selected, and watch the reputation level change between the different options.
+
+- MENU CHANGE VARIETY
+   You can now change between different menus in more ways.
+   Simply swiping the top title menu either left or right will switch between the different menus (STATS, ITEMS and DATA)
+"</string>
+
+    <string name="tutorial_whatsnew2">"
+- FULL SCREEN GOODNESS
+   The APP can now be run in true full screen, hiding both the notification bar and the navigation buttons, allowing for a more immersive experience.
+   This new feature can be found in the SETTINGS.
+
+- PERKS AND ITEMS CUSTOMIZATION
+   Perks and ITEMS (Weapons, Apparel, Aid, etc.) can now be customized, such that you can choose from all of the Perks and ITEMS available in the game, and add/show the ones you want, adding an even more personalized experience.
+   The Weapons and Apparel sub-menus also allow "equipping" where you can press and hold the name of an ITEM and "equip" it. The logic of "equipping" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
+    "</string>
+
+    <string name="tutorial_stats1">"---------- STATS ----------
+
+----- STATUS -----
+Here you can see your character's basic information
+ - Player Name
+ - Player Level
+ - Health
+ - Number of Stimpaks
+ - Etc.
+
+If you press and hold a health container for 1 second or longer, it will hurt your character.
+Get hurt enough and you'll see the typical damage expressions
+In order to recover health, simply press the Stimpak button and recover damage
+"</string>
+
+    <string name="tutorial_stats2">"
+It's also on this submenu where you can find the RAD and EFF menus, where you can see your current RAD levels and status effects.
+
+----- S.P.E.C.I.A.L. -----
+Here you can find all of the classic S.P.E.C.I.A.L. values from the games.
+
+These values can be edited.
+Simply select a S.P.E.C.I.A.L. item, press and hold the name of the item, and watch the value increase and decrease.
+The values you modify will be saved in the APP, so that your character will always have the values you configure.
+"</string>
+
+    <string name="tutorial_stats3">"
+----- SKILLS -----
+Here you can find the SKILLS from both Fallout 3 and Fallout New Vegas.
+
+These values can be edited.
+Just like the S.P.E.C.I.A.L. values, simply press and hold the name of a SKILL, and watch the value increase and decrease.
+The longer you press and hold the item, the faster the value will increase.
+
+----- PERKS -----
+Here you can find some of the PERKS from the games.
+
+PERKS are now configurable, such that each player can set their own PERKS from a vast list of PERKS from the games. To select the PERKS, simply press and hold the PERKS sub-menu button until the Filter menu pops-up.
+You can then search for specific PERK names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new PERKS will show up dynamically.
+
+----- GENERAL -----
+Here you can find the factions from the games.
+
+These values can be edited.
+Once you select a faction, you will see their icon, and your reputation with that faction.
+Press and hold a faction name for the reputation to change from the different options (Idolized, Liked, Accepted, Neutral, Shunned, Hated, Vilified)
+"</string>
+
+    <string name="tutorial_stats4">"
+It is here too where you can find the SETTINGS menu, to change between the different MENUs (STATS, ITEMS, DATA)"</string>
+
+    <string name="tutorial_items1">"---------- ITEMS ----------
+
+----- WEAPONS, APPAREL, AID, MISC, AMMO -----
+Here you can find some of the classic items from the games.
+
+Currently, these entries are static, and are just for show.
+
+ITEMS are now configurable, such that each player can set their own Weapons, Apparel, Aid, Misc and Ammo from a vast list of ITEMS from the games. To select the ITEMS, simply press and hold the corresponding sub-menu button (Weapons, Apparel, Aid, etc.) until the Filter menu pops-up.
+You can then search for specific Weapons, Apparel, etc. names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new ITEMS will show up dynamically.
+"</string>
+
+    <string name="tutorial_items2">"
+The Weapons and Apparel sub-menus also allow "equipping" where you can press and hold the name of an ITEM and "equip" it. The logic of "equipping" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
+"</string>
+
+    <string name="tutorial_data">"---------- DATA ----------
+
+----- LOCAL MAP -----
+On this menu, you can find a map of the earth.
+
+** Stay tuned for future updates, where there will be little easter eggs added to different key points on the map.
+
+----- WORLD MAP -----
+Here you can find the World Maps from both Fallout 3 and Fallout New Vegas.
+
+Featuring all key locations from both games, you can zoom in and see both key location icons and names.
+
+----- QUESTS -----
+Here you can find some of the key quests from the games.
+
+** Stay tuned for future updates, where even more quests will be added, and will be editable for you to choose which quest to work on / are pending or not.
+
+----- MISC -----
+Here you can find some of the Notes and Holotapes from around the Wasteland.
+
+** Stay tuned for future updates, where even more Notes and Holotapes will be added, and special Holotapes will be implemented.
+
+----- RADIO -----
+On this menu you can find music from some of the radio stations from the Wasteland.
+
+You can also choose to listen to your own local music from inside the APP.
+There is also an option to use PipDroid as a Bed-side clock, using the Clock menu."</string>
+
+    <string name="tutorial_settings1">"---------- SETTINGS ----------
+
+----- PLAYER NAME -----
+Set your players name (16 character limit)
+
+----- PLAYER LEVEL -----
+Set your players level (3 digit limit)
+
+----- C. RADIO MP3 FOLDER -----
+In order to use the Custom radio, you must choose a folder on your phone where your MP3 files are saved.
+On Android phones, this is typically 'Music' (Internally saved as '/storage/0/Music').
+If you had all your MP3 files in your Downloads folder for example, this value could be 'Download'
+
+----- SCREEN RESIZE -----
+For those of you who wish to use this APP with the PipBoy 3000 from The Fallout 4 Special Edition, you can use this option to set the size of the interface to fit inside of the screen
+Once you have selected this option, you can choose the resize button to enter editing mode and adjust both size (pinching action) and location (single finger moving).
+Simply press the resize button again to exit editing mode.
+"</string>
+
+    <string name="tutorial_settings2">"
+----- WORLD MAP SCALING -----
+Due to every phone having different screen sizes and resolutions sometimes the world map icons don't show up in the correct locations.
+To fix this, we've added a simple scaling value just simply modify this value until the locations appear in the correct spots.
+The following are some example values:
+
+ - Samsung Galaxy S23 Ultra (Resolution 2316x1080)
+ --- 0.9347
+
+ - Samsung Galaxy J3(6) (Resolution 1280x720)
+ --- 0.663
+
+ - Blackberry Passport (Resolution 1440x1440)
+ --- 1.0
+
+----- DATE FORMATS -----
+You can modify the Date format shown on the DATA menus from the different options available.
+
+ - MM/DD/YY
+ - MM/DD/YYYY
+ - DD/MM/YY
+ - DD/MM/YYYY
+ - YYYY/MM/DD
+
+----- UI COLOUR -----
+Here you can change the interface colour from different options available in the games.
+
+** Stay tuned for future updates, where a Custom/modifiable colour will be available
+
+----- ENABLE TRUE FULLSCREEN -----
+This option hides both the notification bar and the navegation buttons, allowing for a more immersive / fullscreen experience.
+
+----- SHOW TUTORIAL AT START -----
+This checkbox indicates whether this tutorial should be shown when the APP is loaded or not.
+
+----- BLUETOOTH SETUP -----
+Here you can configure external devices to connect with PipDroid using Bluetooth (ESP32 S3 mini board for example).
+
+For this, you must first configure:
+ - MAC Address of the Bluetooth device
+ - Service UUID
+ - Read UUID
+ - Write UUID
+
+** These values can be found connecting your bluetooth device with a Bluetooth terminal APP
+
+For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pip-Boy 3000 APK'
+"</string>
+
+</resources>

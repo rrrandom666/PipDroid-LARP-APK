@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_status_cnd"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_status_cnd_content"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_tab_status_cnd_stimpacks"
+            style="@style/TextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5.0dip"
+            android:text="@string/stimpack"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="1.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.1" />
+
+        <TextView
+            android:id="@+id/tv_tab_status_cnd_stimpacks_value"
+            style="@style/TextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="3.0dip"
+            android:text="(10)"
+            app:layout_constraintBaseline_toBaselineOf="@id/tv_tab_status_cnd_stimpacks"
+            app:layout_constraintEnd_toStartOf="@id/tv_tab_status_cnd_stimpacks" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_status_cnd_pipboy"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="1.1:1"
+            app:layout_constraintHeight_percent="0.8"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.4">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_status_cnd_pipboy_head"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="83:91"
+                app:layout_constraintHeight_percent="0.311"
+                app:layout_constraintHorizontal_bias="0.522"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.125">
+
+                <ImageView
+                    android:id="@+id/img_tab_status_cnd_pipboy_head"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    app:layout_constraintRight_toRightOf="parent"
+                    app:srcCompat="@drawable/man_head" />
+
+                <ImageView
+                    android:id="@+id/img_tab_status_cnd_pipboy_face"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:scaleType="fitXY"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintDimensionRatio="53:60"
+                    app:layout_constraintHorizontal_bias="0.35"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    app:layout_constraintRight_toRightOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="0.77"
+                    app:layout_constraintWidth_percent="0.55"
+                    app:srcCompat="@drawable/man_face" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_torso"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="97:91"
+                app:layout_constraintHeight_percent="0.311"
+                app:layout_constraintHorizontal_bias="0.51"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.555"
+                app:srcCompat="@drawable/torso" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_left_arm"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="99:52"
+                app:layout_constraintHeight_percent="0.177"
+                app:layout_constraintHorizontal_bias="0.080"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.455"
+                app:srcCompat="@drawable/man_arm_left" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_right_arm"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="99:52"
+                app:layout_constraintHeight_percent="0.181"
+                app:layout_constraintHorizontal_bias="0.92"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.4615"
+                app:srcCompat="@drawable/man_arm_right" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/layout_tab_status_cnd_pipboy_legs"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="W,175:100"
+                app:layout_constraintHeight_percent="0.305"
+                app:layout_constraintHorizontal_bias="0.45"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.975">
+
+                <ImageView
+                    android:id="@+id/img_tab_status_cnd_pipboy_left_leg"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="fill_parent"
+                    android:scaleType="fitXY"
+                    app:layout_constraintEnd_toStartOf="@id/img_tab_status_cnd_pipboy_right_leg"
+                    app:layout_constraintHorizontal_weight="1.325"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:srcCompat="@drawable/man_leg_left" />
+
+                <ImageView
+                    android:id="@+id/img_tab_status_cnd_pipboy_right_leg"
+                    style="@style/ColorTintStyle"
+                    android:layout_width="0.0dip"
+                    android:layout_height="fill_parent"
+                    android:scaleType="fitXY"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_weight="1.0"
+                    app:layout_constraintStart_toEndOf="@id/img_tab_status_cnd_pipboy_left_leg"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:srcCompat="@drawable/man_leg_right" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_torso_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="78:20"
+                app:layout_constraintHeight_percent="0.056"
+                app:layout_constraintHorizontal_bias="0.515"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.475"
+                app:srcCompat="@drawable/hp_center" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_torso_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="79:19"
+                app:layout_constraintHeight_percent="0.057"
+                app:layout_constraintHorizontal_bias="0.516"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.475"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_head_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="78:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.52"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.0"
+                app:srcCompat="@drawable/hp_center" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_head_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="78:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.52"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.0"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_left_arm_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.3"
+                app:srcCompat="@drawable/hp_left" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_left_arm_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.301"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_right_arm_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.3"
+                app:srcCompat="@drawable/hp_right" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_right_arm_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.3"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_right_leg_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.8"
+                app:srcCompat="@drawable/hp_right" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_right_leg_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.8"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/img_tab_status_cnd_pipboy_left_leg_hp"
+                style="@style/ColorTintStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.8"
+                app:srcCompat="@drawable/hp_left" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_pipboy_left_leg_hp_crippled"
+                style="@style/TextStyleCRIPPLED"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="CRIPPLED"
+                android:gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="100:20"
+                app:layout_constraintHeight_percent="0.06"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.8"
+                android:visibility="gone" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_tab_status_cnd_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintStart_toStartOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintTop_toBottomOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintVertical_bias="0.4">
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_name"
+                style="@style/TextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/player_name" />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_name_level"
+                style="@style/TextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" - Level " />
+
+            <TextView
+                android:id="@+id/tv_tab_status_cnd_name_level_value"
+                style="@style/TextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/title_stats_status_lvl" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <include
+        android:id="@+id/inc_layout_tab_stats_cnd_popup"
+        layout="@layout/layout_tab_stats_cnd_popup"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:visibility="gone"
+        app:layout_constraintHeight_percent="0.975"
+        app:layout_constraintWidth_percent="0.975"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

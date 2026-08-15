@@ -311,10 +311,8 @@
             app:layout_constraintBottom_toTopOf="@id/radioWave"/>
 
 
-        <com.gauravk.audiovisualizer.visualizer.WaveVisualizer
-            xmlns:custom="http://schemas.android.com/apk/res-auto"
+        <com.chibde.visualizer.LineVisualizer
             android:id="@+id/radioWave"
-            android:scaleType="fitXY"
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
             app:layout_constraintBottom_toBottomOf="@id/img_radio_box_spacer2"
@@ -324,12 +322,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/img_radio_box_spacer1"
             app:layout_constraintVertical_bias="0.45"
-            app:layout_constraintWidth_percent="0.8"
-            custom:avDensity="0.9"
-            custom:avType="outline"
-            custom:avColor="@color/themeGreen"
-            custom:avSpeed="fast"
-            custom:avWidth="2dp"/>
+            app:layout_constraintWidth_percent="0.8"/>
 
         <ImageView
             android:id="@+id/img_radio_box_spacer2"

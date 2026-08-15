@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "com.malto4.pipdroid"
-        minSdk 18
+        minSdk 19
         targetSdk 34
         versionCode 12
         versionName "2.0.12"
@@ -57,10 +57,10 @@ dependencies {
     implementation 'androidx.navigation:navigation-ui-ktx:2.4.2'
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.0'
-    implementation 'com.github.gauravk95:audio-visualizer-android:v0.9.1'
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
     implementation 'org.osmdroid:osmdroid-android:6.1.10'
     implementation 'com.github.bumptech.glide:glide:4.12.0'
+    implementation("io.github.gautamchibde:audiovisualizer:2.2.7")
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
     implementation 'com.google.code.gson:gson:2.8.8'
     testImplementation 'junit:junit:4.13.2'

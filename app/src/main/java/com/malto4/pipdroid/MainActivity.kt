@@ -54,7 +54,6 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.gauravk.audiovisualizer.visualizer.WaveVisualizer
 import com.github.chrisbanes.photoview.PhotoView
 import com.malto4.pipdroid.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
@@ -77,6 +76,7 @@ import kotlin.jvm.internal.Intrinsics
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
+import com.chibde.visualizer.LineVisualizer
 
 class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityListener {
 
@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * MEDIA PLAYERS
      **********************************************************************************************************/
-    private lateinit var waveVisualizer: WaveVisualizer
+    private lateinit var lineVisualizer: LineVisualizer
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
     private val REQUEST_CODE_PERMISSION_MEDIA = 123
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
@@ -1011,20 +1011,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         val audioSessionId: Int? = paramMediaPlayer?.audioSessionId
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
-            if (checkAudioPermission()){
-                if (audioSessionId != -1 && audioSessionId != null) {
-                    waveVisualizer.setAudioSessionId(audioSessionId)
-                    waveVisualizer.show()
-                }
-            } else {
-                requestAudioPermission()
+        if (checkAudioPermission()) {
+            if (audioSessionId != -1 && audioSessionId != null) {
+                lineVisualizer.setPlayer(audioSessionId)
+                lineVisualizer.visibility = View.VISIBLE
             }
         } else {
-            if (audioSessionId != -1 && audioSessionId != null) {
-                waveVisualizer.setAudioSessionId(audioSessionId)
-                waveVisualizer.show()
-            }
+            requestAudioPermission()
         }
 
         when(paramMediaPlayer){
@@ -1048,14 +1041,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun turnRadioOff(paramMediaPlayer: MediaPlayer?) {
         paramMediaPlayer?.setVolume(0.0f, 0.0f)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
-            if (checkAudioPermission()){
-                waveVisualizer.hide()
-            } else {
-                requestAudioPermission()
-            }
+        if (checkAudioPermission()) {
+            lineVisualizer.visibility = View.GONE
         } else {
-            waveVisualizer.hide()
+            requestAudioPermission()
         }
     }
     private fun turnAllRadioOff() {
@@ -1069,14 +1058,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             val radioMedia4: MediaPlayer? = customRadioMediaPlayer
             radioMedia4?.setVolume(0.0f, 0.0f)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
-            if (checkAudioPermission()){
-                waveVisualizer.hide()
-            } else {
-                requestAudioPermission()
-            }
+        if (checkAudioPermission()) {
+            lineVisualizer.visibility = View.GONE
         } else {
-            waveVisualizer.hide()
+            requestAudioPermission()
         }
     }
     private fun turnAllRadioOffNoVis() {
@@ -2190,7 +2175,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         @Suppress("ResourceAsColor")
         primaryTextViews.forEach { it.setTextColor(resources.getColor(primaryColor)) }
-        waveVisualizer.setColor(getResources().getColor(primaryColor))
+        lineVisualizer.setColor(getResources().getColor(primaryColor))
         @Suppress("ResourceAsColor")
         secondaryTextViews.forEach { it.setTextColor(resources.getColor(secondaryColor)) }
         bindingMain.incLayoutTabDataWorldMap.photoViewWorldmap.setColorFilter(getResources().getColor(secondaryColor))
@@ -3348,7 +3333,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         //Initialize RadioWave-View
-        waveVisualizer = findViewById(R.id.radioWave)
+        lineVisualizer = findViewById(R.id.radioWave)
 
         /* CHANGE Drawables / apply theme extras */
         when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){

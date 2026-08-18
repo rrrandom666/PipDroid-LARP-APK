@@ -11,6 +11,10 @@
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+        <!-- Окно всегда чёрное, не зависит от системной светлой/тёмной темы (DayNight) —
+             иначе на светлой системной теме белый фон окна просвечивает по краям, когда
+             рабочая область меньше экрана (roadmap, UX-спецификация мастера PipBoy). -->
+        <item name="android:windowBackground">@android:color/black</item>
         <!-- Customize your theme here. -->
     </style>
 

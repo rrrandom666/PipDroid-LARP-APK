@@ -16,9 +16,25 @@
     <string name="mode_description_phone">Экран работает в режиме fullscreen, управление осуществляется через тачскрин, без взаимодействия с внешним железом. Этот режим нужен для тех игроков, которые по тем или иным причинам не стали покупать внешнее железо.</string>
     <string name="mode_description_pipboy_2000">Телефон лежит внутри устройства, тачскрин закрыт защитным пластиком. Пользователь сам регулирует область экрана, на которой работает приложение (подстройка под размер экрана пип-боя), а управление осуществляется через внешнее железо.</string>
     <string name="mode_description_pipboy_3000">Этот режим мы сейчас реализовать не будем, но должны оставить заглушку на перспективу и учитывать его при написании архитектуры. Принцип тот же, что и с PipBoy 2000, но сама конфигурация внешнего железа — другая, соответствует более поздней модели пип-боя.</string>
+    <string name="mode_select_button">Выбрать</string>
+
+    <string name="wizard_hardware_title">HARDWARE INSTRUCTIONS</string>
+    <string name="wizard_hardware_text">Вставьте телефон в корпус PipBoy, затем закройте крышку.</string>
+    <string name="wizard_back">Назад</string>
+    <string name="wizard_next">Далее</string>
+
+    <string name="wizard_display_area_title">DISPLAY AREA</string>
     <string name="wizard_done">Готово</string>
+    <string name="wizard_reset">Сбросить</string>
+    <string name="wizard_cancel">Отмена</string>
     <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран корпуса PipBoy (перетаскивание и щипок для масштаба), затем нажмите «Готово».</string>
+
+    <string name="wizard_permissions_title">PERMISSIONS</string>
+    <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
+    <string name="wizard_grant_permissions">Выдать разрешения</string>
+
     <string name="wizard_hint_connect_hardware">Вставьте телефон в корпус PipBoy, подключите периферию и включите кнопку POWER на корпусе.</string>
+    <string name="wizard_hide_hint">Скрыть подсказку</string>
 
     <string name="RAD_RESIST">RAD RESIST</string>
     <string name="current_rad_value">0</string>

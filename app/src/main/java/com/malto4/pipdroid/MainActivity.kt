@@ -207,17 +207,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             val bluetoothScanGranted = permissions[Manifest.permission.BLUETOOTH_SCAN] ?: false
             val bluetoothConnectGranted = permissions[Manifest.permission.BLUETOOTH_CONNECT] ?: false
             if (granted || (bluetoothScanGranted && bluetoothConnectGranted)) {
-                setupBluetooth()
+                onRequiredPermissionsGranted()
             } else {
                 Log.e("MainActivity", "Required permissions are not granted")
             }
         }  else {
             val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
             if (granted) {
-                setupBluetooth()
+                onRequiredPermissionsGranted()
             } else {
                 Log.e("MainActivity", "Required permissions are not granted")
             }
+        }
+    }
+    private fun onRequiredPermissionsGranted() {
+        setupBluetooth()
+        // Если разрешения выдавались с шага PERMISSIONS мастера PipBoy 2000/3000 —
+        // сразу ведём дальше, к подсказке про POWER, не заставляя жать что-то ещё.
+        val wizard = bindingMain.incLayoutPipboy2000Wizard
+        if (wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE) {
+            showWizardStep(PipBoyWizardStep.POWER_HINT)
         }
     }
 
@@ -1183,22 +1192,29 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * каждом запуске (не только на первой установке), поверх буквально всего. PipBoy 3000
      * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
      */
+    private var modeSelectHighlighted = PipBoyMode.PHONE
+
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
-        ms.tvModeSelectDescription.text = getString(R.string.mode_description_phone)
 
-        ms.btnModeSelectPhone.setOnClickListener {
-            ms.tvModeSelectDescription.text = getString(R.string.mode_description_phone)
-            selectPipBoyMode(PipBoyMode.PHONE)
+        fun showDescription(mode: PipBoyMode) {
+            modeSelectHighlighted = mode
+            ms.tvModeSelectDescription.text = when (mode) {
+                PipBoyMode.PHONE -> getString(R.string.mode_description_phone)
+                PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
+                PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
+            }
+            // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание.
+            val selectable = mode != PipBoyMode.PIPBOY_3000
+            ms.btnModeSelectConfirm.isEnabled = selectable
+            ms.btnModeSelectConfirm.alpha = if (selectable) 1f else 0.4f
         }
-        ms.btnModeSelectPipboy2000.setOnClickListener {
-            ms.tvModeSelectDescription.text = getString(R.string.mode_description_pipboy_2000)
-            selectPipBoyMode(PipBoyMode.PIPBOY_2000)
-        }
-        ms.btnModeSelectPipboy3000.setOnClickListener {
-            // Только показать описание — PipBoy 3000 пока не реализован, не выбирается.
-            ms.tvModeSelectDescription.text = getString(R.string.mode_description_pipboy_3000)
-        }
+
+        showDescription(PipBoyMode.PHONE)
+        ms.btnModeSelectPhone.setOnClickListener { showDescription(PipBoyMode.PHONE) }
+        ms.btnModeSelectPipboy2000.setOnClickListener { showDescription(PipBoyMode.PIPBOY_2000) }
+        ms.btnModeSelectPipboy3000.setOnClickListener { showDescription(PipBoyMode.PIPBOY_3000) }
+        ms.btnModeSelectConfirm.setOnClickListener { selectPipBoyMode(modeSelectHighlighted) }
     }
     private fun selectPipBoyMode(mode: PipBoyMode) {
         pipBoyMode = mode
@@ -1226,36 +1242,89 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
                 // конфигурация внешнего железа появится отдельно (roadmap, видение).
                 applyPowerState(false) // безопасный дефолт OFF, пока не пришёл первый POWER
-                enterPipBoy2000SetupWizard()
+                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
+                showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
             }
         }
     }
+
     /**
-     * Мастер настройки PipBoy 2000/3000: сначала регулировка рабочей области поверх
-     * тёмного экрана (переиспользует уже существующий Resize/Move из Settings -> Screen
-     * Size — тот же isResizing/handleTouch), по кнопке "Готово" — подсказка про
-     * подключение железа и запуск подключения. Обе подсказки скрываются, как только
-     * реально придёт POWER от ESP32 (applyPowerState(true)).
+     * Мастер настройки PipBoy 2000/3000 (roadmap, UX-спецификация мастера) — 4 шага
+     * поверх тёмного экрана: Hardware Instructions -> Display Area -> Permissions ->
+     * подсказка про POWER. Реальный выход из POWER_HINT — только физическое нажатие
+     * POWER на корпусе (applyPowerState(true) прячет весь мастер целиком).
      */
-    private fun enterPipBoy2000SetupWizard() {
-        // Экран выбора режима показывается при каждом запуске — рабочая область должна
-        // каждый раз начинаться с чистого fullscreen, а не подхватывать масштаб из
-        // предыдущей сессии (иначе непонятно, что вообще регулировать заново).
-        resetToFullScreen()
-        isResizing = true
-        val wizard = bindingMain.incLayoutPipboy2000Wizard
-        wizard.root.visibility = View.VISIBLE
-        wizard.tvWizardHint.text = getString(R.string.wizard_hint_resize)
-        wizard.btnWizardDone.visibility = View.VISIBLE
-        wizard.btnWizardDone.setOnClickListener {
-            isResizing = false
-            wizard.btnWizardDone.visibility = View.GONE
-            wizard.tvWizardHint.text = getString(R.string.wizard_hint_connect_hardware)
+    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, POWER_HINT }
+
+    private fun showWizardStep(step: PipBoyWizardStep) {
+        val w = bindingMain.incLayoutPipboy2000Wizard
+        w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
+        w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
+        w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE
+        w.layoutWizardPowerHint.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.VISIBLE else View.GONE
+        w.tvWizardPowerHint.visibility = View.VISIBLE
+        w.btnWizardHideHint.visibility = View.VISIBLE
+
+        // Регулировка рабочей области жестом активна только пока реально показан этот шаг.
+        isResizing = (step == PipBoyWizardStep.DISPLAY_AREA)
+        if (step == PipBoyWizardStep.DISPLAY_AREA) {
+            // Экран выбора режима показывается при каждом запуске — рабочая область
+            // должна каждый раз начинаться с чистого fullscreen, а не подхватывать
+            // масштаб из предыдущей сессии.
+            resetToFullScreen()
+        }
+
+        if (step == PipBoyWizardStep.PERMISSIONS && hasAllRequiredPermissions()) {
+            // Уже выданы раньше — не задерживаем игрока на этом экране.
+            setupBluetooth()
+            showWizardStep(PipBoyWizardStep.POWER_HINT)
+        }
+    }
+    private fun hasAllRequiredPermissions(): Boolean {
+        val required = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                checkPermissions()
-            } else {
-                setupBluetooth()
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        return required.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    }
+    private fun setupPipBoy2000Wizard() {
+        val w = bindingMain.incLayoutPipboy2000Wizard
+
+        // Шаг 2: Hardware Instructions
+        w.btnWizardHardwareBack.setOnClickListener {
+            w.root.visibility = View.GONE
+            bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
+        }
+        w.btnWizardHardwareNext.setOnClickListener {
+            showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
+        }
+
+        // Шаг 3: Display Area
+        w.btnWizardDone.setOnClickListener {
+            showWizardStep(PipBoyWizardStep.PERMISSIONS)
+        }
+        w.btnWizardReset.setOnClickListener {
+            resetToFullScreen()
+        }
+        w.btnWizardCancel.setOnClickListener {
+            showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
+        }
+
+        // Шаг 4: Permissions
+        w.btnWizardGrantPermissions.setOnClickListener {
+            checkPermissions()
+        }
+
+        // Шаг 5: подсказка про POWER
+        w.btnWizardHideHint.setOnClickListener {
+            w.tvWizardPowerHint.visibility = View.GONE
+            w.btnWizardHideHint.visibility = View.GONE
         }
     }
 
@@ -3551,6 +3620,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
         setupModeSelectScreen()
+        setupPipBoy2000Wizard()
 
         //Disable all radioStations
         turnAllRadioOffNoVis()

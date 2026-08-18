@@ -19,26 +19,38 @@
 
         <Button
             android:id="@+id/btn_mode_select_phone"
+            style="@style/CNDEFFRADButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:text="@string/mode_phone"
-            android:textAllCaps="false" />
+            android:textColor="@color/themeGreen"
+            android:text="@string/mode_phone" />
 
         <Button
             android:id="@+id/btn_mode_select_pipboy2000"
+            style="@style/CNDEFFRADButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:text="@string/mode_pipboy_2000"
-            android:textAllCaps="false" />
+            android:textColor="@color/themeGreen"
+            android:text="@string/mode_pipboy_2000" />
 
         <Button
             android:id="@+id/btn_mode_select_pipboy3000"
+            style="@style/CNDEFFRADButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/mode_pipboy_3000"
-            android:textAllCaps="false" />
+            android:layout_marginBottom="16dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/mode_pipboy_3000" />
+
+        <Button
+            android:id="@+id/btn_mode_select_confirm"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/themeGreen"
+            android:text="@string/mode_select_button" />
 
     </LinearLayout>
 
@@ -47,7 +59,9 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:padding="24dp"
-        android:textColor="@android:color/white"
+        android:gravity="center_vertical"
+        android:fontFamily="@font/monofonto"
+        android:textColor="@color/themeGreen"
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

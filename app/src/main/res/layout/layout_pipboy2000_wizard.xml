@@ -3,29 +3,271 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_pipboy2000_wizard"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_height="fill_parent"
+    android:background="@android:color/black">
 
-    <TextView
-        android:id="@+id/tv_wizard_hint"
+    <!-- Шаг 2: HARDWARE INSTRUCTIONS -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_hardware"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:padding="24dp"
-        android:gravity="center"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
-        android:id="@+id/btn_wizard_done"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:text="@string/wizard_done"
-        android:textAllCaps="false"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tv_wizard_hardware_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="22sp"
+            android:text="@string/wizard_hardware_title"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <ImageView
+            android:id="@+id/img_wizard_vaultboy"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:src="@drawable/pipboy_3nv"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_hardware_title"
+            app:layout_constraintBottom_toTopOf="@id/tv_wizard_hardware_text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_hardware_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:gravity="center"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="16sp"
+            android:text="@string/wizard_hardware_text"
+            app:layout_constraintBottom_toTopOf="@id/btn_wizard_hardware_back"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_hardware_back"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="48dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_wizard_hardware_next" />
+
+        <Button
+            android:id="@+id/btn_wizard_hardware_next"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="48dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_next"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/btn_wizard_hardware_back"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Шаг 3: DISPLAY AREA -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_display_area"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tv_wizard_display_area_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="22sp"
+            android:text="@string/wizard_display_area_title"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Декоративные уголки-индикаторы регулируемой области (roadmap, UX-спецификация мастера) -->
+        <TextView android:id="@+id/tv_wizard_corner_tl" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="24dp" android:text="↖" android:textColor="@color/themeGreen" android:textSize="28sp"
+            app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" />
+        <TextView android:id="@+id/tv_wizard_corner_tr" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="24dp" android:text="↗" android:textColor="@color/themeGreen" android:textSize="28sp"
+            app:layout_constraintTop_toTopOf="parent" app:layout_constraintEnd_toEndOf="parent" />
+        <TextView android:id="@+id/tv_wizard_corner_bl" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="24dp" android:text="↙" android:textColor="@color/themeGreen" android:textSize="28sp"
+            app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" />
+        <TextView android:id="@+id/tv_wizard_corner_br" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="24dp" android:text="↘" android:textColor="@color/themeGreen" android:textSize="28sp"
+            app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:gravity="center"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="16sp"
+            android:text="@string/wizard_hint_resize"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.4"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_done"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_done"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_hint"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_reset"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_reset"
+            app:layout_constraintTop_toBottomOf="@id/btn_wizard_done"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_cancel"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_cancel"
+            app:layout_constraintTop_toBottomOf="@id/btn_wizard_reset"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Шаг 4: PERMISSIONS -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_permissions"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tv_wizard_permissions_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="22sp"
+            android:text="@string/wizard_permissions_title"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_permissions_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:gravity="center_vertical"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="16sp"
+            android:text="@string/wizard_permissions_text"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btn_wizard_grant_permissions"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_grant_permissions"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="48dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_grant_permissions"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Шаг 5: подсказка про POWER -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_power_hint"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tv_wizard_power_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:gravity="center"
+            android:fontFamily="@font/monofonto"
+            android:textColor="@color/themeGreen"
+            android:textSize="16sp"
+            android:text="@string/wizard_hint_connect_hardware"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.4"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_hide_hint"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:textColor="@color/themeGreen"
+            android:text="@string/wizard_hide_hint"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_power_hint"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

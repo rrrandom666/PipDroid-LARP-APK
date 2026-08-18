@@ -1155,7 +1155,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 @Suppress("DEPRECATION")
                 bleMenuChange = characteristic.value.toString(Charsets.UTF_8)
                 Log.i("BluetoothGattCallback", "Characteristic changed: $bleMenuChange")
-                menuChangeBLE(bleMenuChange)
+                handleBleCommand(bleMenuChange)
             }
         }
 
@@ -2015,6 +2015,34 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
+    /**
+     * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
+     * раздел 2: `КЛЮЧ:ЗНАЧЕНИЕ` для параметризованных команд, голое ключевое слово для
+     * остальных) и раздаёт по обработчикам. STATS/ITEMS/DATA уходят в уже существующий
+     * menuChangeBLE() без изменений — остальные команды пока только логируются, реальная
+     * обработка (POWER, навигация энкодером, радио) — следующие этапы roadmap.
+     */
+    private fun handleBleCommand(raw: String) {
+        val parts = raw.split(":", limit = 2)
+        val key = parts[0]
+        val value = parts.getOrNull(1)
+
+        when (key) {
+            "STATS", "ITEMS", "DATA" -> menuChangeBLE(key)
+            "POWER" -> Log.i("BLE", "POWER:$value — état-машина экрана, roadmap этап 2")
+            "ENCBTN" -> Log.i("BLE", "ENCBTN — навигация энкодером, roadmap этап 3")
+            "ENC" -> Log.i("BLE", "ENC:$value — навигация энкодером, roadmap этап 3")
+            "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
+            "RADIOPWR" -> Log.i("BLE", "RADIOPWR:$value — реальное радио, roadmap этап 7")
+            "RADIOFREQ" -> Log.i("BLE", "RADIOFREQ:$value — реальное радио, roadmap этап 7")
+            "RADIOTUNE" -> Log.i("BLE", "RADIOTUNE:$value — реальное радио, roadmap этап 7")
+            "VOLUME" -> Log.i("BLE", "VOLUME:$value — реальное радио, roadmap этап 7")
+            "RADIOTUNEBTN" -> Log.i("BLE", "RADIOTUNEBTN — реальное радио, roadmap этап 7")
+            "HOLOTAPE" -> Log.i("BLE", "HOLOTAPE:$value — голодиски, блокируется готовностью USB Host")
+            else -> Log.w("BLE", "Неизвестная BLE-команда: $raw")
+        }
+    }
+
     fun menuChangeBLE(menu: String){
         val btnstatsSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsSTATS
         val btnitemsSTATS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsSTATS

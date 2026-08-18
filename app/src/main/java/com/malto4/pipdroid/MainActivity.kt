@@ -180,6 +180,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * BLUETOOTH
      **********************************************************************************************************/
+    private val menuNavigator = MenuNavigator()
     private var bleService: PipBoyBleService? = null
     private var bleServiceBound = false
     private val bleServiceConnection = object : ServiceConnection {
@@ -1986,6 +1987,119 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     /**
+     * Деревья меню для энкодера (roadmap, "Модель навигации энкодером"). [onSelect] у
+     * каждого узла — `performClick()` на уже существующей touch-кнопке этого экрана, а не
+     * дублирование логики показа/скрытия — гарантирует, что энкодер ведёт себя ровно так
+     * же, как палец по экрану в режиме телефона.
+     *
+     * STATS — секция с реальной вложенностью: Status -> CND/RAD/EFF, SPECIAL -> 7
+     * характеристик, Skills -> 13 навыков, General -> 13 фракций — везде выбор пункта
+     * внутри листа сейчас работает только по тапу (обновляет описание/картинку, не
+     * показывает отдельный экран), у нас это тоже дети узла с тем же performClick().
+     *
+     * PERKS — исключение: там RecyclerView с динамическим адаптером (PerkAdapter.kt), не
+     * фиксированный набор кнопок, тот же приём "провалиться -> кликнуть по кнопке" не
+     * подходит напрямую. Пока лист, без вложенности — отдельная задача.
+     *
+     * У ITEMS/DATA сейчас только плоский список вкладок — их структура целиком поменяется
+     * на этапе 6 (перестройка IA, см. видение приложения в roadmap), глубже разбирать их
+     * сейчас смысла нет.
+     */
+    private fun statsMenuRoot(): List<MenuNode> {
+        val statusButtons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        val statusNode = MenuNode(
+            id = "STATUS",
+            children = listOf(
+                MenuNode("CND") { statusButtons.btnCnd.performClick() },
+                MenuNode("RAD") { statusButtons.btnRad.performClick() },
+                MenuNode("EFF") { statusButtons.btnEff.performClick() },
+            ),
+            onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsStatus.performClick() }
+        )
+        val special = bindingMain.incLayoutTabStatsSpecial
+        val specialNode = MenuNode(
+            id = "SPECIAL",
+            children = listOf(
+                MenuNode("STRENGTH") { special.layoutTabStatsSpecialStrength.performClick() },
+                MenuNode("PERCEPTION") { special.layoutTabSpecialPerception.performClick() },
+                MenuNode("ENDURANCE") { special.layoutTabSpecialEndurance.performClick() },
+                MenuNode("CHARISMA") { special.layoutTabSpecialCharisma.performClick() },
+                MenuNode("INTELLIGENCE") { special.layoutTabSpecialIntelligence.performClick() },
+                MenuNode("AGILITY") { special.layoutTabSpecialAgility.performClick() },
+                MenuNode("LUCK") { special.layoutTabSpecialLuck.performClick() },
+            ),
+            onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.performClick() }
+        )
+        val skills = bindingMain.incLayoutTabStatsSkills
+        val skillsNode = MenuNode(
+            id = "SKILLS",
+            children = listOf(
+                MenuNode("BARTER") { skills.layoutTabSkillsBarter.performClick() },
+                MenuNode("BIG_GUNS") { skills.layoutTabSkillsBigGuns.performClick() },
+                MenuNode("ENERGY_WEAPONS") { skills.layoutTabSkillsEnergyWeapons.performClick() },
+                MenuNode("EXPLOSIVES") { skills.layoutTabSkillsExplosives.performClick() },
+                MenuNode("LOCKPICK") { skills.layoutTabSkillsLockpick.performClick() },
+                MenuNode("MEDICINE") { skills.layoutTabSkillsMedicine.performClick() },
+                MenuNode("MELEE_WEAPONS") { skills.layoutTabSkillsMeleeWeapons.performClick() },
+                MenuNode("REPAIR") { skills.layoutTabSkillsRepair.performClick() },
+                MenuNode("SCIENCE") { skills.layoutTabSkillsScience.performClick() },
+                MenuNode("SMALL_GUNS") { skills.layoutTabSkillsSmallGuns.performClick() },
+                MenuNode("SNEAK") { skills.layoutTabSkillsSneak.performClick() },
+                MenuNode("SPEECH") { skills.layoutTabSkillsSpeech.performClick() },
+                MenuNode("UNARMED") { skills.layoutTabSkillsUnarmed.performClick() },
+            ),
+            onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSkills.performClick() }
+        )
+        val general = bindingMain.incLayoutTabStatsGeneral
+        val generalNode = MenuNode(
+            id = "GENERAL",
+            children = listOf(
+                MenuNode("BOOMERS") { general.layoutTabGeneralBoomers.performClick() },
+                MenuNode("BOS") { general.layoutTabGeneralBos.performClick() },
+                MenuNode("CAESARS_LEGION") { general.layoutTabGeneralCaesarsLegion.performClick() },
+                MenuNode("FOLLOWERS_APOCALYPSE") { general.layoutTabGeneralFollowersApocalypse.performClick() },
+                MenuNode("FREESIDE") { general.layoutTabGeneralFreeside.performClick() },
+                MenuNode("GOODSPRINGS") { general.layoutTabGeneralGoodsprings.performClick() },
+                MenuNode("GREAT_KHANS") { general.layoutTabGeneralGreatKhans.performClick() },
+                MenuNode("NCR") { general.layoutTabGeneralNcr.performClick() },
+                MenuNode("NOVAC") { general.layoutTabGeneralNovac.performClick() },
+                MenuNode("POWDER_GANGERS") { general.layoutTabGeneralPowderGangers.performClick() },
+                MenuNode("PRIMM") { general.layoutTabGeneralPrimm.performClick() },
+                MenuNode("THE_STRIP") { general.layoutTabGeneralTheStrip.performClick() },
+                MenuNode("WHITE_GLOVE_SOCIETY") { general.layoutTabGeneralWhiteGloveSociety.performClick() },
+            ),
+            onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsGeneral.performClick() }
+        )
+        val bottom = bindingMain.incLayoutTabStatsBottom
+        return listOf(
+            statusNode,
+            specialNode,
+            skillsNode,
+            MenuNode("PERKS") { bottom.btnStatsPerks.performClick() },
+            generalNode,
+        )
+    }
+    private fun itemsMenuRoot(): List<MenuNode> {
+        val bottom = bindingMain.incLayoutTabItemsBottom
+        return listOf(
+            MenuNode("WEAPONS") { bottom.btnItemsWeapons.performClick() },
+            MenuNode("APPAREL") { bottom.btnItemsApparel.performClick() },
+            MenuNode("AID") { bottom.btnItemsAid.performClick() },
+            MenuNode("MISC") { bottom.btnItemsMisc.performClick() },
+            MenuNode("AMMO") { bottom.btnItemsAmmo.performClick() },
+        )
+    }
+    private fun dataMenuRoot(): List<MenuNode> {
+        val bottom = bindingMain.incLayoutTabDataBottom
+        return listOf(
+            MenuNode("WORLDMAP") { bottom.btnDataWorldmap.performClick() },
+            MenuNode("LOCALMAP") { bottom.btnDataLocalmap.performClick() },
+            MenuNode("QUESTS") { bottom.btnDataQuests.performClick() },
+            MenuNode("MISC") { bottom.btnDataMisc.performClick() },
+            MenuNode("RADIO") { bottom.btnDataRadio.performClick() },
+        )
+    }
+    /**
      * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
      * раздел 2: `КЛЮЧ:ЗНАЧЕНИЕ` для параметризованных команд, голое ключевое слово для
      * остальных) и раздаёт по обработчикам. STATS/ITEMS/DATA уходят в уже существующий
@@ -1998,10 +2112,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val value = parts.getOrNull(1)
 
         when (key) {
-            "STATS", "ITEMS", "DATA" -> menuChangeBLE(key)
+            "STATS" -> { menuChangeBLE(key); menuNavigator.resetToRoot(statsMenuRoot()) }
+            "ITEMS" -> { menuChangeBLE(key); menuNavigator.resetToRoot(itemsMenuRoot()) }
+            "DATA" -> { menuChangeBLE(key); menuNavigator.resetToRoot(dataMenuRoot()) }
             "POWER" -> applyPowerState(value == "1")
-            "ENCBTN" -> Log.i("BLE", "ENCBTN — навигация энкодером, roadmap этап 3")
-            "ENC" -> Log.i("BLE", "ENC:$value — навигация энкодером, roadmap этап 3")
+            "ENCBTN" -> menuNavigator.activateSelected()
+            "ENC" -> menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
             "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
             "RADIOPWR" -> Log.i("BLE", "RADIOPWR:$value — реальное радио, roadmap этап 7")
             "RADIOFREQ" -> Log.i("BLE", "RADIOFREQ:$value — реальное радио, roadmap этап 7")

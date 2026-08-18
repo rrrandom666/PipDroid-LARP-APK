@@ -104,6 +104,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     val bluetoothSUUID_SPKey = "bluetoothSUUID"
     val bluetoothRUUID_SPKey = "bluetoothRUUID"
     val bluetoothWUUID_SPKey = "bluetoothWUUID"
+    val pipBoyMode_SPKey = "pipBoyMode"
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
     private var selected_button = R.drawable.button_selected_green
@@ -181,6 +182,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * BLUETOOTH
      **********************************************************************************************************/
     private val menuNavigator = MenuNavigator()
+    private var pipBoyMode: PipBoyMode = PipBoyMode.PHONE
     private var bleService: PipBoyBleService? = null
     private var bleServiceBound = false
     private val bleServiceConnection = object : ServiceConnection {
@@ -1167,6 +1169,95 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         updateBLEConnected("DISCONNECTED")
         bleService?.disconnect()
     }
+    private fun stopBleService() {
+        disconnectBLE()
+        if (bleServiceBound) {
+            unbindService(bleServiceConnection)
+            bleServiceBound = false
+        }
+        stopService(Intent(this, PipBoyBleService::class.java))
+    }
+
+    /**
+     * Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым при
+     * каждом запуске (не только на первой установке), поверх буквально всего. PipBoy 3000
+     * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
+     */
+    private fun setupModeSelectScreen() {
+        val ms = bindingMain.incLayoutTabModeSelect
+        ms.tvModeSelectDescription.text = getString(R.string.mode_description_phone)
+
+        ms.btnModeSelectPhone.setOnClickListener {
+            ms.tvModeSelectDescription.text = getString(R.string.mode_description_phone)
+            selectPipBoyMode(PipBoyMode.PHONE)
+        }
+        ms.btnModeSelectPipboy2000.setOnClickListener {
+            ms.tvModeSelectDescription.text = getString(R.string.mode_description_pipboy_2000)
+            selectPipBoyMode(PipBoyMode.PIPBOY_2000)
+        }
+        ms.btnModeSelectPipboy3000.setOnClickListener {
+            // Только показать описание — PipBoy 3000 пока не реализован, не выбирается.
+            ms.tvModeSelectDescription.text = getString(R.string.mode_description_pipboy_3000)
+        }
+    }
+    private fun selectPipBoyMode(mode: PipBoyMode) {
+        pipBoyMode = mode
+        sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
+        bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
+
+        // На свежей установке ShowTutorial=true, и есть давно существующий код, который
+        // на старте прячет constraintlayoutMain и показывает вместо него Tutorial. Экран
+        // выбора режима теперь главный "первый экран" приложения — Tutorial ему больше не
+        // предшествует, а весь основной контент (STATS/ITEMS/DATA) должен быть готов под
+        // капотом сразу после выбора режима, а не оставаться скрытым.
+        bindingMain.constraintlayoutTutorial.visibility = View.GONE
+        bindingMain.constraintlayoutMain.visibility = View.VISIBLE
+
+        when (mode) {
+            PipBoyMode.PHONE -> {
+                resetToFullScreen()
+                bindingMain.viewPowerOff.animate().cancel()
+                bindingMain.viewPowerOff.visibility = View.GONE
+                stopBleService()
+                menuChangeBLE("STATS")
+                menuNavigator.resetToRoot(statsMenuRoot())
+            }
+            PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
+                // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
+                // конфигурация внешнего железа появится отдельно (roadmap, видение).
+                applyPowerState(false) // безопасный дефолт OFF, пока не пришёл первый POWER
+                enterPipBoy2000SetupWizard()
+            }
+        }
+    }
+    /**
+     * Мастер настройки PipBoy 2000/3000: сначала регулировка рабочей области поверх
+     * тёмного экрана (переиспользует уже существующий Resize/Move из Settings -> Screen
+     * Size — тот же isResizing/handleTouch), по кнопке "Готово" — подсказка про
+     * подключение железа и запуск подключения. Обе подсказки скрываются, как только
+     * реально придёт POWER от ESP32 (applyPowerState(true)).
+     */
+    private fun enterPipBoy2000SetupWizard() {
+        // Экран выбора режима показывается при каждом запуске — рабочая область должна
+        // каждый раз начинаться с чистого fullscreen, а не подхватывать масштаб из
+        // предыдущей сессии (иначе непонятно, что вообще регулировать заново).
+        resetToFullScreen()
+        isResizing = true
+        val wizard = bindingMain.incLayoutPipboy2000Wizard
+        wizard.root.visibility = View.VISIBLE
+        wizard.tvWizardHint.text = getString(R.string.wizard_hint_resize)
+        wizard.btnWizardDone.visibility = View.VISIBLE
+        wizard.btnWizardDone.setOnClickListener {
+            isResizing = false
+            wizard.btnWizardDone.visibility = View.GONE
+            wizard.tvWizardHint.text = getString(R.string.wizard_hint_connect_hardware)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                checkPermissions()
+            } else {
+                setupBluetooth()
+            }
+        }
+    }
 
 
     /***********************************************************************************************************
@@ -1223,8 +1314,24 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 val statusBarHeight = getStatusBarHeight()
                 val navigationBarHeight = getNavigationBarHeight()
 
-                layoutParams.width = min(newWidth, displayMetrics.widthPixels)
-                layoutParams.height = min(newHeight, displayMetrics.heightPixels)
+                val clampedWidth = min(newWidth, displayMetrics.widthPixels)
+                val clampedHeight = min(newHeight, displayMetrics.heightPixels)
+
+                // Держать центр области на месте при масштабировании, а не левый верхний
+                // угол — иначе после щипка область "уезжает" в угол экрана вместо того,
+                // чтобы сжиматься/расти от текущего положения (потом ещё и драг не мог
+                // вернуть её в удобное место, если размер уже упирался в границы экрана).
+                val widthDelta = clampedWidth - bindingMain.root.width
+                val heightDelta = clampedHeight - bindingMain.root.height
+                var newLeftMargin = layoutParams.leftMargin - widthDelta / 2
+                var newTopMargin = layoutParams.topMargin - heightDelta / 2
+                newLeftMargin = max(0, min(newLeftMargin, displayMetrics.widthPixels - clampedWidth))
+                newTopMargin = max(0, min(newTopMargin, displayMetrics.heightPixels - clampedHeight))
+
+                layoutParams.width = clampedWidth
+                layoutParams.height = clampedHeight
+                layoutParams.leftMargin = newLeftMargin
+                layoutParams.topMargin = newTopMargin
 
                 bindingMain.root.layoutParams = layoutParams
                 saveViewState(layoutParams)
@@ -1980,6 +2087,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             overlay.animate().alpha(0f).setDuration(400).withEndAction {
                 overlay.visibility = View.GONE
             }.start()
+            // Мастер настройки PipBoy 2000/3000 больше не нужен — POWER реально пришёл.
+            bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
         } else {
             overlay.animate().cancel()
             overlay.alpha = 1f
@@ -3439,6 +3548,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         //Load saved size and position
         loadViewState()
+
+        // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
+        setupModeSelectScreen()
 
         //Disable all radioStations
         turnAllRadioOffNoVis()

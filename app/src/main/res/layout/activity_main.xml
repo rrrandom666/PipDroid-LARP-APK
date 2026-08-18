@@ -254,8 +254,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <!-- POWER état-машина (протокол, раздел 3.1): по умолчанию видим — стартовое
-         состояние приложения OFF, пока не пришёл первый POWER от ESP32. Последний
-         ребёнок root ConstraintLayout — перекрывает буквально всё, включая fl_flashlight. -->
+         состояние приложения OFF, пока не пришёл первый POWER от ESP32. -->
     <View
         android:id="@+id/view_power_off"
         android:layout_width="fill_parent"
@@ -266,5 +265,21 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Мастер настройки PipBoy 2000/3000 (roadmap, "Видение приложения"): регулировка
+         рабочей области поверх тёмного экрана, потом подсказка про подключение железа.
+         Видим только в режиме PipBoy, поверх view_power_off. -->
+    <include
+        android:id="@+id/inc_layout_pipboy2000_wizard"
+        layout="@layout/layout_pipboy2000_wizard"
+        android:visibility="gone" />
+
+    <!-- Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым
+         при каждом запуске, до STATS/ITEMS/DATA. Последний ребёнок root ConstraintLayout —
+         перекрывает буквально всё остальное, пока режим не выбран. -->
+    <include
+        android:id="@+id/inc_layout_tab_mode_select"
+        layout="@layout/layout_tab_mode_select"
+        android:visibility="visible" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

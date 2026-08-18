@@ -7,6 +7,19 @@
     <string name="info_dialog_close_link"><a href="https://www.reddit.com/user/malto4">Reddit</a></string>
     <string name="search_menu_title">Search</string>
 
+    <!-- Экран выбора режима и мастер PipBoy 2000 (roadmap, "Видение приложения") —
+         рабочий текст, взят из roadmap как есть. Финальные RU/EN тексты — отдельная
+         задача локализации (roadmap, этап 7). -->
+    <string name="mode_phone">Телефон</string>
+    <string name="mode_pipboy_2000">PipBoy 2000</string>
+    <string name="mode_pipboy_3000">PipBoy 3000</string>
+    <string name="mode_description_phone">Экран работает в режиме fullscreen, управление осуществляется через тачскрин, без взаимодействия с внешним железом. Этот режим нужен для тех игроков, которые по тем или иным причинам не стали покупать внешнее железо.</string>
+    <string name="mode_description_pipboy_2000">Телефон лежит внутри устройства, тачскрин закрыт защитным пластиком. Пользователь сам регулирует область экрана, на которой работает приложение (подстройка под размер экрана пип-боя), а управление осуществляется через внешнее железо.</string>
+    <string name="mode_description_pipboy_3000">Этот режим мы сейчас реализовать не будем, но должны оставить заглушку на перспективу и учитывать его при написании архитектуры. Принцип тот же, что и с PipBoy 2000, но сама конфигурация внешнего железа — другая, соответствует более поздней модели пип-боя.</string>
+    <string name="wizard_done">Готово</string>
+    <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран корпуса PipBoy (перетаскивание и щипок для масштаба), затем нажмите «Готово».</string>
+    <string name="wizard_hint_connect_hardware">Вставьте телефон в корпус PipBoy, подключите периферию и включите кнопку POWER на корпусе.</string>
+
     <string name="RAD_RESIST">RAD RESIST</string>
     <string name="current_rad_value">0</string>
     <string name="player_name">Player</string>

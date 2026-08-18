@@ -253,4 +253,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- POWER état-машина (протокол, раздел 3.1): по умолчанию видим — стартовое
+         состояние приложения OFF, пока не пришёл первый POWER от ESP32. Последний
+         ребёнок root ConstraintLayout — перекрывает буквально всё, включая fl_flashlight. -->
+    <View
+        android:id="@+id/view_power_off"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@android:color/black"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

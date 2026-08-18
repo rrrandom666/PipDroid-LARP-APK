@@ -2,18 +2,17 @@ package com.malto4.pipdroid
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import android.graphics.ColorFilter
 import android.graphics.Matrix
 import android.graphics.PorterDuff
@@ -29,6 +28,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.util.DisplayMetrics
 import android.util.Log
@@ -180,13 +180,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * BLUETOOTH
      **********************************************************************************************************/
-    private lateinit var bluetoothAdapter: BluetoothAdapter
-    private var bluetoothGatt: BluetoothGatt? = null
-    private lateinit var bleMenuChange: String
-    private var deviceAddress : String? = null
-    private var serviceUUID : UUID? = null
-    private var characteristicReadUUID : UUID? = null
-    private var characteristicWriteUUID : UUID? = null
+    private var bleService: PipBoyBleService? = null
+    private var bleServiceBound = false
+    private val bleServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val bound = (service as PipBoyBleService.LocalBinder).getService()
+            bleService = bound
+            bleServiceBound = true
+            bound.onConnectionStateChanged = { status -> runOnUiThread { updateBLEConnected(status) } }
+            bound.onCommandReceived = { raw -> runOnUiThread { handleBleCommand(raw) } }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            bleService = null
+            bleServiceBound = false
+        }
+    }
     private val permissionRequestLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -1082,12 +1091,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * BLUETOOTH
      **********************************************************************************************************/
     private fun checkPermissions() {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S){
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        val permissions = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
 
         val permissionsToRequest = permissions.filter {
@@ -1102,109 +1116,43 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun setupBluetooth() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothAdapter = bluetoothManager.adapter
-        if (bluetoothAdapter == null) {
+        val adapter = bluetoothManager.adapter
+        if (adapter == null) {
             Log.e("MainActivity", "Bluetooth is not supported")
-        } else {
-            if (!bluetoothAdapter.isEnabled) {
-                Log.e("MainActivity", "Bluetooth is disabled")
-                // Optionally, you could prompt the user to enable Bluetooth here
-            } else if (deviceAddress != null){
-                connectToDevice(deviceAddress!!)
-            }
+            return
         }
+        if (!adapter.isEnabled) {
+            Log.e("MainActivity", "Bluetooth is disabled")
+            return
+        }
+        requestIgnoreBatteryOptimizations()
+        startAndBindBleService()
     }
-    @SuppressLint("MissingPermission")
-    private fun connectToDevice(address: String) {
-        val device = bluetoothAdapter.getRemoteDevice(address)
-        bluetoothGatt = device.connectGatt(this, false, gattCallback)
+    private fun startAndBindBleService() {
+        val intent = Intent(this, PipBoyBleService::class.java)
+        ContextCompat.startForegroundService(this, intent)
+        bindService(intent, bleServiceConnection, Context.BIND_AUTO_CREATE)
     }
-    private val gattCallback = object : BluetoothGattCallback() {
-        @SuppressLint("MissingPermission")
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            runOnUiThread {
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    Log.i("BluetoothGattCallback", "Connected to GATT server.")
-                    gatt.discoverServices()
-                    updateBLEConnected("CONNECTED")
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    Log.i("BluetoothGattCallback", "Disconnected from GATT server.")
-                    bluetoothGatt?.close()
-                    bluetoothGatt = null
-                    updateBLEConnected("DISCONNECTED")
-                }
+    /** Не обязательное разрешение, а рекомендация системы — без него агрессивные
+     * вендоры (Xiaomi/Huawei) убивают фоновую BLE-связь за минуты (протокол, раздел 5). */
+    private fun requestIgnoreBatteryOptimizations() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Battery optimization settings not available", e)
             }
         }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.i("BluetoothGattCallback", "Services discovered.")
-                val characteristic = gatt.getService(serviceUUID)?.getCharacteristic(characteristicReadUUID)
-                characteristic?.let { enableCharacteristicNotification(it) }
-            } else {
-                Log.w("BluetoothGattCallback", "onServicesDiscovered received: $status")
-            }
-        }
-
-        @Deprecated("Deprecated in Java")
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-        ) {
-            runOnUiThread {
-                @Suppress("DEPRECATION")
-                bleMenuChange = characteristic.value.toString(Charsets.UTF_8)
-                Log.i("BluetoothGattCallback", "Characteristic changed: $bleMenuChange")
-                handleBleCommand(bleMenuChange)
-            }
-        }
-
-        @SuppressLint("MissingPermission")
-        private fun enableCharacteristicNotification(characteristic: BluetoothGattCharacteristic) {
-            bluetoothGatt?.setCharacteristicNotification(characteristic, true)
-
-            // Enable notifications on the characteristic descriptor
-            val descriptor = characteristic.getDescriptor(
-                UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-            )
-            @Suppress("DEPRECATION")
-            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            @Suppress("DEPRECATION")
-            bluetoothGatt?.writeDescriptor(descriptor)
-        }
-
-        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.i("BluetoothGattCallback", "Characteristic written successfully")
-            }
-        }
-    }
-    @SuppressLint("MissingPermission")
-    private fun writeCharacteristic(value: ByteArray) {
-        bluetoothGatt?.let { gatt ->
-            val service = gatt.getService(serviceUUID)
-            val characteristic = service?.getCharacteristic(characteristicWriteUUID)
-            characteristic?.let {
-                @Suppress("DEPRECATION")
-                it.value = value
-                @Suppress("DEPRECATION")
-                gatt.writeCharacteristic(it)
-            }
-        }
-    }
-    private fun ByteArray.toHexString(): String {
-        return joinToString("") { "%02x".format(it) }
     }
     private fun sendBLEText(bleText: String) {
-        if (bluetoothGatt != null) {
-            val service = bluetoothGatt?.getService(serviceUUID)
-            val characteristic = service?.getCharacteristic(characteristicWriteUUID)
-            if (service != null && characteristic != null) {
-                writeCharacteristic(bleText.toByteArray())
-                Log.i("MainActivity", "Sending text to BLE device" )
-            } else {
-                Log.e("MainActivity", "Service or Characteristic not found")
-            }
+        if (bleService?.isConnected() == true) {
+            bleService?.sendCommand(bleText)
+            Log.i("MainActivity", "Sending text to BLE device")
         } else {
             Log.e("MainActivity", "BluetoothGatt is not connected")
         }
@@ -1214,11 +1162,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
         bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
     }
-    @SuppressLint("MissingPermission")
     private fun disconnectBLE(){
         updateBLEConnected("DISCONNECTED")
-        bluetoothGatt?.close()
-        bluetoothGatt = null
+        bleService?.disconnect()
     }
 
 
@@ -2016,11 +1962,35 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     /**
+     * État-машина экрана PipBoy (протокол, раздел 3.1): OFF (чёрный экран) <-> ON.
+     * ESP32 — хозяин состояния, применяем как есть, не тумблерим локально. Стартовое
+     * состояние экрана — OFF (view_power_off видим по умолчанию в разметке), пока не
+     * пришёл первый POWER от ESP32.
+     *
+     * Анимация здесь — намеренно минимальная заглушка (fade), не хореография загрузки
+     * настоящего Pip-Boy — это отдельная задача для дизайна позже.
+     */
+    private fun applyPowerState(on: Boolean) {
+        val overlay = bindingMain.viewPowerOff
+        if (on) {
+            overlay.animate().cancel()
+            overlay.alpha = 1f
+            overlay.visibility = View.VISIBLE
+            overlay.animate().alpha(0f).setDuration(400).withEndAction {
+                overlay.visibility = View.GONE
+            }.start()
+        } else {
+            overlay.animate().cancel()
+            overlay.alpha = 1f
+            overlay.visibility = View.VISIBLE
+        }
+    }
+    /**
      * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
      * раздел 2: `КЛЮЧ:ЗНАЧЕНИЕ` для параметризованных команд, голое ключевое слово для
      * остальных) и раздаёт по обработчикам. STATS/ITEMS/DATA уходят в уже существующий
      * menuChangeBLE() без изменений — остальные команды пока только логируются, реальная
-     * обработка (POWER, навигация энкодером, радио) — следующие этапы roadmap.
+     * обработка (навигация энкодером, радио) — следующие этапы roadmap.
      */
     private fun handleBleCommand(raw: String) {
         val parts = raw.split(":", limit = 2)
@@ -2029,7 +1999,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         when (key) {
             "STATS", "ITEMS", "DATA" -> menuChangeBLE(key)
-            "POWER" -> Log.i("BLE", "POWER:$value — état-машина экрана, roadmap этап 2")
+            "POWER" -> applyPowerState(value == "1")
             "ENCBTN" -> Log.i("BLE", "ENCBTN — навигация энкодером, roadmap этап 3")
             "ENC" -> Log.i("BLE", "ENC:$value — навигация энкодером, roadmap этап 3")
             "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
@@ -5515,41 +5485,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val bluetoothButtonConnectITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsConnect
         val bluetoothButtonConnectDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.btnSettingsConnect
 
-        bluetoothButtonConnectSTATS.setOnClickListener{
-            deviceAddress = sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF")
-            serviceUUID = UUID.fromString(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicReadUUID = UUID.fromString(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicWriteUUID = UUID.fromString(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // Настройки уже сохранены в SharedPreferences кнопкой Save — PipBoyBleService
+        // сам перечитывает их при (ре)коннекте, поэтому здесь достаточно просто дать
+        // сервису команду подключиться заново, не таская MAC/UUID через поля Activity.
+        val connectButtonClicked = {
+            if (bleServiceBound) {
+                bleService?.reconnectWithCurrentSettings()
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 checkPermissions()
             } else {
                 setupBluetooth()
             }
         }
-
-        bluetoothButtonConnectITEMS.setOnClickListener{
-            deviceAddress = sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF")
-            serviceUUID = UUID.fromString(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicReadUUID = UUID.fromString(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicWriteUUID = UUID.fromString(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                checkPermissions()
-            } else {
-                setupBluetooth()
-            }
-        }
-
-        bluetoothButtonConnectDATA.setOnClickListener{
-            deviceAddress = sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF")
-            serviceUUID = UUID.fromString(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicReadUUID = UUID.fromString(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-            characteristicWriteUUID = UUID.fromString(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                checkPermissions()
-            } else {
-                setupBluetooth()
-            }
-        }
+        bluetoothButtonConnectSTATS.setOnClickListener { connectButtonClicked() }
+        bluetoothButtonConnectITEMS.setOnClickListener { connectButtonClicked() }
+        bluetoothButtonConnectDATA.setOnClickListener { connectButtonClicked() }
 
         val bluetoothButtonDisconnectSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
         val bluetoothButtonDisconnectITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
@@ -5741,6 +5691,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     override fun onDestroy() {
         super.onDestroy()
         turnAllRadioOff()
+        // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
+        // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся
+        // только от локального биндинга, чтобы не утекала ссылка на Activity.
+        if (bleServiceBound) {
+            unbindService(bleServiceConnection)
+            bleServiceBound = false
+        }
     }
 
 }

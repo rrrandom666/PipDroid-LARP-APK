@@ -2,7 +2,12 @@ package com.malto4.pipdroid
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.ColorStateList
@@ -29,6 +34,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
+import android.os.ParcelUuid
 import android.os.IBinder
 import android.os.Looper
 import android.util.DisplayMetrics
@@ -228,13 +234,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
+    /**
+     * Системный диалог "Разрешить приложению включить Bluetooth?" (ACTION_REQUEST_ENABLE) —
+     * roadmap, чтобы игроку не приходилось отдельно идти в системные настройки телефона,
+     * если Bluetooth выключен. Не проверяем resultCode отдельно: включился адаптер (OK) или
+     * нет (отказ/закрыл диалог) — setupBluetooth() сам перепроверит adapter.isEnabled и
+     * либо продолжит (requestIgnoreBatteryOptimizations + startAndBindBleService), либо
+     * просто залогирует и остановится, как и раньше.
+     */
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        setupBluetooth()
+    }
     private fun onRequiredPermissionsGranted() {
         setupBluetooth()
         // Если разрешения выдавались с шага PERMISSIONS мастера PipBoy 2000/3000 —
-        // сразу ведём дальше, к подсказке про POWER, не заставляя жать что-то ещё.
+        // сразу ведём дальше, к сопряжению с корпусом, не заставляя жать что-то ещё.
         val wizard = bindingMain.incLayoutPipboy2000Wizard
         if (wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE) {
-            showWizardStep(PipBoyWizardStep.POWER_HINT)
+            showWizardStep(PipBoyWizardStep.PAIRING)
         }
     }
 
@@ -1150,7 +1169,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             return
         }
         if (!adapter.isEnabled) {
-            Log.e("MainActivity", "Bluetooth is disabled")
+            // Просим включить Bluetooth прямо в приложении, не заставляя игрока идти в
+            // системные настройки — см. enableBluetoothLauncher. На API 31+ для показа
+            // этого диалога нужен уже выданный BLUETOOTH_CONNECT — все вызывающие
+            // setupBluetooth() места идут после подтверждения разрешений (проверено).
+            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             return
         }
         requestIgnoreBatteryOptimizations()
@@ -1379,21 +1402,30 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     /**
-     * Мастер настройки PipBoy 2000/3000 (roadmap, UX-спецификация мастера) — 4 шага
+     * Мастер настройки PipBoy 2000/3000 (roadmap, UX-спецификация мастера) — 5 шагов
      * поверх тёмного экрана: Hardware Instructions -> Display Area -> Permissions ->
-     * подсказка про POWER. Реальный выход из POWER_HINT — только физическое нажатие
-     * POWER на корпусе (applyPowerState(true) прячет весь мастер целиком).
+     * Pairing -> подсказка про POWER. Реальный выход из POWER_HINT — только физическое
+     * нажатие POWER на корпусе (applyPowerState(true) прячет весь мастер целиком).
      */
-    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, POWER_HINT }
+    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, PAIRING, POWER_HINT }
 
     private fun showWizardStep(step: PipBoyWizardStep) {
         val w = bindingMain.incLayoutPipboy2000Wizard
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
         w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
         w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE
+        w.layoutWizardPairing.visibility = if (step == PipBoyWizardStep.PAIRING) View.VISIBLE else View.GONE
         w.layoutWizardPowerHint.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.VISIBLE else View.GONE
         w.tvWizardPowerHint.visibility = View.VISIBLE
         w.btnWizardHideHint.visibility = View.VISIBLE
+
+        // Скан идёт только пока реально показан шаг PAIRING — начинаем/останавливаем
+        // строго по факту показа шага, не полагаясь на то, что игрок сам нажмёт кнопку.
+        if (step == PipBoyWizardStep.PAIRING) {
+            startPairingScan()
+        } else {
+            stopPairingScan()
+        }
 
         // Регулировка рабочей области жестом активна только пока реально показан этот шаг.
         isResizing = (step == PipBoyWizardStep.DISPLAY_AREA)
@@ -1429,7 +1461,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         if (step == PipBoyWizardStep.PERMISSIONS && hasAllRequiredPermissions()) {
             // Уже выданы раньше — не задерживаем игрока на этом экране.
             setupBluetooth()
-            showWizardStep(PipBoyWizardStep.POWER_HINT)
+            showWizardStep(PipBoyWizardStep.PAIRING)
         }
     }
     private fun applyTemporaryFullScreenLayout() {
@@ -1453,6 +1485,106 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         return required.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
+    /**
+     * Шаг PAIRING мастера (roadmap) — скан по Service UUID Nordic UART (та же константа,
+     * что уже была дефолтом bluetoothSUUID_SPKey в Settings) вместо ручного ввода MAC.
+     * Пока у каждого корпуса нет уникального BLE-имени (roadmap, "Периферия" — отложено до
+     * серийного производства, сейчас только один тестовый корпус) список может показывать
+     * несколько одинаково подписанных устройств — различать по имени пока не требуется.
+     */
+    private var pairingScanCallback: ScanCallback? = null
+    private val pairingFoundAddresses = mutableSetOf<String>()
+    private val pairingScanTimeoutRunnable = Runnable { stopPairingScan() }
+    private val pairingScanDurationMs = 15000L
+
+    @SuppressLint("MissingPermission")
+    private fun startPairingScan() {
+        stopPairingScan()
+        val w = bindingMain.incLayoutPipboy2000Wizard
+        w.layoutWizardPairingDevices.removeAllViews()
+        pairingFoundAddresses.clear()
+        w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scanning)
+
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter
+        if (adapter == null || !adapter.isEnabled) {
+            w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_bluetooth_off)
+            return
+        }
+        val scanner = adapter.bluetoothLeScanner
+        if (scanner == null) {
+            w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scan_failed)
+            return
+        }
+
+        val filter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid.fromString(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")))
+            .build()
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                addPairingDevice(result.device.address, result.device.name ?: result.scanRecord?.deviceName)
+            }
+            override fun onScanFailed(errorCode: Int) {
+                Log.e("MainActivity", "BLE scan failed: $errorCode")
+                w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scan_failed)
+            }
+        }
+        pairingScanCallback = callback
+        scanner.startScan(listOf(filter), settings, callback)
+        handler.postDelayed(pairingScanTimeoutRunnable, pairingScanDurationMs)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopPairingScan() {
+        handler.removeCallbacks(pairingScanTimeoutRunnable)
+        val callback = pairingScanCallback ?: return
+        pairingScanCallback = null
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter
+        if (adapter?.isEnabled == true) {
+            adapter.bluetoothLeScanner?.stopScan(callback)
+        }
+        if (pairingFoundAddresses.isEmpty()) {
+            bindingMain.incLayoutPipboy2000Wizard.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_none_found)
+        }
+    }
+
+    private fun addPairingDevice(address: String, name: String?) {
+        if (!pairingFoundAddresses.add(address)) return
+        val w = bindingMain.incLayoutPipboy2000Wizard
+        w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_found, pairingFoundAddresses.size)
+        val button = Button(this, null, 0, R.style.PipWizardButtonStyle).apply {
+            text = name ?: address
+            backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = (12 * resources.displayMetrics.density).toInt() }
+            setOnClickListener {
+                playNewTabSelectAudio()
+                selectPairingDevice(address)
+            }
+        }
+        w.layoutWizardPairingDevices.addView(button)
+    }
+
+    /** Игрок выбрал свой корпус из списка — сохраняем MAC и (пере)подключаемся тем же
+     * механизмом, что и кнопка Connect в Settings (bleService.reconnectWithCurrentSettings). */
+    private fun selectPairingDevice(address: String) {
+        stopPairingScan()
+        sharedPreferences.edit().putString(bluetoothMAC_SPKey, address).apply()
+        val service = bleService
+        if (service != null) {
+            service.reconnectWithCurrentSettings()
+        } else {
+            startAndBindBleService()
+        }
+        showWizardStep(PipBoyWizardStep.POWER_HINT)
+    }
     private fun setupPipBoy2000Wizard() {
         val w = bindingMain.incLayoutPipboy2000Wizard
 
@@ -1470,6 +1602,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.btnWizardReset,
             w.btnWizardCancel,
             w.btnWizardGrantPermissions,
+            w.btnWizardPairingRescan,
             w.btnWizardHideHint
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(wizardAccent) }
 
@@ -1482,6 +1615,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.tvWizardHint,
             w.tvWizardPermissionsTitle,
             w.tvWizardPermissionsText,
+            w.tvWizardPairingTitle,
+            w.tvWizardPairingStatus,
             w.tvWizardPowerHint
         ).forEach { it.setTextColor(wizardAccent) }
 
@@ -1516,7 +1651,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             checkPermissions()
         }
 
-        // Шаг 5: подсказка про POWER
+        // Шаг 5: Pairing
+        w.btnWizardPairingRescan.setOnClickListener {
+            playNewTabSelectAudio()
+            startPairingScan()
+        }
+
+        // Шаг 6: подсказка про POWER
         w.btnWizardHideHint.setOnClickListener {
             playNewTabSelectAudio()
             w.tvWizardPowerHint.visibility = View.GONE

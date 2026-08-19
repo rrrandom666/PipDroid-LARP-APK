@@ -274,6 +274,14 @@
         layout="@layout/layout_pipboy2000_wizard"
         android:visibility="gone" />
 
+    <!-- Единый экран Settings (roadmap, "Новая шапка + единый Settings") — раньше было три
+         независимые копии (по одной на STATS/ITEMS/DATA), теперь один инстанс поверх
+         текущего экрана, как мод-селект/мастер. -->
+    <include
+        android:id="@+id/inc_layout_settings_global"
+        layout="@layout/layout_tab_settings"
+        android:visibility="gone" />
+
     <!-- Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым
          при каждом запуске, до STATS/ITEMS/DATA. Последний ребёнок root ConstraintLayout —
          перекрывает буквально всё остальное, пока режим не выбран. -->

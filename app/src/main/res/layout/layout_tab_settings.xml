@@ -598,6 +598,9 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_percent="0.4">
 
+            <!-- MENU-переключатель STATS/ITEMS/DATA внутри Settings убран (roadmap, "Новая
+                 шапка + единый Settings") — был нужен только чтобы попасть в Settings другой
+                 вкладки, когда копий было три. При одном общем экране это лишнее. -->
             <Button
                 android:id="@+id/btn_settings_bluetooth"
                 style="@style/CNDEFFRADButtonStyle"
@@ -611,7 +614,7 @@
                 android:text="Bluetooth Setup"
                 android:textAllCaps="false"
                 app:layout_constraintBottom_toTopOf="@id/btn_settings_save"
-                app:layout_constraintEnd_toEndOf="@id/img_settings_menu_border"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintVertical_bias="0.0" />
 
@@ -627,147 +630,10 @@
                 android:minHeight="0.0dip"
                 android:text="Save Settings"
                 android:textAllCaps="false"
-                app:layout_constraintBottom_toTopOf="@id/img_settings_menu_border"
-                app:layout_constraintEnd_toEndOf="@id/img_settings_menu_border"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintVertical_bias="0.0" />
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layout_tab_settings_buffer"
-                android:layout_width="0.0dip"
-                android:layout_height="0.0dip"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHeight_percent="0.5"
-                app:layout_constraintHorizontal_bias="0.75"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.0"
-                app:layout_constraintWidth_percent="0.925">
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <ImageView
-                android:id="@+id/img_settings_menu_border"
-                style="@style/ColorTintStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:scaleType="fitXY"
-                app:layout_constraintStart_toStartOf="@id/layout_tab_settings_aditional"
-                app:layout_constraintTop_toBottomOf="@id/layout_tab_settings_buffer"
-                app:srcCompat="@drawable/img_top_right" />
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layout_tab_settings_aditional_menu"
-                android:layout_width="0.0dip"
-                android:layout_height="0.0dip"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.75"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/layout_tab_settings_buffer"
-                app:layout_constraintVertical_bias="1.0"
-                app:layout_constraintWidth_percent="0.925">
-
-                <TextView
-                    android:id="@+id/tv_settings_menu"
-                    style="@style/TextStyle"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="15dp"
-                    android:text="MENU"
-                    android:textAllCaps="false"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/layout_tab_settings_aditional_menu" />
-
-                <TextView
-                    android:id="@+id/tv_settings_STATS"
-                    style="@style/TextStyle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingBottom="10dp"
-                    android:text="@string/title_stats"
-                    android:textAllCaps="false"
-                    android:textColor="@color/colorMenuSelection"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toEndOf="@id/bt_settings_STATS"
-                    app:layout_constraintStart_toStartOf="@id/bt_settings_STATS"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_menu" />
-
-                <Button
-                    android:id="@+id/bt_settings_STATS"
-                    android:layout_width="0.0dip"
-                    android:layout_height="0.0dip"
-                    android:background="@drawable/settings_menu_buttons"
-                    android:elevation="2dp"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toStartOf="@id/bt_settings_ITEMS"
-                    app:layout_constraintHeight_percent="0.38"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_STATS"
-                    app:layout_constraintWidth_percent="0.25"
-                    tools:ignore="SpeakableTextPresentCheck" />
-
-                <TextView
-                    android:id="@+id/tv_settings_ITEMS"
-                    style="@style/TextStyle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingBottom="10dp"
-                    android:text="@string/title_items"
-                    android:textAllCaps="false"
-                    android:textColor="@color/colorMenuSelection"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toEndOf="@id/bt_settings_ITEMS"
-                    app:layout_constraintStart_toStartOf="@id/bt_settings_ITEMS"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_menu" />
-
-                <Button
-                    android:id="@+id/bt_settings_ITEMS"
-                    android:layout_width="0.0dip"
-                    android:layout_height="0.0dip"
-                    android:background="@drawable/settings_menu_buttons"
-                    android:gravity="center_horizontal"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHeight_percent="0.38"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_ITEMS"
-
-                    app:layout_constraintWidth_percent="0.25"
-                    tools:ignore="SpeakableTextPresentCheck" />
-
-                <TextView
-                    android:id="@+id/tv_settings_DATA"
-                    style="@style/TextStyle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingBottom="10dp"
-                    android:text="@string/title_data"
-                    android:textAllCaps="false"
-                    android:textColor="@color/colorMenuSelection"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toEndOf="@id/bt_settings_DATA"
-                    app:layout_constraintStart_toStartOf="@id/bt_settings_DATA"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_menu" />
-
-
-                <Button
-                    android:id="@+id/bt_settings_DATA"
-                    android:layout_width="0.0dip"
-                    android:layout_height="0.0dip"
-                    android:background="@drawable/settings_menu_buttons"
-                    app:backgroundTint="@null"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHeight_percent="0.38"
-                    app:layout_constraintStart_toEndOf="@id/bt_settings_ITEMS"
-                    app:layout_constraintTop_toBottomOf="@id/tv_settings_DATA"
-                    app:layout_constraintWidth_percent="0.25"
-                    tools:ignore="SpeakableTextPresentCheck" />
-
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

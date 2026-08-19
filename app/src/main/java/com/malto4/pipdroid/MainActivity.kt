@@ -124,7 +124,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * LIST DEFINITIONS
      **********************************************************************************************************/
-    private var listMenuButtons = ArrayList<Button>()
     private var listBottomButtons = ArrayList<Button>()
     private var listStatsStatusCndRadEff = ArrayList<Button>()
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
@@ -135,7 +134,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var listDataQuests= ArrayList<ConstraintLayout>()
     private var listDataMisc = ArrayList<ConstraintLayout>()
     private var listDataRadios = ArrayList<ConstraintLayout>()
-    private var listSettingsMenus = ArrayList<Button>()
 
     /***********************************************************************************************************
      * MEDIA PLAYERS
@@ -1209,9 +1207,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     fun updateBLEConnected(status: String){
-        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
-        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
-        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
+        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
     }
     private fun disconnectBLE(){
         updateBLEConnected("DISCONNECTED")
@@ -1324,9 +1320,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      */
     private fun refreshModeSettingsLabel() {
         val label = "${getString(R.string.settings_4_name)} ${pipBoyModeDisplayName(pipBoyMode)}"
-        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.tvSettings4.text = label
-        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.tvSettings4.text = label
-        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.tvSettings4.text = label
+        bindingMain.incLayoutSettingsGlobal.tvSettings4.text = label
     }
     /**
      * Точка входа в "Режим работы" из Settings (кнопка "Изменить") — по выбору пользователя
@@ -2453,31 +2447,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * INTERFACE CHANGES
      **********************************************************************************************************/
     fun menuChange(menu: String){
-        val btnstatsSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsSTATS
-        val btnitemsSTATS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsSTATS
-        val btndataSTATS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsSTATS
-        val btnstatsITEMS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsITEMS
-        val btnitemsITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsITEMS
-        val btndataITEMS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsITEMS
-        val btnstatsDATA = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsDATA
-        val btnitemsDATA = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsDATA
-        val btndataDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsDATA
-
         when(menu){
             "STATS" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
-                menuOptionClicked(btnstatsSTATS, listSettingsMenus, "STATS", btnstatsSTATS, btnitemsSTATS, btndataSTATS)
+                menuOptionClicked("STATS")
                 curMenu = "STATS"
             }
             "ITEMS" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, bindingMain.incLayoutTabItemsBottom.btnItemsApparel, bindingMain.incLayoutTabItemsBottom.btnItemsAid, bindingMain.incLayoutTabItemsBottom.btnItemsMisc, bindingMain.incLayoutTabItemsBottom.btnItemsAmmo)
-                menuOptionClicked(btnstatsITEMS, listSettingsMenus, "ITEMS", btnstatsITEMS, btnitemsITEMS, btndataITEMS)
+                menuOptionClicked("ITEMS")
                 ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
                 curMenu = "ITEMS"
             }
             "DATA" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataRadio)
-                menuOptionClicked(btndataDATA, listSettingsMenus, "DATA", btnstatsDATA, btnitemsDATA, btndataDATA)
+                menuOptionClicked("DATA")
                 curMenu = "DATA"
             }
         }
@@ -2656,31 +2640,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     fun menuChangeBLE(menu: String){
-        val btnstatsSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsSTATS
-        val btnitemsSTATS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsSTATS
-        val btndataSTATS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsSTATS
-        val btnstatsITEMS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsITEMS
-        val btnitemsITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsITEMS
-        val btndataITEMS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsITEMS
-        val btnstatsDATA = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsDATA
-        val btnitemsDATA = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsDATA
-        val btndataDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsDATA
-
         when(menu){
             "STATS" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
-                menuOptionClickedBLE(btnstatsSTATS, listSettingsMenus, "STATS", btnstatsSTATS, btnitemsSTATS, btndataSTATS)
+                menuOptionClickedBLE("STATS")
                 curMenu = "STATS"
             }
             "ITEMS" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, bindingMain.incLayoutTabItemsBottom.btnItemsApparel, bindingMain.incLayoutTabItemsBottom.btnItemsAid, bindingMain.incLayoutTabItemsBottom.btnItemsMisc, bindingMain.incLayoutTabItemsBottom.btnItemsAmmo)
-                menuOptionClickedBLE(btnstatsITEMS, listSettingsMenus, "ITEMS", btnstatsITEMS, btnitemsITEMS, btndataITEMS)
+                menuOptionClickedBLE("ITEMS")
                 ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
                 curMenu = "ITEMS"
             }
             "DATA" -> {
                 bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataRadio)
-                menuOptionClickedBLE(btndataDATA, listSettingsMenus, "DATA", btnstatsDATA, btnitemsDATA, btndataDATA)
+                menuOptionClickedBLE("DATA")
                 curMenu = "DATA"
             }
         }
@@ -2728,13 +2702,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun applyBackgroundResource(Colour: Int) {
         // Apply background to relevant views
         val backgrounds = listOf(
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.layoutTabSettings,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.layoutTabSettings,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.layoutTabSettings,
+            bindingMain.incLayoutSettingsGlobal.layoutTabSettings,
             bindingMain.incLayoutFilterModification.layoutFilterModification,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup,
             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.layoutTabClock
             // Add other views as necessary
@@ -2765,28 +2735,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun applyTextColor(Colour: Int){
         // Apply text colors to relevant radio buttons and checkboxes
         val primaryTextViews = listOf(
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rbSettingsDateformat1,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rbSettingsDateformat2,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rbSettingsDateformat3,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rbSettingsDateformat4,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rbSettingsDateformat5,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rbSettingsDateformat1,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rbSettingsDateformat2,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rbSettingsDateformat3,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rbSettingsDateformat4,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rbSettingsDateformat5,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rbSettingsDateformat1,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rbSettingsDateformat2,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rbSettingsDateformat3,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rbSettingsDateformat4,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rbSettingsDateformat5,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat1,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat2,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat3,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat4,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat5,
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.cboxTutorialSettings,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.cboxTutorialSettings,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.cboxTutorialSettings,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.cboxTruefullscreenSettings,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.cboxTruefullscreenSettings,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.cboxTruefullscreenSettings
+            bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings
             // Add other radio buttons and text views as needed
         )
         val secondaryTextViews = listOf(
@@ -2851,12 +2807,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 bindingMain.incLayoutTabDataQuests.scrollTabDataQuestsText,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.scrollTabSettings,
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.scrollTabSettings,
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.scrollTabSettings,
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
+                bindingMain.incLayoutSettingsGlobal.scrollTabSettings,
+                bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.scrollTutorialWelcomeMain,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.scrollTutorialWhatsnewMain,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.scrollTutorialStatsMain,
@@ -2870,17 +2822,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
 
-    private fun setSelectedMenu(button: Button?, listArrayListButtons: ArrayList<Button>?, mediaSound: MediaPlayer?) {
-        button?.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
-        mediaSound?.start()
-        val it: Iterator<Button> = listArrayListButtons!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, button as Any)) {
-                next.setBackgroundResource(R.drawable.settings_menu_buttons)
-            }
-        }
-    }
     private fun setSelectedButton(button: Button?, listArrayListButtons: ArrayList<Button>?) {
         if (button != null) {
             selectedSubMenu = button
@@ -3007,13 +2948,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.VISIBLE
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_settings).visibility = View.VISIBLE
         } else if (menu == "ITEMS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.VISIBLE
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_item_settings).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.VISIBLE
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_settings).visibility = View.VISIBLE
         }
     }
     private fun setupMainContentBLE(menu: String){
@@ -3024,14 +2962,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_perks).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.VISIBLE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_settings).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_weapons).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_apparel).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_aid).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_items_misc_main).visibility = View.VISIBLE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_item_settings).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_ammo).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.GONE
@@ -3039,7 +2975,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_quests).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_settings).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_filter_modification).visibility = View.GONE
@@ -3081,14 +3016,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun enableDisableTopSwipe(action: Boolean){
         menuSwipeEnabled = action
     }
-    private fun menuOptionClicked(origin: Button, settingsMenus: ArrayList<Button>, menu: String, menugroup1: Button, menugroup2: Button, menugroup3: Button){
-        setSelectedMenu(origin, listMenuButtons, mediaPlayerCRF)
-        for (button in settingsMenus){
-            button.setBackgroundResource(R.drawable.settings_menu_buttons)
-        }
-        menugroup1.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
-        menugroup2.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
-        menugroup3.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
+    private fun menuOptionClicked(menu: String){
+        mediaPlayerCRF?.start()
         if (menu == "STATS"){
             findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_stats_special).setBackgroundResource(R.drawable.button_unselected)
@@ -3115,14 +3044,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         enableDisableTopSwipe(false)
         sendBLEText(menu)
     }
-    private fun menuOptionClickedBLE(origin: Button, settingsMenus: ArrayList<Button>, menu: String, menugroup1: Button, menugroup2: Button, menugroup3: Button){
-        setSelectedMenu(origin, listMenuButtons, mediaPlayerCRF)
-        for (button in settingsMenus){
-            button.setBackgroundResource(R.drawable.settings_menu_buttons)
-        }
-        menugroup1.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
-        menugroup2.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
-        menugroup3.setBackgroundResource(R.drawable.settings_menu_buttons_selected)
+    private fun menuOptionClickedBLE(menu: String){
+        mediaPlayerCRF?.start()
         if (menu == "STATS"){
             findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
             findViewById<Button>(R.id.btn_stats_special).setBackgroundResource(R.drawable.button_unselected)
@@ -4107,11 +4030,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave)
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom)
 
-        listMenuButtons.add(findViewById(R.id.bt_settings_STATS))
-        listMenuButtons.add(findViewById(R.id.bt_settings_ITEMS))
-        listMenuButtons.add(findViewById(R.id.bt_settings_DATA))
-
-
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
         translateAnimation.duration = 9000
@@ -4124,7 +4042,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         setupDATA()
         selectedSubMenu = bindingMain.incLayoutTabStatsBottom.btnStatsStatus
         findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
-        findViewById<Button>(R.id.bt_settings_STATS).setBackgroundResource(R.drawable.settings_menu_buttons_selected)
 
         // Clock time refresh
         when(sharedPreferences.getInt(dateFormat_SPKey, 0)){
@@ -4212,9 +4129,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabTutorialBase.btnTutorialWelcomeSave.setOnClickListener{
             showTutorialBool = bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.isChecked()
             sharedPreferences.edit().putBoolean("ShowTutorial", showTutorialBool).apply()
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.cboxTutorialSettings.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.cboxTutorialSettings.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.cboxTutorialSettings.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
+            bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             playCNDSelectAudio()
         }
 
@@ -5400,38 +5315,39 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
 
-        // OPEN STATS - SETTINGS MENU
+        // Единый экран Settings (roadmap, "Новая шапка + единый Settings") — показывается
+        // поверх текущей вкладки, не нужно больше прятать её содержимое под собой. Три
+        // кнопки открытия (STATS/ITEMS/DATA general) ведут в один и тот же инстанс, закрытие
+        // и слушатели RadioGroup — тоже по одному разу, не по копии на вкладку.
         bindingMain.incLayoutTabStatsGeneral.btnGeneralSettings.setOnClickListener{
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsGeneral.layoutTabStatsGeneralMain.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
         }
-        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsClose.setOnClickListener{
+        bindingMain.incLayoutSettingsGlobal.btnSettingsClose.setOnClickListener{
             if(!isResizing){
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.root.visibility = View.GONE
-                bindingMain.incLayoutTabStatsGeneral.layoutTabStatsGeneralMain.visibility = View.VISIBLE
+                bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
                 enableDisableBottomButtons(true, listBottomButtons)
                 enableDisableTopSwipe(true)
             }
         }
-        val rg_DateFormat_STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsDateformat
-        rg_DateFormat_STATS.setOnCheckedChangeListener{ _, checkedId ->
+        val rg_DateFormat_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat
+        rg_DateFormat_Settings.setOnCheckedChangeListener{ _, checkedId ->
             when (checkedId){
-                (rg_DateFormat_STATS.getChildAt(0)?.id) -> dateFormat_Selector = 0
-                (rg_DateFormat_STATS.getChildAt(1)?.id) -> dateFormat_Selector = 1
-                (rg_DateFormat_STATS.getChildAt(2)?.id) -> dateFormat_Selector = 2
-                (rg_DateFormat_STATS.getChildAt(3)?.id) -> dateFormat_Selector = 3
-                (rg_DateFormat_STATS.getChildAt(4)?.id) -> dateFormat_Selector = 4
+                (rg_DateFormat_Settings.getChildAt(0)?.id) -> dateFormat_Selector = 0
+                (rg_DateFormat_Settings.getChildAt(1)?.id) -> dateFormat_Selector = 1
+                (rg_DateFormat_Settings.getChildAt(2)?.id) -> dateFormat_Selector = 2
+                (rg_DateFormat_Settings.getChildAt(3)?.id) -> dateFormat_Selector = 3
+                (rg_DateFormat_Settings.getChildAt(4)?.id) -> dateFormat_Selector = 4
             }
         }
-        val rg_UIColour_STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsUiColour
-        rg_UIColour_STATS.setOnCheckedChangeListener{ _, checkedId ->
+        val rg_UIColour_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour
+        rg_UIColour_Settings.setOnCheckedChangeListener{ _, checkedId ->
             when (checkedId){
-                (rg_UIColour_STATS.getChildAt(0)?.id) -> UIColour_Selector = 0
-                (rg_UIColour_STATS.getChildAt(1)?.id) -> UIColour_Selector = 1
-                (rg_UIColour_STATS.getChildAt(2)?.id) -> UIColour_Selector = 2
-                (rg_UIColour_STATS.getChildAt(3)?.id) -> UIColour_Selector = 3
+                (rg_UIColour_Settings.getChildAt(0)?.id) -> UIColour_Selector = 0
+                (rg_UIColour_Settings.getChildAt(1)?.id) -> UIColour_Selector = 1
+                (rg_UIColour_Settings.getChildAt(2)?.id) -> UIColour_Selector = 2
+                (rg_UIColour_Settings.getChildAt(3)?.id) -> UIColour_Selector = 3
             }
         }
 
@@ -5543,39 +5459,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             ITEMSMiscSetup(bindingMain.incLayoutTabItemsMisc.recyclerTabItemsMisc)
         }
 
-        // OPEN ITEMS - SETTINGS MENU
+        // OPEN ITEMS - SETTINGS MENU (тот же единый экран, что и с STATS — закрытие и
+        // RadioGroup-листенеры уже подключены там, дублировать не нужно)
         bindingMain.incLayoutTabItemsMisc.btnItemsMiscSettings.setOnClickListener{
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsMisc.layoutTabItemsMiscMain.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
-        }
-        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsClose.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.root.visibility = View.GONE
-                bindingMain.incLayoutTabItemsMisc.layoutTabItemsMiscMain.visibility = View.VISIBLE
-                enableDisableBottomButtons(true, listBottomButtons)
-                enableDisableTopSwipe(true)
-            }
-        }
-        val rg_DateFormat_ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsDateformat
-        rg_DateFormat_ITEMS.setOnCheckedChangeListener{ _, checkedId ->
-            when (checkedId){
-                (rg_DateFormat_ITEMS.getChildAt(0)?.id) -> dateFormat_Selector = 0
-                (rg_DateFormat_ITEMS.getChildAt(1)?.id) -> dateFormat_Selector = 1
-                (rg_DateFormat_ITEMS.getChildAt(2)?.id) -> dateFormat_Selector = 2
-                (rg_DateFormat_ITEMS.getChildAt(3)?.id) -> dateFormat_Selector = 3
-                (rg_DateFormat_ITEMS.getChildAt(4)?.id) -> dateFormat_Selector = 4
-            }
-        }
-        val rg_UIColour_ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsUiColour
-        rg_UIColour_ITEMS.setOnCheckedChangeListener{ _, checkedId ->
-            when (checkedId){
-                (rg_UIColour_ITEMS.getChildAt(0)?.id) -> {UIColour_Selector = 0}
-                (rg_UIColour_ITEMS.getChildAt(1)?.id) -> {UIColour_Selector = 1}
-                (rg_UIColour_ITEMS.getChildAt(2)?.id) -> {UIColour_Selector = 2}
-                (rg_UIColour_ITEMS.getChildAt(3)?.id) -> UIColour_Selector = 3
-            }
         }
 
         bindingMain.incLayoutTabItemsBottom.btnItemsMisc.setOnTouchListener { view, event ->
@@ -5719,39 +5608,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }
 
-        // OPEN DATA - SETTINGS MENU
+        // OPEN DATA - SETTINGS MENU (тот же единый экран, что и с STATS — закрытие и
+        // RadioGroup-листенеры уже подключены там, дублировать не нужно)
         bindingMain.incLayoutTabDataMisc.btnDataMiscSettings.setOnClickListener{
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataMisc.layoutTabDataMiscMain.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
-        }
-        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsClose.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.root.visibility = View.GONE
-                bindingMain.incLayoutTabDataMisc.layoutTabDataMiscMain.visibility = View.VISIBLE
-                enableDisableBottomButtons(true, listBottomButtons)
-                enableDisableTopSwipe(true)
-            }
-        }
-        val rg_DateFormat_DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsDateformat
-        rg_DateFormat_DATA.setOnCheckedChangeListener{ _, checkedId ->
-            when (checkedId){
-                (rg_DateFormat_DATA.getChildAt(0)?.id) -> dateFormat_Selector = 0
-                (rg_DateFormat_DATA.getChildAt(1)?.id) -> dateFormat_Selector = 1
-                (rg_DateFormat_DATA.getChildAt(2)?.id) -> dateFormat_Selector = 2
-                (rg_DateFormat_DATA.getChildAt(3)?.id) -> dateFormat_Selector = 3
-                (rg_DateFormat_DATA.getChildAt(4)?.id) -> dateFormat_Selector = 4
-            }
-        }
-        val rg_UIColour_DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsUiColour
-        rg_UIColour_DATA.setOnCheckedChangeListener{ _, checkedId ->
-            when (checkedId){
-                (rg_UIColour_DATA.getChildAt(0)?.id) -> UIColour_Selector = 0
-                (rg_UIColour_DATA.getChildAt(1)?.id) -> UIColour_Selector = 1
-                (rg_UIColour_DATA.getChildAt(2)?.id) -> UIColour_Selector = 2
-                (rg_UIColour_DATA.getChildAt(3)?.id) -> UIColour_Selector = 3
-            }
         }
 
         bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1.setOnClickListener{
@@ -5879,116 +5741,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
 
-        /*
-        ////////////////////////////////////////////////////////
-        SETTINGS MENU
-        */
-        val tvstatsSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.tvSettingsSTATS
-        val tvitemsSTATS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.tvSettingsSTATS
-        val tvdataSTATS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.tvSettingsSTATS
-        val tvstatsITEMS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.tvSettingsITEMS
-        val tvitemsITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.tvSettingsITEMS
-        val tvdataITEMS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.tvSettingsITEMS
-        val tvstatsDATA = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.tvSettingsDATA
-        val tvitemsDATA = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.tvSettingsDATA
-        val tvdataDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.tvSettingsDATA
-
-        tvstatsSTATS.setOnClickListener {menuChange("STATS")}
-        tvitemsSTATS.setOnClickListener {menuChange("STATS")}
-        tvdataSTATS.setOnClickListener {menuChange("STATS")}
-
-        tvstatsITEMS.setOnClickListener {menuChange("ITEMS")}
-        tvitemsITEMS.setOnClickListener {menuChange("ITEMS")}
-        tvdataITEMS.setOnClickListener {menuChange("ITEMS")}
-
-        tvstatsDATA.setOnClickListener {menuChange("DATA")}
-        tvitemsDATA.setOnClickListener {menuChange("DATA")}
-        tvdataDATA.setOnClickListener {menuChange("DATA")}
-
-        val btnstatsSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsSTATS
-        val btnitemsSTATS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsSTATS
-        val btndataSTATS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsSTATS
-        val btnstatsITEMS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsITEMS
-        val btnitemsITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsITEMS
-        val btndataITEMS = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsITEMS
-        val btnstatsDATA = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btSettingsDATA
-        val btnitemsDATA = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btSettingsDATA
-        val btndataDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btSettingsDATA
-
-        listSettingsMenus.add(btnstatsSTATS)
-        listSettingsMenus.add(btnitemsSTATS)
-        listSettingsMenus.add(btndataSTATS)
-        listSettingsMenus.add(btnstatsITEMS)
-        listSettingsMenus.add(btnitemsITEMS)
-        listSettingsMenus.add(btndataITEMS)
-        listSettingsMenus.add(btnstatsDATA)
-        listSettingsMenus.add(btnitemsDATA)
-        listSettingsMenus.add(btndataDATA)
-        
-        btnstatsSTATS.setOnClickListener {menuChange("STATS")}
-        btnitemsSTATS.setOnClickListener {menuChange("STATS")}
-        btndataSTATS.setOnClickListener {menuChange("STATS")}
-        
-        btnstatsITEMS.setOnClickListener {menuChange("ITEMS")}
-        btnitemsITEMS.setOnClickListener {menuChange("ITEMS")}
-        btndataITEMS.setOnClickListener {menuChange("ITEMS")}
-
-        btnstatsDATA.setOnClickListener {menuChange("DATA")}
-        btnitemsDATA.setOnClickListener {menuChange("DATA")}
-        btndataDATA.setOnClickListener {menuChange("DATA")}
-
         // DataStore for saving Settings
-        val saveButtonSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsSave
-        val editSettings1STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.etSettings1Value //PlayerName
-        val editSettings2STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.etSettings2Value //PlayerLevel
-        val editSettings3STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.etSettings3Value //MusicFolder
-        val editSettings5STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.etSettings5Value //CustomMapScaling
-        var editSettings6STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.cboxTutorialSettings //ShowTutorial
-        var editSettings7STATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.cboxTruefullscreenSettings //Fullscreen
+        val saveButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsSave
+        val editSettings1 = bindingMain.incLayoutSettingsGlobal.etSettings1Value //PlayerName
+        val editSettings2 = bindingMain.incLayoutSettingsGlobal.etSettings2Value //PlayerLevel
+        val editSettings3 = bindingMain.incLayoutSettingsGlobal.etSettings3Value //MusicFolder
+        val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
+        var editSettings6 = bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings //ShowTutorial
+        var editSettings7 = bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings //Fullscreen
 
-        saveButtonSTATS.setOnClickListener{
+        saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1STATS.text.toString(), editSettings2STATS.text.toString().toInt(), editSettings3STATS.text.toString(), UIColour_Selector, editSettings5STATS.text.toString().toFloat(), dateFormat_Selector, editSettings6STATS.isChecked(), editSettings7STATS.isChecked())
-            }
-            turnAllRadioOff()
-            sendBLEText("STATS")
-            val intent = Intent(this, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            finishAffinity() // Close all previous activities
-            startActivity(intent)
-        }
-
-        val saveButtonITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsSave
-        val editSettings1ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.etSettings1Value //PlayerName
-        val editSettings2ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.etSettings2Value //PlayerLevel
-        val editSettings3ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.etSettings3Value //MusicFolder
-        val editSettings5ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.etSettings5Value //CustomMapScaling
-        var editSettings6ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.cboxTutorialSettings //ShowTutorial
-        var editSettings7ITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.cboxTruefullscreenSettings //Fullscreen
-
-        saveButtonITEMS.setOnClickListener{
-            lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1ITEMS.text.toString(), editSettings2ITEMS.text.toString().toInt(), editSettings3ITEMS.text.toString(), UIColour_Selector, editSettings5ITEMS.text.toString().toFloat(), dateFormat_Selector, editSettings6ITEMS.isChecked(), editSettings7ITEMS.isChecked())
-            }
-            turnAllRadioOff()
-            sendBLEText("STATS")
-            val intent = Intent(this, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            finishAffinity() // Close all previous activities
-            startActivity(intent)
-        }
-
-        val saveButtonDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsSave
-        val editSettings1DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.etSettings1Value //PlayerName
-        val editSettings2DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.etSettings2Value //PlayerLevel
-        val editSettings3DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.etSettings3Value //MusicFolder
-        val editSettings5DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.etSettings5Value //CustomMapScaling
-        var editSettings6DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.cboxTutorialSettings //ShowTutorial
-        var editSettings7DATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.cboxTruefullscreenSettings //Fullscreen
-
-        saveButtonDATA.setOnClickListener{
-            lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1DATA.text.toString(), editSettings2DATA.text.toString().toInt(), editSettings3DATA.text.toString(), UIColour_Selector, editSettings5DATA.text.toString().toFloat(), dateFormat_Selector, editSettings6DATA.isChecked(), editSettings7DATA.isChecked())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked())
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -6001,34 +5765,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndName.text = sharedPreferences.getString(playerName_SPKey, "Player")
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndNameLevelValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
             bindingMain.incLayoutTabStatsTitle.tvTitleStatsLvlValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
-            editSettings1STATS.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
-            editSettings1ITEMS.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
-            editSettings1DATA.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
-            editSettings2STATS.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
-            editSettings2ITEMS.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
-            editSettings2DATA.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
-            editSettings3STATS.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
-            editSettings3ITEMS.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
-            editSettings3DATA.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
-            editSettings5STATS.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
-            editSettings5ITEMS.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
-            editSettings5DATA.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
+            editSettings1.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
+            editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
+            editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
+            editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            editSettings6STATS.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            editSettings6ITEMS.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            editSettings6DATA.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            editSettings7STATS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
-            editSettings7ITEMS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
-            editSettings7DATA.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
+            editSettings6.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
+            editSettings7.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
             refreshModeSettingsLabel()
 
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsDateformat.check(bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsDateformat.check(bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsDateformat.check(bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
-
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsUiColour.check(bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsUiColour.check(bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsUiColour.check(bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
+            bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.check(bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
+            bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.check(bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
 
 
         /***********************************************************************************************************
@@ -6038,110 +5785,46 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
          **********************************************************************************************************/
 
         //BLUETOOTH
-        val bluetoothButtonSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsBluetooth
-        val bluetoothButtonITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsBluetooth
-        val bluetoothButtonDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsBluetooth
+        val bluetoothButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth
 
-        bluetoothButtonSTATS.setOnClickListener{
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.layoutSettingsLayout.visibility = View.GONE
-        }
-        bluetoothButtonITEMS.setOnClickListener{
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.layoutSettingsLayout.visibility = View.GONE
-        }
-        bluetoothButtonDATA.setOnClickListener{
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.layoutSettingsLayout.visibility = View.GONE
+        bluetoothButtonSettings.setOnClickListener{
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility = View.VISIBLE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
         }
 
-        val bluetoothButtonCloseSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothClose
-        val bluetoothButtonCloseITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothClose
-        val bluetoothButtonCloseDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothClose
+        val bluetoothButtonClose = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsBluetoothClose
 
-        bluetoothButtonCloseSTATS.setOnClickListener{
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.layoutSettingsLayout.visibility = View.VISIBLE
-        }
-        bluetoothButtonCloseITEMS.setOnClickListener{
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.layoutSettingsLayout.visibility = View.VISIBLE
-        }
-        bluetoothButtonCloseDATA.setOnClickListener{
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.layoutSettingsLayout.visibility = View.VISIBLE
+        bluetoothButtonClose.setOnClickListener{
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
         }
 
+        val etBluetoothMAC = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etMACAddressValue
+        val etBluetoothSUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etServiceUUIDValue
+        val etBluetoothRUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etReadUUIDValue
+        val etBluetoothWUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etWriteUUIDValue
+        val bluetoothButtonSave = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsBluetoothSave
 
-        val etBluetoothMACSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.etMACAddressValue
-        val etBluetoothSUUIDSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.etServiceUUIDValue
-        val etBluetoothRUUIDSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.etReadUUIDValue
-        val etBluetoothWUUIDSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.etWriteUUIDValue
-        val bluetoothButtonSaveSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothSave
+        etBluetoothMAC.setText(sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF"))
+        etBluetoothSUUID.setText(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
+        etBluetoothRUUID.setText(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
+        etBluetoothWUUID.setText(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
 
-        etBluetoothMACSTATS.setText(sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF"))
-        etBluetoothSUUIDSTATS.setText(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothRUUIDSTATS.setText(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothWUUIDSTATS.setText(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-
-        bluetoothButtonSaveSTATS.setOnClickListener{
+        bluetoothButtonSave.setOnClickListener{
             saveBluetoothValues(
-                etBluetoothMACSTATS.text.toString(),
-                etBluetoothSUUIDSTATS.text.toString(),
-                etBluetoothRUUIDSTATS.text.toString(),
-                etBluetoothWUUIDSTATS.text.toString()
+                etBluetoothMAC.text.toString(),
+                etBluetoothSUUID.text.toString(),
+                etBluetoothRUUID.text.toString(),
+                etBluetoothWUUID.text.toString()
             )
         }
 
-        val etBluetoothMACITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.etMACAddressValue
-        val etBluetoothSUUIDITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.etServiceUUIDValue
-        val etBluetoothRUUIDITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.etReadUUIDValue
-        val etBluetoothWUUIDITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.etWriteUUIDValue
-        val bluetoothButtonSaveITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothSave
-
-        etBluetoothMACITEMS.setText(sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF"))
-        etBluetoothSUUIDITEMS.setText(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothRUUIDITEMS.setText(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothWUUIDITEMS.setText(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-
-        bluetoothButtonSaveITEMS.setOnClickListener{
-            saveBluetoothValues(
-                etBluetoothMACITEMS.text.toString(),
-                etBluetoothSUUIDITEMS.text.toString(),
-                etBluetoothRUUIDITEMS.text.toString(),
-                etBluetoothWUUIDITEMS.text.toString()
-            )
-        }
-
-        val etBluetoothMACDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.etMACAddressValue
-        val etBluetoothSUUIDDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.etServiceUUIDValue
-        val etBluetoothRUUIDDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.etReadUUIDValue
-        val etBluetoothWUUIDDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.etWriteUUIDValue
-        val bluetoothButtonSaveDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.btnSettingsBluetoothSave
-
-        etBluetoothMACDATA.setText(sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF"))
-        etBluetoothSUUIDDATA.setText(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothRUUIDDATA.setText(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothWUUIDDATA.setText(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-
-        bluetoothButtonSaveDATA.setOnClickListener{
-            saveBluetoothValues(
-                etBluetoothMACDATA.text.toString(),
-                etBluetoothSUUIDDATA.text.toString(),
-                etBluetoothRUUIDDATA.text.toString(),
-                etBluetoothWUUIDDATA.text.toString()
-            )
-        }
-
-
-        val bluetoothButtonConnectSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.btnSettingsConnect
-        val bluetoothButtonConnectITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsConnect
-        val bluetoothButtonConnectDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.btnSettingsConnect
+        val bluetoothButtonConnect = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsConnect
 
         // Настройки уже сохранены в SharedPreferences кнопкой Save — PipBoyBleService
         // сам перечитывает их при (ре)коннекте, поэтому здесь достаточно просто дать
         // сервису команду подключиться заново, не таская MAC/UUID через поля Activity.
-        val connectButtonClicked = {
+        bluetoothButtonConnect.setOnClickListener {
             if (bleServiceBound) {
                 bleService?.reconnectWithCurrentSettings()
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -6150,21 +5833,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 setupBluetooth()
             }
         }
-        bluetoothButtonConnectSTATS.setOnClickListener { connectButtonClicked() }
-        bluetoothButtonConnectITEMS.setOnClickListener { connectButtonClicked() }
-        bluetoothButtonConnectDATA.setOnClickListener { connectButtonClicked() }
 
-        val bluetoothButtonDisconnectSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
-        val bluetoothButtonDisconnectITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
-        val bluetoothButtonDisconnectDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
+        val bluetoothButtonDisconnect = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
 
-        bluetoothButtonDisconnectSTATS.setOnClickListener{
-            disconnectBLE()
-        }
-        bluetoothButtonDisconnectITEMS.setOnClickListener{
-            disconnectBLE()
-        }
-        bluetoothButtonDisconnectDATA.setOnClickListener{
+        bluetoothButtonDisconnect.setOnClickListener{
             disconnectBLE()
         }
 
@@ -6179,15 +5851,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Settings) убран целиком (roadmap, косметические правки) — регулировка рабочей
         // области теперь только через мастер PipBoy 2000/3000 (шаг DISPLAY AREA). Эта кнопка
         // вместо старого попапа заново запускает весь поток с экрана выбора режима.
-        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsChangeMode.setOnClickListener {
-            playNewTabSelectAudio()
-            openModeSelectScreen()
-        }
-        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsChangeMode.setOnClickListener {
-            playNewTabSelectAudio()
-            openModeSelectScreen()
-        }
-        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsChangeMode.setOnClickListener {
+        bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode.setOnClickListener {
             playNewTabSelectAudio()
             openModeSelectScreen()
         }

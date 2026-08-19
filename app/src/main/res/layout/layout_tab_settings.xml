@@ -355,6 +355,66 @@
                         app:layout_constraintWidth_percent="0.06" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <!-- Игровой год (roadmap, "Новая шапка + единый Settings", п.2): подменяет
+                     только поле YEAR у Calendar перед форматированием даты в нижних панелях
+                     ITEMS/DATA/RADIO, реальные месяц/день/время не трогает. -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_settings_year"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_settings_year_left_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <TextView
+                        android:id="@+id/tv_settings_year"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/settings_year_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_year_left_spacer"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <EditText
+                        android:id="@+id/et_settings_year_value"
+                        style="@style/SettingsButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center|right"
+                        android:hint="2276"
+                        android:maxLines="1"
+                        android:maxLength="4"
+                        android:singleLine="true"
+                        android:inputType="number"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_year"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_settings_year_right_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/layout_tab_settings_DateFormat"
                     android:layout_width="fill_parent"

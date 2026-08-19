@@ -108,6 +108,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     val customMusicFolder_SPKey = "customMusicFolder"
     val customMapScaling_SPKey = "customMapScaling"
     val dateFormat_SPKey = "dateFormat"
+    val gameYear_SPKey = "gameYear"
     val bluetoothMAC_SPKey = "bluetoothMAC"
     val bluetoothSUUID_SPKey = "bluetoothSUUID"
     val bluetoothRUUID_SPKey = "bluetoothRUUID"
@@ -3820,7 +3821,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
         sharedPreferences.edit().putString(customMusicFolder_SPKey, etSettings3).apply()
@@ -3829,6 +3830,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sharedPreferences.edit().putInt(dateFormat_SPKey, dateFormat).apply()
         sharedPreferences.edit().putBoolean("ShowTutorial", showTutorial).apply()
         sharedPreferences.edit().putBoolean("TrueFullscreen", trueFullscreen).apply()
+        sharedPreferences.edit().putInt(gameYear_SPKey, gameYear).apply()
     }
     private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
@@ -4058,9 +4060,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                     while (!this.isInterrupted) {
                         sleep(300)
                         runOnUiThread {
-                            val datetime: String = SimpleDateFormat(selectedDateFormat).format(Calendar.getInstance().time)
-                            val timeHHmm: String = SimpleDateFormat("HH:mm").format(Calendar.getInstance().time)
-                            val timess: String = SimpleDateFormat(":ss").format(Calendar.getInstance().time)
+                            // Игровой год (roadmap, "Новая шапка + единый Settings", п.2):
+                            // реальные месяц/день/время остаются как есть, подменяется
+                            // только YEAR, перед тем как Calendar уйдёт в форматирование.
+                            val gameCalendar = Calendar.getInstance()
+                            gameCalendar.set(Calendar.YEAR, sharedPreferences.getInt(gameYear_SPKey, 2276))
+                            val datetime: String = SimpleDateFormat(selectedDateFormat).format(gameCalendar.time)
+                            val timeHHmm: String = SimpleDateFormat("HH:mm").format(gameCalendar.time)
+                            val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
                             bindingMain.incLayoutTabDataTitle.tvTitleDataDatetimeValue.text = datetime
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupHm.text = timeHHmm
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupS.text = timess
@@ -5749,10 +5756,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
         var editSettings6 = bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings //ShowTutorial
         var editSettings7 = bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings //Fullscreen
+        val editSettingsYear = bindingMain.incLayoutSettingsGlobal.etSettingsYearValue //GameYear
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt())
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -5769,6 +5777,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
             editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
             editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
+            editSettingsYear.setText((sharedPreferences.getInt(gameYear_SPKey, 2276)).toString())
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings6.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings7.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))

@@ -331,6 +331,7 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_4_name">Режим работы:</string>
     <string name="settings_mode_change_button">Изменить</string>
     <string name="settings_5_name">World Map Scaling</string>
+    <string name="settings_year_name">Игровой год</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>
     <string name="settings_6_value_2">MM/DD/YYYY</string>

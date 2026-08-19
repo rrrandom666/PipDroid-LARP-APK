@@ -66,6 +66,30 @@
         <item name="android:textAllCaps">false</item>
         <item name="fontFamily">@font/monofonto</item>
     </style>
+    <!-- Кнопки экрана выбора режима и мастера PipBoy (roadmap, косметические правки) —
+         не трогает CNDEFFRADButtonStyle (используется по всему остальному приложению),
+         отдельный стиль для новых экранов, которым нужны состояния активна/неактивна/
+         нажата/выбрана. Фон, тинт (акцент текущей темы) и цвет текста для
+         активна/неактивна/выбрана ставятся вручную кодом (см. currentWizardAccentColor(),
+         setWizardButtonState() в MainActivity.kt) — на реальном устройстве StateListDrawable
+         (state_activated, пустой catch-all item) не подхватывался, проверено, поэтому не
+         полагаемся на состояния View. android:backgroundTint="@null" здесь не пишем
+         намеренно — на этом AGP/AAPT2 @null в стиле не перекрывает тему (проверено), тинт
+         всё равно выставляется кодом при каждом показе кнопки. Нажатие — системный ripple
+         через foreground, это отдельный, независимо работающий механизм Android. -->
+    <style name="PipWizardButtonStyle">
+        <item name="android:background">@drawable/pip_wizard_button_bg_active</item>
+        <item name="android:foreground">?android:attr/selectableItemBackground</item>
+        <item name="android:textColor">@color/pip_button_text_dark</item>
+        <item name="fontFamily">@font/monofonto</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:paddingLeft">16.0dip</item>
+        <item name="android:paddingRight">16.0dip</item>
+        <item name="android:paddingTop">8.0dip</item>
+        <item name="android:paddingBottom">8.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+    </style>
     <style name="SettingsButtonStyle">
         <item name="android:paddingLeft">8.0dip</item>
         <item name="android:paddingRight">8.0dip</item>

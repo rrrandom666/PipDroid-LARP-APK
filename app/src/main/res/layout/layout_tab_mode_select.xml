@@ -6,6 +6,10 @@
     android:layout_height="fill_parent"
     android:background="@color/pip_background_darker">
 
+    <!-- Три кнопки режима: тап только показывает описание справа (isSelected — какая
+         сейчас показана), не выбирает режим сразу. Подтверждение — отдельная кнопка
+         btn_mode_select_confirm под текстом описания, не в этом ряду (roadmap,
+         косметические правки — путала пользователя в общем ряду с режимами). -->
     <LinearLayout
         android:id="@+id/layout_mode_select_buttons"
         android:layout_width="0dp"
@@ -19,38 +23,26 @@
 
         <Button
             android:id="@+id/btn_mode_select_phone"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/mode_phone" />
 
         <Button
             android:id="@+id/btn_mode_select_pipboy2000"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/mode_pipboy_2000" />
 
         <Button
             android:id="@+id/btn_mode_select_pipboy3000"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/mode_pipboy_3000" />
-
-        <Button
-            android:id="@+id/btn_mode_select_confirm"
-            style="@style/CNDEFFRADButtonStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/themeGreen"
-            android:text="@string/mode_select_button" />
 
     </LinearLayout>
 
@@ -61,11 +53,22 @@
         android:padding="24dp"
         android:gravity="center_vertical"
         android:fontFamily="@font/monofonto"
-        android:textColor="@color/themeGreen"
+        android:textColor="@android:color/white"
         android:textSize="16sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btn_mode_select_confirm"
         app:layout_constraintStart_toEndOf="@id/layout_mode_select_buttons"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btn_mode_select_confirm"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginBottom="32dp"
+        android:text="@string/mode_select_button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/layout_mode_select_buttons" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Кнопка активна по умолчанию — сплошная заливка (roadmap, косметические правки).
+     Цвет здесь нейтральный (белый) — реальный акцент даёт backgroundTintList в коде
+     (currentWizardAccentColor()/setWizardButtonState), чтобы кнопки следовали текущей
+     теме оформления, а не были жёстко зелёными. Ставится вручную кодом, не через
+     селектор состояний (see pip_wizard_button_bg_disabled.xml — state_activated/пустой
+     item селектора не подхватывались StateListDrawable на реальном устройстве, проверено). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/white" />
+</shape>

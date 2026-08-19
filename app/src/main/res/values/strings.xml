@@ -13,27 +13,27 @@
     <string name="mode_phone">Телефон</string>
     <string name="mode_pipboy_2000">PipBoy 2000</string>
     <string name="mode_pipboy_3000">PipBoy 3000</string>
-    <string name="mode_description_phone">Экран работает в режиме fullscreen, управление осуществляется через тачскрин, без взаимодействия с внешним железом. Этот режим нужен для тех игроков, которые по тем или иным причинам не стали покупать внешнее железо.</string>
-    <string name="mode_description_pipboy_2000">Телефон лежит внутри устройства, тачскрин закрыт защитным пластиком. Пользователь сам регулирует область экрана, на которой работает приложение (подстройка под размер экрана пип-боя), а управление осуществляется через внешнее железо.</string>
-    <string name="mode_description_pipboy_3000">Этот режим мы сейчас реализовать не будем, но должны оставить заглушку на перспективу и учитывать его при написании архитектуры. Принцип тот же, что и с PipBoy 2000, но сама конфигурация внешнего железа — другая, соответствует более поздней модели пип-боя.</string>
+    <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
+    <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
+    <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
     <string name="mode_select_button">Выбрать</string>
 
-    <string name="wizard_hardware_title">HARDWARE INSTRUCTIONS</string>
-    <string name="wizard_hardware_text">Вставьте телефон в корпус PipBoy, затем закройте крышку.</string>
+    <string name="wizard_hardware_title">ИНСТРУКЦИЯ ПО УСТАНОВКЕ</string>
+    <string name="wizard_hardware_text">Вставьте телефон в корпус PipBoy.</string>
     <string name="wizard_back">Назад</string>
     <string name="wizard_next">Далее</string>
 
-    <string name="wizard_display_area_title">DISPLAY AREA</string>
+    <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>
     <string name="wizard_done">Готово</string>
     <string name="wizard_reset">Сбросить</string>
     <string name="wizard_cancel">Отмена</string>
-    <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран корпуса PipBoy (перетаскивание и щипок для масштаба), затем нажмите «Готово».</string>
+    <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран PipBoy.</string>
 
-    <string name="wizard_permissions_title">PERMISSIONS</string>
+    <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
     <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
     <string name="wizard_grant_permissions">Выдать разрешения</string>
 
-    <string name="wizard_hint_connect_hardware">Вставьте телефон в корпус PipBoy, подключите периферию и включите кнопку POWER на корпусе.</string>
+    <string name="wizard_hint_connect_hardware">Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.</string>
     <string name="wizard_hide_hint">Скрыть подсказку</string>
 
     <string name="RAD_RESIST">RAD RESIST</string>
@@ -320,7 +320,8 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_1_name">Player Name</string>
     <string name="settings_2_name">Player Level</string>
     <string name="settings_3_name">C. Radio MP3 Folder</string>
-    <string name="settings_4_name">Screen Resize</string>
+    <string name="settings_4_name">Режим работы:</string>
+    <string name="settings_mode_change_button">Изменить</string>
     <string name="settings_5_name">World Map Scaling</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Неактивна" (кнопка Выбрать для PipBoy 3000) — ставится вручную через
+     setBackgroundResource() в коде, не через селектор состояний View (state_activated
+     на этом проекте/устройстве не подхватывался StateListDrawable, проверено на
+     реальном телефоне — см. roadmap, косметические правки). Кнопка остаётся
+     кликабельной, чтобы поймать тап и проиграть звук ошибки. Контур — нейтральный белый
+     с альфой 30%, backgroundTintList в коде заменяет цвет на акцент темы, сохраняя эту
+     альфу (currentWizardAccentColor()/setWizardButtonDisabled). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <stroke android:width="2dp" android:color="#4DFFFFFF" />
+</shape>

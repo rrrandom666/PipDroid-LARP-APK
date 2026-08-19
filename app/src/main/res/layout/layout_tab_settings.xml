@@ -272,11 +272,11 @@
                         app:layout_constraintTop_toTopOf="parent" />
 
                     <Button
-                        android:id="@+id/btn_settings_screensize"
+                        android:id="@+id/btn_settings_change_mode"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:background="@drawable/settings_menu_background_green"
-                        android:text="Modify"
+                        android:text="@string/settings_mode_change_button"
                         style="@style/CNDEFFRADButtonStyle"
                         android:clickable="false"
                         android:gravity="center|left"
@@ -776,17 +776,6 @@
     <include
         android:id="@+id/inc_layout_tab_settings_bluetooth"
         layout="@layout/layout_tab_settings_bluetooth"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_settings_close" />
-
-    <include
-        android:id="@+id/inc_layout_tab_settings_screensize"
-        layout="@layout/layout_tab_settings_screensize"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"

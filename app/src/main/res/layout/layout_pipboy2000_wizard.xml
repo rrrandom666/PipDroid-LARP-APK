@@ -23,7 +23,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
+            android:textColor="@android:color/white"
             android:textSize="22sp"
             android:text="@string/wizard_hardware_title"
             app:layout_constraintTop_toTopOf="parent"
@@ -46,9 +46,10 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
+            android:layout_marginBottom="24dp"
             android:gravity="center"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
+            android:textColor="@android:color/white"
             android:textSize="16sp"
             android:text="@string/wizard_hardware_text"
             app:layout_constraintBottom_toTopOf="@id/btn_wizard_hardware_back"
@@ -57,11 +58,10 @@
 
         <Button
             android:id="@+id/btn_wizard_hardware_back"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="48dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/wizard_back"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -69,11 +69,10 @@
 
         <Button
             android:id="@+id/btn_wizard_hardware_next"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="48dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/wizard_next"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/btn_wizard_hardware_back"
@@ -81,7 +80,10 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Шаг 3: DISPLAY AREA -->
+    <!-- Шаг 3: DISPLAY AREA. Заголовок и уголки — намеренно ближе к самому краю, чтобы
+         оставить максимум места стеку из 3 кнопок под ним (roadmap, косметические
+         правки — "экономить пространство", отдельный отчёт про Отмена, уезжающую за
+         экран). -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_display_area"
         android:layout_width="0dp"
@@ -96,27 +98,28 @@
             android:id="@+id/tv_wizard_display_area_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
+            android:layout_marginTop="8dp"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
-            android:textSize="22sp"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
             android:text="@string/wizard_display_area_title"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Декоративные уголки-индикаторы регулируемой области (roadmap, UX-спецификация мастера) -->
-        <TextView android:id="@+id/tv_wizard_corner_tl" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_margin="24dp" android:text="↖" android:textColor="@color/themeGreen" android:textSize="28sp"
+        <!-- Уголки-индикаторы регулируемой области: одна векторная стрелка, повёрнутая
+             под каждый угол (roadmap: "стрелки должны быть жирнее, как на референсе"). -->
+        <ImageView android:id="@+id/img_wizard_corner_tl" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="12dp" android:src="@drawable/ic_wizard_corner_arrow" android:rotation="-45"
             app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" />
-        <TextView android:id="@+id/tv_wizard_corner_tr" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_margin="24dp" android:text="↗" android:textColor="@color/themeGreen" android:textSize="28sp"
+        <ImageView android:id="@+id/img_wizard_corner_tr" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="12dp" android:src="@drawable/ic_wizard_corner_arrow" android:rotation="45"
             app:layout_constraintTop_toTopOf="parent" app:layout_constraintEnd_toEndOf="parent" />
-        <TextView android:id="@+id/tv_wizard_corner_bl" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_margin="24dp" android:text="↙" android:textColor="@color/themeGreen" android:textSize="28sp"
+        <ImageView android:id="@+id/img_wizard_corner_bl" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="12dp" android:src="@drawable/ic_wizard_corner_arrow" android:rotation="225"
             app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" />
-        <TextView android:id="@+id/tv_wizard_corner_br" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_margin="24dp" android:text="↘" android:textColor="@color/themeGreen" android:textSize="28sp"
+        <ImageView android:id="@+id/img_wizard_corner_br" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="12dp" android:src="@drawable/ic_wizard_corner_arrow" android:rotation="135"
             app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
@@ -127,22 +130,19 @@
             android:layout_marginEnd="32dp"
             android:gravity="center"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
-            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
             android:text="@string/wizard_hint_resize"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintVertical_bias="0.4"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_display_area_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <Button
             android:id="@+id/btn_wizard_done"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textColor="@color/themeGreen"
+            android:layout_marginTop="16dp"
             android:text="@string/wizard_done"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_hint"
             app:layout_constraintStart_toStartOf="parent"
@@ -150,11 +150,10 @@
 
         <Button
             android:id="@+id/btn_wizard_reset"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textColor="@color/themeGreen"
+            android:layout_marginTop="10dp"
             android:text="@string/wizard_reset"
             app:layout_constraintTop_toBottomOf="@id/btn_wizard_done"
             app:layout_constraintStart_toStartOf="parent"
@@ -162,13 +161,14 @@
 
         <Button
             android:id="@+id/btn_wizard_cancel"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:textColor="@color/themeGreen"
+            android:layout_marginTop="10dp"
             android:text="@string/wizard_cancel"
             app:layout_constraintTop_toBottomOf="@id/btn_wizard_reset"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -191,7 +191,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
+            android:textColor="@android:color/white"
             android:textSize="22sp"
             android:text="@string/wizard_permissions_title"
             app:layout_constraintTop_toTopOf="parent"
@@ -204,9 +204,10 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
+            android:layout_marginBottom="24dp"
             android:gravity="center_vertical"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
+            android:textColor="@android:color/white"
             android:textSize="16sp"
             android:text="@string/wizard_permissions_text"
             app:layout_constraintTop_toTopOf="parent"
@@ -216,11 +217,10 @@
 
         <Button
             android:id="@+id/btn_wizard_grant_permissions"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="48dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/wizard_grant_permissions"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -247,7 +247,7 @@
             android:layout_marginEnd="32dp"
             android:gravity="center"
             android:fontFamily="@font/monofonto"
-            android:textColor="@color/themeGreen"
+            android:textColor="@android:color/white"
             android:textSize="16sp"
             android:text="@string/wizard_hint_connect_hardware"
             app:layout_constraintTop_toTopOf="parent"
@@ -258,11 +258,10 @@
 
         <Button
             android:id="@+id/btn_wizard_hide_hint"
-            style="@style/CNDEFFRADButtonStyle"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:textColor="@color/themeGreen"
             android:text="@string/wizard_hide_hint"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_power_hint"
             app:layout_constraintStart_toStartOf="parent"

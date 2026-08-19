@@ -73,6 +73,11 @@
     <color name="textColor">#229153</color>
     <color name="themeGreen">#229153</color>
     <color name="themeGreenCND">#1A229153</color>
+    <!-- Кнопки нового стиля (экран выбора режима, мастер PipBoy) — roadmap, косметические
+         правки. pip_button_text_dark — тёмный текст поверх сплошной заливки активной кнопки
+         (заливка тонируется акцентом текущей темы, см. currentWizardAccentColor() в
+         MainActivity.kt, — этот тёмный текст читается на любом из 4 акцентов). -->
+    <color name="pip_button_text_dark">#0a160d</color>
     <color name="themeGreenLocalMap">#80229153</color>
     <color name="themeAmber">#8E6A33</color>
     <color name="themeAmberCND">#1A8E6A33</color>

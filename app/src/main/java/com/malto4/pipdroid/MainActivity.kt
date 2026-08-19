@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
@@ -51,6 +52,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -145,6 +147,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var mediaPlayerLightOn: MediaPlayer? = null
     private var mediaPlayerLightOff: MediaPlayer? = null
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
     private var enclaveRadioMediaPlayer: MediaPlayer? = null
     private var galaxyRadioMediaPlayer: MediaPlayer? = null
@@ -202,6 +205,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private val permissionRequestLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
+        // Системный диалог разрешений закрылся — убираем временный fullscreen (см.
+        // checkPermissions()), возвращаемся к области, настроенной игроком на шаге
+        // DISPLAY AREA мастера (актуально, только пока идёт мастер; вне его loadViewState()
+        // просто переприменит то же самое, что уже есть).
+        loadViewState()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S){
             val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
             val bluetoothScanGranted = permissions[Manifest.permission.BLUETOOTH_SCAN] ?: false
@@ -237,6 +245,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var newWidth = 0
     private var newHeight = 0
     private var isResizing = false
+    // Доп. минимум размера при пинче во время шага DISPLAY AREA мастера PipBoy — 0 вне
+    // мастера (см. ScaleListener.onScale, roadmap "косметические правки").
+    private var wizardMinContentWidthPx = 0
+    private var wizardMinContentHeightPx = 0
     private var lastX = 0f
     private var lastY = 0f
 
@@ -1121,6 +1133,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
         if (permissionsToRequest.isNotEmpty()) {
+            // Системный диалог разрешений должен физически поместиться на экране — на миг
+            // разворачиваемся на весь экран, сворачиваемся обратно в колбэке
+            // permissionRequestLauncher выше сразу после закрытия диалога.
+            applyTemporaryFullScreenLayout()
             permissionRequestLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             setupBluetooth()
@@ -1194,31 +1210,145 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      */
     private var modeSelectHighlighted = PipBoyMode.PHONE
 
+    /**
+     * Акцентный цвет текущей темы оформления (playerUIColour_SPKey — тот же ключ, что и у
+     * applyBackgroundResource()/applyTextColor() для остального интерфейса). Кнопки нового
+     * стиля тонируются им же, а не жёстко зелёным, чтобы смена темы в Settings подхватывалась
+     * и мастером/экраном выбора режима.
+     */
+    private fun currentWizardAccentColor(): Int {
+        val colorRes = when (sharedPreferences.getInt(playerUIColour_SPKey, 0)) {
+            1 -> R.color.themeAmber
+            2 -> R.color.themeWhite
+            3 -> R.color.themeBlue
+            else -> R.color.themeGreen
+        }
+        return ContextCompat.getColor(this, colorRes)
+    }
+    /**
+     * Ручное управление видом кнопок нового стиля (roadmap, косметические правки —
+     * "кнопки должны быть кнопками", активна/неактивна/выбрана должны визуально
+     * отличаться). Это и есть тот переиспользуемый "класс": не State­ListDrawable — на
+     * реальном устройстве state_activated и пустой catch-all item селектора не
+     * подхватывались (проверено, см. историю правок), поэтому фон и цвет текста
+     * переключаются явно кодом при каждой смене состояния. Нажатие — отдельно, системный
+     * ripple через android:foreground в PipWizardButtonStyle, не через эти функции.
+     *
+     * backgroundTintList тут — уже не обход бага (AppCompat раньше сам тянул его от
+     * colorPrimary поверх нашего drawable, см. историю правок), а осознанное тонирование:
+     * сами drawable (pip_wizard_button_bg_*) нейтрального цвета, реальный акцент даёт этот
+     * тинт, поэтому смена темы красит и мод-селект, и мастер, без 4 копий каждого drawable.
+     */
+    private fun setWizardButtonState(button: Button, selected: Boolean) {
+        val accent = currentWizardAccentColor()
+        button.backgroundTintList = ColorStateList.valueOf(accent)
+        if (selected) {
+            button.setBackgroundResource(R.drawable.pip_wizard_button_bg_selected)
+            button.setTextColor(accent)
+        } else {
+            button.setBackgroundResource(R.drawable.pip_wizard_button_bg_active)
+            button.setTextColor(ContextCompat.getColor(this, R.color.pip_button_text_dark))
+        }
+    }
+    private fun setWizardButtonDisabled(button: Button) {
+        val accent = currentWizardAccentColor()
+        button.backgroundTintList = ColorStateList.valueOf(accent)
+        button.setBackgroundResource(R.drawable.pip_wizard_button_bg_disabled)
+        button.setTextColor(ColorUtils.setAlphaComponent(accent, 0x4D))
+    }
+    /**
+     * Раньше была локальной функцией внутри setupModeSelectScreen() — вынесена в метод,
+     * т.к. теперь есть второй вызывающий: openModeSelectScreen() (кнопка "Изменить" в
+     * Settings, roadmap — "Режим работы" вместо легаси Screen Resize), которому нужно
+     * заранее подсветить именно текущий активный режим, а не всегда PHONE.
+     */
+    private fun showModeDescription(mode: PipBoyMode) {
+        val ms = bindingMain.incLayoutTabModeSelect
+        modeSelectHighlighted = mode
+        ms.tvModeSelectDescription.text = when (mode) {
+            PipBoyMode.PHONE -> getString(R.string.mode_description_phone)
+            PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
+            PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
+        }
+        // Текущий выбранный режим — контур без заливки, остальные два — обычная
+        // сплошная заливка активной кнопки.
+        setWizardButtonState(ms.btnModeSelectPhone, selected = mode == PipBoyMode.PHONE)
+        setWizardButtonState(ms.btnModeSelectPipboy2000, selected = mode == PipBoyMode.PIPBOY_2000)
+        setWizardButtonState(ms.btnModeSelectPipboy3000, selected = mode == PipBoyMode.PIPBOY_3000)
+        // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание. Кнопка
+        // остаётся кликабельной, чтобы поймать тап и проиграть звук ошибки.
+        if (mode != PipBoyMode.PIPBOY_3000) {
+            setWizardButtonState(ms.btnModeSelectConfirm, selected = false)
+        } else {
+            setWizardButtonDisabled(ms.btnModeSelectConfirm)
+        }
+    }
+    /**
+     * Человекочитаемое название режима — переиспользует те же строки, что и кнопки
+     * экрана выбора режима, чтобы подпись в Settings ("Режим работы: ...") не расходилась
+     * с тем, что игрок видит на самом экране выбора.
+     */
+    private fun pipBoyModeDisplayName(mode: PipBoyMode): String = when (mode) {
+        PipBoyMode.PHONE -> getString(R.string.mode_phone)
+        PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_pipboy_2000)
+        PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_pipboy_3000)
+    }
+    /**
+     * Строка "Режим работы: <текущий режим>" в Settings (roadmap, косметические правки —
+     * заменили легаси Screen Resize) — обновляется и при первой загрузке значений
+     * настроек, и сразу после реального выбора режима в selectPipBoyMode(), чтобы не
+     * требовать перезапуска приложения для отражения смены режима.
+     */
+    private fun refreshModeSettingsLabel() {
+        val label = "${getString(R.string.settings_4_name)} ${pipBoyModeDisplayName(pipBoyMode)}"
+        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.tvSettings4.text = label
+        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.tvSettings4.text = label
+        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.tvSettings4.text = label
+    }
+    /**
+     * Точка входа в "Режим работы" из Settings (кнопка "Изменить") — по выбору пользователя
+     * (roadmap, косметические правки) весь поток идёт с самого начала, ровно как при первом
+     * запуске приложения: экран выбора режима -> (для PipBoy 2000/3000) весь мастер заново.
+     * Подсвечиваем сразу текущий активный режим, а не всегда "Телефон".
+     */
+    private fun openModeSelectScreen() {
+        showModeDescription(pipBoyMode)
+        bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
+    }
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
+        val modeButtons = listOf(ms.btnModeSelectPhone, ms.btnModeSelectPipboy2000, ms.btnModeSelectPipboy3000)
 
-        fun showDescription(mode: PipBoyMode) {
-            modeSelectHighlighted = mode
-            ms.tvModeSelectDescription.text = when (mode) {
-                PipBoyMode.PHONE -> getString(R.string.mode_description_phone)
-                PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
-                PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
+        // Текст описания — тоже акцентом текущей темы, не жёстко зелёным (смысл темы —
+        // красить весь экран, не только кнопки, см. currentWizardAccentColor()).
+        ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
+
+        showModeDescription(PipBoyMode.PHONE)
+        modeButtons.forEach { button ->
+            button.setOnClickListener {
+                playNewTabSelectAudio()
+                showModeDescription(
+                    when (button) {
+                        ms.btnModeSelectPhone -> PipBoyMode.PHONE
+                        ms.btnModeSelectPipboy2000 -> PipBoyMode.PIPBOY_2000
+                        else -> PipBoyMode.PIPBOY_3000
+                    }
+                )
             }
-            // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание.
-            val selectable = mode != PipBoyMode.PIPBOY_3000
-            ms.btnModeSelectConfirm.isEnabled = selectable
-            ms.btnModeSelectConfirm.alpha = if (selectable) 1f else 0.4f
         }
-
-        showDescription(PipBoyMode.PHONE)
-        ms.btnModeSelectPhone.setOnClickListener { showDescription(PipBoyMode.PHONE) }
-        ms.btnModeSelectPipboy2000.setOnClickListener { showDescription(PipBoyMode.PIPBOY_2000) }
-        ms.btnModeSelectPipboy3000.setOnClickListener { showDescription(PipBoyMode.PIPBOY_3000) }
-        ms.btnModeSelectConfirm.setOnClickListener { selectPipBoyMode(modeSelectHighlighted) }
+        ms.btnModeSelectConfirm.setOnClickListener {
+            if (modeSelectHighlighted == PipBoyMode.PIPBOY_3000) {
+                playErrorAudio()
+                return@setOnClickListener
+            }
+            playNewTabSelectAudio()
+            selectPipBoyMode(modeSelectHighlighted)
+        }
     }
     private fun selectPipBoyMode(mode: PipBoyMode) {
         pipBoyMode = mode
         sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
+        refreshModeSettingsLabel()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
         // На свежей установке ShowTutorial=true, и есть давно существующий код, который
@@ -1268,10 +1398,32 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Регулировка рабочей области жестом активна только пока реально показан этот шаг.
         isResizing = (step == PipBoyWizardStep.DISPLAY_AREA)
         if (step == PipBoyWizardStep.DISPLAY_AREA) {
-            // Экран выбора режима показывается при каждом запуске — рабочая область
-            // должна каждый раз начинаться с чистого fullscreen, а не подхватывать
-            // масштаб из предыдущей сессии.
+            // Доп. пол на размер при пинче, чтобы собственные заголовок/подсказка/3 кнопки
+            // этого шага не могли перестать помещаться и вылезти за границы экрана (см.
+            // ScaleListener.onScale) — отчёт по живому тесту, кнопка "Отмена" уезжала.
+            val displayMetrics = resources.displayMetrics
+            wizardMinContentWidthPx = (displayMetrics.widthPixels * 0.6f).toInt()
+            wizardMinContentHeightPx = (displayMetrics.heightPixels * 0.7f).toInt()
+            // Персистентный сброс — стартовая точка регулировки. Экран выбора режима
+            // показывается при каждом запуске, подхватывать масштаб из прошлой сессии не надо.
             resetToFullScreen()
+        } else if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) {
+            // До этого шага область ещё не настраивалась в этом прогоне мастера —
+            // полноэкранный информационный экран, ничего настроенного тут перезаписать нельзя.
+            wizardMinContentWidthPx = 0
+            wizardMinContentHeightPx = 0
+            applyTemporaryFullScreenLayout()
+        } else {
+            // PERMISSIONS/POWER_HINT — идут ПОСЛЕ "Готово" на шаге DISPLAY AREA, область уже
+            // настроена игроком и сохранена (см. saveViewState в ScaleListener/resetToFullScreen).
+            // Раньше здесь стоял applyTemporaryFullScreenLayout() до реального POWER от
+            // железа — из-за этого игрок в отчёте по тесту видел fullscreen сразу после
+            // "Готово" вместо настроенной области. Область нужна fullscreen только на миг
+            // реального системного диалога разрешений — это делает отдельно
+            // checkPermissions()/permissionRequestLauncher, здесь применяем сохранённое.
+            wizardMinContentWidthPx = 0
+            wizardMinContentHeightPx = 0
+            loadViewState()
         }
 
         if (step == PipBoyWizardStep.PERMISSIONS && hasAllRequiredPermissions()) {
@@ -1279,6 +1431,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             setupBluetooth()
             showWizardStep(PipBoyWizardStep.POWER_HINT)
         }
+    }
+    private fun applyTemporaryFullScreenLayout() {
+        val layoutParams = bindingMain.root.layoutParams as ViewGroup.MarginLayoutParams
+        layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+        layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        layoutParams.leftMargin = 0
+        layoutParams.topMargin = 0
+        bindingMain.root.layoutParams = layoutParams
     }
     private fun hasAllRequiredPermissions(): Boolean {
         val required = buildList {
@@ -1296,33 +1456,69 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun setupPipBoy2000Wizard() {
         val w = bindingMain.incLayoutPipboy2000Wizard
 
+        // Эти кнопки никогда не переключают background программно (setWizardButtonState/
+        // setWizardButtonDisabled их не касаются) — они лишь один раз показывают фон,
+        // заданный в style="@style/PipWizardButtonStyle" при инфлейте разметки, всегда в
+        // виде активной сплошной заливки. Тонируем акцентом текущей темы (см.
+        // currentWizardAccentColor()/setWizardButtonState) — тот же приём, что и там, чтобы
+        // мастер выглядел согласованно с выбранной темой, а не жёстко зелёным.
+        val wizardAccent = currentWizardAccentColor()
+        listOf(
+            w.btnWizardHardwareBack,
+            w.btnWizardHardwareNext,
+            w.btnWizardDone,
+            w.btnWizardReset,
+            w.btnWizardCancel,
+            w.btnWizardGrantPermissions,
+            w.btnWizardHideHint
+        ).forEach { it.backgroundTintList = ColorStateList.valueOf(wizardAccent) }
+
+        // Заголовки и основной текст шагов мастера — тем же акцентом (смысл темы —
+        // красить весь экран, не только кнопки), не жёстко зелёным.
+        listOf(
+            w.tvWizardHardwareTitle,
+            w.tvWizardHardwareText,
+            w.tvWizardDisplayAreaTitle,
+            w.tvWizardHint,
+            w.tvWizardPermissionsTitle,
+            w.tvWizardPermissionsText,
+            w.tvWizardPowerHint
+        ).forEach { it.setTextColor(wizardAccent) }
+
         // Шаг 2: Hardware Instructions
         w.btnWizardHardwareBack.setOnClickListener {
+            playNewTabSelectAudio()
             w.root.visibility = View.GONE
             bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
         }
         w.btnWizardHardwareNext.setOnClickListener {
+            playNewTabSelectAudio()
             showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
         }
 
         // Шаг 3: Display Area
         w.btnWizardDone.setOnClickListener {
+            playNewTabSelectAudio()
             showWizardStep(PipBoyWizardStep.PERMISSIONS)
         }
         w.btnWizardReset.setOnClickListener {
+            playNewTabSelectAudio()
             resetToFullScreen()
         }
         w.btnWizardCancel.setOnClickListener {
+            playNewTabSelectAudio()
             showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
         }
 
         // Шаг 4: Permissions
         w.btnWizardGrantPermissions.setOnClickListener {
+            playNewTabSelectAudio()
             checkPermissions()
         }
 
         // Шаг 5: подсказка про POWER
         w.btnWizardHideHint.setOnClickListener {
+            playNewTabSelectAudio()
             w.tvWizardPowerHint.visibility = View.GONE
             w.btnWizardHideHint.visibility = View.GONE
         }
@@ -1378,6 +1574,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
                 newWidth = max((originalWidth * 0.5).toInt(), (bindingMain.root.width * scaleX).toInt())
                 newHeight = max((originalHeight * 0.75).toInt(), (bindingMain.root.height * scaleY).toInt())
+                // Доп. пол на время шага DISPLAY AREA мастера PipBoy (roadmap, косметические
+                // правки) — без него собственный контент этого шага (заголовок, подсказка,
+                // 3 кнопки) мог перестать помещаться в уменьшенную область и вылезти за
+                // физические границы экрана телефона. В остальное время (обычная настройка
+                // области в Settings) оба порога — 0, ни на что не влияют.
+                newWidth = max(newWidth, wizardMinContentWidthPx)
+                newHeight = max(newHeight, wizardMinContentHeightPx)
 
                 val displayMetrics = resources.displayMetrics
                 val statusBarHeight = getStatusBarHeight()
@@ -2158,6 +2361,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }.start()
             // Мастер настройки PipBoy 2000/3000 больше не нужен — POWER реально пришёл.
             bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+            // Пока шли Permissions/подсказка про POWER, окно было временно fullscreen (не
+            // персистентно, см. showWizardStep/applyTemporaryFullScreenLayout) — теперь
+            // применяем реально настроенную на шаге DISPLAY AREA область для игры.
+            loadViewState()
         } else {
             overlay.animate().cancel()
             overlay.alpha = 1f
@@ -2387,9 +2594,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
             bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
             bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.layoutTabSettingsScreensize,
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.layoutTabSettingsScreensize,
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.layoutTabSettingsScreensize,
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup,
             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.layoutTabClock
             // Add other views as necessary
@@ -3006,6 +3210,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             mediaPlayerNewTabList.remove(it)
         }
     }
+    private fun playErrorAudio(){
+        val mediaPlayerError = MediaPlayer.create(applicationContext, R.raw.ui_error)
+        mediaPlayerErrorList.add(mediaPlayerError)
+        mediaPlayerError.start()
+        mediaPlayerError.setOnCompletionListener {
+            it.release()
+            mediaPlayerErrorList.remove(it)
+        }
+    }
     private fun playCNDSelectAudio(){
         val mediaPlayerCndRadEff = MediaPlayer.create(applicationContext, R.raw.cnd_rad_eff)
         mediaPlayerCndRadEffList.add(mediaPlayerCndRadEff)
@@ -3604,7 +3817,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
-        trueFullscreen = sharedPreferences.getBoolean("TrueFullscreen", false)
+        trueFullscreen = sharedPreferences.getBoolean("TrueFullscreen", true)
 
         if(trueFullscreen){
             //Remove notification bar from APP
@@ -5663,9 +5876,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             editSettings6STATS.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings6ITEMS.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings6DATA.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            editSettings7STATS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", false))
-            editSettings7ITEMS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", false))
-            editSettings7DATA.setChecked(sharedPreferences.getBoolean("TrueFullscreen", false))
+            editSettings7STATS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
+            editSettings7ITEMS.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
+            editSettings7DATA.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
+            refreshModeSettingsLabel()
 
             bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsDateformat.check(bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
             bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsDateformat.check(bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
@@ -5816,106 +6030,30 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         /***********************************************************************************************************
          *
-         * SCREENSIZE
+         * РЕЖИМ РАБОТЫ (Settings) — кнопка "Изменить"
          *
          **********************************************************************************************************/
 
-        //SCREENSIZE
-        val screensizeButtonSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsScreensize
-        val screensizeButtonITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsScreensize
-        val screensizeButtonDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsScreensize
-
-        screensizeButtonSTATS.setOnClickListener{
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.layoutSettingsLayout.visibility = View.GONE
+        // Легаси-инструмент "Screen Resize" (отдельный попап Resize/Move + Fullscreen поверх
+        // Settings) убран целиком (roadmap, косметические правки) — регулировка рабочей
+        // области теперь только через мастер PipBoy 2000/3000 (шаг DISPLAY AREA). Эта кнопка
+        // вместо старого попапа заново запускает весь поток с экрана выбора режима.
+        bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.btnSettingsChangeMode.setOnClickListener {
+            playNewTabSelectAudio()
+            openModeSelectScreen()
         }
-        screensizeButtonITEMS.setOnClickListener{
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.layoutSettingsLayout.visibility = View.GONE
+        bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.btnSettingsChangeMode.setOnClickListener {
+            playNewTabSelectAudio()
+            openModeSelectScreen()
         }
-        screensizeButtonDATA.setOnClickListener{
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.layoutSettingsLayout.visibility = View.GONE
-        }
-
-        val screensizeButtonCloseSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeClose
-        val screensizeButtonCloseITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeClose
-        val screensizeButtonCloseDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeClose
-
-        screensizeButtonCloseSTATS.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.root.visibility = View.GONE
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.layoutSettingsLayout.visibility = View.VISIBLE
-            }
-        }
-        screensizeButtonCloseITEMS.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.root.visibility = View.GONE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.layoutSettingsLayout.visibility = View.VISIBLE
-            }
-        }
-        screensizeButtonCloseDATA.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.root.visibility = View.GONE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.layoutSettingsLayout.visibility = View.VISIBLE
-            }
+        bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.btnSettingsChangeMode.setOnClickListener {
+            playNewTabSelectAudio()
+            openModeSelectScreen()
         }
 
-        val screensizeButtonResizeSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeResize
-        val screensizeButtonResizeITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeResize
-        val screensizeButtonResizeDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeResize
-
-        screensizeButtonResizeSTATS.setOnClickListener{
-            isResizing = !isResizing
-            if(isResizing){
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-            } else {
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-            }
-        }
-        screensizeButtonResizeITEMS.setOnClickListener{
-            isResizing = !isResizing
-            if(isResizing){
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-            } else {
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-            }
-        }
-        screensizeButtonResizeDATA.setOnClickListener{
-            isResizing = !isResizing
-            if(isResizing){
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.VISIBLE
-            } else {
-                bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-                bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.tvScreensizeEditting.visibility = View.GONE
-            }
-        }
-
-        val screensizeButtonFullscreenSTATS = bindingMain.incLayoutTabStatsGeneral.incLayoutTabStatsSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeFullscreen
-        val screensizeButtonFullscreenITEMS = bindingMain.incLayoutTabItemsMisc.incLayoutTabItemSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeFullscreen
-        val screensizeButtonFullscreenDATA = bindingMain.incLayoutTabDataMisc.incLayoutTabDataSettings.incLayoutTabSettingsScreensize.btnSettingsScreensizeFullscreen
-
-        screensizeButtonFullscreenSTATS.setOnClickListener{
-            resetToFullScreen()
-        }
-        screensizeButtonFullscreenITEMS.setOnClickListener{
-            resetToFullScreen()
-        }
-        screensizeButtonFullscreenDATA.setOnClickListener{
-            resetToFullScreen()
-        }
-
+        // isResizing/ScaleListener/handleTouch — общий с мастером механизм (шаг DISPLAY AREA
+        // сам включает isResizing на время своего показа, см. showWizardStep()), поэтому
+        // остаётся и после удаления легаси-попапа.
         scaleGestureDetector = ScaleGestureDetector(this, ScaleListener())
         
         bindingMain.root.setOnTouchListener { _, event ->

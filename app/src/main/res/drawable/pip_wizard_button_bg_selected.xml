@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Текущий выбранный режим на экране 1 — контур без заливки (roadmap, косметические
+     правки). Цвет контура нейтральный, реальный акцент — через backgroundTintList в
+     коде, см. pip_wizard_button_bg_active.xml. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <stroke android:width="2dp" android:color="@android:color/white" />
+</shape>

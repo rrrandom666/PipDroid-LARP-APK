@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Жирная стрелка-индикатор угла регулируемой области (мастер PipBoy, экран Display
+     Area). Базовая форма указывает вверх — на каждом углу разворачивается через
+     android:rotation в разметке, чтобы не плодить 4 одинаковых файла. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/themeGreen"
+        android:pathData="M12,2 L21,11 L15,11 L15,22 L9,22 L9,11 L3,11 Z" />
+</vector>

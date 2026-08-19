@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Строка 1 новой шапки (roadmap, "Новая шапка + единый Settings", п.3) — переключатель
-     верхнего уровня STATS/ITEMS/DATA (RADIO добавляется отдельным пунктом п.5) + иконка
-     Settings слева + индикатор BLE справа. Один общий инстанс на всё приложение, не по
-     копии на раздел — в отличие от второго уровня (row2), у row1 нет раздел-специфичного
-     содержимого вообще. -->
+<!-- Строка 1 новой шапки (roadmap, "Новая шапка + единый Settings", п.3-4) — переключатель
+     верхнего уровня STATS/ITEMS/DATA/RADIO + иконка Settings слева + индикатор BLE справа.
+     Один общий инстанс на всё приложение, не по копии на раздел — в отличие от второго
+     уровня (row2), у row1 нет раздел-специфичного содержимого вообще. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_header_toplevel"
@@ -83,8 +82,37 @@
         android:minHeight="0.0dip"
         android:text="@string/title_data"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/img_header_ble_status"
+        app:layout_constraintEnd_toStartOf="@id/img_header_link_3"
         app:layout_constraintStart_toEndOf="@id/img_header_link_2"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_header_link_3"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_header_data"
+        app:layout_constraintEnd_toStartOf="@id/btn_header_radio"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_header_data"
+        app:layout_constraintTop_toTopOf="@id/btn_header_data"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <!-- RADIO (roadmap, "Новая шапка + единый Settings", п.4) — 4-й раздел верхнего
+         уровня, выносится из второго уровня DATA. У него уже есть свой аппаратный вход
+         (физический тумблер, RADIOPWR от ESP32), тач по этой кнопке — второй, равноценный
+         способ. У раздела нет строки 2 (см. roadmap, таблица второго уровня). -->
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_header_radio"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/title_radio"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_header_ble_status"
+        app:layout_constraintStart_toEndOf="@id/img_header_link_3"
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView

@@ -2464,7 +2464,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 curMenu = "ITEMS"
             }
             "DATA" -> {
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataRadio)
+                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc)
                 menuOptionClicked("DATA")
                 curMenu = "DATA"
             }
@@ -2610,8 +2610,16 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             MenuNode("LOCALMAP") { bottom.btnDataLocalmap.performClick() },
             MenuNode("QUESTS") { bottom.btnDataQuests.performClick() },
             MenuNode("MISC") { bottom.btnDataMisc.performClick() },
-            MenuNode("RADIO") { bottom.btnDataRadio.performClick() },
         )
+    }
+    /**
+     * RADIO — top-level раздел без второго уровня (roadmap, "Новая шапка + единый
+     * Settings", п.4/таблица второго уровня) — корень дерева состоит из одного листа,
+     * чтобы `ENCBTN`/`ENC` на этом разделе хотя бы не падали, а не потому что там
+     * реально есть навигация вглубь.
+     */
+    private fun radioMenuRoot(): List<MenuNode> {
+        return listOf(MenuNode("RADIO") { })
     }
     /**
      * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
@@ -2633,7 +2641,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             "ENCBTN" -> menuNavigator.activateSelected()
             "ENC" -> menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
             "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
-            "RADIOPWR" -> Log.i("BLE", "RADIOPWR:$value — реальное радио, roadmap этап 7")
+            // RADIOPWR:1 -> переключиться на экран радио (протокол, раздел 3.2). RADIOPWR:0 —
+            // остаться на текущем экране, обновление статуса радио — roadmap этап 7.
+            "RADIOPWR" -> if (value == "1") { menuChangeBLE("RADIO"); menuNavigator.resetToRoot(radioMenuRoot()) }
             "RADIOFREQ" -> Log.i("BLE", "RADIOFREQ:$value — реальное радио, roadmap этап 7")
             "RADIOTUNE" -> Log.i("BLE", "RADIOTUNE:$value — реальное радио, roadmap этап 7")
             "VOLUME" -> Log.i("BLE", "VOLUME:$value — реальное радио, roadmap этап 7")
@@ -2657,9 +2667,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 curMenu = "ITEMS"
             }
             "DATA" -> {
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataRadio)
+                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc)
                 menuOptionClickedBLE("DATA")
                 curMenu = "DATA"
+            }
+            "RADIO" -> {
+                // У RADIO нет второго уровня (roadmap, "Новая шапка + единый Settings",
+                // п.4) — listBottomButtons пуст, enableDisableBottomButtons() отработает
+                // на пустом списке без ошибок.
+                bottomButtonsModify()
+                menuOptionClickedBLE("RADIO")
+                curMenu = "RADIO"
             }
         }
     }
@@ -2886,13 +2904,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
-    private fun bottomButtonsModify(button1: Button, button2: Button, button3: Button, button4: Button, button5: Button){
+    private fun bottomButtonsModify(vararg buttons: Button){
         listBottomButtons.clear()
-        listBottomButtons.add(button1)
-        listBottomButtons.add(button2)
-        listBottomButtons.add(button3)
-        listBottomButtons.add(button4)
-        listBottomButtons.add(button5)
+        listBottomButtons.addAll(buttons)
     }
     private fun setupSTATS(){
         //Set Selected buttons by default
@@ -2917,7 +2931,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.GONE
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_stats).visibility = View.VISIBLE
-        } else if (menu == "ITEMS" || menu == "DATA"){
+        } else if (menu == "ITEMS" || menu == "DATA" || menu == "RADIO"){
             findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.VISIBLE
         }
     }
@@ -2930,10 +2944,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<Button>(R.id.btn_header_stats).setBackgroundResource(R.drawable.button_unselected)
         findViewById<Button>(R.id.btn_header_items).setBackgroundResource(R.drawable.button_unselected)
         findViewById<Button>(R.id.btn_header_data).setBackgroundResource(R.drawable.button_unselected)
+        findViewById<Button>(R.id.btn_header_radio).setBackgroundResource(R.drawable.button_unselected)
         when(menu){
             "STATS" -> findViewById<Button>(R.id.btn_header_stats).setBackgroundResource(selected_button)
             "ITEMS" -> findViewById<Button>(R.id.btn_header_items).setBackgroundResource(selected_button)
             "DATA" -> findViewById<Button>(R.id.btn_header_data).setBackgroundResource(selected_button)
+            "RADIO" -> findViewById<Button>(R.id.btn_header_radio).setBackgroundResource(selected_button)
         }
     }
     private fun setupMainContent(menu: String){
@@ -2974,6 +2990,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.VISIBLE
+        } else if (menu == "RADIO"){
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.VISIBLE
         }
     }
     private fun setupMainContentBLE(menu: String){
@@ -3014,6 +3032,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_weapons).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.VISIBLE
+        } else if (menu == "RADIO"){
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.VISIBLE
         }
     }
     private fun setupBottomBar(menu: String){
@@ -3057,7 +3077,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<Button>(R.id.btn_data_worldmap).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_data_quests).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(selected_button)
-            findViewById<Button>(R.id.btn_data_radio).setBackgroundResource(R.drawable.button_unselected)
         }
         topLevelButtonsModify(menu)
         setupTitleBar(menu)
@@ -3086,7 +3105,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<Button>(R.id.btn_data_worldmap).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_data_quests).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_radio).setBackgroundResource(R.drawable.button_unselected)
         }
         topLevelButtonsModify(menu)
         setupTitleBar(menu)
@@ -4077,6 +4095,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutHeaderToplevel.btnHeaderStats.setOnClickListener{ menuChangeBLE("STATS") }
         bindingMain.incLayoutHeaderToplevel.btnHeaderItems.setOnClickListener{ menuChangeBLE("ITEMS") }
         bindingMain.incLayoutHeaderToplevel.btnHeaderData.setOnClickListener{ menuChangeBLE("DATA") }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderRadio.setOnClickListener{
+            menuChangeBLE("RADIO")
+            menuNavigator.resetToRoot(radioMenuRoot())
+        }
         bindingMain.incLayoutHeaderToplevel.btnHeaderSettings.setOnClickListener{
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
@@ -5674,16 +5696,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         /*
         ////////////////////////////////////////////////////////
         DATA - RADIO MENU
+        // RADIO вынесен в top-level раздел строки 1 (roadmap, "Новая шапка + единый
+        // Settings", п.4) — кнопка второго уровня DATA, которая раньше открывала этот
+        // экран, убрана из разметки; вход теперь через btn_header_radio (см. ниже,
+        // "ШАПКА — строка 1"), который идёт по тому же menuChangeBLE("RADIO"), что и
+        // остальные разделы, а не отдельным ad-hoc переключением видимости.
         */
-        bindingMain.incLayoutTabDataBottom.btnDataRadio.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataRadio, listBottomButtons)
-            bindingMain.incLayoutTabDataLocalMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataWorldMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataQuests.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataRadio.root.visibility = View.VISIBLE
-        }
-
         bindingMain.incLayoutTabDataRadio.layoutTabRadioGnr.setOnClickListener{
             if(radioGNRStateSelected){
                 if(bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility != View.VISIBLE){

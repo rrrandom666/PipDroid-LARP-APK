@@ -38,33 +38,67 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintWidth_percent="0.96">
 
+        <!-- Новая шапка (roadmap, "Новая шапка + единый Settings", п.3) — было 10% экрана
+             под одну строку (имя раздела + живые данные вперемешку), стало 20% под две
+             строки: row1 (верхний уровень, общий инстанс) + row2 (второй уровень, те же
+             три инстанса, что и раньше, просто переехали сюда с низа экрана). -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/title_constraintLayout"
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
             android:minHeight="48dip"
             app:layout_constraintEnd_toEndOf="@id/main_constraintLayout"
-            app:layout_constraintHeight_percent="0.1"
+            app:layout_constraintHeight_percent="0.16"
             app:layout_constraintStart_toStartOf="@id/main_constraintLayout"
             app:layout_constraintTop_toTopOf="parent">
 
-            <include
-                android:id="@+id/inc_layout_tab_stats_title"
-                layout="@layout/layout_tab_stats_title"
-                android:visibility="visible" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/row1_constraintLayout"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.5"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-            <include
-                android:id="@+id/inc_layout_tab_items_title"
-                layout="@layout/layout_tab_items_title"
-                android:visibility="gone" />
+                <include
+                    android:id="@+id/inc_layout_header_toplevel"
+                    layout="@layout/layout_header_toplevel"
+                    android:visibility="visible" />
 
-            <include
-                android:id="@+id/inc_layout_tab_data_title"
-                layout="@layout/layout_tab_data_title"
-                android:visibility="gone" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/row2_constraintLayout"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.5"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/row1_constraintLayout">
+
+                <include
+                    android:id="@+id/inc_layout_tab_stats_bottom"
+                    layout="@layout/layout_tab_stats_bottom"
+                    android:visibility="visible" />
+
+                <include
+                    android:id="@+id/inc_layout_tab_items_bottom"
+                    layout="@layout/layout_tab_items_bottom"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/inc_layout_tab_data_bottom"
+                    layout="@layout/layout_tab_data_bottom"
+                    android:visibility="gone" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <!-- Нижняя контекстная панель (roadmap, там же) — живые данные раздела, не
+             навигация. STATS — свой инстанс (LVL/HP/AP/XP), ITEMS/DATA — общий инстанс
+             (дата/время, содержимое идентично). -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/bottom_constraintLayout"
             android:layout_width="0.0dip"
@@ -72,22 +106,17 @@
             android:minHeight="48dip"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHeight_percent="0.1"
+            app:layout_constraintHeight_percent="0.06"
             app:layout_constraintStart_toStartOf="parent">
 
             <include
-                android:id="@+id/inc_layout_tab_stats_bottom"
-                layout="@layout/layout_tab_stats_bottom"
+                android:id="@+id/inc_layout_header_bottom_stats"
+                layout="@layout/layout_header_bottom_stats"
                 android:visibility="visible" />
 
             <include
-                android:id="@+id/inc_layout_tab_items_bottom"
-                layout="@layout/layout_tab_items_bottom"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/inc_layout_tab_data_bottom"
-                layout="@layout/layout_tab_data_bottom"
+                android:id="@+id/inc_layout_header_bottom_datetime"
+                layout="@layout/layout_header_bottom_datetime"
                 android:visibility="gone" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>

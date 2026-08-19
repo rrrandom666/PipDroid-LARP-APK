@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Строка 1 новой шапки (roadmap, "Новая шапка + единый Settings", п.3) — переключатель
+     верхнего уровня STATS/ITEMS/DATA (RADIO добавляется отдельным пунктом п.5) + иконка
+     Settings слева + индикатор BLE справа. Один общий инстанс на всё приложение, не по
+     копии на раздел — в отличие от второго уровня (row2), у row1 нет раздел-специфичного
+     содержимого вообще. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_header_toplevel"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ImageView
+        android:id="@+id/btn_header_settings"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:padding="4dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/settings"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHeight_percent="0.7"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.06"
+        app:srcCompat="@drawable/ic_settings_gear" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_header_stats"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/title_stats"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_header_link_1"
+        app:layout_constraintStart_toEndOf="@id/btn_header_settings"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_header_link_1"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_header_stats"
+        app:layout_constraintEnd_toStartOf="@id/btn_header_items"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_header_stats"
+        app:layout_constraintTop_toTopOf="@id/btn_header_stats"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_header_items"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/title_items"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_header_link_2"
+        app:layout_constraintStart_toEndOf="@id/img_header_link_1"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_header_link_2"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_header_items"
+        app:layout_constraintEnd_toStartOf="@id/btn_header_data"
+        app:layout_constraintHeight_percent="0.05"
+        app:layout_constraintStart_toEndOf="@id/btn_header_items"
+        app:layout_constraintTop_toTopOf="@id/btn_header_items"
+        app:srcCompat="@drawable/bottom_linking_line" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_header_data"
+        style="@style/BottomButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/title_data"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_header_ble_status"
+        app:layout_constraintStart_toEndOf="@id/img_header_link_2"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_header_ble_status"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:padding="4dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/bluetooth"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.7"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.06"
+        app:srcCompat="@drawable/ic_ble_status" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

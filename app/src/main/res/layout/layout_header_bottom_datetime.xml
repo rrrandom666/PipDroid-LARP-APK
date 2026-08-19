@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Нижняя контекстная панель для ITEMS/DATA (и в дальнейшем RADIO, roadmap "Новая шапка +
+     единый Settings", п.3/п.5) — общий инстанс, не по копии на раздел, т.к. содержимое
+     идентично: дата/время с игровым годом (Settings, "Игровой год"). Раньше было только у
+     DATA (layout_tab_data_title.xml, вместе со статичным "Megaton", по спеке в таблицу не
+     попавшим — не трогался в коде, отброшен как неиспользуемая заглушка). У ITEMS игровой
+     показатель (вес и т.п.) пока не определён — только дата/время, как у DATA. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_header_bottom_datetime"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <TextView
+        android:id="@+id/tv_title_data_datetime_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center|right"
+        android:text="@string/title_data_time"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

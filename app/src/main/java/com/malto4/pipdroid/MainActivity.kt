@@ -1209,6 +1209,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     fun updateBLEConnected(status: String){
         bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
+        // Индикатор BLE в правом углу row1 (roadmap, "Новая шапка + единый Settings", п.3) —
+        // тот же глиф, состояние передаётся альфой, не сменой drawable.
+        bindingMain.incLayoutHeaderToplevel.imgHeaderBleStatus.alpha = if (status == "CONNECTED") 1.0f else 0.35f
     }
     private fun disconnectBLE(){
         updateBLEConnected("DISCONNECTED")
@@ -2903,16 +2906,34 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.layout_tab_data_quests_entry6).setBackgroundResource(selected_button)
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
     }
+    /**
+     * Нижняя контекстная панель (roadmap, "Новая шапка + единый Settings", п.3) — раньше
+     * эта функция переключала три копии старой шапки (имя раздела + данные вперемешку),
+     * теперь переключает панель живых данных: у STATS свой инстанс (LVL/HP/AP/XP), у
+     * ITEMS/DATA — общий (дата/время, идентичное содержимое).
+     */
     private fun setupTitleBar(menu: String){
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_title).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_title).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_title).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_stats).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.GONE
         if (menu == "STATS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_title).visibility = View.VISIBLE
-        } else if (menu == "ITEMS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_title).visibility = View.VISIBLE
-        } else if (menu == "DATA"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_title).visibility = View.VISIBLE
+            findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_stats).visibility = View.VISIBLE
+        } else if (menu == "ITEMS" || menu == "DATA"){
+            findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.VISIBLE
+        }
+    }
+    /**
+     * Строка 1 новой шапки — подсветка активного верхнего раздела (тот же приём, что и у
+     * второго уровня в menuOptionClicked/menuOptionClickedBLE: закрашенный фон
+     * [selected_button] на активной кнопке, прозрачный на остальных).
+     */
+    private fun topLevelButtonsModify(menu: String){
+        findViewById<Button>(R.id.btn_header_stats).setBackgroundResource(R.drawable.button_unselected)
+        findViewById<Button>(R.id.btn_header_items).setBackgroundResource(R.drawable.button_unselected)
+        findViewById<Button>(R.id.btn_header_data).setBackgroundResource(R.drawable.button_unselected)
+        when(menu){
+            "STATS" -> findViewById<Button>(R.id.btn_header_stats).setBackgroundResource(selected_button)
+            "ITEMS" -> findViewById<Button>(R.id.btn_header_items).setBackgroundResource(selected_button)
+            "DATA" -> findViewById<Button>(R.id.btn_header_data).setBackgroundResource(selected_button)
         }
     }
     private fun setupMainContent(menu: String){
@@ -3038,6 +3059,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(selected_button)
             findViewById<Button>(R.id.btn_data_radio).setBackgroundResource(R.drawable.button_unselected)
         }
+        topLevelButtonsModify(menu)
         setupTitleBar(menu)
         setupMainContent(menu)
         setupBottomBar(menu)
@@ -3066,6 +3088,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(R.drawable.button_unselected)
             findViewById<Button>(R.id.btn_data_radio).setBackgroundResource(R.drawable.button_unselected)
         }
+        topLevelButtonsModify(menu)
         setupTitleBar(menu)
         setupMainContentBLE(menu)
         setupBottomBar(menu)
@@ -3244,7 +3267,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         if ((lvlDmgTotal >= 12) && (lvlDmgTotal <= 21)){bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_03)}
         if (lvlDmgTotal >= 23){lvlDmgTotal = 23; bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_04)}
 
-        bindingMain.incLayoutTabStatsTitle.tvTitleHpValue.text = "${hpLevel}/720"
+        bindingMain.incLayoutHeaderBottomStats.tvTitleHpValue.text = "${hpLevel}/720"
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndStimpacksValue.text = "(${numStimpak})"
 
     }
@@ -4044,6 +4067,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         setupDATA()
         selectedSubMenu = bindingMain.incLayoutTabStatsBottom.btnStatsStatus
         findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
+        topLevelButtonsModify("STATS")
+
+        /***********************************************************************************************************
+         * ШАПКА — строка 1 (roadmap, "Новая шапка + единый Settings", п.3): переключатель
+         * верхнего уровня STATS/ITEMS/DATA, шестерёнка Settings, индикатор BLE. Один общий
+         * инстанс на всё приложение (inc_layout_header_toplevel), не по копии на раздел.
+         **********************************************************************************************************/
+        bindingMain.incLayoutHeaderToplevel.btnHeaderStats.setOnClickListener{ menuChangeBLE("STATS") }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderItems.setOnClickListener{ menuChangeBLE("ITEMS") }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderData.setOnClickListener{ menuChangeBLE("DATA") }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderSettings.setOnClickListener{
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
+            enableDisableBottomButtons(false, listBottomButtons)
+            enableDisableTopSwipe(false)
+        }
+        updateBLEConnected(if (bleService?.isConnected() == true) "CONNECTED" else "DISCONNECTED")
 
         // Clock time refresh
         when(sharedPreferences.getInt(dateFormat_SPKey, 0)){
@@ -4068,7 +4107,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                             val datetime: String = SimpleDateFormat(selectedDateFormat).format(gameCalendar.time)
                             val timeHHmm: String = SimpleDateFormat("HH:mm").format(gameCalendar.time)
                             val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
-                            bindingMain.incLayoutTabDataTitle.tvTitleDataDatetimeValue.text = datetime
+                            bindingMain.incLayoutHeaderBottomDatetime.tvTitleDataDatetimeValue.text = datetime
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupHm.text = timeHHmm
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupS.text = timess
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupBattery.text = getBatteryPercent().toString()
@@ -5772,7 +5811,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndName.text = sharedPreferences.getString(playerName_SPKey, "Player")
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndNameLevelValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
-            bindingMain.incLayoutTabStatsTitle.tvTitleStatsLvlValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
+            bindingMain.incLayoutHeaderBottomStats.tvTitleStatsLvlValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
             editSettings1.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
             editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
             editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
@@ -5883,33 +5922,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
          * LongPressFunctions
          *
          **********************************************************************************************************/
-        bindingMain.incLayoutTabStatsTitle.tvTitleData.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isFlashlightOn = true
-                    handler.postDelayed(longPressRunnable, 1000) // 1 seconds
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFlashlightOn = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabItemsTitle.tvTitleData.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isFlashlightOn = true
-                    handler.postDelayed(longPressRunnable, 1000) // 1 seconds
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFlashlightOn = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabDataTitle.tvTitleData.setOnTouchListener { view, event ->
+        // Долгое нажатие на шапку -> фонарик. Раньше было 3 копии (по одной на
+        // tv_title_data STATS/ITEMS/DATA) — row1 теперь один общий инстанс на всё
+        // приложение (roadmap, "Новая шапка + единый Settings", п.3), достаточно одного
+        // слушателя на его корень.
+        bindingMain.incLayoutHeaderToplevel.root.setOnTouchListener { view, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     isFlashlightOn = true

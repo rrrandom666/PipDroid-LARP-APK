@@ -60,6 +60,8 @@
     <string name="radio_newvegas">New Vegas Radio</string>
     <string name="radio_custom">Custom Radio</string>
 
+    <string name="bluetooth">Bluetooth</string>
+
     <string name="title_stats">STATS</string>
     <string name="title_stats_CND">CND</string>
     <string name="title_stats_EFF">EFF</string>

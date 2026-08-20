@@ -3053,10 +3053,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
+        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() ниже — иначе
+        // курсор энкодера/дефолтная активация (индекс 0 по dataMenuRoot()) и подсветка
+        // строки 2 (индекс 0 по этому списку) указывают на разные пункты: было
+        // WORLDMAP/LOCALMAP переставлены местами, из-за чего Local Map подсвечивался, а
+        // реально показывался World Map.
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
-            Row2Item(bottom.btnDataLocalmap.text) { bottom.btnDataLocalmap.performClick() },
             Row2Item(bottom.btnDataWorldmap.text) { bottom.btnDataWorldmap.performClick() },
+            Row2Item(bottom.btnDataLocalmap.text) { bottom.btnDataLocalmap.performClick() },
             Row2Item(bottom.btnDataQuests.text) { bottom.btnDataQuests.performClick() },
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
         )

@@ -74,9 +74,6 @@
     <string name="title_stats_status_status_effects">NO STATUS EFFECTS</string>
 
     <string name="title_items">ITEMS</string>
-    <string name="title_items_wg">89/136</string>
-    <string name="title_items_dt">5.0</string>
-    <string name="title_items_caps">3167</string>
 
     <string name="title_data">DATA</string>
     <string name="title_data_location">Megaton</string>
@@ -198,107 +195,7 @@
     <string name="stats_general_faction_karma_hated">Hated</string>
     <string name="stats_general_faction_karma_vilified">Vilified</string>
 
-    <string name="items_weapons">Weapons</string>
-    <string name="items_weapons_10mm_pistol_name">10mm pistol</string>
-    <string name="items_weapons_10mm_pistol_STR">1</string>
-    <string name="items_weapons_10mm_pistol_DPS">54</string>
-    <string name="items_weapons_10mm_pistol_WG">3</string>
-    <string name="items_weapons_10mm_pistol_VAL">225</string>
-    <string name="items_weapons_10mm_pistol_CND">80</string>
-
-    <string name="items_weapons_10mm_ammo">10mm Rounds (12/1038)</string>
-    <string name="items_weapons_alienpowercell_ammo">Alien power cells (10/165)</string>
-    <string name="items_weapons_bb_ammo">BB (100/214)</string>
-    <string name="items_weapons_shotgun_ammo">Shotgun shells (12/86)</string>
-    <string name="items_weapons_mini_nuke_ammo">Mini nukes (1/9)</string>
-    <string name="items_weapons_energy_cell_ammo">Energy cells (30/275)</string>
-    <string name="items_weapons_5mm_ammo">5mm Rounds (240/1426)</string>
-    <string name="items_weapons_microfusion_cells_ammo">Microfusion cells (12/316)</string>
-    <string name="items_weapons_50MG_ammo">.50 MG (8/138)</string>
-    <string name="items_weapons_no_ammo">--</string>
-
-    <string name="items_apparel">Apparel</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_name">NCR Ranger combat armor</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_DT">20</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_WG">30</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_VAL">7500</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_CND">70</string>
-    <string name="items_apparel_ncr_ranger_combat_armor_TYPE">Medium</string>
-    <string name="items_apparel_ncr_ranger_helmet_name">Ranger helmet</string>
-    <string name="items_apparel_ncr_ranger_helmet_DT">4</string>
-    <string name="items_apparel_ncr_ranger_helmet_WG">3</string>
-    <string name="items_apparel_ncr_ranger_helmet_VAL">999</string>
-    <string name="items_apparel_ncr_ranger_helmet_CND">70</string>
-    <string name="items_apparel_ncr_ranger_helmet_TYPE">--</string>
-
-    <string name="items_aid">Aid</string>
-    <string name="items_aid_stimpak_name">Stimpak (10)</string>
-    <string name="items_aid_stimpak_WG">--</string>
-    <string name="items_aid_stimpak_VAL">825</string>
-    <string name="items_aid_stimpak_EFF">HP +8(6s)</string>
-
-    <string name="items_misc">Misc</string>
-    <string name="items_misc_item_1_name">Deathclaw hand</string>
-    <string name="items_misc_item_1_WG">1</string>
-    <string name="items_misc_item_1_VAL">25</string>
-
-    <string name="items_ammo">Ammo</string>
-    <string name="items_ammo_50MG_name">.50 MG (138)</string>
-    <string name="items_ammo_50MG_VAL">828</string>
-    <string name="items_ammo_50MG_WG">0</string>
-
-    <string name="data_worldmap">World Map</string>
-
     <string name="data_localmap">Local Map</string>
-
-    <string name="data_quests">Quests</string>
-    <string name="data_quests_entry1_name">Baby Steps</string>
-    <string name="data_quests_entry1_description">"- Walk to Dad.
-- Open the playpen's gate.
-- Exit the playpen.
-- Look at the \"You're SPECIAL!\" book.
-- Follow Dad."</string>
-    <string name="data_quests_entry2_name">Growing Up Fast</string>
-    <string name="data_quests_entry2_description">"- Enjoy the party and speak with the guests.
-- Meet Jonas on the Reactor Level.
-- Shoot all three targets with the BB Gun.
-- Use the BB Gun to kill the radroach.
-- Stand next to Dad so Jonas can take the picture."</string>
-    <string name="data_quests_entry3_name">Future Imperfect</string>
-    <string name="data_quests_entry3_description">"- Get to class and talk to Mr. Brotch about the G.O.A.T.
-- Sit down and take the G.O.A.T.
-- Turn in the G.O.A.T. to Mr. Brotch.
-- Exit the classroom."</string>
-    <string name="data_quests_entry4_name">Escape!</string>
-    <string name="data_quests_entry4_description">"- Talk to Amata about her plan to escape the Vault.
-- Enter the Overseer's office.
-- Use the Overseer's computer to access the secret tunnel.
-- Enter the reactor control room.
-- Turn the power back on.
-- Open the Vault door.
-- Escape the Vault."</string>
-    <string name="data_quests_entry5_name">Wasteland Survival Guide</string>
-    <string name="data_quests_entry5_description">"- Ask Moira Brown about her book.
-- Help Moira with Chapter 1.
-- Find Food in the Super-Duper Mart.
-- Find medicine in the Super-Duper Mart. (Optional)
-- Return to Moira.
-- Contract radiation sickness (200 rads).
-- Contract more severe radiation sickness (600 rads). (Optional)
-- Return to Moira.
-- Travel to the playground in Minefield.
-- Bring a landmine to Moira. (Optional)
-- Return to Moira.
-- Help Moira with Chapter 2.
-- Test the repellent on three Mole Rats.
-- Test Stick on seven more Mole Rats. (Optional)"</string>
-    <string name="data_quests_entry6_name">Following in His Footsteps</string>
-    <string name="data_quests_entry6_description">"- Investigate the nearby town of Megaton for information about Dad.
-- Speak to Colin Moriarty about Dad.
-- (Optional) Deal with Silver in Springvale.
-- Continue your search for Dad."</string>
-
-
 
     <string name="data_misc">Misc</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>

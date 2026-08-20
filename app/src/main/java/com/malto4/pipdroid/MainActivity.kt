@@ -131,9 +131,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
     private var listStatsSkills = ArrayList<ConstraintLayout>()
     private var listStatsGeneralFactions = ArrayList<ConstraintLayout>()
-    private var listItemsWeapons = ArrayList<ConstraintLayout>()
-    private var listItemsApparel = ArrayList<ConstraintLayout>()
-    private var listDataQuests= ArrayList<ConstraintLayout>()
     private var listDataMisc = ArrayList<ConstraintLayout>()
     private var listDataRadios = ArrayList<ConstraintLayout>()
 
@@ -176,16 +173,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     companion object {
         private const val REQUEST_CODE_PERMISSION_INTERNET = 1
     }
-
-    /***********************************************************************************************************
-     * WORLD MAP
-     **********************************************************************************************************/
-    private lateinit var worldMapPhotoView: PhotoView
-    private lateinit var worldMapPOIContainer: FrameLayout
-    private lateinit var worldMapPOIs:  MutableList<worldMapPointOfInterest>
-    private var currentVisibleTextView: TextView? = null
-    private var lastClickedWorldMapPoi: worldMapPointOfInterest? = null
-    private val minScaleForClickableIcons = 2.2f  // Adjust this value as needed
 
     /***********************************************************************************************************
      * BLUETOOTH
@@ -283,12 +270,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private lateinit var filterFrame: FrameLayout
     private lateinit var filteringMenu: String
     private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterITEMSWeapons = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterITEMSApparel = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterITEMSAid = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterITEMSMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterITEMSAmmo = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterDATAQuests = mutableSetOf<String>()  // Set to keep track of selected item IDs
     private var selectedFilterDATAMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
 
     /***********************************************************************************************************
@@ -297,11 +278,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var statsCndPopupIsHolding = false
     private var menuSwipeEnabled = true
     private var perkModification = false
-    private var weaponModification = false
-    private var apparelModification = false
-    private var aidModification = false
-    private var imiscModification = false
-    private var ammoModification = false
     private var isFlashlightOn = false
     private var isFlashlightOff = false
     private var numStimpak = 10
@@ -385,61 +361,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 enableDisableBottomButtons(false, listBottomButtons)
                 enableDisableTopSwipe(false)
                 perkModification = false
-            }
-            if (weaponModification){
-                filteringMenu = "WEAPONS"
-                listEntries(filterFrame, weapons)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                weaponModification = false
-            }
-            if (apparelModification){
-                filteringMenu = "APPAREL"
-                listEntries(filterFrame, apparels)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                apparelModification = false
-            }
-            if (aidModification){
-                filteringMenu = "AID"
-                listEntries(filterFrame, aids)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                aidModification = false
-            }
-            if (imiscModification){
-                filteringMenu = "IMISC"
-                listEntries(filterFrame, imiscs)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                imiscModification = false
-            }
-            if (ammoModification){
-                filteringMenu = "AMMO"
-                listEntries(filterFrame, ammos)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                ammoModification = false
             }
             if (isFlashlightOn){
                 mediaPlayerLightOn?.start()
@@ -917,7 +838,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /**
      * Строка 2 новой шапки (roadmap, "Новая шапка + единый Settings", косметика по образцу
      * референса) — [label] и [onSelect] берутся с уже существующих кнопок второго уровня
-     * (btnStatsStatus и т.д., см. statsRow2Items()/itemsRow2Items()/dataRow2Items()) — эти
+     * (btnStatsStatus и т.д., см. statsRow2Items()/dataRow2Items()) — эти
      * кнопки остаются в дереве навсегда GONE, реальная логика переключения экрана (их
      * onClickListener) не трогается вообще.
      */
@@ -1942,538 +1863,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     /***********************************************************************************************************
-     * WORLD MAP
-     **********************************************************************************************************/
-    private fun updateWorldMapPOIsVisibilityAndPosition() {
-        val matrix = worldMapPhotoView.imageMatrix
-        val values = FloatArray(9)
-        matrix.getValues(values)
-
-        val scale = values[Matrix.MSCALE_X]
-        val transX = values[Matrix.MTRANS_X]
-        val transY = values[Matrix.MTRANS_Y]
-
-        val viewWidth = worldMapPhotoView.width
-        val viewHeight = worldMapPhotoView.height
-
-        val visibleRect = RectF(
-            -transX / scale,
-            -transY / scale,
-            (viewWidth - transX) / scale,
-            (viewHeight - transY) / scale
-        )
-
-        for (poi in worldMapPOIs) {
-            // Calculate the exact position in the current view matrix
-            val poiX = (poi.x * scale) + transX
-            val poiY = (poi.y * scale) + transY
-
-            poi.iconView?.apply {
-                // Position the POI in the photoView's coordinate system
-                x = poiX
-                y = poiY
-                // Scale the POI according to the photoView's current scale
-                scaleX = scale
-                scaleY = scale
-                pivotX = 0f
-                pivotY = 0f
-            }
-
-            poi.textView?.apply {
-                x = poiX - ((width * 0.5f) * scale)
-                y = poiY - ((poi.iconView?.height) ?: 0) * scale
-                scaleX = scale
-                scaleY = scale
-                pivotX = 0f
-                pivotY = 0f
-            }
-
-            if (visibleRect.contains(poi.x, poi.y)) {
-                poi.iconView?.visibility = View.VISIBLE
-            } else {
-                poi.iconView?.visibility = View.INVISIBLE
-                poi.textView?.visibility = View.GONE
-            }
-        }
-    }
-    private fun fallout3WorldMapLocations(){
-        // Use these websites to help calculate locations - https://fallout.fandom.com/wiki/Fallout_3_world_map + http://www.gamemapscout.com/fallout3_interactive.html
-        // Each sub-square is around 60x60, and starts at 0x0.
-        worldMapPhotoView = bindingMain.incLayoutTabDataWorldMap.photoViewWorldmap
-        worldMapPOIContainer = bindingMain.incLayoutTabDataWorldMap.poiContainerWorldmap
-        worldMapPhotoView.setImageResource(R.drawable.worldmap_f3)
-        worldMapPhotoView.maximumScale = 6.0f
-
-        worldMapPOIContainer.removeAllViews()
-        worldMapPOIs.clear()
-        val customScaling = sharedPreferences.getFloat(customMapScaling_SPKey, 1f)
-        worldMapPOIs.add(worldMapPointOfInterest(360f * customScaling, 960f * customScaling, "Abandoned Car Fort", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1860f * customScaling, 1320f * customScaling, "Agatha's House", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2190f * customScaling, 2860f * customScaling, "Alexandria Arms", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2910f * customScaling, 2790f * customScaling, "Anacostia Crossing Station", R.drawable.icon_map_droplet))
-        worldMapPOIs.add(worldMapPointOfInterest(2400f * customScaling, 2240f * customScaling, "Anchorage Memorial", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(1545f * customScaling, 2820f * customScaling, "Andale", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2810f * customScaling, 1090f * customScaling, "AntAgonizer's Lair", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1140f * customScaling, 1410f * customScaling, "Arefu", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2220f * customScaling, 2295f * customScaling, "Arlington Cemetery North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2210f * customScaling, 2445f * customScaling, "Arlington Cemetery South", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2275f * customScaling, 2940f * customScaling, "Arlington Library", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2115f * customScaling, 1625f * customScaling, "Bethesda Ruins", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1555f * customScaling, 1590f * customScaling, "Big Town", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(420f * customScaling, 600f * customScaling, "Broadcast Tower KB5", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(240f * customScaling, 1260f * customScaling, "Broadcast Tower KT8", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1540f * customScaling, 360f * customScaling, "Broadcast Tower LP8", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2850f * customScaling, 1150f * customScaling, "Canterbury Commons", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(2810f * customScaling, 2415f * customScaling, "Capitol Building", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(520f * customScaling, 2035f * customScaling, "Charnel House", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2700f * customScaling, 360f * customScaling, "Chaste Acres Dairy Farm", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2650f * customScaling, 2070f * customScaling, "Chevy Chase East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2580f * customScaling, 2040f * customScaling, "Chevy Chase North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2280f * customScaling, 1860f * customScaling, "Chryslus Building", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2310f * customScaling, 2610f * customScaling, "Citadel", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(1200f * customScaling, 2825f * customScaling, "Cliffside Cavern", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1800f * customScaling, 250f * customScaling, "Clifftop Shacks", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2755f * customScaling, 1500f * customScaling, "Corveg Factory", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(510f * customScaling, 610f * customScaling, "Deathclaw Sanctuary", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(660f * customScaling, 660f * customScaling, "Dickerson Tabernacle Chapel", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(960f * customScaling, 715f * customScaling, "Drowned Devil's Crossing", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2475f * customScaling, 2280f * customScaling, "Dukov's Place", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(240f * customScaling, 2850f * customScaling, "Dunwich Building", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2520f * customScaling, 2160f * customScaling, "Dupont East", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2500f * customScaling, 2110f * customScaling, "Dupont North-East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2460f * customScaling, 2180f * customScaling, "Dupont Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2420f * customScaling, 2140f * customScaling, "Dupont West", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(480f * customScaling, 1500f * customScaling, "Everglow National Campground", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(700f * customScaling, 2230f * customScaling, "Evergreen Mills", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(180f * customScaling, 2760f * customScaling, "F. Scott Key Trail & Campground", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(790f * customScaling, 880f * customScaling, "Faded Pomp Estates", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1555f * customScaling, 2535f * customScaling, "Fairfax Ruins", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2240f * customScaling, 2590f * customScaling, "Falls Church East", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2100f * customScaling, 2590f * customScaling, "Falls Church Metro", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2170f * customScaling, 2570f * customScaling, "Falls Church North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2220f * customScaling, 2035f * customScaling, "Farragut West Metro Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(550f * customScaling, 1180f * customScaling, "Five Axles Rest Stop", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2040f * customScaling, 2890f * customScaling, "Flooded Metro", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(780f * customScaling, 240f * customScaling, "Ford Constantine", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1340f * customScaling, 1560f * customScaling, "Fordham Flash Memorial Field", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(720f * customScaling, 1905f * customScaling, "Fort Bannister", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1410f * customScaling, 2560f * customScaling, "Fort Independence", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2640f * customScaling, 1980f * customScaling, "Friendship Heights", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2580f * customScaling, 2100f * customScaling, "Galaxy News Radio", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2650f * customScaling, 2305f * customScaling, "Georgetown East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2580f * customScaling, 2210f * customScaling, "Georgetown North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2575f * customScaling, 2340f * customScaling, "Georgetown South", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2475f * customScaling, 2175f * customScaling, "Georgetown West", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(1700f * customScaling, 1030f * customScaling, "Germantown Police Headquarters", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(240f * customScaling, 2460f * customScaling, "Girdershade", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(2105f * customScaling, 2350f * customScaling, "Grayditch", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(2180f * customScaling, 540f * customScaling, "Greener Pastures Disposal Site", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2620f * customScaling, 660f * customScaling, "Grisly Diner", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1560f * customScaling, 1275f * customScaling, "Hallowed Moors Cemetery", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1380f * customScaling, 1390f * customScaling, "Hamilton's Hideaway", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2235f * customScaling, 2670f * customScaling, "Hubris Comics", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2610f * customScaling, 2580f * customScaling, "Irradiated Metro", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(690f * customScaling, 1590f * customScaling, "Jalbert Brothers Waste Disposal", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2610f * customScaling, 2850f * customScaling, "Jefferson Memorial", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(480f * customScaling, 2520f * customScaling, "Jocko's Pop & Gas Stop", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1190f * customScaling, 1980f * customScaling, "Jury Street Metro Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(1260f * customScaling, 1670f * customScaling, "Kaelyn's Bed & Breakfast", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2820f * customScaling, 2600f * customScaling, "L'enfant Plaza", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2915f * customScaling, 2700f * customScaling, "L'enfant South", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2540f * customScaling, 2410f * customScaling, "Lincoln Memorial", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(250f * customScaling, 1680f * customScaling, "Little Lamplight", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2245f * customScaling, 2440f * customScaling, "Mama Dolce's", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2105f * customScaling, 2460f * customScaling, "Marigold Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2270f * customScaling, 2745f * customScaling, "Mason District South", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(1010f * customScaling, 580f * customScaling, "Mason Dixon Salvage", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(800f * customScaling, 1160f * customScaling, "MDPL Mass Relay Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(180f * customScaling, 300f * customScaling, "MDPL-05 Power Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1690f * customScaling, 790f * customScaling, "MDPL-13 Power Station", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2880f * customScaling, 360f * customScaling, "MDPL-16 Power Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1200f * customScaling, 250f * customScaling, "MDPL-21 Power Station", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1720f * customScaling, 2165f * customScaling, "Megaton", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1740f * customScaling, 1380f * customScaling, "Meresti Trainyard", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2925f * customScaling, 2310f * customScaling, "Metro Central", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2045f * customScaling, 1000f * customScaling, "Minefield", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1440f * customScaling, 480f * customScaling, "Montgomery County Reservoir", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1410f * customScaling, 1475f * customScaling, "Moonbeam Outdoor Cinema", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(540f * customScaling, 740f * customScaling, "Mount Mabel Campground", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2680f * customScaling, 2350f * customScaling, "Museum Of History", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2740f * customScaling, 2460f * customScaling, "Museum Of Technology", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2890f * customScaling, 1980f * customScaling, "National Guard Depot", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1200f * customScaling, 1260f * customScaling, "Northwest Seneca Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(1710f * customScaling, 2895f * customScaling, "Nuka-Cola Plant", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1620f * customScaling, 120f * customScaling, "Oasis", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2400f * customScaling, 240f * customScaling, "Old Olney", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2735f * customScaling, 2210f * customScaling, "Our Lady Of Hope Hospital", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1260f * customScaling, 850f * customScaling, "Paradise Falls", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2940f * customScaling, 2370f * customScaling, "Pennsylvania Avenue East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2850f * customScaling, 2265f * customScaling, "Pennsylvania Avenue North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2810f * customScaling, 2310f * customScaling, "Pennsylvania Avenue North-West", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2880f * customScaling, 2340f * customScaling, "Pennsylvania Avenue South", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2280f * customScaling, 2280f * customScaling, "Platz Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(3000f * customScaling, 2460f * customScaling, "Ranger Compound", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(110f * customScaling, 110f * customScaling, "Raven Rock", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1665f * customScaling, 620f * customScaling, "Reclining Groves Resort Homes", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1910f * customScaling, 2700f * customScaling, "Red Racer Factory", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2700f * customScaling, 600f * customScaling, "Relay Tower KX-B8-11", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2910f * customScaling, 2850f * customScaling, "Rivet City", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(970f * customScaling, 2705f * customScaling, "RobCo Facility", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2815f * customScaling, 1260f * customScaling, "Robot Repair Center", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2760f * customScaling, 1915f * customScaling, "Rock Creek Caverns", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(520f * customScaling, 1350f * customScaling, "Rockbreaker's Last Gas", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(820f * customScaling, 1000f * customScaling, "Roosevelt Academy", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1020f * customScaling, 300f * customScaling, "SatCom Array NN-03d", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(480f * customScaling, 300f * customScaling, "SatCom Array NW-05a", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(120f * customScaling, 600f * customScaling, "SatCom Array NW-07c", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2110f * customScaling, 1260f * customScaling, "Scrapyard", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2895f * customScaling, 2465f * customScaling, "Seward Square North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2815f * customScaling, 2370f * customScaling, "Seward Square North-West", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2975f * customScaling, 2520f * customScaling, "Seward Square South-East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2015f * customScaling, 2270f * customScaling, "Sewer Waystation", R.drawable.icon_map_droplet))
-        worldMapPOIs.add(worldMapPointOfInterest(280f * customScaling, 1065f * customScaling, "Shalebridge", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(460f * customScaling, 2240f * customScaling, "Smith Casey's Garage", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1680f * customScaling, 2035f * customScaling, "Springvale", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1740f * customScaling, 1905f * customScaling, "Springvale School", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2775f * customScaling, 2140f * customScaling, "Statesman Hotel", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2085f * customScaling, 2100f * customScaling, "Super-Duper Mart", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(3000f * customScaling, 2045f * customScaling, "Takoma Industrial Factory", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2970f * customScaling, 2110f * customScaling, "Takoma Park", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2580f * customScaling, 880f * customScaling, "Temple Of The Union", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(840f * customScaling, 2860f * customScaling, "Tenpenny Tower", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2445f * customScaling, 2280f * customScaling, "Tepid Sweres", R.drawable.icon_map_droplet))
-        worldMapPOIs.add(worldMapPointOfInterest(2760f * customScaling, 2345f * customScaling, "The Mall North-East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2600f * customScaling, 2400f * customScaling, "The Mall North-West", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2575f * customScaling, 2460f * customScaling, "The Mall South-West", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2730f * customScaling, 2400f * customScaling, "The National Archives", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1320f * customScaling, 2880f * customScaling, "The Overlook Drive-In", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2930f * customScaling, 240f * customScaling, "The Republic of Dave", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(880f * customScaling, 800f * customScaling, "The Silver Lining Drive-In", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2670f * customScaling, 2405f * customScaling, "The Washington Monument", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(970f * customScaling, 1630f * customScaling, "VAPL-58 Power Station", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(465f * customScaling, 2620f * customScaling, "VAPL-66 Power Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(900f * customScaling, 2515f * customScaling, "VAPL-84 Power Station", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1585f * customScaling, 2040f * customScaling, "Vault 101", R.drawable.icon_map_vault_101))
-        worldMapPOIs.add(worldMapPointOfInterest(1275f * customScaling, 1755f * customScaling, "Vault 106", R.drawable.icon_map_vault_106))
-        worldMapPOIs.add(worldMapPointOfInterest(2880f * customScaling, 1440f * customScaling, "Vault 108", R.drawable.icon_map_vault_108))
-        worldMapPOIs.add(worldMapPointOfInterest(130f * customScaling, 1440f * customScaling, "Vault 87", R.drawable.icon_map_vault_87))
-        worldMapPOIs.add(worldMapPointOfInterest(2280f * customScaling, 180f * customScaling, "Vault 92", R.drawable.icon_map_vault_92))
-        worldMapPOIs.add(worldMapPointOfInterest(2845f * customScaling, 2040f * customScaling, "Vault-Tec Headquarters", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(2790f * customScaling, 2080f * customScaling, "Vernon Square East", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2790f * customScaling, 2020f * customScaling, "Vernon Square North", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(2705f * customScaling, 2130f * customScaling, "Vernon Square Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(740f * customScaling, 2940f * customScaling, "Warrington Station", R.drawable.icon_map_metro))
-        worldMapPOIs.add(worldMapPointOfInterest(650f * customScaling, 2850f * customScaling, "Warrington Trainyard", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2390f * customScaling, 1360f * customScaling, "Wheaton Armory", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2735f * customScaling, 2275f * customScaling, "White House", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(2225f * customScaling, 2220f * customScaling, "Wilhelm's Wharf", R.drawable.icon_map_droplet))
-        worldMapPOIs.add(worldMapPointOfInterest(780f * customScaling, 710f * customScaling, "WKML Broadcast Station", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(140f * customScaling, 2040f * customScaling, "Yao Guai Tunnels", R.drawable.icon_map_cave))
-
-        for (poi in worldMapPOIs) {
-            val iconView = ImageView(this).apply {
-                setImageResource(poi.iconRes)
-                @Suppress("DEPRECATION")
-                setBackgroundColor(resources.getColor(R.color.white))
-                @Suppress("DEPRECATION")
-                setColorFilter(resources.getColor(R.color.black))
-                layoutParams = FrameLayout.LayoutParams(64, 64) // Set the icon size
-            }
-            worldMapPOIContainer.addView(iconView)
-            poi.iconView = iconView
-
-            val textView = TextView(this).apply {
-                @Suppress("DEPRECATION")
-                setBackgroundColor(resources.getColor(R.color.black))
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                )
-                text = poi.name
-                visibility = View.GONE // Initially hidden
-            }
-            worldMapPOIContainer.addView(textView)
-            poi.textView = textView
-
-            iconView.setOnClickListener {
-                handleIconClick(poi)
-            }
-        }
-
-        updateWorldMapPOIsVisibilityAndPosition()
-
-        worldMapPhotoView.setOnMatrixChangeListener {
-            updateWorldMapPOIsVisibilityAndPosition()
-        }
-
-    }
-    private fun falloutNVWorldMapLocations(){
-        // https://fallout.fandom.com/wiki/Fallout:_New_Vegas_world_map
-        // Each sub-square is around 54x54, and starts at 0x0.
-        worldMapPhotoView = bindingMain.incLayoutTabDataWorldMap.photoViewWorldmap
-        worldMapPOIContainer = bindingMain.incLayoutTabDataWorldMap.poiContainerWorldmap
-        worldMapPhotoView.setImageResource(R.drawable.worldmap_fnv)
-        worldMapPhotoView.maximumScale = 6.0f
-
-        worldMapPOIContainer.removeAllViews()
-        worldMapPOIs.clear()
-        val customScaling = sharedPreferences.getFloat(customMapScaling_SPKey, 1f)
-        worldMapPOIs.add(worldMapPointOfInterest(1990f * customScaling, 1404f * customScaling, "188 Trading Post", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2330f * customScaling, 1944f * customScaling, "Abandoned BoS Bunker", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1674f * customScaling, 976f * customScaling, "Aerotech Office Park", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1516f * customScaling, 1196f * customScaling, "Allied Technologies Offices", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1528f * customScaling, 1256f * customScaling, "Ant Mound", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2457f * customScaling, 830f * customScaling, "Bitter Springs", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(2380f * customScaling, 972f * customScaling, "Bitter Springs Recreation Area", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 1594f * customScaling, "Black Mountain", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1782f * customScaling, 1700f * customScaling, "Black Rock Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2268f * customScaling, 736f * customScaling, "Bloodborne Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2434f * customScaling, 2770f * customScaling, "Blue Paradise Vacation Rentals", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1080f * customScaling, 1324f * customScaling, "Bonnie Springs", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2214f * customScaling, 1334f * customScaling, "Boulder Beach Campground", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2206f * customScaling, 1490f * customScaling, "Boulder City", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1432f * customScaling, 2835f * customScaling, "Bradley's Shack", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1160f * customScaling, 838f * customScaling, "Brewer's Beer Bootlegging", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1885f * customScaling, 2430f * customScaling, "Broc Flower Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1080f * customScaling, 324f * customScaling, "Brooks Tumbleweed Ranch", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(2156f * customScaling, 756f * customScaling, "Brotherhood of Steel Safehouse", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1560f * customScaling, 2806f * customScaling, "Caesar's Legion Safehouse", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1026f * customScaling, 2306f * customScaling, "California Sunset Drive-in", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(2350f * customScaling, 1042f * customScaling, "Callville Bay", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2268f * customScaling, 1830f * customScaling, "Camp Forlorn Hope", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1998f * customScaling, 1080f * customScaling, "Camp Golf", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2590f * customScaling, 1020f * customScaling, "Camp Guardian", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1510f * customScaling, 970f * customScaling, "Camp McCarran", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1944f * customScaling, 2662f * customScaling, "Camp Searchlight", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1836f * customScaling, 972f * customScaling, "Cannibal Johnson's Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(920f * customScaling, 2165f * customScaling, "Canyon Wreckage", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2214f * customScaling, 970f * customScaling, "Cap Counterfeiting Shack", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1625f * customScaling, 1184f * customScaling, "Cassidy Caravan Wreckage", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2192f * customScaling, 1647f * customScaling, "Cazador Nest", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1080f * customScaling, 1080f * customScaling, "Chance's Map", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(568f * customScaling, 620f * customScaling, "Charleston Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1998f * customScaling, 2187f * customScaling, "Clark Field", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2376f * customScaling, 2376f * customScaling, "Cliffside Prospector Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2320f * customScaling, 2592f * customScaling, "Cottonwood Cove", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2214f * customScaling, 2866f * customScaling, "Cottonwood Crater", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2306f * customScaling, 2673f * customScaling, "Cottonwood Overlook", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1400f * customScaling, 2430f * customScaling, "Coyote Den", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2054f * customScaling, 2510f * customScaling, "Coyote Mines", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2324f * customScaling, 914f * customScaling, "Coyote Tail Ridge", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2430f * customScaling, 1134f * customScaling, "Crashed B-29", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 2916f * customScaling, "Crashed Vertibird", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1242f * customScaling, 2916f * customScaling, "Crescent Canyon East", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1026f * customScaling, 2792f * customScaling, "Crescent Canyon West", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1620f * customScaling, 650f * customScaling, "Crimson Caravan Company", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1540f * customScaling, 2296f * customScaling, "Dead Wind Cavern", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1944f * customScaling, 1296f * customScaling, "Deserted Shack", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1755f * customScaling, 782f * customScaling, "Durable Dunn's Sacked Caravan", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 864f * customScaling, "East Pump Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2000f * customScaling, 1616f * customScaling, "El Dorado Dry Lake", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2106f * customScaling, 1722f * customScaling, "El Dorado Gas & Service", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1836f * customScaling, 1512f * customScaling, "El Dorado Substation", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1456f * customScaling, 976f * customScaling, "El Rey Motel", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1378f * customScaling, 2215f * customScaling, "Emergency Service Railyard", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1836f * customScaling, 524f * customScaling, "Fields' Shack", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2160f * customScaling, 2810f * customScaling, "Fire Root Cavern", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2188f * customScaling, 1080f * customScaling, "Fisherman's Pride Shack", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1836f * customScaling, 1190f * customScaling, "Follower's Outpost", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(976f * customScaling, 514f * customScaling, "Follower's Safehouse", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1568f * customScaling, 704f * customScaling, "Freeside's East Gate", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1564f * customScaling, 598f * customScaling, "Freeside's North Gate", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1894f * customScaling, 1890f * customScaling, "Gibson Scrap Yard", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(976f * customScaling, 1678f * customScaling, "Goodsprings", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1080f * customScaling, 1782f * customScaling, "Goodsprings Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1054f * customScaling, 1594f * customScaling, "Goodsprings Cemetery", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1028f * customScaling, 1890f * customScaling, "Goodsprings Source", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1190f * customScaling, 1540f * customScaling, "Great Khan Encampment", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1134f * customScaling, 486f * customScaling, "Griffin Wares Sacked Caravan", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1730f * customScaling, 1130f * customScaling, "Grub n' Gulp Rest Stop", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2646f * customScaling, 1024f * customScaling, "Guardian Peak", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1560f * customScaling, 754f * customScaling, "Gun Runners", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2052f * customScaling, 866f * customScaling, "Gypsum Train Yard", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1460f * customScaling, 590f * customScaling, "H&H Tools Factory", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1565f * customScaling, 2418f * customScaling, "Harper's Shack", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1890f * customScaling, 1780f * customScaling, "HELIOS One", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1460f * customScaling, 2485f * customScaling, "Hidden Supply Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1512f * customScaling, 1755f * customScaling, "Hidden Valley", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1886f * customScaling, 2210f * customScaling, "Highway 95 Viper's Encampment", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2436f * customScaling, 1460f * customScaling, "Hoover Dam", R.drawable.icon_map_monument))
-        worldMapPOIs.add(worldMapPointOfInterest(1216f * customScaling, 502f * customScaling, "Horowitz Farmstead", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1460f * customScaling, 1310f * customScaling, "Hunter's Farm", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1113f * customScaling, 2458f * customScaling, "Ivanpah Dry Lake", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1150f * customScaling, 2540f * customScaling, "Ivanpah Race Track", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1276f * customScaling, 2430f * customScaling, "Jack Rabbit Springs", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(594f * customScaling, 756f * customScaling, "Jacobstown", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1138f * customScaling, 1890f * customScaling, "Jean Sky Diving", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1512f * customScaling, 1404f * customScaling, "Junction 15 Railway Station", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1955f * customScaling, 1161f * customScaling, "Lake Las Vegas", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2480f * customScaling, 1172f * customScaling, "Lake Mead Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2727f * customScaling, 1523f * customScaling, "Legate's Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1730f * customScaling, 2430f * customScaling, "Legion Raid Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(972f * customScaling, 2008f * customScaling, "Lone Wolf Radio", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2214f * customScaling, 2296f * customScaling, "Lucky Jim Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1080f * customScaling, 1460f * customScaling, "Makeshift Great Khan Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1756f * customScaling, 2754f * customScaling, "Matthews Animal Husbandry Farm", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(853f * customScaling, 2527f * customScaling, "Mesquite Mountains Camp Site", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(810f * customScaling, 2324f * customScaling, "Mesquite Mountains Crater", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1274f * customScaling, 596f * customScaling, "Miguel's Pawn Shop", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1312f * customScaling, 2758f * customScaling, "Mojave Drive-in", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(853f * customScaling, 2727f * customScaling, "Mojave Outpost", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 594f * customScaling, "Mole Rat Ranch", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1300f * customScaling, 756f * customScaling, "Monte Carlo Suites", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1022f * customScaling, 2700f * customScaling, "Morning Star Cavern", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2050f * customScaling, 1240f * customScaling, "Mountain Shadows Campground", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1346f * customScaling, 1976f * customScaling, "NCR Correctional Facility", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1647f * customScaling, 1431f * customScaling, "NCR Ranger Safehouse", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1566f * customScaling, 875f * customScaling, "NCR Sharecropper Farms", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1566f * customScaling, 1593f * customScaling, "Neil's Shack", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2014f * customScaling, 460f * customScaling, "Nellis Air Force Base", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(2160f * customScaling, 221f * customScaling, "Nellis Array", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2052f * customScaling, 270f * customScaling, "Nellis Hangars", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2210f * customScaling, 2050f * customScaling, "Nelson", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1026f * customScaling, 2434f * customScaling, "Nevada Highway Patrol Station", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1674f * customScaling, 648f * customScaling, "New Vegas Medical Clinic", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1377f * customScaling, 1036f * customScaling, "New Vegas Steel", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1352f * customScaling, 2642f * customScaling, "Nipton", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1161f * customScaling, 2646f * customScaling, "Nipton Road Pit Stop", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(972f * customScaling, 2565f * customScaling, "Nipton Road Reststop", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1161f * customScaling, 1161f * customScaling, "Nopah Cave", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1523f * customScaling, 546f * customScaling, "North Vegas Square", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1458f * customScaling, 384f * customScaling, "Northern Passage", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1890f * customScaling, 2030f * customScaling, "Novac", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1620f * customScaling, 2862f * customScaling, "Old Nuclear Test Site", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1188f * customScaling, 1026f * customScaling, "Poseidon Gas Station", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1458f * customScaling, 2079f * customScaling, "Powder Ganger Camp East", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1339f * customScaling, 1810f * customScaling, "Powder Ganger Camp North", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1296f * customScaling, 2079f * customScaling, "Powder Ganger Camp South", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1136f * customScaling, 1948f * customScaling, "Powder Ganger Camp West", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1118f * customScaling, 2241f * customScaling, "Primm", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1495f * customScaling, 2214f * customScaling, "Primm Pass", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1307f * customScaling, 1544f * customScaling, "Quarry Junction", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 2646f * customScaling, "Raided Farmstead", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1755f * customScaling, 1292f * customScaling, "Ranger Morales' corpse", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2122f * customScaling, 1307f * customScaling, "Ranger Station Alpha", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2532f * customScaling, 810f * customScaling, "Ranger Station Bravo", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1728f * customScaling, 2210f * customScaling, "Ranger Station Charlie", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2320f * customScaling, 1674f * customScaling, "Ranger Station Delta", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(2214f * customScaling, 2430f * customScaling, "Ranger Station Echo", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(988f * customScaling, 814f * customScaling, "Ranger Station Foxtrot", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1955f * customScaling, 691f * customScaling, "Raul's Shack", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(914f * customScaling, 1026f * customScaling, "Red Rock Canyon", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(892f * customScaling, 945f * customScaling, "Red Rock Drug Lab", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(907f * customScaling, 783f * customScaling, "Remnants Bunker", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1712f * customScaling, 1296f * customScaling, "REPCONN Headquarters", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1593f * customScaling, 1998f * customScaling, "REPCONN Test Site", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(886f * customScaling, 486f * customScaling, "Ruby Hill Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1350f * customScaling, 1188f * customScaling, "Samson Rock Crushing Plant", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2268f * customScaling, 1160f * customScaling, "Scavenger Platform", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1647f * customScaling, 1836f * customScaling, "Scorpion Gulch", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2008f * customScaling, 2862f * customScaling, "Searchlight Airport", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2074f * customScaling, 2738f * customScaling, "Searchlight East Gold Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(2046f * customScaling, 2565f * customScaling, "Searchlight North Gold Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(853f * customScaling, 648f * customScaling, "Silver Peak Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1372f * customScaling, 1620f * customScaling, "Sloan", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2270f * customScaling, 2754f * customScaling, "Smith Mesa Prospector Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2176f * customScaling, 2592f * customScaling, "Sniper's Nest", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2009f * customScaling, 2376f * customScaling, "Snyder Prospector Camp", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(972f * customScaling, 1242f * customScaling, "Spring Mt. Ranch State Park", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1430f * customScaling, 670f * customScaling, "South Cistern", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1350f * customScaling, 1026f * customScaling, "South Vegas Ruins East Entrance", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1242f * customScaling, 1004f * customScaling, "South Vegas Ruins West Entrance", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(2106f * customScaling, 1890f * customScaling, "Southern Nevada Wind Farm", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1296f * customScaling, 864f * customScaling, "Sunset Sarsaparilla Headquarters", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(2295f * customScaling, 2171f * customScaling, "Techatticup Mine", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1454f * customScaling, 1150f * customScaling, "The Basincreek Building", R.drawable.icon_map_office))
-        worldMapPOIs.add(worldMapPointOfInterest(1134f * customScaling, 1744f * customScaling, "The Devil's Gullet", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2700f * customScaling, 756f * customScaling, "The Devil's Throat", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(2592f * customScaling, 1283f * customScaling, "The Fort", R.drawable.icon_map_star))
-        worldMapPOIs.add(worldMapPointOfInterest(1296f * customScaling, 2338f * customScaling, "The Prospector's Den", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1460f * customScaling, 740f * customScaling, "The Strip North Gate", R.drawable.icon_map_city))
-        worldMapPOIs.add(worldMapPointOfInterest(1307f * customScaling, 650f * customScaling, "The Thorn", R.drawable.icon_map_droplet))
-        worldMapPOIs.add(worldMapPointOfInterest(945f * customScaling, 1404f * customScaling, "Tribal Village", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(2035f * customScaling, 2052f * customScaling, "Toxic Dump Site", R.drawable.icon_map_ruins_town))
-        worldMapPOIs.add(worldMapPointOfInterest(1307f * customScaling, 1080f * customScaling, "Vault 3", R.drawable.icon_map_vault_3))
-        worldMapPOIs.add(worldMapPointOfInterest(1944f * customScaling, 1485f * customScaling, "Vault 11", R.drawable.icon_map_vault_11))
-        worldMapPOIs.add(worldMapPointOfInterest(1242f * customScaling, 1339f * customScaling, "Vault 19", R.drawable.icon_map_vault_19))
-        worldMapPOIs.add(worldMapPointOfInterest(1042f * customScaling, 648f * customScaling, "Vault 22", R.drawable.icon_map_vault_22))
-        worldMapPOIs.add(worldMapPointOfInterest(1890f * customScaling, 914f * customScaling, "Vault 34", R.drawable.icon_map_vault_34))
-        worldMapPOIs.add(worldMapPointOfInterest(1540f * customScaling, 2402f * customScaling, "Walking Box Cavern", R.drawable.icon_map_cave))
-        worldMapPOIs.add(worldMapPointOfInterest(1430f * customScaling, 1080f * customScaling, "West Pump Station", R.drawable.icon_map_factory))
-        worldMapPOIs.add(worldMapPointOfInterest(1310f * customScaling, 1050f * customScaling, "Westside South Entrance", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1236f * customScaling, 598f * customScaling, "Westside West Entrance", R.drawable.icon_map_ruins_urban))
-        worldMapPOIs.add(worldMapPointOfInterest(1312f * customScaling, 1306f * customScaling, "Whittaker Farmstead", R.drawable.icon_map_settlement))
-        worldMapPOIs.add(worldMapPointOfInterest(1620f * customScaling, 2565f * customScaling, "Wolfhorn Ranch", R.drawable.icon_map_encampment))
-        worldMapPOIs.add(worldMapPointOfInterest(1954f * customScaling, 2284f * customScaling, "Wrecked Highwayman", R.drawable.icon_map_natural_landmark))
-        worldMapPOIs.add(worldMapPointOfInterest(1188f * customScaling, 1674f * customScaling, "Yangtze Memorial", R.drawable.icon_map_monument))
-
-        for (poi in worldMapPOIs) {
-            val iconView = ImageView(this).apply {
-                setImageResource(poi.iconRes)
-                @Suppress("DEPRECATION")
-                setBackgroundColor(resources.getColor(R.color.white))
-                @Suppress("DEPRECATION")
-                setColorFilter(resources.getColor(R.color.black))
-                layoutParams = FrameLayout.LayoutParams(64, 64) // Set the icon size
-            }
-            worldMapPOIContainer.addView(iconView)
-            poi.iconView = iconView
-
-            val textView = TextView(this).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                )
-                @Suppress("DEPRECATION")
-                setBackgroundColor(resources.getColor(R.color.black))
-                text = poi.name
-                visibility = View.GONE // Initially hidden
-            }
-            worldMapPOIContainer.addView(textView)
-            poi.textView = textView
-
-            iconView.setOnClickListener {
-                handleIconClick(poi)
-            }
-        }
-        updateWorldMapPOIsVisibilityAndPosition()
-
-        worldMapPhotoView.setOnMatrixChangeListener {
-            updateWorldMapPOIsVisibilityAndPosition()
-        }
-
-    }
-    private fun handleIconClick(clickedPoi: worldMapPointOfInterest) {
-        val scale = worldMapPhotoView.scale
-        if (scale >= minScaleForClickableIcons) {
-            if (currentVisibleTextView == clickedPoi.textView) {
-                // Toggle visibility if the same POI is clicked again
-                currentVisibleTextView?.visibility = View.GONE
-                currentVisibleTextView = null
-                lastClickedWorldMapPoi = null
-            } else {
-                // Hide the currently visible text view, if any
-                currentVisibleTextView?.visibility = View.GONE
-
-                // Show the text view of the clicked POI
-                clickedPoi.textView?.visibility = View.VISIBLE
-                clickedPoi.textView?.bringToFront()
-                currentVisibleTextView = clickedPoi.textView
-                lastClickedWorldMapPoi = clickedPoi
-            }
-        }
-    }
-    private data class worldMapPointOfInterest(
-        val x: Float,
-        val y: Float,
-        val name: String,
-        val iconRes: Int,
-        var iconView: ImageView? = null,
-        var textView: TextView? = null
-    )
-
-
-    /***********************************************************************************************************
      * INTERFACE CHANGES
      **********************************************************************************************************/
     /**
@@ -2599,22 +1988,19 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             generalNode,
         )
     }
+    /**
+     * ITEMS — второго уровня пока нет (roadmap, этап 6, п.1: старое содержимое удалено,
+     * новое — Map/Clock/Journal — следующие контрольные точки). Пустой лист без детей —
+     * тот же приём, что уже применялся к RADIO (`radioMenuRoot()`), чтобы `ENC`/`ENCBTN`
+     * на этом разделе не падали.
+     */
     private fun itemsMenuRoot(): List<MenuNode> {
-        val bottom = bindingMain.incLayoutTabItemsBottom
-        return listOf(
-            MenuNode("WEAPONS") { bottom.btnItemsWeapons.performClick() },
-            MenuNode("APPAREL") { bottom.btnItemsApparel.performClick() },
-            MenuNode("AID") { bottom.btnItemsAid.performClick() },
-            MenuNode("MISC") { bottom.btnItemsMisc.performClick() },
-            MenuNode("AMMO") { bottom.btnItemsAmmo.performClick() },
-        )
+        return listOf(MenuNode("ITEMS") { })
     }
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
-            MenuNode("WORLDMAP") { bottom.btnDataWorldmap.performClick() },
             MenuNode("LOCALMAP") { bottom.btnDataLocalmap.performClick() },
-            MenuNode("QUESTS") { bottom.btnDataQuests.performClick() },
             MenuNode("MISC") { bottom.btnDataMisc.performClick() },
         )
     }
@@ -2673,13 +2059,16 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, bindingMain.incLayoutTabItemsBottom.btnItemsApparel, bindingMain.incLayoutTabItemsBottom.btnItemsAid, bindingMain.incLayoutTabItemsBottom.btnItemsMisc, bindingMain.incLayoutTabItemsBottom.btnItemsAmmo)
+                // Второго уровня пока нет — старое содержимое (Weapons/Apparel/Aid/Misc/
+                // Ammo) удалено (roadmap, этап 6, п.1), новое (Map/Clock/Journal) появится
+                // в следующих контрольных точках. bottomButtonsModify() пустым списком —
+                // как у RADIO.
+                bottomButtonsModify()
                 menuOptionClickedBLE("ITEMS")
-                ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
             }
             "DATA" -> {
                 curMenu = "DATA"
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc)
+                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataMisc)
                 menuOptionClickedBLE("DATA")
             }
             "RADIO" -> {
@@ -2729,7 +2118,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun applyAppTheme(Colour: Int, scrollbarDrawable: Drawable?){
         applyBackgroundResource(Colour)
         applyTextColor(Colour)
-        applyProgressDrawable(Colour)
         applyScrollBar(scrollbarDrawable)
     }
     private fun applyBackgroundResource(Colour: Int) {
@@ -2742,28 +2130,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.layoutTabClock
             // Add other views as necessary
         )
-        val backgroundsmaps = listOf(
-            bindingMain.incLayoutTabDataWorldMap.btnWorldmapF3,
-            bindingMain.incLayoutTabDataWorldMap.btnWorldmapFNV
-        )
         var backgroundRes = R.drawable.settings_menu_background_green
-        var backgroundMap = R.drawable.world_map_background_green
         when(Colour){
             0 -> {backgroundRes = R.drawable.settings_menu_background_green
-                backgroundMap = R.drawable.world_map_background_green
                 selected_button = R.drawable.button_selected_green}
             1 -> {backgroundRes = R.drawable.settings_menu_background_amber
-                backgroundMap = R.drawable.world_map_background_amber
                 selected_button = R.drawable.button_selected_amber}
             2 -> {backgroundRes = R.drawable.settings_menu_background_white
-                backgroundMap = R.drawable.world_map_background_white
                 selected_button = R.drawable.button_selected_white}
             3 -> {backgroundRes = R.drawable.settings_menu_background_blue
-                backgroundMap = R.drawable.world_map_background_blue
                 selected_button = R.drawable.button_selected_blue}
         }
         backgrounds.forEach { it.setBackgroundResource(backgroundRes) }
-        backgroundsmaps.forEach { it.setBackgroundResource(backgroundMap)}
     }
     private fun applyTextColor(Colour: Int){
         // Apply text colors to relevant radio buttons and checkboxes
@@ -2778,50 +2156,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings
             // Add other radio buttons and text views as needed
         )
-        val secondaryTextViews = listOf(
-            bindingMain.incLayoutTabDataQuests.btnDataQuestsEntry1,
-            bindingMain.incLayoutTabDataQuests.btnDataQuestsEntry2,
-            bindingMain.incLayoutTabDataQuests.btnDataQuestsEntry3,
-            bindingMain.incLayoutTabDataQuests.btnDataQuestsEntry4
-            // Add other secondary buttons or text views
-        )
-
         var primaryColor = R.color.themeGreen
-        var secondaryColor = R.color.themeGreenCND
         when(Colour){
-            0 -> {primaryColor = R.color.themeGreen
-                secondaryColor = R.color.themeGreenCND}
-            1 -> {primaryColor = R.color.themeAmber
-                secondaryColor = R.color.themeAmberCND}
-            2 -> {primaryColor = R.color.themeWhite
-                secondaryColor = R.color.themeWhiteCND}
-            3 -> {primaryColor = R.color.themeBlue
-                secondaryColor = R.color.themeBlueCND}
+            0 -> {primaryColor = R.color.themeGreen}
+            1 -> {primaryColor = R.color.themeAmber}
+            2 -> {primaryColor = R.color.themeWhite}
+            3 -> {primaryColor = R.color.themeBlue}
         }
 
         @Suppress("ResourceAsColor")
         primaryTextViews.forEach { it.setTextColor(resources.getColor(primaryColor)) }
         lineVisualizer.setColor(getResources().getColor(primaryColor))
-        @Suppress("ResourceAsColor")
-        secondaryTextViews.forEach { it.setTextColor(resources.getColor(secondaryColor)) }
-        bindingMain.incLayoutTabDataWorldMap.photoViewWorldmap.setColorFilter(getResources().getColor(secondaryColor))
-    }
-    private fun applyProgressDrawable(Colour: Int){
-        // Apply progress drawable to relevant progress bars
-        val progressBars = listOf(
-            bindingMain.incLayoutTabItemsWeapons.pbItemsWeaponsCndValue,
-            bindingMain.incLayoutTabItemsApparel.pbItemsApparelCndValue
-            // Add other progress bars as necessary
-        )
-
-        var progressBarDrawable = getDrawableCompat(this, R.drawable.progressbar_tab_items_weapons_cnd_green)
-        when(Colour){
-            0 -> {progressBarDrawable = getDrawableCompat(this, R.drawable.progressbar_tab_items_weapons_cnd_green)}
-            1 -> {progressBarDrawable = getDrawableCompat(this, R.drawable.progressbar_tab_items_weapons_cnd_amber)}
-            2 -> {progressBarDrawable = getDrawableCompat(this, R.drawable.progressbar_tab_items_weapons_cnd_white)}
-            3 -> {progressBarDrawable = getDrawableCompat(this, R.drawable.progressbar_tab_items_weapons_cnd_blue)}
-        }
-        progressBars.forEach { it.progressDrawable = progressBarDrawable }
     }
     private fun applyScrollBar(scrollbarDrawable: Drawable?){
         scrollbarDrawable?.let {
@@ -2831,13 +2176,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 bindingMain.incLayoutTabStatsSkills.scrollTabSkills,
                 bindingMain.incLayoutTabStatsPerks.recyclerTabPerks,
                 bindingMain.incLayoutTabStatsGeneral.scrollTabGeneral,
-                bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons,
-                bindingMain.incLayoutTabItemsApparel.recyclerTabApparel,
-                bindingMain.incLayoutTabItemsAid.recyclerTabAid,
-                bindingMain.incLayoutTabItemsMisc.recyclerTabItemsMisc,
-                bindingMain.incLayoutTabItemsAmmo.recyclerTabAmmo,
-                bindingMain.incLayoutTabDataQuests.scrollTabDataQuests,
-                bindingMain.incLayoutTabDataQuests.scrollTabDataQuestsText,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
                 bindingMain.incLayoutSettingsGlobal.scrollTabSettings,
@@ -2928,7 +2266,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun setupDATA(){
         //Set Selected buttons by default
-        findViewById<ConstraintLayout>(R.id.layout_tab_data_quests_entry6).setBackgroundResource(selected_button)
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
     }
     /**
@@ -2957,16 +2294,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.GONE
 
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_weapons).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_apparel).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_aid).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.layout_tab_items_misc_main).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_ammo).visibility = View.GONE
-
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_world_map).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_quests).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
@@ -2982,8 +2310,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.VISIBLE
-        } else if (menu == "ITEMS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.VISIBLE
         } else if (menu == "RADIO"){
@@ -2999,16 +2325,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.VISIBLE
 
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_weapons).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_apparel).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_aid).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_misc).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.layout_tab_items_misc_main).visibility = View.VISIBLE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_ammo).visibility = View.GONE
-
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_world_map).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_quests).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
@@ -3024,8 +2341,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_status).visibility = View.VISIBLE
-        } else if (menu == "ITEMS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_weapons).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.VISIBLE
         } else if (menu == "RADIO"){
@@ -3042,27 +2357,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             Row2Item(bottom.btnStatsGeneral.text) { bottom.btnStatsGeneral.performClick() },
         )
     }
-    private fun itemsRow2Items(): List<Row2Item> {
-        val bottom = bindingMain.incLayoutTabItemsBottom
-        return listOf(
-            Row2Item(bottom.btnItemsWeapons.text) { bottom.btnItemsWeapons.performClick() },
-            Row2Item(bottom.btnItemsApparel.text) { bottom.btnItemsApparel.performClick() },
-            Row2Item(bottom.btnItemsAid.text) { bottom.btnItemsAid.performClick() },
-            Row2Item(bottom.btnItemsMisc.text) { bottom.btnItemsMisc.performClick() },
-            Row2Item(bottom.btnItemsAmmo.text) { bottom.btnItemsAmmo.performClick() },
-        )
-    }
     private fun dataRow2Items(): List<Row2Item> {
-        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() ниже — иначе
-        // курсор энкодера/дефолтная активация (индекс 0 по dataMenuRoot()) и подсветка
-        // строки 2 (индекс 0 по этому списку) указывают на разные пункты: было
-        // WORLDMAP/LOCALMAP переставлены местами, из-за чего Local Map подсвечивался, а
-        // реально показывался World Map.
+        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() выше.
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
-            Row2Item(bottom.btnDataWorldmap.text) { bottom.btnDataWorldmap.performClick() },
             Row2Item(bottom.btnDataLocalmap.text) { bottom.btnDataLocalmap.performClick() },
-            Row2Item(bottom.btnDataQuests.text) { bottom.btnDataQuests.performClick() },
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
         )
     }
@@ -3089,9 +2388,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         row2Generation++
         row2Items = when(menu){
             "STATS" -> statsRow2Items()
-            "ITEMS" -> itemsRow2Items()
             "DATA" -> dataRow2Items()
-            else -> emptyList() // RADIO — второго уровня нет вообще
+            else -> emptyList() // ITEMS/RADIO — второго уровня нет вообще
         }
         row2Active = 0
         val strip = bindingMain.incLayoutHeaderRow2.layoutHeaderRow2Strip
@@ -3530,61 +2828,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                         }
                     }
                 }
-                "WEAPONS" -> {
-                    checkBox.isChecked = selectedFilterITEMSWeapons.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedFilterITEMSWeapons.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterITEMSWeapons.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
-                "APPAREL" -> {
-                    checkBox.isChecked = selectedFilterITEMSApparel.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedFilterITEMSApparel.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterITEMSApparel.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
-                "AID" -> {
-                    checkBox.isChecked = selectedFilterITEMSAid.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedFilterITEMSAid.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterITEMSAid.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
-                "IMISC" -> {
-                    checkBox.isChecked = selectedFilterITEMSMisc.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedFilterITEMSMisc.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterITEMSMisc.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
-                "AMMO" -> {
-                    checkBox.isChecked = selectedFilterITEMSAmmo.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedFilterITEMSAmmo.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterITEMSAmmo.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
             }
 
             // Add CheckBox and TextView to a horizontal layout
@@ -3616,21 +2859,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                                 "PERKS" -> {
                                     selectedFilterSTATSPerks.add(itemId)
                                 }
-                                "WEAPONS" -> {
-                                    selectedFilterITEMSWeapons.add(itemId)
-                                }
-                                "APPAREL" -> {
-                                    selectedFilterITEMSApparel.add(itemId)
-                                }
-                                "AID" -> {
-                                    selectedFilterITEMSAid.add(itemId)
-                                }
-                                "IMISC" -> {
-                                    selectedFilterITEMSMisc.add(itemId)
-                                }
-                                "AMMO" -> {
-                                    selectedFilterITEMSAmmo.add(itemId)
-                                }
                             }
                         }
                     } else {
@@ -3640,21 +2868,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                             when(filteringMenu){
                                 "PERKS" -> {
                                     selectedFilterSTATSPerks.remove(itemId)
-                                }
-                                "WEAPONS" -> {
-                                    selectedFilterITEMSWeapons.remove(itemId)
-                                }
-                                "APPAREL" -> {
-                                    selectedFilterITEMSApparel.remove(itemId)
-                                }
-                                "AID" -> {
-                                    selectedFilterITEMSAid.remove(itemId)
-                                }
-                                "IMISC" -> {
-                                    selectedFilterITEMSMisc.remove(itemId)
-                                }
-                                "AMMO" -> {
-                                    selectedFilterITEMSAmmo.remove(itemId)
                                 }
                             }
                         }
@@ -3684,30 +2897,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 selectedFilterSTATSPerks = selectedFilterSTATSPerks.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
                 selectedItemsString = selectedFilterSTATSPerks.joinToString(",")
             }
-            "selectedITEMSWeaponsArray" -> {
-                selectedFilterITEMSWeapons = selectedFilterITEMSWeapons.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterITEMSWeapons.joinToString(",")
-            }
-            "selectedITEMSApparelArray" -> {
-                selectedFilterITEMSApparel = selectedFilterITEMSApparel.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterITEMSApparel.joinToString(",")
-            }
-            "selectedITEMSAidArray" -> {
-                selectedFilterITEMSAid = selectedFilterITEMSAid.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterITEMSAid.joinToString(",")
-            }
-            "selectedITEMSMiscArray" -> {
-                selectedFilterITEMSMisc = selectedFilterITEMSMisc.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterITEMSMisc.joinToString(",")
-            }
-            "selectedITEMSAmmoArray" -> {
-                selectedFilterITEMSAmmo = selectedFilterITEMSAmmo.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterITEMSAmmo.joinToString(",")
-            }
-            "selectedDATAQuestsArray" -> {
-                selectedFilterDATAQuests = selectedFilterDATAQuests.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterDATAQuests.joinToString(",")
-            }
             "selectedDATAMiscArray" -> {
                 selectedFilterDATAMisc = selectedFilterDATAMisc.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
                 selectedItemsString = selectedFilterDATAMisc.joinToString(",")
@@ -3721,21 +2910,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             "selectedSTATSPerksArray" -> {
                 STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
             }
-            "selectedITEMSWeaponsArray" -> {
-                ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
-            }
-            "selectedITEMSApparelArray" -> {
-                ITEMSApparelSetup(bindingMain.incLayoutTabItemsApparel.recyclerTabApparel)
-            }
-            "selectedITEMSAidArray" -> {
-                ITEMSAidSetup(bindingMain.incLayoutTabItemsAid.recyclerTabAid)
-            }
-            "selectedITEMSMiscArray" -> {
-                ITEMSMiscSetup(bindingMain.incLayoutTabItemsMisc.recyclerTabItemsMisc)
-            }
-            "selectedITEMSAmmoArray" -> {
-                ITEMSAmmoSetup(bindingMain.incLayoutTabItemsAmmo.recyclerTabAmmo)
-            }
         }
     }
     // Make the function suspendable
@@ -3743,21 +2917,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Switch to a background thread to read and split data
         withContext(Dispatchers.IO) {
             val selectedSTATSPerksArray = sharedPreferences.getString("selectedSTATSPerksArray", "1")
-            val selectedITEMSWeaponsArray = sharedPreferences.getString("selectedITEMSWeaponsArray", "1")
-            val selectedITEMSApparelArray = sharedPreferences.getString("selectedITEMSApparelArray", "1")
-            val selectedITEMSAidArray = sharedPreferences.getString("selectedITEMSAidArray", "1")
-            val selectedITEMSMiscArray = sharedPreferences.getString("selectedITEMSMiscArray", "1")
-            val selectedITEMSAmmoArray = sharedPreferences.getString("selectedITEMSAmmoArray", "1")
-            val selectedDATAQuestsArray = sharedPreferences.getString("selectedDATAQuestsArray", "1")
             val selectedDATAMiscArray = sharedPreferences.getString("selectedDATAMiscArray", "1")
 
             if (!selectedSTATSPerksArray.isNullOrEmpty()) {selectedSTATSPerksArray?.let { selectedFilterSTATSPerks.addAll(it.split(",")) }}
-            if (!selectedITEMSWeaponsArray.isNullOrEmpty()) {selectedITEMSWeaponsArray?.let { selectedFilterITEMSWeapons.addAll(it.split(",")) }}
-            if (!selectedITEMSApparelArray.isNullOrEmpty()) {selectedITEMSApparelArray?.let { selectedFilterITEMSApparel.addAll(it.split(",")) }}
-            if (!selectedITEMSAidArray.isNullOrEmpty()) {selectedITEMSAidArray?.let { selectedFilterITEMSAid.addAll(it.split(",")) }}
-            if (!selectedITEMSMiscArray.isNullOrEmpty()) {selectedITEMSMiscArray?.let { selectedFilterITEMSMisc.addAll(it.split(",")) }}
-            if (!selectedITEMSAmmoArray.isNullOrEmpty()) {selectedITEMSAmmoArray?.let { selectedFilterITEMSAmmo.addAll(it.split(",")) }}
-            if (!selectedDATAQuestsArray.isNullOrEmpty()) {selectedDATAQuestsArray?.let { selectedFilterDATAQuests.addAll(it.split(",")) }}
             if (!selectedDATAMiscArray.isNullOrEmpty()) {selectedDATAMiscArray?.let { selectedFilterDATAMisc.addAll(it.split(",")) }}
         }
     }
@@ -3791,183 +2953,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
-    private fun ITEMSWeaponsSetup(recyclerView: RecyclerView){
-        val selectedITEMSWeaponsString = sharedPreferences.getString("selectedITEMSWeaponsArray", "1")
-        val selectedITEMSWeaponsArray: Array<String> = selectedITEMSWeaponsString!!.split(",").toTypedArray()
-
-        // Filter the weapon list based on the selected items
-        val filteredWeaponsList = weapons.filter { weapon ->
-            weapon["id"] in selectedITEMSWeaponsArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = WeaponsAdapter(weapons, selectedITEMSWeaponsArray, selected_button, this) { weapon: Map<String, String> ->
-            bindingMain.incLayoutTabItemsWeapons.imgItemsWeaponSelected.setImageResource(resources.getIdentifier(weapon["icon"], "drawable", packageName))
-            bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsStrValue.text = (weapon["str"] ?: "No description available")
-            bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsDpsValue.text = (weapon["dps"] ?: "No description available")
-            bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsWgValue.text = (weapon["wg"] ?: "No description available")
-            bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsValValue.text = (weapon["val"] ?: "No description available")
-            bindingMain.incLayoutTabItemsWeapons.pbItemsWeaponsCndValue.progress = (weapon["cnd"]!!.toInt() ?: 0)
-            bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsAmmo.text = (weapon["ammo"] ?: "No description available")
-            // Additional selection handling if necessary
-        }
-
-        adapter.updateData(filteredWeaponsList)
-
-        recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (weapons.isNotEmpty()) {
-            val firstWeapon = weapons.find { it["id"] == selectedITEMSWeaponsArray[0] }
-            firstWeapon?.let {
-                bindingMain.incLayoutTabItemsWeapons.imgItemsWeaponSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-                bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsStrValue.text = (it["str"] ?: "No description available")
-                bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsDpsValue.text = (it["dps"] ?: "No description available")
-                bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsWgValue.text = (it["wg"] ?: "No description available")
-                bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsValValue.text = (it["val"] ?: "No description available")
-                bindingMain.incLayoutTabItemsWeapons.pbItemsWeaponsCndValue.progress = (it["cnd"]!!.toInt() ?: 0)
-                bindingMain.incLayoutTabItemsWeapons.tvItemsWeaponsAmmo.text = (it["ammo"] ?: "No description available")
-            }
-        }
-    }
-    private fun ITEMSApparelSetup(recyclerView: RecyclerView){
-        val selectedITEMSApparelString = sharedPreferences.getString("selectedITEMSApparelArray", "1")
-        val selectedITEMSApparelArray: Array<String> = selectedITEMSApparelString!!.split(",").toTypedArray()
-
-        // Filter the apparel list based on the selected items
-        val filteredApparelsList = apparels.filter { apparel ->
-            apparel["id"] in selectedITEMSApparelArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = ApparelsAdapter(apparels, selectedITEMSApparelArray, selected_button, this) { apparel: Map<String, String> ->
-            bindingMain.incLayoutTabItemsApparel.imgItemsApparelSelected.setImageResource(resources.getIdentifier(apparel["icon"], "drawable", packageName))
-            bindingMain.incLayoutTabItemsApparel.tvItemsApparelDrValue.text = (apparel["dr"] ?: "No description available")
-            bindingMain.incLayoutTabItemsApparel.tvItemsApparelWgValue.text = (apparel["wg"] ?: "No description available")
-            bindingMain.incLayoutTabItemsApparel.tvItemsApparelValValue.text = (apparel["val"] ?: "No description available")
-            bindingMain.incLayoutTabItemsApparel.pbItemsApparelCndValue.progress = (apparel["cnd"]!!.toInt() ?: 0)
-            bindingMain.incLayoutTabItemsApparel.tvItemsApparelType.text = (apparel["armortype"] ?: "No description available")
-            // Additional selection handling if necessary
-        }
-
-        adapter.updateData(filteredApparelsList)
-
-        recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (apparels.isNotEmpty()) {
-            val firstApparel = apparels.find { it["id"] == selectedITEMSApparelArray[0] }
-            firstApparel?.let {
-                bindingMain.incLayoutTabItemsApparel.imgItemsApparelSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-                bindingMain.incLayoutTabItemsApparel.tvItemsApparelDrValue.text = (it["dr"] ?: "No description available")
-                bindingMain.incLayoutTabItemsApparel.tvItemsApparelWgValue.text = (it["wg"] ?: "No description available")
-                bindingMain.incLayoutTabItemsApparel.tvItemsApparelValValue.text = (it["val"] ?: "No description available")
-                bindingMain.incLayoutTabItemsApparel.pbItemsApparelCndValue.progress = (it["cnd"]!!.toInt() ?: 0)
-                bindingMain.incLayoutTabItemsApparel.tvItemsApparelType.text = (it["armortype"] ?: "No description available")
-            }
-        }
-    }
-    private fun ITEMSAidSetup(recyclerView: RecyclerView){
-        val selectedITEMSAidString = sharedPreferences.getString("selectedITEMSAidArray", "1")
-        val selectedITEMSAidArray: Array<String> = selectedITEMSAidString!!.split(",").toTypedArray()
-
-        // Filter the aid list based on the selected items
-        val filteredPerksList = aids.filter { aid ->
-            aid["id"] in selectedITEMSAidArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = AidAdapter(aids, selectedITEMSAidArray, selected_button) { aid ->
-            bindingMain.incLayoutTabItemsAid.tvItemsAidWgValue.text = (aid["wg"] ?: "No description available")
-            bindingMain.incLayoutTabItemsAid.tvItemsAidValValue.text = (aid["val"] ?: "No description available")
-            bindingMain.incLayoutTabItemsAid.tvItemsAidEffValue.text = (aid["eff"] ?: "No description available")
-            bindingMain.incLayoutTabItemsAid.imgItemsAidSelected.setImageResource(resources.getIdentifier(aid["icon"], "drawable", packageName))
-            // Additional selection handling if necessary
-        }
-
-        adapter.updateData(filteredPerksList)
-
-        recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (aids.isNotEmpty()) {
-            val firstAid = aids.find { it["id"] == selectedITEMSAidArray[0] }
-            firstAid?.let {
-                bindingMain.incLayoutTabItemsAid.tvItemsAidWgValue.text = (it["wg"] ?: "No description available")
-                bindingMain.incLayoutTabItemsAid.tvItemsAidValValue.text = (it["val"] ?: "No description available")
-                bindingMain.incLayoutTabItemsAid.tvItemsAidEffValue.text = (it["eff"] ?: "No description available")
-                bindingMain.incLayoutTabItemsAid.imgItemsAidSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-            }
-        }
-    }
-    private fun ITEMSMiscSetup(recyclerView: RecyclerView){
-        val selectedITEMSMiscString = sharedPreferences.getString("selectedITEMSMiscArray", "1")
-        val selectedITEMSMiscArray: Array<String> = selectedITEMSMiscString!!.split(",").toTypedArray()
-
-        // Filter the imisc list based on the selected items
-        val filteredItemsMiscList = imiscs.filter { imisc ->
-            imisc["id"] in selectedITEMSMiscArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = ITEMSMiscAdapter(imiscs, selectedITEMSMiscArray, selected_button) { imisc ->
-            bindingMain.incLayoutTabItemsMisc.tvItemsMiscWgValue.text = (imisc["wg"] ?: "No description available")
-            bindingMain.incLayoutTabItemsMisc.tvItemsMiscValValue.text = ((imisc["val"]!!.toInt() * imisc["misccount"]!!.toInt()).toString())
-            bindingMain.incLayoutTabItemsMisc.imgItemsMiscSelected.setImageResource(resources.getIdentifier(imisc["icon"], "drawable", packageName))
-            // Additional selection handling if necessary
-        }
-
-        adapter.updateData(filteredItemsMiscList)
-
-        recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (imiscs.isNotEmpty()) {
-            val firstITEMSMisc = imiscs.find { it["id"] == selectedITEMSMiscArray[0] }
-            firstITEMSMisc?.let {
-                bindingMain.incLayoutTabItemsMisc.tvItemsMiscWgValue.text = (it["wg"] ?: "No description available")
-                bindingMain.incLayoutTabItemsMisc.tvItemsMiscValValue.text = ((it["val"]!!.toInt() * it["misccount"]!!.toInt()).toString())
-                bindingMain.incLayoutTabItemsMisc.imgItemsMiscSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-            }
-        }
-    }
-    private fun ITEMSAmmoSetup(recyclerView: RecyclerView) {
-        val selectedAmmoString = sharedPreferences.getString("selectedITEMSAmmoArray", "1")
-        val selectedAmmoArray: Array<String> = selectedAmmoString!!.split(",").toTypedArray()
-
-        // Filter the ammo list based on the selected items
-        val filteredAmmoList = ammos.filter { ammo ->
-            ammo["id"] in selectedAmmoArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = AmmoAdapter(ammos, selectedAmmoArray, selected_button) { ammo ->
-            bindingMain.incLayoutTabItemsAmmo.tvItemsAmmoWgValue.text = ammo["wg"] ?: "No description available"
-            bindingMain.incLayoutTabItemsAmmo.tvItemsAmmoValValue.text = ((ammo["val"]!!.toInt() * ammo["ammocount"]!!.toInt()).toString())
-            bindingMain.incLayoutTabItemsAmmo.imgItemsAmmoSelected.setImageResource(resources.getIdentifier(ammo["icon"], "drawable", packageName))
-            // Additional selection handling if necessary
-        }
-
-        adapter.updateData(filteredAmmoList)
-
-        recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (ammos.isNotEmpty()) {
-            val firstAmmo = ammos.find { it["id"] == selectedAmmoArray[0] }
-            firstAmmo?.let {
-                bindingMain.incLayoutTabItemsAmmo.tvItemsAmmoWgValue.text = it["wg"] ?: "No description available"
-                bindingMain.incLayoutTabItemsAmmo.tvItemsAmmoValValue.text = ((it["val"]!!.toInt() * it["ammocount"]!!.toInt()).toString())
-                bindingMain.incLayoutTabItemsAmmo.imgItemsAmmoSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-            }
-        }
-    }
-
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
@@ -4167,13 +3152,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPrimm)
         listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralTheStrip)
         listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralWhiteGloveSociety)
-
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry1)
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry2)
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry3)
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry4)
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry5)
-        listDataQuests.add(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry6)
 
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
@@ -4489,22 +3467,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
             when(filteringMenu){
                 "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, perks, true)
-                "WEAPONS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, weapons, true)
-                "APPAREL" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, apparels, true)
-                "AID" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, aids, true)
-                "IMISC" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, imiscs, true)
-                "AMMO" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, ammos, true)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationClear.setOnClickListener{
             when(filteringMenu){
                 "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, perks, false)
-                "WEAPONS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, weapons, false)
-                "APPAREL" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, apparels, false)
-                "AID" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, aids, false)
-                "IMISC" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, imiscs, false)
-                "AMMO" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, ammos, false)
             }
         }
 
@@ -4513,22 +3481,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
             when(filteringMenu){
                 "PERKS" -> filterList(perks, filterText)
-                "WEAPONS" -> filterList(weapons, filterText)
-                "APPAREL" -> filterList(apparels, filterText)
-                "AID" -> filterList(aids, filterText)
-                "IMISC" -> filterList(imiscs, filterText)
-                "AMMO" -> filterList(ammos, filterText)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
             when(filteringMenu){
                 "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
-                "WEAPONS" -> saveSelectedItems("selectedITEMSWeaponsArray")
-                "APPAREL" -> saveSelectedItems("selectedITEMSApparelArray")
-                "AID" -> saveSelectedItems("selectedITEMSAidArray")
-                "IMISC" -> saveSelectedItems("selectedITEMSMiscArray")
-                "AMMO" -> saveSelectedItems("selectedITEMSAmmoArray")
             }
         }
 
@@ -5543,156 +4501,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
         /***********************************************************************************************************
-         * ITEMS
+         * ITEMS — содержимое удалено (roadmap, этап 6, п.1: перестройка информационной
+         * архитектуры). Weapons/Apparel/Aid/Misc/Ammo были игровыми Fallout-механиками, не
+         * нужны на полигонной игре. Новое содержимое (Map/Clock/Journal) — следующие
+         * контрольные точки этого же этапа.
          **********************************************************************************************************/
-
-        /*
-        ////////////////////////////////////////////////////////
-        ITEMS - WEAPONS MENU
-        */
-        bindingMain.incLayoutTabItemsBottom.btnItemsWeapons.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, listBottomButtons)
-            bindingMain.incLayoutTabItemsWeapons.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsApparel.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAid.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAmmo.root.visibility = View.GONE
-            ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
-        }
-
-        bindingMain.incLayoutTabItemsBottom.btnItemsWeapons.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons == selectedSubMenu){
-                        weaponModification = true
-                        handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    weaponModification = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        /*
-        ////////////////////////////////////////////////////////
-        ITEMS - APPAREL MENU
-        */
-        bindingMain.incLayoutTabItemsBottom.btnItemsApparel.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsApparel, listBottomButtons)
-            bindingMain.incLayoutTabItemsWeapons.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsApparel.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsAid.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAmmo.root.visibility = View.GONE
-            ITEMSApparelSetup(bindingMain.incLayoutTabItemsApparel.recyclerTabApparel)
-        }
-
-        bindingMain.incLayoutTabItemsBottom.btnItemsApparel.setOnTouchListener { view, event ->
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                if(bindingMain.incLayoutTabItemsBottom.btnItemsApparel == selectedSubMenu){
-                    apparelModification = true
-                    handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                apparelModification = false
-                handler.removeCallbacks(longPressRunnable)
-            }
-        }
-        false
-    }
-
-        /*
-        ////////////////////////////////////////////////////////
-        ITEMS - AID MENU
-        */
-        bindingMain.incLayoutTabItemsBottom.btnItemsAid.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsAid, listBottomButtons)
-            bindingMain.incLayoutTabItemsWeapons.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsApparel.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAid.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAmmo.root.visibility = View.GONE
-            ITEMSAidSetup(bindingMain.incLayoutTabItemsAid.recyclerTabAid)
-        }
-        bindingMain.incLayoutTabItemsBottom.btnItemsAid.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(bindingMain.incLayoutTabItemsBottom.btnItemsAid == selectedSubMenu){
-                        aidModification = true
-                        handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    aidModification = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        /*
-        ////////////////////////////////////////////////////////
-        ITEMS - MISC MENU
-        */
-        bindingMain.incLayoutTabItemsBottom.btnItemsMisc.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsMisc, listBottomButtons)
-            bindingMain.incLayoutTabItemsWeapons.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsApparel.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAid.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsMisc.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabItemsAmmo.root.visibility = View.GONE
-            ITEMSMiscSetup(bindingMain.incLayoutTabItemsMisc.recyclerTabItemsMisc)
-        }
-
-        bindingMain.incLayoutTabItemsBottom.btnItemsMisc.setOnTouchListener { view, event ->
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                if(bindingMain.incLayoutTabItemsBottom.btnItemsMisc == selectedSubMenu){
-                    imiscModification = true
-                    handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                imiscModification = false
-                handler.removeCallbacks(longPressRunnable)
-            }
-        }
-        false
-    }
-
-        /*
-        ////////////////////////////////////////////////////////
-        ITEMS - AMMO MENU
-        */
-        bindingMain.incLayoutTabItemsBottom.btnItemsAmmo.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsAmmo, listBottomButtons)
-            bindingMain.incLayoutTabItemsWeapons.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsApparel.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAid.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabItemsAmmo.root.visibility = View.VISIBLE
-            ITEMSAmmoSetup(bindingMain.incLayoutTabItemsAmmo.recyclerTabAmmo)
-        }
-        bindingMain.incLayoutTabItemsBottom.btnItemsAmmo.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(bindingMain.incLayoutTabItemsBottom.btnItemsAmmo == selectedSubMenu){
-                        ammoModification = true
-                        handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    ammoModification = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         /***********************************************************************************************************
          * DATA
@@ -5705,8 +4518,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabDataBottom.btnDataLocalmap.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataLocalmap, listBottomButtons)
             bindingMain.incLayoutTabDataLocalMap.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataWorldMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataQuests.root.visibility = View.GONE
             bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }
@@ -5716,76 +4527,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         /*
         ////////////////////////////////////////////////////////
-        DATA - WORLD MAP MENU
-        */
-        bindingMain.incLayoutTabDataBottom.btnDataWorldmap.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, listBottomButtons)
-            bindingMain.incLayoutTabDataLocalMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataWorldMap.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataQuests.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
-        }
-
-        worldMapPOIs = mutableListOf()
-        fallout3WorldMapLocations()
-
-        bindingMain.incLayoutTabDataWorldMap.btnWorldmapF3.setOnClickListener{
-            worldMapPhotoView.setImageResource(R.drawable.worldmap_f3)
-            fallout3WorldMapLocations()
-        }
-        bindingMain.incLayoutTabDataWorldMap.btnWorldmapFNV.setOnClickListener{
-            worldMapPhotoView.setImageResource(R.drawable.worldmap_fnv)
-            falloutNVWorldMapLocations()
-        }
-
-        /*
-        ////////////////////////////////////////////////////////
-        DATA - QUESTS MENU
-        */
-        bindingMain.incLayoutTabDataBottom.btnDataQuests.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataQuests, listBottomButtons)
-            bindingMain.incLayoutTabDataLocalMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataWorldMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataQuests.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
-        }
-
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry1.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry1, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry1_description)
-        }
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry2.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry2, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry2_description)
-        }
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry3.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry3, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry3_description)
-        }
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry4.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry4, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry4_description)
-        }
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry5.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry5, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry5_description)
-        }
-        bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry6.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataQuests.layoutTabDataQuestsEntry6, listDataQuests)
-            bindingMain.incLayoutTabDataQuests.tvDataQuestsQuestsText.setText(R.string.data_quests_entry6_description)
-        }
-
-        /*
-        ////////////////////////////////////////////////////////
         DATA - MISC MENU
         */
         bindingMain.incLayoutTabDataBottom.btnDataMisc.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataMisc, listBottomButtons)
             bindingMain.incLayoutTabDataLocalMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataWorldMap.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataQuests.root.visibility = View.GONE
             bindingMain.incLayoutTabDataMisc.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }

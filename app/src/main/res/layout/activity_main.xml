@@ -94,11 +94,6 @@
                     android:visibility="gone" />
 
                 <include
-                    android:id="@+id/inc_layout_tab_items_bottom"
-                    layout="@layout/layout_tab_items_bottom"
-                    android:visibility="gone" />
-
-                <include
                     android:id="@+id/inc_layout_tab_data_bottom"
                     layout="@layout/layout_tab_data_bottom"
                     android:visibility="gone" />
@@ -189,35 +184,15 @@
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
+                    <!-- Содержимое удалено (roadmap, этап 6, п.1: перестройка информационной
+                         архитектуры) — Weapons/Apparel/Aid/Misc/Ammo были игровыми
+                         Fallout-механиками, не нужны на полигонной игре. Новое содержимое
+                         (Map/Clock/Journal) — следующие контрольные точки этого же этапа,
+                         контейнер оставлен пустым специально под них. -->
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/layout_items"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
-
-                        <include
-                            android:id="@+id/inc_layout_tab_items_weapons"
-                            layout="@layout/layout_tab_items_weapons"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_items_apparel"
-                            layout="@layout/layout_tab_items_apparel"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_items_aid"
-                            layout="@layout/layout_tab_items_aid"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_items_misc"
-                            layout="@layout/layout_tab_items_misc"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_items_ammo"
-                            layout="@layout/layout_tab_items_ammo"
-                            android:visibility="gone" />
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -229,16 +204,6 @@
                         <include
                             android:id="@+id/inc_layout_tab_data_local_map"
                             layout="@layout/layout_tab_data_local_map"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_data_world_map"
-                            layout="@layout/layout_tab_data_world_map"
-                            android:visibility="gone" />
-
-                        <include
-                            android:id="@+id/inc_layout_tab_data_quests"
-                            layout="@layout/layout_tab_data_quests"
                             android:visibility="gone" />
 
                         <include

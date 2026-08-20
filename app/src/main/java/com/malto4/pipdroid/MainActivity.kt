@@ -1011,6 +1011,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (checkAudioPermission()) {
             if (audioSessionId != -1 && audioSessionId != null) {
+                // BaseVisualizer.setPlayer() создаёт новый android.media.audiofx.Visualizer
+                // поверх старого, не освобождая предыдущий (баг библиотеки) — старый
+                // экземпляр остаётся enabled и продолжает слать колбэки от прежней,
+                // приглушённой дорожки, гоняясь за новым за один и тот же `bytes`. Из-за
+                // этого после первого трека на шкале залипала плоская линия, которая не
+                // сменялась новой при следующем воспроизведении. release() перед новым
+                // setPlayer() гарантирует, что активен только один Visualizer.
+                lineVisualizer.release()
                 lineVisualizer.setPlayer(audioSessionId)
                 lineVisualizer.visibility = View.VISIBLE
             }
@@ -1038,12 +1046,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     private fun turnRadioOff(paramMediaPlayer: MediaPlayer?) {
+        // lineVisualizer больше не прячется при остановке — горизонтальная шкала (тот же
+        // View, что рисует бегущую волну во время игры) должна оставаться на экране
+        // независимо от того, играет музыка или нет.
         paramMediaPlayer?.setVolume(0.0f, 0.0f)
-        if (checkAudioPermission()) {
-            lineVisualizer.visibility = View.GONE
-        } else {
-            requestAudioPermission()
-        }
     }
     private fun turnAllRadioOff() {
         val radioMedia1: MediaPlayer? = galaxyRadioMediaPlayer
@@ -1055,11 +1061,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         if(customMP3FilesFound){
             val radioMedia4: MediaPlayer? = customRadioMediaPlayer
             radioMedia4?.setVolume(0.0f, 0.0f)
-        }
-        if (checkAudioPermission()) {
-            lineVisualizer.visibility = View.GONE
-        } else {
-            requestAudioPermission()
         }
     }
     private fun turnAllRadioOffNoVis() {
@@ -1989,14 +1990,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         )
     }
     /**
-     * ITEMS (roadmap, этап 6, п.2) — Map переехал из DATA/Local Map, первый реальный пункт
-     * после удаления старого содержимого (п.1). Clock/Journal добавятся следующими
-     * контрольными точками.
+     * ITEMS (roadmap, этап 6) — Map (п.2, переехал из DATA/Local Map) и Clock (п.3, переехал
+     * из списка радиостанций RADIO — был попапом, теперь обычный раздел). Journal добавится
+     * следующей контрольной точкой.
      */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
         return listOf(
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
+            MenuNode("CLOCK") { bottom.btnItemsClock.performClick() },
         )
     }
     private fun dataMenuRoot(): List<MenuNode> {
@@ -2060,7 +2062,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap)
+                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsClock)
                 menuOptionClickedBLE("ITEMS")
             }
             "DATA" -> {
@@ -2123,8 +2125,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutSettingsGlobal.layoutTabSettings,
             bindingMain.incLayoutFilterModification.layoutFilterModification,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup,
-            bindingMain.incLayoutTabDataRadio.incLayoutTabClock.layoutTabClock
+            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup
+            // Часы (ITEMS/Clock, roadmap этап 6 п.3) больше не в этом списке — раньше это
+            // был попап со своим фоном-плашкой (settings_menu_background_green), теперь
+            // обычный полноэкранный раздел без такого фона, перекрашивать нечего.
             // Add other views as necessary
         )
         var backgroundRes = R.drawable.settings_menu_background_green
@@ -2292,6 +2296,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.GONE
@@ -2326,6 +2331,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.VISIBLE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
@@ -2365,6 +2371,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val bottom = bindingMain.incLayoutTabItemsBottom
         return listOf(
             Row2Item(bottom.btnItemsMap.text) { bottom.btnItemsMap.performClick() },
+            Row2Item(bottom.btnItemsClock.text) { bottom.btnItemsClock.performClick() },
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
@@ -3245,9 +3252,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                             val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomDateValue.text = dateOnly
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomTimeValue.text = timeHHmm
-                            bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupHm.text = timeHHmm
-                            bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupS.text = timess
-                            bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupBattery.text = getBatteryPercent().toString()
+                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupHm.text = timeHHmm
+                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupS.text = timess
+                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupBattery.text = getBatteryPercent().toString()
                         }
                     }
                 } catch (_: InterruptedException) {}
@@ -4524,10 +4531,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabItemsBottom.btnItemsMap.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsMap, listBottomButtons)
             bindingMain.incLayoutTabItemsMap.root.visibility = View.VISIBLE
+            bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
         }
 
         networkChangeReceiver = NetworkChangeReceiver(this)
         checkINETPermissions()
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK MENU (roadmap, этап 6, п.3) — раньше попап поверх RADIO (пункт "Clock"
+        в списке радиостанций), теперь обычный раздел ITEMS, занимает весь экран
+        */
+        bindingMain.incLayoutTabItemsBottom.btnItemsClock.setOnClickListener {
+            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsClock, listBottomButtons)
+            bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
+        }
 
         /***********************************************************************************************************
          * DATA
@@ -4651,18 +4670,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 radioCustomStateSelected = true
             }
         }
-
-        bindingMain.incLayoutTabDataRadio.layoutTabRadioClock.setOnClickListener{
-            bindingMain.incLayoutTabDataRadio.incLayoutTabClock.root.visibility = View.VISIBLE
-            enableDisableBottomButtons(false, listBottomButtons)
-            enableDisableTopSwipe(false)
-        }
-        bindingMain.incLayoutTabDataRadio.incLayoutTabClock.btnTabRadioClockPopupClose.setOnClickListener{
-            bindingMain.incLayoutTabDataRadio.incLayoutTabClock. root.visibility = View.GONE
-            enableDisableBottomButtons(true, listBottomButtons)
-            enableDisableTopSwipe(true)
-        }
-
 
         // DataStore for saving Settings
         val saveButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsSave

@@ -190,9 +190,10 @@
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
                     <!-- Weapons/Apparel/Aid/Misc/Ammo удалены (roadmap, этап 6, п.1) — были
-                         игровыми Fallout-механиками, не нужны на полигонной игре. Map —
-                         первое новое содержимое (п.2, переехал из DATA/Local Map), Clock/
-                         Journal добавятся следующими контрольными точками. -->
+                         игровыми Fallout-механиками, не нужны на полигонной игре. Map (п.2,
+                         переехал из DATA/Local Map) и Clock (п.3, переехал из списка
+                         радиостанций RADIO, был попапом — теперь обычный раздел) — новое
+                         содержимое, Journal добавится следующей контрольной точкой. -->
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/layout_items"
                         android:layout_width="match_parent"
@@ -201,6 +202,11 @@
                         <include
                             android:id="@+id/inc_layout_tab_items_map"
                             layout="@layout/layout_tab_items_map"
+                            android:visibility="gone" />
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_clock"
+                            layout="@layout/layout_tab_items_clock"
                             android:visibility="gone" />
 
                     </androidx.constraintlayout.widget.ConstraintLayout>

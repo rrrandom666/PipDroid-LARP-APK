@@ -228,41 +228,6 @@
                 app:layout_constraintTop_toTopOf="@+id/layout_tab_radio_custom_selector" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/layout_tab_radio_clock"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6.0dip"
-            android:minHeight="40.0dip">
-
-            <TextView
-                android:id="@+id/tv_radio_left_spacer_clock"
-                android:layout_width="0.0dip"
-                android:layout_height="0.0dip"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintHeight_percent="0.3"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintWidth_percent="0.08" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_tab_radio_clock"
-                style="@style/TextStyle"
-                layout_constraintBottom_toBottomOf="parent"
-                layout_constraintHorizontal_bias="0.14"
-                layout_constraintTop_toTopOf="parent"
-                android:layout_width="wrap_content"
-                android:layout_height="fill_parent"
-                android:background="@drawable/button_unselected"
-                android:clickable="false"
-                android:gravity="center|left"
-                android:minWidth="0.0dip"
-                android:minHeight="0.0dip"
-                android:text="Clock"
-                android:textAllCaps="false"
-                app:layout_constraintStart_toEndOf="@+id/tv_radio_left_spacer_clock"
-                app:layout_constraintTop_toTopOf="@+id/tv_radio_left_spacer_clock" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
     </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -362,18 +327,5 @@
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <include
-        android:id="@+id/inc_layout_tab_clock"
-        layout="@layout/layout_tab_clock"
-        android:layout_width="0.0dip"
-        android:layout_height="0.0dip"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_percent="0.975"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_percent="0.975" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

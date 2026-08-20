@@ -1990,15 +1990,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         )
     }
     /**
-     * ITEMS (roadmap, этап 6) — Map (п.2, переехал из DATA/Local Map) и Clock (п.3, переехал
-     * из списка радиостанций RADIO — был попапом, теперь обычный раздел). Journal добавится
-     * следующей контрольной точкой.
+     * ITEMS (roadmap, этап 6) — Map (п.2, переехал из DATA/Local Map), Clock (п.3, переехал
+     * из списка радиостанций RADIO — был попапом, теперь обычный раздел), Journal (п.4,
+     * заглушка "Раздел находится в разработке" — полная реализация с голосовым вводом,
+     * видение, п.8).
      */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
         return listOf(
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
             MenuNode("CLOCK") { bottom.btnItemsClock.performClick() },
+            MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
         )
     }
     private fun dataMenuRoot(): List<MenuNode> {
@@ -2062,7 +2064,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsClock)
+                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsClock, bindingMain.incLayoutTabItemsBottom.btnItemsJournal)
                 menuOptionClickedBLE("ITEMS")
             }
             "DATA" -> {
@@ -2297,6 +2299,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.GONE
@@ -2332,6 +2335,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
@@ -2372,6 +2376,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         return listOf(
             Row2Item(bottom.btnItemsMap.text) { bottom.btnItemsMap.performClick() },
             Row2Item(bottom.btnItemsClock.text) { bottom.btnItemsClock.performClick() },
+            Row2Item(bottom.btnItemsJournal.text) { bottom.btnItemsJournal.performClick() },
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
@@ -4532,6 +4537,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsMap, listBottomButtons)
             bindingMain.incLayoutTabItemsMap.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
         }
 
         networkChangeReceiver = NetworkChangeReceiver(this)
@@ -4546,6 +4552,19 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsClock, listBottomButtons)
             bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
+            bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - JOURNAL MENU (roadmap, этап 6, п.4) — заглушка "Раздел находится в
+        разработке", полная реализация (голосовой ввод) — видение, п.8
+        */
+        bindingMain.incLayoutTabItemsBottom.btnItemsJournal.setOnClickListener {
+            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsJournal, listBottomButtons)
+            bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
         }
 
         /***********************************************************************************************************

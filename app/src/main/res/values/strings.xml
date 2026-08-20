@@ -197,6 +197,8 @@
 
     <string name="items_map">Map</string>
     <string name="items_clock">Clock</string>
+    <string name="items_journal">Journal</string>
+    <string name="items_journal_placeholder">Раздел находится в разработке.</string>
 
     <string name="data_misc">Misc</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>

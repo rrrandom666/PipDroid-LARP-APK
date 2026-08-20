@@ -103,6 +103,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      **********************************************************************************************************/
     val sharedPreferences by lazy {getSharedPreferences("PipDroid_Preferences",Context.MODE_PRIVATE)}
     val playerName_SPKey = "playerName"
+    val playerRegion_SPKey = "playerRegion"
     val playerLevel_SPKey = "playerLevel"
     val playerUIColour_SPKey = "playerUIColour"
     val customMusicFolder_SPKey = "customMusicFolder"
@@ -117,7 +118,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
     private var selected_button = R.drawable.button_selected_green
-    private var selectedDateFormat = "MM.dd.yy, HH:mm"
+    private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
 
 
@@ -2922,21 +2923,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
     }
     /**
-     * Нижняя контекстная панель (roadmap, "Новая шапка + единый Settings", п.3) — раньше
-     * эта функция переключала три копии старой шапки (имя раздела + данные вперемешку),
-     * теперь переключает панель живых данных: у STATS свой инстанс (LVL/HP/AP/XP), у
-     * ITEMS/DATA — общий (дата/время, идентичное содержимое).
-     */
-    private fun setupTitleBar(menu: String){
-        findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_stats).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.GONE
-        if (menu == "STATS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_stats).visibility = View.VISIBLE
-        } else if (menu == "ITEMS" || menu == "DATA" || menu == "RADIO"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_header_bottom_datetime).visibility = View.VISIBLE
-        }
-    }
-    /**
      * Строка 1 новой шапки — подсветка активного верхнего раздела (тот же приём, что и у
      * второго уровня в menuOptionClicked/menuOptionClickedBLE: закрашенный фон
      * [selected_button] на активной кнопке, прозрачный на остальных).
@@ -3189,7 +3175,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun menuOptionClicked(menu: String){
         mediaPlayerCRF?.start()
         topLevelButtonsModify(menu)
-        setupTitleBar(menu)
         setupMainContent(menu)
         setupRow2(menu)
         enableDisableBottomButtons(false, listBottomButtons)
@@ -3199,7 +3184,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun menuOptionClickedBLE(menu: String){
         mediaPlayerCRF?.start()
         topLevelButtonsModify(menu)
-        setupTitleBar(menu)
         setupMainContentBLE(menu)
         setupRow2(menu)
         enableDisableBottomButtons(true, listBottomButtons)
@@ -3377,7 +3361,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         if ((lvlDmgTotal >= 12) && (lvlDmgTotal <= 21)){bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_03)}
         if (lvlDmgTotal >= 23){lvlDmgTotal = 23; bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_04)}
 
-        bindingMain.incLayoutHeaderBottomStats.tvTitleHpValue.text = "${hpLevel}/720"
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndStimpacksValue.text = "(${numStimpak})"
 
     }
@@ -3954,8 +3937,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
+        sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
         sharedPreferences.edit().putString(customMusicFolder_SPKey, etSettings3).apply()
         sharedPreferences.edit().putInt(playerUIColour_SPKey, uiColourID).apply()
@@ -4198,13 +4182,16 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         updateBLEConnected(if (bleService?.isConnected() == true) "CONNECTED" else "DISCONNECTED")
 
-        // Clock time refresh
+        // Clock time refresh — только дата, время идёт отдельным полем (HH:mm, ниже).
+        // Раньше это был один комбинированный формат "<дата>, HH:mm" на одну TextView,
+        // общая нижняя панель показывает дату и время как отдельные элементы (roadmap,
+        // "Новая шапка + единый Settings").
         when(sharedPreferences.getInt(dateFormat_SPKey, 0)){
-            0 -> { selectedDateFormat = "MM.dd.yy, HH:mm"}
-            1 -> { selectedDateFormat = "MM.dd.yyyy, HH:mm"}
-            2 -> { selectedDateFormat = "dd.MM.yy, HH:mm"}
-            3 -> { selectedDateFormat = "dd.MM.yyyy, HH:mm"}
-            4 -> { selectedDateFormat = "yyyy.MM.dd, HH:mm"}
+            0 -> { selectedDateFormat = "MM.dd.yy"}
+            1 -> { selectedDateFormat = "MM.dd.yyyy"}
+            2 -> { selectedDateFormat = "dd.MM.yy"}
+            3 -> { selectedDateFormat = "dd.MM.yyyy"}
+            4 -> { selectedDateFormat = "yyyy.MM.dd"}
         }
         val thread: Thread = object : Thread() {
             @SuppressLint("SimpleDateFormat")
@@ -4218,10 +4205,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                             // только YEAR, перед тем как Calendar уйдёт в форматирование.
                             val gameCalendar = Calendar.getInstance()
                             gameCalendar.set(Calendar.YEAR, sharedPreferences.getInt(gameYear_SPKey, 2276))
-                            val datetime: String = SimpleDateFormat(selectedDateFormat).format(gameCalendar.time)
+                            val dateOnly: String = SimpleDateFormat(selectedDateFormat).format(gameCalendar.time)
                             val timeHHmm: String = SimpleDateFormat("HH:mm").format(gameCalendar.time)
                             val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
-                            bindingMain.incLayoutHeaderBottomDatetime.tvTitleDataDatetimeValue.text = datetime
+                            bindingMain.incLayoutHeaderBottomCommon.tvBottomDateValue.text = dateOnly
+                            bindingMain.incLayoutHeaderBottomCommon.tvBottomTimeValue.text = timeHHmm
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupHm.text = timeHHmm
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupS.text = timess
                             bindingMain.incLayoutTabDataRadio.incLayoutTabClock.tvTabRadioClockPopupBattery.text = getBatteryPercent().toString()
@@ -5900,6 +5888,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // DataStore for saving Settings
         val saveButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsSave
         val editSettings1 = bindingMain.incLayoutSettingsGlobal.etSettings1Value //PlayerName
+        val editSettingsRegion = bindingMain.incLayoutSettingsGlobal.etSettingsRegionValue //PlayerRegion
         val editSettings2 = bindingMain.incLayoutSettingsGlobal.etSettings2Value //PlayerLevel
         val editSettings3 = bindingMain.incLayoutSettingsGlobal.etSettings3Value //MusicFolder
         val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
@@ -5909,7 +5898,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString())
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -5921,8 +5910,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndName.text = sharedPreferences.getString(playerName_SPKey, "Player")
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndNameLevelValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
-            bindingMain.incLayoutHeaderBottomStats.tvTitleStatsLvlValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
+            // Общая нижняя панель (roadmap, "Новая шапка + единый Settings") — имя и регион
+            // выставляются один раз при старте, как и остальные Settings-поля ниже:
+            // сохранение настроек всегда идёт через полный перезапуск Activity (см.
+            // saveButtonSettings.setOnClickListener выше), живого обновления не требуется.
+            bindingMain.incLayoutHeaderBottomCommon.tvBottomNameValue.text = sharedPreferences.getString(playerName_SPKey, "Player")
+            bindingMain.incLayoutHeaderBottomCommon.tvBottomRegionValue.text = sharedPreferences.getString(playerRegion_SPKey, "Richmond")
             editSettings1.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
+            editSettingsRegion.setText(sharedPreferences.getString(playerRegion_SPKey, "Richmond"))
             editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
             editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
             editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())

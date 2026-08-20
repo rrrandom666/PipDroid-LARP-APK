@@ -107,9 +107,10 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- Нижняя контекстная панель (roadmap, там же) — живые данные раздела, не
-             навигация. STATS — свой инстанс (LVL/HP/AP/XP), ITEMS/DATA — общий инстанс
-             (дата/время, содержимое идентично). -->
+        <!-- Нижняя контекстная панель (roadmap, там же) — один общий инстанс на все
+             разделы STATS/ITEMS/DATA/RADIO (имя игрока/регион/дата/время/радиация, см.
+             layout_header_bottom_common.xml) — на полигонной игре нет ни хитпойнтов, ни
+             уровней, ни AP/XP, поэтому STATS больше не выделяется отдельной панелью. -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/bottom_constraintLayout"
             android:layout_width="0.0dip"
@@ -121,14 +122,9 @@
             app:layout_constraintStart_toStartOf="parent">
 
             <include
-                android:id="@+id/inc_layout_header_bottom_stats"
-                layout="@layout/layout_header_bottom_stats"
+                android:id="@+id/inc_layout_header_bottom_common"
+                layout="@layout/layout_header_bottom_common"
                 android:visibility="visible" />
-
-            <include
-                android:id="@+id/inc_layout_header_bottom_datetime"
-                layout="@layout/layout_header_bottom_datetime"
-                android:visibility="gone" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

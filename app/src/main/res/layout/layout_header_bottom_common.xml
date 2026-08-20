@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Общая нижняя панель для ВСЕХ разделов (STATS/ITEMS/DATA/RADIO) — заменяет прежние
+     layout_header_bottom_stats.xml (LVL/HP/AP/XP, не нужны на полигонной игре — нет ни
+     хитпойнтов, ни уровней, ни AP/XP) и layout_header_bottom_datetime.xml (только дата/
+     время). Пять элементов: имя игрока, игровой регион, дата, время, накопленная
+     радиация (пока статичная заглушка "0" — реальное накопление, iконка уже на месте,
+     см. roadmap п.10, подключится к Гейгеру отдельным шагом).
+
+     Разделитель — тот же приём, что был у STATS (img_top_link_2, тонкая горизонтальная
+     линия сверху + толстая вертикальная с градиентом справа, растягивается fitXY): все
+     пять элементов в одинаковой "коробке" (первая версия оставляла имя игрока без рамки,
+     как раньше LVL — заменено на общий вид по всем пяти). Коробки — spread-цепочка
+     (равномерно делят свободное место), у коробки даты — android:minWidth, чтобы хватало
+     места на полный год (Settings, Date Formats), не только на две последние цифры. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_header_bottom_common"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ImageView
+        android:id="@+id/img_bottom_box_name"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_box_region"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/img_top_link_2" />
+
+    <TextView
+        android:id="@+id/tv_bottom_name_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="@string/title_bottom_common_name_placeholder"
+        app:layout_constraintEnd_toEndOf="@id/img_bottom_box_name"
+        app:layout_constraintStart_toStartOf="@id/img_bottom_box_name"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_box_region"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_box_date"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_box_name"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/img_top_link_2" />
+
+    <TextView
+        android:id="@+id/tv_bottom_region_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="@string/title_bottom_common_region_placeholder"
+        app:layout_constraintEnd_toEndOf="@id/img_bottom_box_region"
+        app:layout_constraintStart_toStartOf="@id/img_bottom_box_region"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_box_date"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:minWidth="90dp"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_box_time"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_box_region"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/img_top_link_2" />
+
+    <TextView
+        android:id="@+id/tv_bottom_date_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="@string/title_data_date"
+        app:layout_constraintEnd_toEndOf="@id/img_bottom_box_date"
+        app:layout_constraintStart_toStartOf="@id/img_bottom_box_date"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_box_time"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_box_radiation"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_box_date"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/img_top_link_2" />
+
+    <TextView
+        android:id="@+id/tv_bottom_time_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="@string/title_data_time"
+        app:layout_constraintEnd_toEndOf="@id/img_bottom_box_time"
+        app:layout_constraintStart_toStartOf="@id/img_bottom_box_time"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_box_radiation"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_box_time"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/img_top_link_2" />
+
+    <ImageView
+        android:id="@+id/img_bottom_radiation_icon"
+        style="@style/ColorTintStyle"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:contentDescription="@string/title_bottom_common_radiation_icon_description"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/tv_bottom_radiation_value"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="@id/img_bottom_box_radiation"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/icon_map_radioactivearea" />
+
+    <TextView
+        android:id="@+id/tv_bottom_radiation_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginStart="4dp"
+        android:gravity="center"
+        android:text="@string/title_bottom_common_radiation_placeholder"
+        app:layout_constraintEnd_toEndOf="@id/img_bottom_box_radiation"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_radiation_icon"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

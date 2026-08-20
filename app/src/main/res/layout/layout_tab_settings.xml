@@ -127,6 +127,66 @@
                         app:layout_constraintWidth_percent="0.06" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <!-- Игровой регион (roadmap, "Новая шапка + единый Settings") — выводится
+                     в общей нижней панели рядом с именем игрока, см.
+                     layout_header_bottom_common.xml. Дефолт "Richmond" — как у Player Name,
+                     задаётся хинтом здесь, а не строковым ресурсом (тот же приём). -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_settings_region"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_settings_region_left_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <TextView
+                        android:id="@+id/tv_settings_region"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:background="@drawable/button_unselected"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/settings_region_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_region_left_spacer"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <EditText
+                        android:id="@+id/et_settings_region_value"
+                        style="@style/SettingsButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center|right"
+                        android:hint="Richmond"
+                        android:maxLines="1"
+                        android:maxLength="16"
+                        android:singleLine="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_region"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_settings_region_right_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/layout_tab_settings_2"
                     android:layout_width="fill_parent"

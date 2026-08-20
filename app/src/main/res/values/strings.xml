@@ -85,6 +85,16 @@
 
     <string name="title_radio">RADIO</string>
 
+    <!-- Общая нижняя панель (roadmap, "Новая шапка + единый Settings"): значения — просто
+         XML-заглушки на момент инфлейта, сразу перезаписываются кодом при старте (имя/
+         регион — из SharedPreferences) либо в цикле раз в 300мс (дата/время, см.
+         title_data_date/title_data_time выше — переиспользуются как есть). Радиация —
+         статичный "0", накопление ещё не подключено к Гейгеру (roadmap п.10). -->
+    <string name="title_bottom_common_name_placeholder">PLAYER</string>
+    <string name="title_bottom_common_region_placeholder">RICHMOND</string>
+    <string name="title_bottom_common_radiation_placeholder">0</string>
+    <string name="title_bottom_common_radiation_icon_description">Radiation</string>
+
     <string name="stats_special">SPECIAL</string>
     <string name="stats_special_strength">Strength</string>
     <string name="special_strength_description">Strength is a measure of your raw physical power. It affects how much you can carry, the power of all melee attacks, and your effectiveness with many heavy weapons.</string>
@@ -330,6 +340,7 @@ A player's caravan is considered sold when the value of its cards is over 20 and
 
     <string name="settings">SETTINGS</string>
     <string name="settings_1_name">Player Name</string>
+    <string name="settings_region_name">Player Region</string>
     <string name="settings_2_name">Player Level</string>
     <string name="settings_3_name">C. Radio MP3 Folder</string>
     <string name="settings_4_name">Режим работы:</string>

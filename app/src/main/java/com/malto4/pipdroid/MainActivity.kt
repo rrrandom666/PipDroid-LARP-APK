@@ -5464,14 +5464,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
         // Единый экран Settings (roadmap, "Новая шапка + единый Settings") — показывается
-        // поверх текущей вкладки, не нужно больше прятать её содержимое под собой. Три
-        // кнопки открытия (STATS/ITEMS/DATA general) ведут в один и тот же инстанс, закрытие
-        // и слушатели RadioGroup — тоже по одному разу, не по копии на вкладку.
-        bindingMain.incLayoutTabStatsGeneral.btnGeneralSettings.setOnClickListener{
-            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
-            enableDisableBottomButtons(false, listBottomButtons)
-            enableDisableTopSwipe(false)
-        }
+        // поверх текущей вкладки, не нужно больше прятать её содержимое под собой. Открытие
+        // — только через шестерёнку строки 1 (btnHeaderSettings); легаси-кнопки "Settings"
+        // на STATS/General, ITEMS/Misc, DATA/Misc убраны вместе с разметкой.
         bindingMain.incLayoutSettingsGlobal.btnSettingsClose.setOnClickListener{
             if(!isResizing){
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
@@ -5605,14 +5600,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsMisc.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsAmmo.root.visibility = View.GONE
             ITEMSMiscSetup(bindingMain.incLayoutTabItemsMisc.recyclerTabItemsMisc)
-        }
-
-        // OPEN ITEMS - SETTINGS MENU (тот же единый экран, что и с STATS — закрытие и
-        // RadioGroup-листенеры уже подключены там, дублировать не нужно)
-        bindingMain.incLayoutTabItemsMisc.btnItemsMiscSettings.setOnClickListener{
-            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
-            enableDisableBottomButtons(false, listBottomButtons)
-            enableDisableTopSwipe(false)
         }
 
         bindingMain.incLayoutTabItemsBottom.btnItemsMisc.setOnTouchListener { view, event ->
@@ -5754,14 +5741,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabDataQuests.root.visibility = View.GONE
             bindingMain.incLayoutTabDataMisc.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
-        }
-
-        // OPEN DATA - SETTINGS MENU (тот же единый экран, что и с STATS — закрытие и
-        // RadioGroup-листенеры уже подключены там, дублировать не нужно)
-        bindingMain.incLayoutTabDataMisc.btnDataMiscSettings.setOnClickListener{
-            bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
-            enableDisableBottomButtons(false, listBottomButtons)
-            enableDisableTopSwipe(false)
         }
 
         bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1.setOnClickListener{

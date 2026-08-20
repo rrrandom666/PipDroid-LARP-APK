@@ -932,8 +932,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 loadLocalMap()
             } else {
-                bindingMain.incLayoutTabDataLocalMap.tvPermissionsCheckResult.visibility = View.VISIBLE
-                bindingMain.incLayoutTabDataLocalMap.localMapView.visibility = View.GONE
+                bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.VISIBLE
+                bindingMain.incLayoutTabItemsMap.localMapView.visibility = View.GONE
             }
         }
     }
@@ -1812,12 +1812,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     private fun showNoInternetMessage() {
-        bindingMain.incLayoutTabDataLocalMap.tvPermissionsCheckResult.visibility = View.VISIBLE
-        bindingMain.incLayoutTabDataLocalMap.localMapView.visibility = View.GONE
+        bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.VISIBLE
+        bindingMain.incLayoutTabItemsMap.localMapView.visibility = View.GONE
     }
     private fun loadLocalMap() {
 
-        localMapOSMDroid = bindingMain.incLayoutTabDataLocalMap.localMapView
+        localMapOSMDroid = bindingMain.incLayoutTabItemsMap.localMapView
         localMapOSMDroid.visibility = MapView.VISIBLE
         localMapOSMDroid.setMultiTouchControls(true)
         localMapOSMDroid.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
@@ -1859,7 +1859,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         locationOverlay.enableMyLocation()
         localMapOSMDroid.overlays.add(locationOverlay)
 
-        bindingMain.incLayoutTabDataLocalMap.tvPermissionsCheckResult.visibility = View.GONE
+        bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.GONE
     }
 
     /***********************************************************************************************************
@@ -1989,18 +1989,19 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         )
     }
     /**
-     * ITEMS — второго уровня пока нет (roadmap, этап 6, п.1: старое содержимое удалено,
-     * новое — Map/Clock/Journal — следующие контрольные точки). Пустой лист без детей —
-     * тот же приём, что уже применялся к RADIO (`radioMenuRoot()`), чтобы `ENC`/`ENCBTN`
-     * на этом разделе не падали.
+     * ITEMS (roadmap, этап 6, п.2) — Map переехал из DATA/Local Map, первый реальный пункт
+     * после удаления старого содержимого (п.1). Clock/Journal добавятся следующими
+     * контрольными точками.
      */
     private fun itemsMenuRoot(): List<MenuNode> {
-        return listOf(MenuNode("ITEMS") { })
+        val bottom = bindingMain.incLayoutTabItemsBottom
+        return listOf(
+            MenuNode("MAP") { bottom.btnItemsMap.performClick() },
+        )
     }
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
-            MenuNode("LOCALMAP") { bottom.btnDataLocalmap.performClick() },
             MenuNode("MISC") { bottom.btnDataMisc.performClick() },
         )
     }
@@ -2059,16 +2060,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                // Второго уровня пока нет — старое содержимое (Weapons/Apparel/Aid/Misc/
-                // Ammo) удалено (roadmap, этап 6, п.1), новое (Map/Clock/Journal) появится
-                // в следующих контрольных точках. bottomButtonsModify() пустым списком —
-                // как у RADIO.
-                bottomButtonsModify()
+                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap)
                 menuOptionClickedBLE("ITEMS")
             }
             "DATA" -> {
                 curMenu = "DATA"
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataMisc)
+                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataMisc)
                 menuOptionClickedBLE("DATA")
             }
             "RADIO" -> {
@@ -2294,7 +2291,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.GONE
 
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
+
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
@@ -2310,6 +2308,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.VISIBLE
+        } else if (menu == "ITEMS"){
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.VISIBLE
         } else if (menu == "DATA"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.VISIBLE
         } else if (menu == "RADIO"){
@@ -2325,7 +2325,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.VISIBLE
 
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
+
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
@@ -2341,8 +2342,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_status).visibility = View.VISIBLE
+        } else if (menu == "ITEMS"){
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.VISIBLE
         } else if (menu == "DATA"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_local_map).visibility = View.VISIBLE
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.VISIBLE
         } else if (menu == "RADIO"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.VISIBLE
         }
@@ -2357,11 +2360,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             Row2Item(bottom.btnStatsGeneral.text) { bottom.btnStatsGeneral.performClick() },
         )
     }
+    private fun itemsRow2Items(): List<Row2Item> {
+        // Порядок должен совпадать с itemsMenuRoot() и bottomButtonsModify() выше.
+        val bottom = bindingMain.incLayoutTabItemsBottom
+        return listOf(
+            Row2Item(bottom.btnItemsMap.text) { bottom.btnItemsMap.performClick() },
+        )
+    }
     private fun dataRow2Items(): List<Row2Item> {
         // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() выше.
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
-            Row2Item(bottom.btnDataLocalmap.text) { bottom.btnDataLocalmap.performClick() },
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
         )
     }
@@ -2388,8 +2397,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         row2Generation++
         row2Items = when(menu){
             "STATS" -> statsRow2Items()
+            "ITEMS" -> itemsRow2Items()
             "DATA" -> dataRow2Items()
-            else -> emptyList() // ITEMS/RADIO — второго уровня нет вообще
+            else -> emptyList() // RADIO — второго уровня нет вообще
         }
         row2Active = 0
         val strip = bindingMain.incLayoutHeaderRow2.layoutHeaderRow2Strip
@@ -4501,11 +4511,23 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
         /***********************************************************************************************************
-         * ITEMS — содержимое удалено (roadmap, этап 6, п.1: перестройка информационной
-         * архитектуры). Weapons/Apparel/Aid/Misc/Ammo были игровыми Fallout-механиками, не
-         * нужны на полигонной игре. Новое содержимое (Map/Clock/Journal) — следующие
-         * контрольные точки этого же этапа.
+         * ITEMS — Weapons/Apparel/Aid/Misc/Ammo удалены (roadmap, этап 6, п.1), были
+         * игровыми Fallout-механиками, не нужны на полигонной игре. Map (п.2) — первое
+         * новое содержимое, переехал из DATA/Local Map как есть, только переименован.
+         * Clock/Journal — следующие контрольные точки этого же этапа.
          **********************************************************************************************************/
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - MAP MENU
+        */
+        bindingMain.incLayoutTabItemsBottom.btnItemsMap.setOnClickListener {
+            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsMap, listBottomButtons)
+            bindingMain.incLayoutTabItemsMap.root.visibility = View.VISIBLE
+        }
+
+        networkChangeReceiver = NetworkChangeReceiver(this)
+        checkINETPermissions()
 
         /***********************************************************************************************************
          * DATA
@@ -4513,25 +4535,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         /*
         ////////////////////////////////////////////////////////
-        DATA - LOCAL MAP MENU
-        */
-        bindingMain.incLayoutTabDataBottom.btnDataLocalmap.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataLocalmap, listBottomButtons)
-            bindingMain.incLayoutTabDataLocalMap.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
-            bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
-        }
-
-        networkChangeReceiver = NetworkChangeReceiver(this)
-        checkINETPermissions()
-
-        /*
-        ////////////////////////////////////////////////////////
         DATA - MISC MENU
         */
         bindingMain.incLayoutTabDataBottom.btnDataMisc.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataMisc, listBottomButtons)
-            bindingMain.incLayoutTabDataLocalMap.root.visibility = View.GONE
             bindingMain.incLayoutTabDataMisc.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }

@@ -195,7 +195,7 @@
     <string name="stats_general_faction_karma_hated">Hated</string>
     <string name="stats_general_faction_karma_vilified">Vilified</string>
 
-    <string name="data_localmap">Local Map</string>
+    <string name="items_map">Map</string>
 
     <string name="data_misc">Misc</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>

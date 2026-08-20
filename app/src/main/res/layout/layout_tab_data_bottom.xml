@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Легаси-разметка второго уровня DATA — сам экран больше не рендерится (root всегда
-     GONE, реальная строка 2 — layout_header_row2.xml), кнопки здесь остаются только как
+     GONE, реальная строка 2 — layout_header_row2.xml), кнопка здесь остаётся только как
      источник текста/performClick() для dataRow2Items()/dataMenuRoot() в MainActivity.kt.
-     World Map/Quests убраны (roadmap, этап 6, п.1: перестройка информационной архитектуры),
-     Local Map переедет в ITEMS отдельной контрольной точкой (п.2). -->
+     World Map/Quests убраны, Local Map переехал в ITEMS/Map (roadmap, этап 6, п.1-2) —
+     остаётся один пункт, Misc (переименуется в Files отдельной контрольной точкой, п.5). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -17,37 +17,11 @@
         android:layout_width="0.0dip"
         android:layout_height="0.0dip"
         android:scaleType="fitXY"
-        app:layout_constraintBottom_toBottomOf="@id/img_bottom_link_1"
+        app:layout_constraintBottom_toBottomOf="@id/btn_data_misc"
         app:layout_constraintDimensionRatio="W, 1.5:1"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintWidth_percent="0.03"
         app:srcCompat="@drawable/botton_left_img" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_data_localmap"
-        style="@style/BottomButtonStyle"
-        tools:ignore="TouchTargetSizeCheck"
-        android:layout_width="wrap_content"
-        android:layout_height="fill_parent"
-        android:minHeight="0.0dip"
-        android:text="@string/data_localmap"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_1"
-        app:layout_constraintStart_toEndOf="@id/img_bottom_left"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/img_bottom_link_1"
-        style="@style/ColorTintStyle"
-        android:layout_width="0.0dip"
-        android:layout_height="0.0dip"
-        android:scaleType="fitXY"
-        app:layout_constraintBottom_toBottomOf="@id/btn_data_localmap"
-        app:layout_constraintEnd_toStartOf="@id/btn_data_misc"
-        app:layout_constraintHeight_percent="0.05"
-        app:layout_constraintStart_toEndOf="@id/btn_data_localmap"
-        app:layout_constraintTop_toTopOf="@id/btn_data_localmap"
-        app:srcCompat="@drawable/bottom_linking_line" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_data_misc"
@@ -58,7 +32,7 @@
         android:text="@string/data_misc"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_right"
-        app:layout_constraintStart_toEndOf="@id/img_bottom_link_1"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_left"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="TouchTargetSizeCheck" />
 

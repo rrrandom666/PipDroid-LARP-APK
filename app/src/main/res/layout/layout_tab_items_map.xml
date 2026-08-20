@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- ITEMS/Map (roadmap, этап 6, п.2) — переехал из DATA/Local Map как есть, просто
+     переименован (Local Map -> Map); реальная GPS-карта (osmdroid) не трогалась. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/layout_tab_local_map"
+    android:id="@+id/layout_tab_items_map"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical">

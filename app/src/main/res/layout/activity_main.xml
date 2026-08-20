@@ -94,6 +94,11 @@
                     android:visibility="gone" />
 
                 <include
+                    android:id="@+id/inc_layout_tab_items_bottom"
+                    layout="@layout/layout_tab_items_bottom"
+                    android:visibility="gone" />
+
+                <include
                     android:id="@+id/inc_layout_tab_data_bottom"
                     layout="@layout/layout_tab_data_bottom"
                     android:visibility="gone" />
@@ -184,15 +189,19 @@
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
-                    <!-- Содержимое удалено (roadmap, этап 6, п.1: перестройка информационной
-                         архитектуры) — Weapons/Apparel/Aid/Misc/Ammo были игровыми
-                         Fallout-механиками, не нужны на полигонной игре. Новое содержимое
-                         (Map/Clock/Journal) — следующие контрольные точки этого же этапа,
-                         контейнер оставлен пустым специально под них. -->
+                    <!-- Weapons/Apparel/Aid/Misc/Ammo удалены (roadmap, этап 6, п.1) — были
+                         игровыми Fallout-механиками, не нужны на полигонной игре. Map —
+                         первое новое содержимое (п.2, переехал из DATA/Local Map), Clock/
+                         Journal добавятся следующими контрольными точками. -->
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/layout_items"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
+
+                        <include
+                            android:id="@+id/inc_layout_tab_items_map"
+                            layout="@layout/layout_tab_items_map"
+                            android:visibility="gone" />
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -200,11 +209,6 @@
                         android:id="@+id/layout_data"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
-
-                        <include
-                            android:id="@+id/inc_layout_tab_data_local_map"
-                            layout="@layout/layout_tab_data_local_map"
-                            android:visibility="gone" />
 
                         <include
                             android:id="@+id/inc_layout_tab_data_misc"

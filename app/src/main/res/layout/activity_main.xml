@@ -77,10 +77,21 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/row1_constraintLayout">
 
+                <!-- Косметика по образцу референса (roadmap, "Новая шапка + единый
+                     Settings"): второй уровень теперь один общий инстанс без рамки/полосы,
+                     см. layout_header_row2.xml и setupRow2()/renderRow2() в
+                     MainActivity.kt. Три инстанса ниже остаются в дереве НАВСЕГДА GONE —
+                     их кнопки нужны только как источник текста/performClick() для
+                     Row2Item, реальную логику переключения экрана трогать не пришлось. -->
+                <include
+                    android:id="@+id/inc_layout_header_row2"
+                    layout="@layout/layout_header_row2"
+                    android:visibility="visible" />
+
                 <include
                     android:id="@+id/inc_layout_tab_stats_bottom"
                     layout="@layout/layout_tab_stats_bottom"
-                    android:visibility="visible" />
+                    android:visibility="gone" />
 
                 <include
                     android:id="@+id/inc_layout_tab_items_bottom"

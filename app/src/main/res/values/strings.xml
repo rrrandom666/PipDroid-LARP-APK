@@ -85,7 +85,7 @@
 
     <string name="title_radio">RADIO</string>
 
-    <string name="stats_special">S.P.E.C.I.A.L.</string>
+    <string name="stats_special">SPECIAL</string>
     <string name="stats_special_strength">Strength</string>
     <string name="special_strength_description">Strength is a measure of your raw physical power. It affects how much you can carry, the power of all melee attacks, and your effectiveness with many heavy weapons.</string>
     <string name="special_strength_value">10</string>

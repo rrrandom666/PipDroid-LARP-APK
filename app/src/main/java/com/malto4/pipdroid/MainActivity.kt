@@ -912,6 +912,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
     private lateinit var menuGestureDetector: GestureDetector
     private var curMenu = "STATS"
+
+    /**
+     * Строка 2 новой шапки (roadmap, "Новая шапка + единый Settings", косметика по образцу
+     * референса) — [label] и [onSelect] берутся с уже существующих кнопок второго уровня
+     * (btnStatsStatus и т.д., см. statsRow2Items()/itemsRow2Items()/dataRow2Items()) — эти
+     * кнопки остаются в дереве навсегда GONE, реальная логика переключения экрана (их
+     * onClickListener) не трогается вообще.
+     */
+    private data class Row2Item(val label: CharSequence, val onSelect: () -> Unit)
+    private var row2Items: List<Row2Item> = emptyList()
+    private var row2Active = 0
+    private val row2Views = mutableListOf<TextView>()
+    // Счётчик поколений строки 2 — растёт при каждом setupRow2(). alignRow2ToActiveButton()
+    // сверяет его перед применением отложенного (post{}) расчёта, чтобы устаревший callback
+    // от уже покинутого раздела не подвинул полосу по данным уже отсоединённого View.
+    private var row2Generation = 0
     private fun onMenuSwipeLeft() {
         when(curMenu){
             "STATS" -> {
@@ -2450,26 +2466,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * INTERFACE CHANGES
      **********************************************************************************************************/
-    fun menuChange(menu: String){
-        when(menu){
-            "STATS" -> {
-                bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
-                menuOptionClicked("STATS")
-                curMenu = "STATS"
-            }
-            "ITEMS" -> {
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, bindingMain.incLayoutTabItemsBottom.btnItemsApparel, bindingMain.incLayoutTabItemsBottom.btnItemsAid, bindingMain.incLayoutTabItemsBottom.btnItemsMisc, bindingMain.incLayoutTabItemsBottom.btnItemsAmmo)
-                menuOptionClicked("ITEMS")
-                ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
-                curMenu = "ITEMS"
-            }
-            "DATA" -> {
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc)
-                menuOptionClicked("DATA")
-                curMenu = "DATA"
-            }
-        }
-    }
     /**
      * État-машина экрана PipBoy (протокол, раздел 3.1): OFF (чёрный экран) <-> ON.
      * ESP32 — хозяин состояния, применяем как есть, не тумблерим локально. Стартовое
@@ -2654,30 +2650,35 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     fun menuChangeBLE(menu: String){
+        // curMenu переключается ДО menuOptionClickedBLE(), не после — setupRow2()/
+        // alignRow2ToActiveButton() внутри неё читают curMenu, чтобы найти кнопку строки 1,
+        // под которую подровнять активный пункт строки 2. Раньше присваивание шло последней
+        // строкой каждой ветки, поэтому выравнивание всегда цеплялось за ПРЕДЫДУЩИЙ раздел
+        // (полоса второго уровня уезжала под старую кнопку строки 1).
         when(menu){
             "STATS" -> {
+                curMenu = "STATS"
                 bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
                 menuOptionClickedBLE("STATS")
-                curMenu = "STATS"
             }
             "ITEMS" -> {
+                curMenu = "ITEMS"
                 bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsWeapons, bindingMain.incLayoutTabItemsBottom.btnItemsApparel, bindingMain.incLayoutTabItemsBottom.btnItemsAid, bindingMain.incLayoutTabItemsBottom.btnItemsMisc, bindingMain.incLayoutTabItemsBottom.btnItemsAmmo)
                 menuOptionClickedBLE("ITEMS")
                 ITEMSWeaponsSetup(bindingMain.incLayoutTabItemsWeapons.recyclerTabWeapons)
-                curMenu = "ITEMS"
             }
             "DATA" -> {
+                curMenu = "DATA"
                 bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataWorldmap, bindingMain.incLayoutTabDataBottom.btnDataLocalmap, bindingMain.incLayoutTabDataBottom.btnDataQuests, bindingMain.incLayoutTabDataBottom.btnDataMisc)
                 menuOptionClickedBLE("DATA")
-                curMenu = "DATA"
             }
             "RADIO" -> {
+                curMenu = "RADIO"
                 // У RADIO нет второго уровня (roadmap, "Новая шапка + единый Settings",
                 // п.4) — listBottomButtons пуст, enableDisableBottomButtons() отработает
                 // на пустом списке без ошибок.
                 bottomButtonsModify()
                 menuOptionClickedBLE("RADIO")
-                curMenu = "RADIO"
             }
         }
     }
@@ -3036,16 +3037,143 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.VISIBLE
         }
     }
-    private fun setupBottomBar(menu: String){
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_bottom).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_bottom).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_bottom).visibility = View.GONE
-        if (menu == "STATS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_bottom).visibility = View.VISIBLE
-        } else if (menu == "ITEMS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_bottom).visibility = View.VISIBLE
-        } else if (menu == "DATA"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_bottom).visibility = View.VISIBLE
+    private fun statsRow2Items(): List<Row2Item> {
+        val bottom = bindingMain.incLayoutTabStatsBottom
+        return listOf(
+            Row2Item(bottom.btnStatsStatus.text) { bottom.btnStatsStatus.performClick() },
+            Row2Item(bottom.btnStatsSpecial.text) { bottom.btnStatsSpecial.performClick() },
+            Row2Item(bottom.btnStatsSkills.text) { bottom.btnStatsSkills.performClick() },
+            Row2Item(bottom.btnStatsPerks.text) { bottom.btnStatsPerks.performClick() },
+            Row2Item(bottom.btnStatsGeneral.text) { bottom.btnStatsGeneral.performClick() },
+        )
+    }
+    private fun itemsRow2Items(): List<Row2Item> {
+        val bottom = bindingMain.incLayoutTabItemsBottom
+        return listOf(
+            Row2Item(bottom.btnItemsWeapons.text) { bottom.btnItemsWeapons.performClick() },
+            Row2Item(bottom.btnItemsApparel.text) { bottom.btnItemsApparel.performClick() },
+            Row2Item(bottom.btnItemsAid.text) { bottom.btnItemsAid.performClick() },
+            Row2Item(bottom.btnItemsMisc.text) { bottom.btnItemsMisc.performClick() },
+            Row2Item(bottom.btnItemsAmmo.text) { bottom.btnItemsAmmo.performClick() },
+        )
+    }
+    private fun dataRow2Items(): List<Row2Item> {
+        val bottom = bindingMain.incLayoutTabDataBottom
+        return listOf(
+            Row2Item(bottom.btnDataLocalmap.text) { bottom.btnDataLocalmap.performClick() },
+            Row2Item(bottom.btnDataWorldmap.text) { bottom.btnDataWorldmap.performClick() },
+            Row2Item(bottom.btnDataQuests.text) { bottom.btnDataQuests.performClick() },
+            Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
+        )
+    }
+    /** Кнопка строки 1, под которой должен оказаться активный пункт строки 2 (roadmap,
+     * "Новая шапка + единый Settings", косметика по образцу референса). */
+    private fun currentRow1TargetButton(): View? {
+        val row1 = bindingMain.incLayoutHeaderToplevel
+        return when(curMenu){
+            "STATS" -> row1.btnHeaderStats
+            "ITEMS" -> row1.btnHeaderItems
+            "DATA" -> row1.btnHeaderData
+            "RADIO" -> row1.btnHeaderRadio
+            else -> null
+        }
+    }
+    /**
+     * Строит с нуля полосу строки 2 под новый раздел (roadmap, там же) — вызывается только
+     * при смене верхнего уровня (STATS/ITEMS/DATA/RADIO), не при каждом тапе внутри одного
+     * раздела (для этого — renderRow2(), не трогает сами View, только их видимость/alpha/
+     * сдвиг). Приём "очистить и построить программно" — по аналогии с addPairingDevice() в
+     * мастере PAIRING, уже был в этом же проекте.
+     */
+    private fun setupRow2(menu: String){
+        row2Generation++
+        row2Items = when(menu){
+            "STATS" -> statsRow2Items()
+            "ITEMS" -> itemsRow2Items()
+            "DATA" -> dataRow2Items()
+            else -> emptyList() // RADIO — второго уровня нет вообще
+        }
+        row2Active = 0
+        val strip = bindingMain.incLayoutHeaderRow2.layoutHeaderRow2Strip
+        strip.removeAllViews()
+        row2Views.clear()
+        for ((index, item) in row2Items.withIndex()){
+            // Row2ItemStyle задаёт fontFamily как кастомный (не android:) атрибут — его
+            // разбирает только AppCompat-инфлейтер по XML-тегу, а не конструктор обычного
+            // TextView, созданного кодом (4-й аргумент defStyleRes для AppCompatTextView
+            // недоступен вообще, у него нет такого конструктора) — поэтому шрифт здесь
+            // ставится явно, отдельно от остальных атрибутов стиля.
+            val tv = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
+                text = item.label
+                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.monofonto)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT
+                ).apply { if (index > 0) marginStart = (8 * resources.displayMetrics.density).toInt() }
+                setOnClickListener {
+                    row2Active = index
+                    item.onSelect()
+                    renderRow2()
+                }
+            }
+            strip.addView(tv)
+            row2Views.add(tv)
+        }
+        renderRow2()
+    }
+    /**
+     * Перекрашивает/показывает-прячет уже построенные View строки 2 под текущий
+     * [row2Active] и выравнивает активный пункт под кнопкой строки 1 (roadmap, там же).
+     * Затенение — по расстоянию от активного пункта в обе стороны (симметрично, так ведёт
+     * себя референс — проверено скриншотами): 0 — обычный цвет, 1 — среднее затенение,
+     * 2 — сильное, дальше пункт скрывается совсем (не просто прозрачный — View.GONE, чтобы
+     * не мешал измерению ширины полосы).
+     */
+    private fun renderRow2(){
+        // Окно показа асимметричное: слева от активного пункта — максимум один пункт
+        // (среднее затенение), справа — как и раньше, до двух (среднее, сильное). Пункты
+        // "до" активного рисуются левее кнопки строки 1, под которую выравнивается полоса
+        // (см. alignRow2ToActiveButton()) — у первого раздела (STATS) слева от его кнопки
+        // почти нет места на экране, два пункта "до" туда физически не помещались.
+        for (i in row2Views.indices){
+            val view = row2Views[i]
+            val dist = i - row2Active
+            if (dist < -1 || dist > 2){
+                view.visibility = View.GONE
+            } else {
+                view.visibility = View.VISIBLE
+                view.alpha = when(dist){ 0 -> 1.0f; -1, 1 -> 0.55f; else -> 0.25f }
+            }
+        }
+        alignRow2ToActiveButton()
+    }
+    /**
+     * Считает translationX полосы АБСОЛЮТНО (не "прибавить к тому, что уже есть") —
+     * раньше был баг: `translationX +=` на позиции из getLocationOnScreen(), которая уже
+     * учитывает предыдущий сдвиг, копил рассинхрон при каждой смене раздела (заметно на
+     * ITEMS/DATA) и улетал далеко вправо после RADIO (там строка пустая, translationX
+     * сбрасывался в 0, а следующий вызов всё равно прибавлял поверх). [activeView.left] —
+     * координата внутри LinearLayout, translationX самой полосы её не портит, поэтому
+     * результат каждый раз пересчитывается с нуля и не зависит от истории.
+     *
+     * Выравнивание — по ЦЕНТРУ активного пункта под центром кнопки строки 1, не по левому
+     * краю: у пункта могут быть один-два предыдущих соседа слева (см. renderRow2()), и
+     * центрирование вдвое уменьшает нужный запас места слева от кнопки (иначе, например,
+     * Status у первого раздела STATS вылезал за левый край экрана при выборе Special).
+     */
+    private fun alignRow2ToActiveButton(){
+        val strip = bindingMain.incLayoutHeaderRow2.layoutHeaderRow2Strip
+        val activeView = row2Views.getOrNull(row2Active) ?: run { strip.translationX = 0f; return }
+        val targetButton = currentRow1TargetButton() ?: return
+        val generation = row2Generation
+        strip.post {
+            if (generation != row2Generation) return@post // раздел уже сменился, полоса не та
+            val targetLoc = IntArray(2); targetButton.getLocationOnScreen(targetLoc)
+            val stripLoc = IntArray(2); strip.getLocationOnScreen(stripLoc)
+            val stripBaseX = stripLoc[0] - strip.translationX
+            val targetCenter = targetLoc[0] + targetButton.width / 2
+            val activeCenter = activeView.left + activeView.width / 2
+            strip.translationX = (targetCenter - (stripBaseX + activeCenter)).toFloat()
         }
     }
     private fun enableDisableBottomButtons(action: Boolean, buttonarray: ArrayList<Button>?){
@@ -3060,56 +3188,20 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun menuOptionClicked(menu: String){
         mediaPlayerCRF?.start()
-        if (menu == "STATS"){
-            findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_special).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_skills).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_perks).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_general).setBackgroundResource(selected_button)
-        } else if (menu == "ITEMS"){
-            findViewById<Button>(R.id.btn_items_weapons).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_apparel).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_aid).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_misc).setBackgroundResource(selected_button)
-            findViewById<Button>(R.id.btn_items_ammo).setBackgroundResource(R.drawable.button_unselected)
-        } else if (menu == "DATA"){
-            findViewById<Button>(R.id.btn_data_localmap).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_worldmap).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_quests).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(selected_button)
-        }
         topLevelButtonsModify(menu)
         setupTitleBar(menu)
         setupMainContent(menu)
-        setupBottomBar(menu)
+        setupRow2(menu)
         enableDisableBottomButtons(false, listBottomButtons)
         enableDisableTopSwipe(false)
         sendBLEText(menu)
     }
     private fun menuOptionClickedBLE(menu: String){
         mediaPlayerCRF?.start()
-        if (menu == "STATS"){
-            findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
-            findViewById<Button>(R.id.btn_stats_special).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_skills).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_perks).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_stats_general).setBackgroundResource(R.drawable.button_unselected)
-        } else if (menu == "ITEMS"){
-            findViewById<Button>(R.id.btn_items_weapons).setBackgroundResource(selected_button)
-            findViewById<Button>(R.id.btn_items_apparel).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_aid).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_misc).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_items_ammo).setBackgroundResource(R.drawable.button_unselected)
-        } else if (menu == "DATA"){
-            findViewById<Button>(R.id.btn_data_localmap).setBackgroundResource(selected_button)
-            findViewById<Button>(R.id.btn_data_worldmap).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_quests).setBackgroundResource(R.drawable.button_unselected)
-            findViewById<Button>(R.id.btn_data_misc).setBackgroundResource(R.drawable.button_unselected)
-        }
         topLevelButtonsModify(menu)
         setupTitleBar(menu)
         setupMainContentBLE(menu)
-        setupBottomBar(menu)
+        setupRow2(menu)
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
         sendBLEText(menu)

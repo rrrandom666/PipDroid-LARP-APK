@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Строка 2 новой шапки (roadmap, "Новая шапка + единый Settings", косметика по образцу
+     референса Bethesda) — второй уровень активного раздела. Раньше это были 3 статичные
+     XML-копии (inc_layout_tab_stats/items/data_bottom, всё ещё существуют, но теперь
+     навсегда GONE — их кнопки используются только как источник текста/performClick(),
+     реальной логики переключения экрана, см. Row2Item в MainActivity.kt), с рамкой и
+     горизонтальной полосой с уголками. Теперь — один общий инстанс, пункты строятся
+     программно (setupRow2()) в горизонтальную полосу без фона/рамки: активный пункт
+     (обычный цвет) выравнивается под активным пунктом строки 1, следующий пункт затенён
+     средне, через один — сильно, дальше не показывается вообще. Тап на любой видимый
+     пункт делает его активным и выравнивает под строкой 1 (сдвиг на 1 или 2 позиции). -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_header_row2"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <LinearLayout
+        android:id="@+id/layout_header_row2_strip"
+        android:layout_width="wrap_content"
+        android:layout_height="0.0dip"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

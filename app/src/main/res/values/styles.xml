@@ -32,6 +32,22 @@
     <style name="ColorTintStyle">
     </style>
 
+    <!-- Пункты строки 2 новой шапки (roadmap, "Новая шапка + единый Settings", косметика
+         по образцу референса) — просто текст, без фона/рамки (см. layout_header_row2.xml).
+         Активный/затенённый/сильно затенённый — это alpha, выставляется кодом
+         (renderRow2() в MainActivity.kt), не через состояния стиля. -->
+    <style name="Row2ItemStyle">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingLeft">8.0dip</item>
+        <item name="android:paddingRight">8.0dip</item>
+        <item name="android:minWidth">0.0dip</item>
+        <item name="android:minHeight">0.0dip</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="fontFamily">@font/monofonto</item>
+    </style>
+
     <!-- TEXT STYLES-->
     <style name="TextStyle">
         <item name="android:paddingLeft">0.0dip</item>

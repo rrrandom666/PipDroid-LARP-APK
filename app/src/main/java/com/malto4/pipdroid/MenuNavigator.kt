@@ -27,6 +27,29 @@ class MenuNavigator {
 
     private var stack: MutableList<Level> = mutableListOf()
 
+    /**
+     * Позиция курсора на верхнем уровне дерева (строка 2 шапки — Status/Special/... и т.п.),
+     * не текущая глубина стека. Не меняется, пока курсор гуляет внутри вложенных уровней
+     * (CND/RAD/EFF и т.п.) — родительский узел остаётся выделенным, пока мы у него внутри.
+     * Используется, чтобы визуальная подсветка строки 2 (`renderRow2()` в MainActivity)
+     * следовала за энкодером, а не только за тапами по самой строке 2.
+     */
+    fun rootCursor(): Int = stack.firstOrNull()?.cursor ?: 0
+
+    /**
+     * Обратная сторона [rootCursor] — тап по строке 2 руками задаёт позицию курсора
+     * напрямую, не через [moveCursor]. Сворачивает стек до одного (верхнего) уровня: тап
+     * по строке 2 логически равносилен свежему выбору пункта, а не продолжению drill-down,
+     * в котором мы, возможно, были (CND/RAD/EFF и т.п.) — это уже и так поведение контента
+     * (MenuNode.onSelect кнопки строки 2 показывает именно дефолтный экран раздела).
+     * Не вызывает `onSelect` сама — вызывающий код (тап по строке 2) уже переключил контент.
+     */
+    fun setRootCursor(index: Int) {
+        val root = stack.firstOrNull() ?: return
+        if (index !in root.nodes.indices) return
+        stack = mutableListOf(Level(root.nodes, index))
+    }
+
     fun resetToRoot(rootNodes: List<MenuNode>) {
         if (rootNodes.isEmpty()) return
         stack = mutableListOf(Level(rootNodes, 0))

@@ -930,15 +930,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     // от уже покинутого раздела не подвинул полосу по данным уже отсоединённого View.
     private var row2Generation = 0
     private fun onMenuSwipeLeft() {
+        // menuNavigator.resetToRoot() обязателен здесь же, что и на тапах по строке 1 —
+        // иначе энкодер после свайпа крутит дерево раздела, с которого свайпнули (roadmap,
+        // "Модель навигации энкодером").
         when(curMenu){
             "STATS" -> {
                 menuChangeBLE("ITEMS")
+                menuNavigator.resetToRoot(itemsMenuRoot())
             }
             "ITEMS" -> {
                 menuChangeBLE("DATA")
+                menuNavigator.resetToRoot(dataMenuRoot())
             }
             "DATA" -> {
                 menuChangeBLE("STATS")
+                menuNavigator.resetToRoot(statsMenuRoot())
             }
         }
     }
@@ -946,12 +952,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         when(curMenu){
             "STATS" -> {
                 menuChangeBLE("DATA")
+                menuNavigator.resetToRoot(dataMenuRoot())
             }
             "ITEMS" -> {
                 menuChangeBLE("STATS")
+                menuNavigator.resetToRoot(statsMenuRoot())
             }
             "DATA" -> {
                 menuChangeBLE("ITEMS")
+                menuNavigator.resetToRoot(itemsMenuRoot())
             }
         }
     }
@@ -2635,8 +2644,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             "ITEMS" -> { menuChangeBLE(key); menuNavigator.resetToRoot(itemsMenuRoot()) }
             "DATA" -> { menuChangeBLE(key); menuNavigator.resetToRoot(dataMenuRoot()) }
             "POWER" -> applyPowerState(value == "1")
-            "ENCBTN" -> menuNavigator.activateSelected()
-            "ENC" -> menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
+            "ENCBTN" -> { menuNavigator.activateSelected(); syncRow2ActiveFromNavigator() }
+            "ENC" -> { menuNavigator.moveCursor(value?.toIntOrNull() ?: 0); syncRow2ActiveFromNavigator() }
             "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
             // RADIOPWR:1 -> переключиться на экран радио (протокол, раздел 3.2). RADIOPWR:0 —
             // остаться на текущем экране, обновление статуса радио — roadmap этап 7.
@@ -3100,6 +3109,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                     row2Active = index
                     item.onSelect()
                     renderRow2()
+                    // Обратная синхронизация к syncRow2ActiveFromNavigator(): без неё
+                    // энкодер после тача по строке 2 продолжал бы крутить от прежней
+                    // позиции курсора (roadmap, "Модель навигации энкодером").
+                    menuNavigator.setRootCursor(index)
                 }
             }
             strip.addView(tv)
@@ -3132,6 +3145,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
         alignRow2ToActiveButton()
+    }
+    /**
+     * Подтягивает подсветку строки 2 к позиции курсора энкодера (roadmap, "Модель навигации
+     * энкодером" — открытый вопрос про влияние переделки шапки). `row2Active` раньше менялся
+     * только тапом по самой строке 2 (см. setupRow2()) — `ENC`/`ENCBTN` двигали курсор в
+     * `MenuNavigator` и переключали контент через `MenuNode.onSelect()`, но полоса строки 2
+     * об этом не узнавала и оставалась на прежнем пункте. `rootCursor()` — позиция именно на
+     * уровне строки 2, не текущая глубина стека, поэтому не сбивается, пока курсор гуляет
+     * внутри вложенных уровней (CND/RAD/EFF и т.п.).
+     */
+    private fun syncRow2ActiveFromNavigator(){
+        val cursor = menuNavigator.rootCursor()
+        if (cursor != row2Active && cursor in row2Views.indices){
+            row2Active = cursor
+            renderRow2()
+        }
     }
     /**
      * Считает translationX полосы АБСОЛЮТНО (не "прибавить к тому, что уже есть") —
@@ -4168,9 +4197,22 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
          * верхнего уровня STATS/ITEMS/DATA, шестерёнка Settings, индикатор BLE. Один общий
          * инстанс на всё приложение (inc_layout_header_toplevel), не по копии на раздел.
          **********************************************************************************************************/
-        bindingMain.incLayoutHeaderToplevel.btnHeaderStats.setOnClickListener{ menuChangeBLE("STATS") }
-        bindingMain.incLayoutHeaderToplevel.btnHeaderItems.setOnClickListener{ menuChangeBLE("ITEMS") }
-        bindingMain.incLayoutHeaderToplevel.btnHeaderData.setOnClickListener{ menuChangeBLE("DATA") }
+        // menuNavigator.resetToRoot() — обязательная пара к menuChangeBLE() при любом
+        // переключении верхнего уровня, не только по BLE-команде (см. handleBleCommand()):
+        // иначе энкодер после тача по STATS/ITEMS/DATA продолжает крутить дерево ПРЕЖНЕГО
+        // раздела (roadmap, "Модель навигации энкодером" — проверка после переделки шапки).
+        bindingMain.incLayoutHeaderToplevel.btnHeaderStats.setOnClickListener{
+            menuChangeBLE("STATS")
+            menuNavigator.resetToRoot(statsMenuRoot())
+        }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderItems.setOnClickListener{
+            menuChangeBLE("ITEMS")
+            menuNavigator.resetToRoot(itemsMenuRoot())
+        }
+        bindingMain.incLayoutHeaderToplevel.btnHeaderData.setOnClickListener{
+            menuChangeBLE("DATA")
+            menuNavigator.resetToRoot(dataMenuRoot())
+        }
         bindingMain.incLayoutHeaderToplevel.btnHeaderRadio.setOnClickListener{
             menuChangeBLE("RADIO")
             menuNavigator.resetToRoot(radioMenuRoot())

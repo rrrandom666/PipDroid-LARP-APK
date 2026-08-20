@@ -195,12 +195,15 @@
     <string name="stats_general_faction_karma_hated">Hated</string>
     <string name="stats_general_faction_karma_vilified">Vilified</string>
 
+    <!-- Общая заглушка для ещё не реализованных разделов (roadmap, этап 6) — ITEMS/Journal
+         (п.4) и DATA/Holotapes (п.6), одна и та же формулировка, не дублируем текст. -->
+    <string name="placeholder_in_development">Раздел находится в разработке.</string>
+
     <string name="items_map">Map</string>
     <string name="items_clock">Clock</string>
     <string name="items_journal">Journal</string>
-    <string name="items_journal_placeholder">Раздел находится в разработке.</string>
 
-    <string name="data_misc">Misc</string>
+    <string name="data_misc">Files</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>
     <string name="data_misc_entry1_description">"BUILDING A DECK
 Caravan decks are comprised of at least 30 cards from one or more traditional playing card sets. The deck may have any number of cards of any type that suits a player's strategy, although it cannot have duplicate cards from the same set. For example, a King of Spades from Set A and a King of Spades from the Set B deck is acceptable, but more than one King of Spades from Set A would be illegal.
@@ -235,6 +238,8 @@ A player's caravan is considered sold when the value of its cards is over 20 and
 
     <string name="data_misc_entry2_name">Vault-Tec Vault information</string>
     <string name="data_misc_entry2_description">"You've downloaded the locations and access codes to Vaults 87, 92, 101, 106 and 108.</string>
+
+    <string name="data_holotapes">Holotapes</string>
 
     <string name="data_radio">Radio</string>
 

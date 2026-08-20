@@ -227,6 +227,11 @@
                             android:visibility="gone" />
 
                         <include
+                            android:id="@+id/inc_layout_tab_data_holotapes"
+                            layout="@layout/layout_tab_data_holotapes"
+                            android:visibility="gone" />
+
+                        <include
                             android:id="@+id/inc_layout_tab_data_radio"
                             layout="@layout/layout_tab_data_radio"
                             android:visibility="gone" />

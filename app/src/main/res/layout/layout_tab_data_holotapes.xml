@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ITEMS/Journal (roadmap, этап 6, п.4) — заглушка. Полная реализация (голосовой ввод) —
-     отдельный, более поздний этап видения приложения (roadmap, "Видение приложения", п.8). -->
+<!-- DATA/Holotapes (roadmap, этап 6, п.6) — заглушка. Реальное чтение голодисков
+     блокируется готовностью USB Host на прошивке ESP32-S3 (roadmap, раздел 1, Phase D). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/layout_tab_items_journal"
+    android:id="@+id/layout_tab_data_holotapes"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent">
 
     <TextView
-        android:id="@+id/tv_items_journal_placeholder"
+        android:id="@+id/tv_data_holotapes_placeholder"
         style="@style/TextStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -2007,6 +2007,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
             MenuNode("MISC") { bottom.btnDataMisc.performClick() },
+            MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() },
         )
     }
     /**
@@ -2069,7 +2070,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "DATA" -> {
                 curMenu = "DATA"
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataMisc)
+                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataHolotapes)
                 menuOptionClickedBLE("DATA")
             }
             "RADIO" -> {
@@ -2302,6 +2303,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_holotapes).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
 
@@ -2338,6 +2340,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_holotapes).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_main).visibility = View.VISIBLE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_radio).visibility = View.GONE
 
@@ -2384,6 +2387,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOf(
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
+            Row2Item(bottom.btnDataHolotapes.text) { bottom.btnDataHolotapes.performClick() },
         )
     }
     /** Кнопка строки 1, под которой должен оказаться активный пункт строки 2 (roadmap,
@@ -4578,6 +4582,20 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabDataBottom.btnDataMisc.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataMisc, listBottomButtons)
             bindingMain.incLayoutTabDataMisc.root.visibility = View.VISIBLE
+            bindingMain.incLayoutTabDataHolotapes.root.visibility = View.GONE
+            bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        DATA - HOLOTAPES MENU (roadmap, этап 6, п.6) — заглушка "Раздел находится в
+        разработке", реальное чтение голодисков блокируется готовностью USB Host на
+        прошивке ESP32-S3
+        */
+        bindingMain.incLayoutTabDataBottom.btnDataHolotapes.setOnClickListener {
+            setSelectedButton(bindingMain.incLayoutTabDataBottom.btnDataHolotapes, listBottomButtons)
+            bindingMain.incLayoutTabDataMisc.root.visibility = View.GONE
+            bindingMain.incLayoutTabDataHolotapes.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }
 

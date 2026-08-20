@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Легаси-разметка второго уровня ITEMS — сам экран не рендерится (root всегда GONE),
+     кнопка здесь только как источник текста/performClick() для itemsRow2Items()/
+     itemsMenuRoot() в MainActivity.kt, тот же приём, что у STATS/DATA. Пока один пункт —
+     Map (roadmap, этап 6, п.2), Clock/Journal добавятся следующими контрольными точками. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_items_bottom"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ImageView
+        android:id="@+id/img_bottom_left"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_map"
+        app:layout_constraintDimensionRatio="W, 1.5:1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintWidth_percent="0.03"
+        app:srcCompat="@drawable/botton_left_img" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_items_map"
+        style="@style/BottomButtonStyle"
+        tools:ignore="TouchTargetSizeCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:minHeight="0.0dip"
+        android:text="@string/items_map"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_bottom_right"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_left"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/img_bottom_right"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/btn_items_map"
+        app:layout_constraintDimensionRatio="W, 1.5:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.03"
+        app:srcCompat="@drawable/botton_right_img" />
+</androidx.constraintlayout.widget.ConstraintLayout>

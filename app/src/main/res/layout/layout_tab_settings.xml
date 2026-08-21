@@ -552,6 +552,69 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_settings_language"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6.0dp"
+                    android:paddingTop="10dip">
+
+                    <TextView
+                        android:id="@+id/tv_settings_language_left_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tv_settings_language_title"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                    <TextView
+                        android:id="@+id/tv_settings_language_title"
+                        style="@style/CNDEFFRADButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:clickable="false"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:paddingBottom="10dip"
+                        android:text="@string/settings_language_name"
+                        android:textAllCaps="false"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_language_left_spacer"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <!-- Независим от системного языка телефона (roadmap, локализация,
+                         шаг 4) — MainActivity.attachBaseContext() читает appLanguage_SPKey
+                         и подменяет Locale контекста, пока значение не выбрано явно,
+                         работает обычный values-ru фолбэк по системной локали. Названия
+                         языков ("Русский"/"English") намеренно не переведены — так само
+                         название языка принято показывать в любом интерфейсе. -->
+                    <RadioGroup
+                        android:id="@+id/rg_settings_language"
+                        style="@style/SettingsButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingBottom="10dp"
+                        android:textAllCaps="false"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_language_left_spacer"
+                        app:layout_constraintTop_toBottomOf="@id/tv_settings_language_title">
+
+                        <RadioButton
+                            android:id="@+id/rb_settings_language_ru"
+                            style="@style/SettingsButtonStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_language_value_ru" />
+                        <RadioButton
+                            android:id="@+id/rb_settings_language_en"
+                            style="@style/SettingsButtonStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_language_value_en" />
+                    </RadioGroup>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/layout_tab_settings_UIColour"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
@@ -650,7 +713,7 @@
                         android:gravity="center|left"
                         android:minWidth="0.0dip"
                         android:minHeight="0.0dip"
-                        android:text="Enable True Fullscreen"
+                        android:text="@string/settings_enable_true_fullscreen"
                         android:checked="true"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/tv_settings_6_left_spacer"
@@ -688,7 +751,7 @@
                         android:gravity="center|left"
                         android:minWidth="0.0dip"
                         android:minHeight="0.0dip"
-                        android:text="Show Tutorial at Start"
+                        android:text="@string/settings_show_tutorial_at_start"
                         android:checked="true"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/tv_settings_7_left_spacer"
@@ -731,7 +794,7 @@
                 android:gravity="center|left"
                 android:minWidth="0.0dip"
                 android:minHeight="0.0dip"
-                android:text="Bluetooth Setup"
+                android:text="@string/settings_bluetooth_setup_button"
                 android:textAllCaps="false"
                 app:layout_constraintBottom_toTopOf="@id/btn_settings_save"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -748,7 +811,7 @@
                 android:gravity="center|left"
                 android:minWidth="0.0dip"
                 android:minHeight="0.0dip"
-                android:text="Save Settings"
+                android:text="@string/settings_save_button"
                 android:textAllCaps="false"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"

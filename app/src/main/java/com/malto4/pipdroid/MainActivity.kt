@@ -78,6 +78,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 import java.util.Random
 import java.util.UUID
 import kotlin.jvm.internal.Intrinsics
@@ -115,8 +116,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     val bluetoothRUUID_SPKey = "bluetoothRUUID"
     val bluetoothWUUID_SPKey = "bluetoothWUUID"
     val pipBoyMode_SPKey = "pipBoyMode"
+    val appLanguage_SPKey = "appLanguage"
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
+    private var languageSelector = -1
     private var selected_button = R.drawable.button_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
@@ -1156,7 +1159,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     fun updateBLEConnected(status: String){
-        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
+        // status - внутренний токен состояния (сравнивается через ==), не текст для показа —
+        // локализованная подпись берётся отдельно, из строкового ресурса (roadmap, локализация).
+        val displayText = if (status == "CONNECTED") getString(R.string.bluetooth_status_connected) else getString(R.string.bluetooth_status_disconnected)
+        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = displayText
         // Индикатор BLE в правом углу row1 (roadmap, "Новая шапка + единый Settings", п.3) —
         // тот же глиф, состояние передаётся альфой, не сменой drawable.
         bindingMain.incLayoutHeaderToplevel.imgHeaderBleStatus.alpha = if (status == "CONNECTED") 1.0f else 0.35f
@@ -1319,6 +1325,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
         refreshModeSettingsLabel()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
+
+        // Экран выбора режима можно открыть и поверх Settings (кнопка "Изменить" режима
+        // работы) — тогда после выбора режима Settings остаётся видимым под ним (просто
+        // временно перекрыт), и пользователь видит его вместо мастера/STATS, пока не
+        // закроет вручную. Мастер не должен прерываться, поэтому Settings тоже закрываем
+        // здесь — как обычным крестиком (btnSettingsClose), с тем же восстановлением
+        // нижних кнопок/свайпа, которые открытие Settings отключает.
+        if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
+            enableDisableBottomButtons(true, listBottomButtons)
+            enableDisableTopSwipe(true)
+        }
 
         // На свежей установке ShowTutorial=true, и есть давно существующий код, который
         // на старте прячет constraintlayoutMain и показывает вместо него Tutorial. Экран
@@ -2155,6 +2173,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat3,
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat4,
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat5,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsLanguageRu,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsLanguageEn,
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome,
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
             bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings
@@ -2429,7 +2449,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             // ставится явно, отдельно от остальных атрибутов стиля.
             val tv = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
                 text = item.label
-                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.monofonto)
+                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
@@ -2517,7 +2537,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             val stripBaseX = stripLoc[0] - strip.translationX
             val targetCenter = targetLoc[0] + targetButton.width / 2
             val activeCenter = activeView.left + activeView.width / 2
-            strip.translationX = (targetCenter - (stripBaseX + activeCenter)).toFloat()
+            var translationX = (targetCenter - (stripBaseX + activeCenter)).toFloat()
+
+            // Центрирование само по себе не гарантирует, что притушенные соседние пункты
+            // останутся на экране — это тот же баг, что уже чинили переходом с левого
+            // выравнивания на центрирование (см. комментарий выше), но при более широком
+            // шрифте, чем был на момент того фикса, он снова достижим. Зажимаем так, чтобы
+            // крайний видимый пункт не пересекал границу, которая была безопасна при
+            // translationX = 0 (левый край строки = левый край row1, симметрично справа).
+            val visible = row2Views.filter { it.visibility == View.VISIBLE }
+            if (visible.isNotEmpty()){
+                val leftMost = visible.minByOrNull { it.left }!!
+                val rightMost = visible.maxByOrNull { it.right }!!
+                val screenWidth = resources.displayMetrics.widthPixels
+                val minTranslation = -leftMost.left.toFloat()
+                val maxTranslation = (screenWidth - stripBaseX - rightMost.right).toFloat()
+                if (minTranslation <= maxTranslation) {
+                    translationX = translationX.coerceIn(minTranslation, maxTranslation)
+                }
+            }
+            strip.translationX = translationX
         }
     }
     private fun enableDisableBottomButtons(action: Boolean, buttonarray: ArrayList<Button>?){
@@ -2837,7 +2876,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 // Set the text for the TextView to the "name" value
                 text = item["name"]
                 // Set custom font to button
-                typeface = TypefaceCache.getMonofontoTypeface(context) // Set the loaded typeface
+                typeface = TypefaceCache.getPipboyTypeface(context) // Set the loaded typeface
             }
 
             // Set the CheckBox checked state based on whether the item ID is in selectedItems
@@ -2982,7 +3021,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
         sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
@@ -2993,6 +3032,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sharedPreferences.edit().putBoolean("ShowTutorial", showTutorial).apply()
         sharedPreferences.edit().putBoolean("TrueFullscreen", trueFullscreen).apply()
         sharedPreferences.edit().putInt(gameYear_SPKey, gameYear).apply()
+        sharedPreferences.edit().putInt(appLanguage_SPKey, languageID).apply()
     }
     private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
@@ -3009,6 +3049,33 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
 
+
+    /**
+     * Язык интерфейса (roadmap, "Видение приложения", п.2, шаг 4) — независимый от
+     * системного языка телефона, в отличие от обычного механизма values-ru (который сам
+     * по себе продолжает работать как фолбэк, пока язык явно не выбран в Settings).
+     * appLanguage_SPKey не задан (-1) на свежей установке — тогда контекст не трогаем
+     * вообще, приложение ведёт себя как раньше, языком рулит система. `Configuration`
+     * здесь — android.content.res, не org.osmdroid.config.Configuration (тот уже
+     * импортирован под тем же именем выше по файлу, поэтому FQCN, а не import).
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = newBase.getSharedPreferences("PipDroid_Preferences", Context.MODE_PRIVATE)
+        val languageCode = when (prefs.getInt("appLanguage", -1)) {
+            0 -> "ru"
+            1 -> "en"
+            else -> null
+        }
+        if (languageCode == null) {
+            super.attachBaseContext(newBase)
+            return
+        }
+        val locale = Locale(languageCode)
+        Locale.setDefault(locale)
+        val config = android.content.res.Configuration(newBase.resources.configuration)
+        config.setLocale(locale)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
 
     /***********************************************************************************************************
      *
@@ -4524,6 +4591,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 (rg_UIColour_Settings.getChildAt(3)?.id) -> UIColour_Selector = 3
             }
         }
+        val rg_Language_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage
+        rg_Language_Settings.setOnCheckedChangeListener{ _, checkedId ->
+            when (checkedId){
+                (rg_Language_Settings.getChildAt(0)?.id) -> languageSelector = 0 // ru
+                (rg_Language_Settings.getChildAt(1)?.id) -> languageSelector = 1 // en
+            }
+        }
 
 
         /***********************************************************************************************************
@@ -4721,7 +4795,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector)
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -4752,6 +4826,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
             bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.check(bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
             bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.check(bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
+            // appLanguage_SPKey не задан (-1) на свежей установке — тогда показываем как
+            // отмеченный тот пункт, который и так уже действует через системную локаль
+            // (см. attachBaseContext()), а не жёстко фиксированный вариант по умолчанию.
+            val effectiveLanguageIndex = sharedPreferences.getInt(appLanguage_SPKey, -1).let {
+                if (it in 0..1) it else if (Locale.getDefault().language == "ru") 0 else 1
+            }
+            bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage.check(bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage.getChildAt(effectiveLanguageIndex).id)
 
 
         /***********************************************************************************************************
@@ -4898,12 +4979,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 }
 
 object TypefaceCache {
-    private var monofontoTypeface: Typeface? = null
+    private var pipboyTypeface: Typeface? = null
 
-    fun getMonofontoTypeface(context: Context): Typeface {
-        if (monofontoTypeface == null) {
-            monofontoTypeface = Typeface.createFromAsset(context.assets, "fonts/monofonto.ttf")
+    fun getPipboyTypeface(context: Context): Typeface {
+        if (pipboyTypeface == null) {
+            pipboyTypeface = Typeface.createFromAsset(context.assets, "fonts/pipboy_mono.ttf")
         }
-        return monofontoTypeface!!
+        return pipboyTypeface!!
     }
 }

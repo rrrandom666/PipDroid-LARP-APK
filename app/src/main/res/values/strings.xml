@@ -10,39 +10,39 @@
     <!-- Экран выбора режима и мастер PipBoy 2000 (roadmap, "Видение приложения") —
          рабочий текст, взят из roadmap как есть. Финальные RU/EN тексты — отдельная
          задача локализации (roadmap, этап 7). -->
-    <string name="mode_phone">Телефон</string>
+    <string name="mode_phone">Phone</string>
     <string name="mode_pipboy_2000">PipBoy 2000</string>
     <string name="mode_pipboy_3000">PipBoy 3000</string>
-    <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
-    <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
-    <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
-    <string name="mode_select_button">Выбрать</string>
+    <string name="mode_description_phone">The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware.</string>
+    <string name="mode_description_pipboy_2000">The app\'s display area is set manually. The app is controlled by the PipBoy 2000 hardware. Touchscreen control is still available, but optional.</string>
+    <string name="mode_description_pipboy_3000">This mode is under development.</string>
+    <string name="mode_select_button">Select</string>
 
-    <string name="wizard_hardware_title">ИНСТРУКЦИЯ ПО УСТАНОВКЕ</string>
-    <string name="wizard_hardware_text">Вставьте телефон в корпус PipBoy.</string>
-    <string name="wizard_back">Назад</string>
-    <string name="wizard_next">Далее</string>
+    <string name="wizard_hardware_title">HARDWARE INSTRUCTIONS</string>
+    <string name="wizard_hardware_text">Insert your phone into the PipBoy case.</string>
+    <string name="wizard_back">Back</string>
+    <string name="wizard_next">Next</string>
 
-    <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>
-    <string name="wizard_done">Готово</string>
-    <string name="wizard_reset">Сбросить</string>
-    <string name="wizard_cancel">Отмена</string>
-    <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран PipBoy.</string>
+    <string name="wizard_display_area_title">DISPLAY AREA</string>
+    <string name="wizard_done">Done</string>
+    <string name="wizard_reset">Clear</string>
+    <string name="wizard_cancel">Cancel</string>
+    <string name="wizard_hint_resize">Adjust the display area to fit the PipBoy screen.</string>
 
-    <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
-    <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
-    <string name="wizard_grant_permissions">Выдать разрешения</string>
+    <string name="wizard_permissions_title">PERMISSIONS</string>
+    <string name="wizard_permissions_text">PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware) and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own \u2014 the button below is only needed if the system dialog doesn\'t appear for some reason.</string>
+    <string name="wizard_grant_permissions">Grant Permissions</string>
 
-    <string name="wizard_pairing_title">СОПРЯЖЕНИЕ</string>
-    <string name="wizard_pairing_scanning">Сканирование… Убедитесь, что корпус PipBoy включён и рядом.</string>
-    <string name="wizard_pairing_found">Найдено устройств: %1$d. Выберите ваш PipBoy в списке.</string>
-    <string name="wizard_pairing_none_found">Ничего не найдено. Проверьте питание корпуса и нажмите «Сканировать снова».</string>
-    <string name="wizard_pairing_bluetooth_off">Bluetooth выключен.</string>
-    <string name="wizard_pairing_scan_failed">Не удалось начать сканирование, попробуйте ещё раз.</string>
-    <string name="wizard_pairing_rescan">Сканировать снова</string>
+    <string name="wizard_pairing_title">PAIRING</string>
+    <string name="wizard_pairing_scanning">Scanning\u2026 Make sure the PipBoy case is powered on and nearby.</string>
+    <string name="wizard_pairing_found">Found %1$d device(s). Select your PipBoy from the list.</string>
+    <string name="wizard_pairing_none_found">Nothing found. Check the case\'s power and tap \"Scan Again\".</string>
+    <string name="wizard_pairing_bluetooth_off">Bluetooth is off.</string>
+    <string name="wizard_pairing_scan_failed">Couldn\'t start scanning, please try again.</string>
+    <string name="wizard_pairing_rescan">Scan Again</string>
 
-    <string name="wizard_hint_connect_hardware">Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.</string>
-    <string name="wizard_hide_hint">Скрыть подсказку</string>
+    <string name="wizard_hint_connect_hardware">While the PipBoy is off, this screen stays black. To turn on the PipBoy, press POWER.</string>
+    <string name="wizard_hide_hint">Hide Hint</string>
 
     <string name="RAD_RESIST">RAD RESIST</string>
     <string name="current_rad_value">0</string>
@@ -197,7 +197,7 @@
 
     <!-- Общая заглушка для ещё не реализованных разделов (roadmap, этап 6) — ITEMS/Journal
          (п.4) и DATA/Holotapes (п.6), одна и та же формулировка, не дублируем текст. -->
-    <string name="placeholder_in_development">Раздел находится в разработке.</string>
+    <string name="placeholder_in_development">This section is under development.</string>
 
     <string name="items_map">Map</string>
     <string name="items_clock">Clock</string>
@@ -248,10 +248,10 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_region_name">Player Region</string>
     <string name="settings_2_name">Player Level</string>
     <string name="settings_3_name">C. Radio MP3 Folder</string>
-    <string name="settings_4_name">Режим работы:</string>
-    <string name="settings_mode_change_button">Изменить</string>
+    <string name="settings_4_name">Operating Mode:</string>
+    <string name="settings_mode_change_button">Change</string>
     <string name="settings_5_name">World Map Scaling</string>
-    <string name="settings_year_name">Игровой год</string>
+    <string name="settings_year_name">Game Year</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>
     <string name="settings_6_value_2">MM/DD/YYYY</string>
@@ -260,6 +260,13 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_6_value_5">YYYY/MM/DD</string>
 
     <string name="settings_7_name">PLACEHOLDER</string>
+
+    <string name="settings_language_name">Interface Language</string>
+    <!-- Названия языков не переводятся — Русский/English показываются одинаково
+         независимо от текущего языка интерфейса (стандартная практика для языковых
+         переключателей), поэтому этих строк нет в values-ru. -->
+    <string name="settings_language_value_ru">Русский</string>
+    <string name="settings_language_value_en">English</string>
 
     <string name="settings_UI_Colour">UI Colour</string>
     <string name="settings_UI_Colour_1">Green</string>
@@ -477,4 +484,34 @@ For this, you must first configure:
 For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pip-Boy 3000 APK'
 "</string>
 
+    <!-- Локализация (roadmap, шаг 1-3): строки, вынесенные из захардкоженного
+         android:text= в layout — раньше не было @string, перевода не было в принципе. -->
+    <string name="eff_damage_label">Damage</string>
+    <string name="cnd_popup_easter_egg_title">Achievement unlocked:\nEaster Egg found</string>
+    <string name="cnd_popup_thanks_text">Thanks for checking out PipDroid!\n\nStay safe on your journeys\nthrough the wasteland\n</string>
+    <string name="cnd_popup_author_signature">-James (Malto4)</string>
+    <string name="items_map_no_module_detected">NO LOCAL MAP MODULE DETECTED</string>
+    <string name="settings_enable_true_fullscreen">Enable True Fullscreen</string>
+    <string name="settings_show_tutorial_at_start">Show Tutorial at Start</string>
+    <string name="settings_bluetooth_setup_button">Bluetooth Setup</string>
+    <string name="settings_save_button">Save Settings</string>
+    <string name="filter_modification_title">Modification</string>
+    <string name="filter_title">Filter</string>
+    <string name="filter_select_all">Select ALL</string>
+    <string name="filter_clear_all">Clear ALL</string>
+    <string name="filter_save_button">" SAVE "</string>
+    <string name="stats_cnd_status_crippled">CRIPPLED</string>
+    <string name="stats_status_level_label">" - Level "</string>
+    <string name="bluetooth_setup_heading">BLUETOOTH</string>
+    <string name="bluetooth_status_disconnected">DISCONNECTED</string>
+    <string name="bluetooth_status_connected">CONNECTED</string>
+    <string name="bluetooth_field_mac_address">MAC Address</string>
+    <string name="bluetooth_field_service_uuid">Service UUID</string>
+    <string name="bluetooth_field_read_uuid">Read UUID</string>
+    <string name="bluetooth_field_write_uuid">Write UUID</string>
+    <string name="action_save">Save</string>
+    <string name="bluetooth_connect_button">Connect</string>
+    <string name="bluetooth_disconnect_button">Disconnect</string>
+    <string name="tutorial_close_button">Close</string>
+    <string name="recycler_list_header">LIST</string>
 </resources>

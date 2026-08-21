@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Русская локализация (roadmap, "Видение приложения", п.2). Содержит только
+     реально отличающиеся от английского базового values/strings.xml значения —
+     для строк без перевода (пока, roadmap этап 7) Android сам подставит английский
+     оригинал, дублировать их здесь не нужно. -->
+<resources>
+    <string name="action_save">Сохранить</string>
+    <string name="app_version">версия 2.0.12</string>
+    <string name="bluetooth_connect_button">Подключить</string>
+    <string name="bluetooth_disconnect_button">Отключить</string>
+    <string name="bluetooth_field_mac_address">MAC-адрес</string>
+    <string name="bluetooth_field_read_uuid">UUID для чтения</string>
+    <string name="bluetooth_field_service_uuid">UUID сервиса</string>
+    <string name="bluetooth_field_write_uuid">UUID для записи</string>
+    <string name="bluetooth_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
+    <string name="bluetooth_status_connected">ПОДКЛЮЧЕНО</string>
+    <string name="cancel">Отмена</string>
+    <string name="cnd_popup_easter_egg_title">Достижение получено:
+Найдено пасхальное яйцо</string>
+    <string name="cnd_popup_thanks_text">"Спасибо, что пользуетесь PipDroid!
+
+Берегите себя в путешествиях
+по Пустоши
+"</string>
+    <string name="data_holotapes">Голодиски</string>
+    <string name="data_misc">Файлы</string>
+    <string name="data_misc_entry1_description">"СБОРКА КОЛОДЫ
+Колода для Каравана должна состоять минимум из 30 карт одной или нескольких обычных колод игральных карт. В колоде может быть любое количество карт любого достоинства, подходящее под вашу стратегию, но не может быть повторяющихся карт из одной и той же колоды. Например, король пик из колоды A и король пик из колоды B — это допустимо, но два короля пик из одной колоды A — уже нет.
+
+ПРАВИЛА
+В Караване играют два игрока, каждый выкладывает три противостоящие стопки (или «караваны») карт с числовыми значениями. Цель — перебить караван соперника, набрав наибольшую сумму числовых карт, не оказавшись при этом слишком лёгким (меньше 21) или перегруженным (больше 26).
+
+Игра начинается с того, что каждый игрок берёт восемь карт из своей колоды и выкладывает по одной числовой карте или тузу на каждый из трёх караванов. В этом первом раунде сбрасывать карты нельзя.
+
+Как только оба игрока разложили свои три каравана, на каждом ходу игрок может сделать ОДНО из следующего:
+1. Сыграть одну карту и взять новую карту из своей колоды в руку.
+2. Сбросить одну карту из руки и взять новую карту из своей колоды.
+3. Распустить один из своих трёх караванов, убрав из него все карты.
+
+У каждого каравана есть направление — по возрастанию или по убыванию — и масть. Масть определяется первой картой, выложенной на караван, направление — второй. Все последующие карты должны либо продолжать числовое направление, либо совпадать по масти с предыдущей картой. Карты с одинаковым числовым значением нельзя класть подряд, независимо от масти. Фигурные карты можно прикреплять к числовым картам в любом караване, и они по-разному на них влияют.
+
+ЗНАЧЕНИЯ КАРТ
+Джокер: играется против туза или карты 2-10. Эффект зависит от того, туз это или числовая карта (см. ниже). На одну карту можно сыграть несколько джокеров.
+
+Туз: значение 1. Джокер, сыгранный на туза, убирает со стола все остальные не фигурные карты той же масти, что и туз. Например, джокер, сыгранный на туза пик, уберёт со стола все пики (кроме фигурных карт и самого туза).
+
+2-10: указанное значение. Джокер, сыгранный на такую карту, убирает со стола все остальные карты с этим же значением. Например, джокер, сыгранный на четвёрку червей, уберёт со стола все остальные четвёрки.
+
+Валет: играется против туза или карты 2-10. Убирает эту карту вместе со всеми прикреплёнными к ней фигурными картами.
+
+Дама: играется против туза или карты 2-10. Меняет текущее направление каравана на противоположное и меняет его текущую масть. На одну карту можно сыграть несколько дам.
+
+Король: играется против туза или карты 2-10. Ещё раз прибавляет значение этой карты к сумме каравана. Например, король, сыгранный на девятку, добавляет к сумме ещё 9. На одну карту можно сыграть несколько королей — эффект умножается. Например: 4 + король = 8. 4 + два короля = 16.
+
+ПОБЕДА
+Караван игрока считается «проданным», когда сумма его карт больше 20 и меньше 27. Соперник всё ещё может перебить его, увеличив сумму своей противостоящей стопки, оставаясь в диапазоне 21-26. Когда все три соревнующихся каравана проданы, игра заканчивается. Если значения одного из трёх караванов у игроков совпадают, игра продолжается, пока не будут проданы все три каравана. Игрок, продавший два каравана или больше, забирает банк."</string>
+    <string name="data_misc_entry1_name">Как играть в Караван</string>
+    <string name="data_misc_entry2_description">"Вы скачали координаты и коды доступа к Убежищам 87, 92, 101, 106 и 108.</string>
+    <string name="data_misc_entry2_name">Сведения об убежищах Vault-Tec</string>
+    <string name="data_radio">Радио</string>
+    <string name="eff_damage_label">Урон</string>
+    <string name="exit">Выход</string>
+    <string name="filter_clear_all">Очистить всё</string>
+    <string name="filter_modification_title">Модификация</string>
+    <string name="filter_save_button">" СОХРАНИТЬ "</string>
+    <string name="filter_select_all">Выбрать всё</string>
+    <string name="filter_title">Фильтр</string>
+    <string name="items_clock">Часы</string>
+    <string name="items_journal">Журнал</string>
+    <string name="items_map">Карта</string>
+    <string name="items_map_no_module_detected">МОДУЛЬ ЛОКАЛЬНОЙ КАРТЫ НЕ ОБНАРУЖЕН</string>
+    <string name="max">МАКС</string>
+    <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
+    <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
+    <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
+    <string name="mode_phone">Телефон</string>
+    <string name="mode_select_button">Выбрать</string>
+    <string name="next">"ДАЛЕЕ"</string>
+    <string name="placeholder_in_development">Раздел находится в разработке.</string>
+    <string name="player_name">Игрок</string>
+    <string name="power_off">Выключить питание</string>
+    <string name="previous">"НАЗАД"</string>
+    <string name="radio">Радио</string>
+    <string name="recycler_list_header">СПИСОК</string>
+    <string name="search_menu_title">Поиск</string>
+    <string name="settings">НАСТРОЙКИ</string>
+    <string name="settings_1_name">Имя игрока</string>
+    <string name="settings_2_name">Уровень игрока</string>
+    <string name="settings_5_name">Масштаб карты мира</string>
+    <string name="settings_6_name">Формат даты</string>
+    <string name="settings_6_value_1">ММ/ДД/ГГ</string>
+    <string name="settings_6_value_2">ММ/ДД/ГГГГ</string>
+    <string name="settings_6_value_3">ДД/ММ/ГГ</string>
+    <string name="settings_6_value_4">ДД/ММ/ГГГГ</string>
+    <string name="settings_6_value_5">ГГГГ/ММ/ДД</string>
+    <string name="settings_UI_Colour">Цвет интерфейса</string>
+    <string name="settings_UI_Colour_1">Зелёный</string>
+    <string name="settings_UI_Colour_2">Янтарный</string>
+    <string name="settings_UI_Colour_3">Белый</string>
+    <string name="settings_UI_Colour_4">Синий</string>
+    <string name="settings_bluetooth_setup_button">Настройка Bluetooth</string>
+    <string name="settings_enable_true_fullscreen">Полноэкранный режим</string>
+    <string name="settings_region_name">Регион игрока</string>
+    <string name="settings_save_button">Сохранить настройки</string>
+    <string name="settings_show_tutorial_at_start">Показывать обучение при запуске</string>
+    <string name="skill_barter">Бартер</string>
+    <string name="skill_barter_description">Навык «Бартер» влияет на цены при покупке и продаже предметов. Чем выше «Бартер», тем ниже цены на покупаемые товары.</string>
+    <string name="skill_big_guns">Тяжёлое оружие</string>
+    <string name="skill_big_guns_description">Навык «Тяжёлое оружие» определяет эффективность в бою с крупногабаритным оружием: «Толстяком», гранатомётом, огнемётом, миниганом и лазерным «Гатлингом».</string>
+    <string name="skill_energy_weapons">Энергооружие</string>
+    <string name="skill_energy_weapons_description">Навык «Энергооружие» определяет эффективность с любым оружием, использующим малые энергоблоки, микроблоки, ЭК-батареи или топливо для огнемёта.</string>
+    <string name="skill_explosives">Взрывчатка</string>
+    <string name="skill_explosives_description">Навык «Взрывчатка» определяет лёгкость обезвреживания мин и эффективность взрывного оружия (все мины, гранаты, гранатомёт, «Толстяк» и т.д.).</string>
+    <string name="skill_lockpick">Взлом</string>
+    <string name="skill_lockpick_description">Навык «Взлом» используется для вскрытия запертых дверей и контейнеров.</string>
+    <string name="skill_medicine">Медицина</string>
+    <string name="skill_medicine_description">Навык «Медицина» определяет, сколько очков здоровья восстанавливает Стимпак, а также эффективность Антирадина и РадПрочь.</string>
+    <string name="skill_melee_weapons">Холодное оружие</string>
+    <string name="skill_melee_weapons_description">Навык «Холодное оружие» определяет эффективность с любым оружием ближнего боя — от обычной трубы до высокотехнологичной Супер-кувалды.</string>
+    <string name="skill_repair">Ремонт</string>
+    <string name="skill_repair_description">Навык «Ремонт» позволяет обслуживать оружие и снаряжение, а также создавать предметы и патроны на верстаках.</string>
+    <string name="skill_science">Наука</string>
+    <string name="skill_science_description">Навык «Наука» отражает ваши научные знания и в первую очередь используется для взлома компьютерных терминалов. Также применяется для переработки боеприпасов к энергооружию на верстаках.</string>
+    <string name="skill_small_guns">Лёгкое оружие</string>
+    <string name="skill_small_guns_description">Навык «Лёгкое оружие» определяет эффективность со всем обычным огнестрельным оружием: 10-мм пистолетом, пневматической винтовкой, штурмовой винтовкой и боевым дробовиком.</string>
+    <string name="skill_sneak">Скрытность</string>
+    <string name="skill_sneak_description">Чем выше «Скрытность», тем легче оставаться незамеченным, красть предметы или залезать в чужие карманы. Успешная атака из скрытности даёт автоматическое критическое попадание.</string>
+    <string name="skill_speech">Красноречие</string>
+    <string name="skill_speech_description">Навык «Красноречие» определяет, насколько сильно вы можете повлиять на собеседника в диалоге и получить доступ к сведениям, которыми иначе бы с вами не поделились.</string>
+    <string name="skill_unarmed">Рукопашный бой</string>
+    <string name="skill_unarmed_description">Навык «Рукопашный бой» используется в бою без оружия или с оружием для ближнего боя голыми руками — кастетом, силовыми перчатками и электрошоковыми перчатками.</string>
+    <string name="special_agility">Ловкость</string>
+    <string name="special_agility_description">Ловкость влияет на навыки «Лёгкое оружие» и «Скрытность», а также на количество очков действия для V.A.T.S.</string>
+    <string name="special_charisma">Харизма</string>
+    <string name="special_charisma_description">Высокая Харизма улучшает отношение людей к вам и даёт бонус к навыкам «Бартер» и «Красноречие».</string>
+    <string name="special_endurance">Выносливость</string>
+    <string name="special_endurance_description">Выносливость — показатель общей физической формы. Высокая Выносливость даёт бонус к здоровью, сопротивлению внешним воздействиям и навыкам «Выживание» и «Рукопашный бой».</string>
+    <string name="special_intelligence">Интеллект</string>
+    <string name="special_intelligence_description">Интеллект влияет на навыки «Наука», «Ремонт» и «Медицина». Чем выше Интеллект, тем больше очков навыков вы сможете распределить при повышении уровня.</string>
+    <string name="special_luck">Удача</string>
+    <string name="special_luck_description">Повышение Удачи немного увеличивает все ваши навыки. Высокая Удача также повышает шанс критического попадания для любого оружия.</string>
+    <string name="special_perception">Восприятие</string>
+    <string name="special_perception_description">Высокое Восприятие даёт бонус к навыкам «Взрывчатка», «Взлом» и «Энергооружие», а также определяет, когда появляются красные метки угроз.</string>
+    <string name="special_strength_description">Сила — показатель вашей физической мощи. Влияет на переносимый вес, силу ударов в ближнем бою и эффективность использования тяжёлого оружия.</string>
+    <string name="stats_cnd_status_crippled">ПОВРЕЖДЕНО</string>
+    <string name="stats_general">Общее</string>
+    <string name="stats_general_faction_boomers">Громобои</string>
+    <string name="stats_general_faction_bos">Братство Стали</string>
+    <string name="stats_general_faction_caesars_legion">Легион Цезаря</string>
+    <string name="stats_general_faction_followers_apocalypse">Последователи Апокалипсиса</string>
+    <string name="stats_general_faction_freeside">Фрисайд</string>
+    <string name="stats_general_faction_goodsprings">Гудспрингс</string>
+    <string name="stats_general_faction_great_khans">Великие ханы</string>
+    <string name="stats_general_faction_karma_accepted">Принят</string>
+    <string name="stats_general_faction_karma_hated">Ненавистен</string>
+    <string name="stats_general_faction_karma_idolized">Кумир</string>
+    <string name="stats_general_faction_karma_liked">Уважаем</string>
+    <string name="stats_general_faction_karma_neutral">Нейтрально</string>
+    <string name="stats_general_faction_karma_shunned">Отвергнут</string>
+    <string name="stats_general_faction_karma_vilified">Презираем</string>
+    <string name="stats_general_faction_ncr">НКР</string>
+    <string name="stats_general_faction_novac">Новак</string>
+    <string name="stats_general_faction_powder_gangers">Пороховые бандиты</string>
+    <string name="stats_general_faction_primm">Примм</string>
+    <string name="stats_general_faction_the_strip">Стрип</string>
+    <string name="stats_general_faction_white_glove_society">Общество белых перчаток</string>
+    <string name="stats_perks">Перки</string>
+    <string name="stats_perks_perk1_description">Благодаря перку «Адамантиевый скелет» ваши конечности получают только 50% обычного урона.</string>
+    <string name="stats_perks_perk1_name">Адамантиевый скелет</string>
+    <string name="stats_perks_perk2_description">Этот перк значительно улучшает ваше взаимодействие с детьми, обычно в виде уникальных вариантов диалога.</string>
+    <string name="stats_perks_perk2_name">Дитя в душе</string>
+    <string name="stats_perks_perk3_description">Если вы убиваете цель в режиме V.A.T.S., все ваши очки действия восстанавливаются сразу после выхода из V.A.T.S.</string>
+    <string name="stats_perks_perk3_name">«Спринт Мрачного Жнеца»</string>
+    <string name="stats_perks_perk4_description">Даёт вам личного ангела-хранителя... вооружённого полностью заряженным «Магнумом» .44 калибра. С этим перком Таинственный незнакомец иногда появляется в режиме V.A.T.S., чтобы помочь с смертоносной эффективностью.</string>
+    <string name="stats_perks_perk4_name">Таинственный незнакомец</string>
+    <string name="stats_perks_perk5_description">Вы прошли специальную подготовку, необходимую для передвижения в любой силовой броне.</string>
+    <string name="stats_perks_perk5_name">Обучение силовой броне</string>
+    <string name="stats_perks_perk6_description">С перком «Эксперт по робототехнике» вы наносите на 25% больше урона любым роботам. Также, если незаметно подкрасться к враждебному роботу и деактивировать его, он перейдёт в состояние необратимого отключения.</string>
+    <string name="stats_perks_perk6_name">Эксперт по робототехнике</string>
+    <string name="stats_perks_perk7_description">«Дикие пустоши» раскрывают самые странные и нелепые элементы постапокалиптической Америки. Не для слабонервных и серьёзных по натуре.</string>
+    <string name="stats_perks_perk7_name">Дикие пустоши</string>
+    <string name="stats_skills">Навыки</string>
+    <string name="stats_special_strength">Сила</string>
+    <string name="stats_status_level_label">" - Уровень "</string>
+    <string name="stimpack">Стимулятор</string>
+    <string name="title_bottom_common_name_placeholder">ИГРОК</string>
+    <string name="title_bottom_common_radiation_icon_description">Радиация</string>
+    <string name="title_bottom_common_region_placeholder">РИЧМОНД</string>
+    <string name="title_data">ДАННЫЕ</string>
+    <string name="title_data_location">Мегатонна</string>
+    <string name="title_items">МОДУЛИ</string>
+    <string name="title_radio">РАДИО</string>
+    <string name="title_stats">ХАР-КИ</string>
+    <string name="title_stats_CND">СОСТ</string>
+    <string name="title_stats_EFF">ЭФФ</string>
+    <string name="title_stats_RAD">РАД</string>
+    <string name="title_stats_status">Статус</string>
+    <string name="title_stats_status_status_effects">НЕТ ЭФФЕКТОВ</string>
+    <string name="tutorial_close_button">Закрыть</string>
+    <string name="wizard_back">Назад</string>
+    <string name="wizard_cancel">Отмена</string>
+    <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>
+    <string name="wizard_done">Готово</string>
+    <string name="wizard_grant_permissions">Выдать разрешения</string>
+    <string name="wizard_hardware_text">Вставьте телефон в корпус PipBoy.</string>
+    <string name="wizard_hardware_title">ИНСТРУКЦИЯ ПО УСТАНОВКЕ</string>
+    <string name="wizard_hide_hint">Скрыть подсказку</string>
+    <string name="wizard_hint_connect_hardware">Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.</string>
+    <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран PipBoy.</string>
+    <string name="wizard_next">Далее</string>
+    <string name="wizard_pairing_bluetooth_off">Bluetooth выключен.</string>
+    <string name="wizard_pairing_found">Найдено устройств: %1$d. Выберите ваш PipBoy в списке.</string>
+    <string name="wizard_pairing_none_found">Ничего не найдено. Проверьте питание корпуса и нажмите «Сканировать снова».</string>
+    <string name="wizard_pairing_rescan">Сканировать снова</string>
+    <string name="wizard_pairing_scan_failed">Не удалось начать сканирование, попробуйте ещё раз.</string>
+    <string name="wizard_pairing_scanning">Сканирование… Убедитесь, что корпус PipBoy включён и рядом.</string>
+    <string name="wizard_pairing_title">СОПРЯЖЕНИЕ</string>
+    <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
+    <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
+    <string name="wizard_reset">Сбросить</string>
+</resources>

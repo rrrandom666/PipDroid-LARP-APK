@@ -53,7 +53,7 @@
                 android:gravity="center|left"
                 android:minWidth="0.0dip"
                 android:minHeight="0.0dip"
-                android:text="LIST"
+                android:text="@string/recycler_list_header"
                 android:textAllCaps="false"
                 android:maxLines="2"
                 android:singleLine="false"

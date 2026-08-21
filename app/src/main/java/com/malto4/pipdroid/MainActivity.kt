@@ -1156,7 +1156,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     fun updateBLEConnected(status: String){
-        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = status
+        // status - внутренний токен состояния (сравнивается через ==), не текст для показа —
+        // локализованная подпись берётся отдельно, из строкового ресурса (roadmap, локализация).
+        val displayText = if (status == "CONNECTED") getString(R.string.bluetooth_status_connected) else getString(R.string.bluetooth_status_disconnected)
+        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = displayText
         // Индикатор BLE в правом углу row1 (roadmap, "Новая шапка + единый Settings", п.3) —
         // тот же глиф, состояние передаётся альфой, не сменой drawable.
         bindingMain.incLayoutHeaderToplevel.imgHeaderBleStatus.alpha = if (status == "CONNECTED") 1.0f else 0.35f

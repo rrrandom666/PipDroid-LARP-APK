@@ -1,0 +1,514 @@
+id,file,resource_name,source_text,category,translation_ru,lore_placeholder,notes
+strings.xml:app_name,values/strings.xml,app_name,PipDroid,не переводится (решение),PipDroid,,название приложения — оставляем как есть по решению пользователя
+strings.xml:app_version,values/strings.xml,app_version,version 2.0.12,готово,версия 2.0.12,,
+strings.xml:cancel,values/strings.xml,cancel,Cancel,готово,Отмена,,
+strings.xml:exit,values/strings.xml,exit,Exit,готово,Выход,,
+strings.xml:info_dialog_close_link,values/strings.xml,info_dialog_close_link,Reddit,готово,Reddit,,
+strings.xml:search_menu_title,values/strings.xml,search_menu_title,Search,готово,Поиск,,
+strings.xml:mode_phone,values/strings.xml,mode_phone,Phone,готово,Телефон,,
+strings.xml:mode_pipboy_2000,values/strings.xml,mode_pipboy_2000,PipBoy 2000,готово,PipBoy 2000,,
+strings.xml:mode_pipboy_3000,values/strings.xml,mode_pipboy_3000,PipBoy 3000,готово,PipBoy 3000,,
+strings.xml:mode_description_phone,values/strings.xml,mode_description_phone,"The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware.",готово,"Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:mode_description_pipboy_2000,values/strings.xml,mode_description_pipboy_2000,"The app's display area is set manually. The app is controlled by the PipBoy 2000 hardware. Touchscreen control is still available, but optional.",готово,"Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:mode_description_pipboy_3000,values/strings.xml,mode_description_pipboy_3000,This mode is under development.,готово,Режим находится в разработке.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:mode_select_button,values/strings.xml,mode_select_button,Select,готово,Выбрать,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_hardware_title,values/strings.xml,wizard_hardware_title,HARDWARE INSTRUCTIONS,готово,ИНСТРУКЦИЯ ПО УСТАНОВКЕ,,
+strings.xml:wizard_hardware_text,values/strings.xml,wizard_hardware_text,Insert your phone into the PipBoy case.,готово,Вставьте телефон в корпус PipBoy.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_back,values/strings.xml,wizard_back,Back,готово,Назад,,
+strings.xml:wizard_next,values/strings.xml,wizard_next,Next,готово,Далее,,
+strings.xml:wizard_display_area_title,values/strings.xml,wizard_display_area_title,DISPLAY AREA,готово,РАБОЧАЯ ОБЛАСТЬ,,
+strings.xml:wizard_done,values/strings.xml,wizard_done,Done,готово,Готово,,
+strings.xml:wizard_reset,values/strings.xml,wizard_reset,Clear,готово,Сбросить,,
+strings.xml:wizard_cancel,values/strings.xml,wizard_cancel,Cancel,готово,Отмена,,
+strings.xml:wizard_hint_resize,values/strings.xml,wizard_hint_resize,Adjust the display area to fit the PipBoy screen.,готово,Отрегулируйте рабочую область под экран PipBoy.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_permissions_title,values/strings.xml,wizard_permissions_title,PERMISSIONS,готово,РАЗРЕШЕНИЯ,,
+strings.xml:wizard_permissions_text,values/strings.xml,wizard_permissions_text,PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware) and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own — the button below is only needed if the system dialog doesn't appear for some reason.,готово,"PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_grant_permissions,values/strings.xml,wizard_grant_permissions,Grant Permissions,готово,Выдать разрешения,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_title,values/strings.xml,wizard_pairing_title,PAIRING,готово,СОПРЯЖЕНИЕ,,
+strings.xml:wizard_pairing_scanning,values/strings.xml,wizard_pairing_scanning,Scanning… Make sure the PipBoy case is powered on and nearby.,готово,"Сканирование… Убедитесь, что корпус PipBoy включён и рядом.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_found,values/strings.xml,wizard_pairing_found,Found %1$d device(s). Select your PipBoy from the list.,готово,Найдено устройств: %1$d. Выберите ваш PipBoy в списке.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_none_found,values/strings.xml,wizard_pairing_none_found,"Nothing found. Check the case's power and tap ""Scan Again"".",готово,Ничего не найдено. Проверьте питание корпуса и нажмите «Сканировать снова».,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_bluetooth_off,values/strings.xml,wizard_pairing_bluetooth_off,Bluetooth is off.,готово,Bluetooth выключен.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_scan_failed,values/strings.xml,wizard_pairing_scan_failed,"Couldn't start scanning, please try again.",готово,"Не удалось начать сканирование, попробуйте ещё раз.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_pairing_rescan,values/strings.xml,wizard_pairing_rescan,Scan Again,готово,Сканировать снова,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_hint_connect_hardware,values/strings.xml,wizard_hint_connect_hardware,"While the PipBoy is off, this screen stays black. To turn on the PipBoy, press POWER.",готово,"Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:wizard_hide_hint,values/strings.xml,wizard_hide_hint,Hide Hint,готово,Скрыть подсказку,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:RAD_RESIST,values/strings.xml,RAD_RESIST,RAD RESIST,не переводится (решение),СОПРОТИВЛЕНИЕ РАДИАЦИИ,,
+strings.xml:current_rad_value,values/strings.xml,current_rad_value,0,не текст (число/плейсхолдер),0,,
+strings.xml:player_name,values/strings.xml,player_name,Player,готово,Игрок,,
+strings.xml:max,values/strings.xml,max,MAX,готово,МАКС,,
+strings.xml:power_off,values/strings.xml,power_off,Power Off,готово,Выключить питание,,
+strings.xml:rad_resist_amount,values/strings.xml,rad_resist_amount,8%,не текст (число/плейсхолдер),8%,,
+strings.xml:radaway,values/strings.xml,radaway,RadAway,не переводится (решение),RadAway,,
+strings.xml:radx,values/strings.xml,radx,RadX,не переводится (решение),RadX,,
+strings.xml:rad_cur_value,values/strings.xml,rad_cur_value,0,не текст (число/плейсхолдер),0,,
+strings.xml:stimpack,values/strings.xml,stimpack,Stimpak,готово,Стимулятор,,
+strings.xml:radio,values/strings.xml,radio,Radio,готово,Радио,,
+strings.xml:radio_enclave,values/strings.xml,radio_enclave,Enclave Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:radio_galaxy_news,values/strings.xml,radio_galaxy_news,Galaxy News Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:radio_newvegas,values/strings.xml,radio_newvegas,New Vegas Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:radio_custom,values/strings.xml,radio_custom,Custom Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:bluetooth,values/strings.xml,bluetooth,Bluetooth,не переводится (решение),Bluetooth,,
+strings.xml:title_stats,values/strings.xml,title_stats,STATS,готово,ХАР-КИ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:title_stats_CND,values/strings.xml,title_stats_CND,CND,готово,СОСТ,,
+strings.xml:title_stats_EFF,values/strings.xml,title_stats_EFF,EFF,готово,ЭФФ,,
+strings.xml:title_stats_RAD,values/strings.xml,title_stats_RAD,RAD,готово,РАД,,
+strings.xml:title_stats_status,values/strings.xml,title_stats_status,Status,готово,Статус,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:title_stats_status_lvl,values/strings.xml,title_stats_status_lvl,1,не текст (число/плейсхолдер),1,,
+strings.xml:title_stats_status_hp,values/strings.xml,title_stats_status_hp,720/720,не текст (число/плейсхолдер),720/720,,
+strings.xml:title_stats_status_ap,values/strings.xml,title_stats_status_ap,136/136,не текст (число/плейсхолдер),136/136,,
+strings.xml:title_stats_status_xp,values/strings.xml,title_stats_status_xp,1337/2460,не текст (число/плейсхолдер),1337/2460,,
+strings.xml:title_stats_status_status_effects,values/strings.xml,title_stats_status_status_effects,NO STATUS EFFECTS,готово,НЕТ ЭФФЕКТОВ,,
+strings.xml:title_items,values/strings.xml,title_items,ITEMS,готово,МОДУЛИ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:title_data,values/strings.xml,title_data,DATA,готово,ДАННЫЕ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:title_data_location,values/strings.xml,title_data_location,Megaton,готово,Мегатонна,,
+strings.xml:title_data_date,values/strings.xml,title_data_date,10.21.81,не текст (число/плейсхолдер),10.21.81,,
+strings.xml:title_data_time,values/strings.xml,title_data_time,11:35,не текст (число/плейсхолдер),11:35,,
+strings.xml:title_radio,values/strings.xml,title_radio,RADIO,готово,РАДИО,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:title_bottom_common_name_placeholder,values/strings.xml,title_bottom_common_name_placeholder,PLAYER,готово,ИГРОК,,
+strings.xml:title_bottom_common_region_placeholder,values/strings.xml,title_bottom_common_region_placeholder,RICHMOND,готово,РИЧМОНД,,
+strings.xml:title_bottom_common_radiation_placeholder,values/strings.xml,title_bottom_common_radiation_placeholder,0,не текст (число/плейсхолдер),0,,
+strings.xml:title_bottom_common_radiation_icon_description,values/strings.xml,title_bottom_common_radiation_icon_description,Radiation,готово,Радиация,,
+strings.xml:stats_special,values/strings.xml,stats_special,SPECIAL,не переводится (решение),SPECIAL,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:stats_special_strength,values/strings.xml,stats_special_strength,Strength,готово,Сила,да,
+strings.xml:special_strength_description,values/strings.xml,special_strength_description,"Strength is a measure of your raw physical power. It affects how much you can carry, the power of all melee attacks, and your effectiveness with many heavy weapons.",готово,"Сила — показатель вашей физической мощи. Влияет на переносимый вес, силу ударов в ближнем бою и эффективность использования тяжёлого оружия.",да,
+strings.xml:special_strength_value,values/strings.xml,special_strength_value,10,не текст (число/плейсхолдер),10,да,
+strings.xml:special_perception,values/strings.xml,special_perception,Perception,готово,Восприятие,да,
+strings.xml:special_perception_description,values/strings.xml,special_perception_description,"A high Perception grants a bonus to the Explosives, Lockpick and Energy Weapons skills, and determines when red compass markings appear (which indicate threats).",готово,"Высокое Восприятие даёт бонус к навыкам «Взрывчатка», «Взлом» и «Энергооружие», а также определяет, когда появляются красные метки угроз.",да,
+strings.xml:special_perception_value,values/strings.xml,special_perception_value,10,не текст (число/плейсхолдер),10,да,
+strings.xml:special_endurance,values/strings.xml,special_endurance,Endurance,готово,Выносливость,да,
+strings.xml:special_endurance_description,values/strings.xml,special_endurance_description,"Endurance is a measure of your overall physical fitness. A high Endurance gives bonuses to health, environmental resistances, and the Survival and Unarmed skills.",готово,"Выносливость — показатель общей физической формы. Высокая Выносливость даёт бонус к здоровью, сопротивлению внешним воздействиям и навыкам «Выживание» и «Рукопашный бой».",да,"в оригинале упомянут навык Survival, которого нет в текущем списке навыков — расхождение унаследовано из исходника, не моя правка"
+strings.xml:special_endurance_value,values/strings.xml,special_endurance_value,9,не текст (число/плейсхолдер),9,да,
+strings.xml:special_charisma,values/strings.xml,special_charisma,Charisma,готово,Харизма,да,
+strings.xml:special_charisma_description,values/strings.xml,special_charisma_description,"""Having a high Charisma will improve people's disposition toward you, and give bonuses to both the Barter and Speech skills.""",готово,Высокая Харизма улучшает отношение людей к вам и даёт бонус к навыкам «Бартер» и «Красноречие».,да,
+strings.xml:special_charisma_value,values/strings.xml,special_charisma_value,10,не текст (число/плейсхолдер),10,да,
+strings.xml:special_intelligence,values/strings.xml,special_intelligence,Intelligence,готово,Интеллект,да,
+strings.xml:special_intelligence_description,values/strings.xml,special_intelligence_description,"""Intelligence affects the Science, Repair and medicine skills. The higher your Intelligence, the more Skill Points you'll be able to distribute when you level up.""",готово,"Интеллект влияет на навыки «Наука», «Ремонт» и «Медицина». Чем выше Интеллект, тем больше очков навыков вы сможете распределить при повышении уровня.",да,
+strings.xml:special_intelligence_value,values/strings.xml,special_intelligence_value,9,не текст (число/плейсхолдер),9,да,
+strings.xml:special_agility,values/strings.xml,special_agility,Agility,готово,Ловкость,да,
+strings.xml:special_agility_description,values/strings.xml,special_agility_description,"Agility affects your Guns and Sneak skills, and the number of Action Points available for V.A.T.S.",готово,"Ловкость влияет на навыки «Лёгкое оружие» и «Скрытность», а также на количество очков действия для V.A.T.S.",да,
+strings.xml:special_agility_value,values/strings.xml,special_agility_value,9,не текст (число/плейсхолдер),9,да,
+strings.xml:special_luck,values/strings.xml,special_luck,Luck,готово,Удача,да,
+strings.xml:special_luck_description,values/strings.xml,special_luck_description,Raising your Luck will raise all of your skills a little. Having a high Luck will also improve your critical chance with all weapons.,готово,Повышение Удачи немного увеличивает все ваши навыки. Высокая Удача также повышает шанс критического попадания для любого оружия.,да,
+strings.xml:special_luck_value,values/strings.xml,special_luck_value,10,не текст (число/плейсхолдер),10,да,
+strings.xml:stats_skills,values/strings.xml,stats_skills,Skills,готово,Навыки,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:skill_barter,values/strings.xml,skill_barter,Barter,готово,Бартер,,
+strings.xml:skill_barter_description,values/strings.xml,skill_barter_description,"The Barter skill affects the prices you get for buying and selling items. In general, the higher your Barter skill, the lower your prices on purchased items.",готово,"Навык «Бартер» влияет на цены при покупке и продаже предметов. Чем выше «Бартер», тем ниже цены на покупаемые товары.",,
+strings.xml:skill_barter_value,values/strings.xml,skill_barter_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_big_guns,values/strings.xml,skill_big_guns,Big Guns,готово,Тяжёлое оружие,,
+strings.xml:skill_big_guns_description,values/strings.xml,skill_big_guns_description,"The Big Guns skill determines your combat effectiveness with all oversized weapons such as the Fat Man, Missile Launcher, Flamer, Minigun and Gatling Laser.",готово,"Навык «Тяжёлое оружие» определяет эффективность в бою с крупногабаритным оружием: «Толстяком», гранатомётом, огнемётом, миниганом и лазерным «Гатлингом».",,
+strings.xml:skill_big_guns_value,values/strings.xml,skill_big_guns_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_energy_weapons,values/strings.xml,skill_energy_weapons,Energy Weapons,готово,Энергооружие,,
+strings.xml:skill_energy_weapons_description,values/strings.xml,skill_energy_weapons_description,"The Energy Weapons skill determines your effectiveness with any weapon that uses Small Energy Cells, Micro Fusion Cells, EC Packs, or Flamer Fuel as ammunition.",готово,"Навык «Энергооружие» определяет эффективность с любым оружием, использующим малые энергоблоки, микроблоки, ЭК-батареи или топливо для огнемёта.",,
+strings.xml:skill_energy_weapons_value,values/strings.xml,skill_energy_weapons_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_explosives,values/strings.xml,skill_explosives,Explosives,готово,Взрывчатка,,
+strings.xml:skill_explosives_description,values/strings.xml,skill_explosives_description,"The Explosives skill determines the ease of disarming any hostile mines and the effectiveness of any explosive weapon (all mines, all grenades, Missile Launcher, Fat Man, etc.).",готово,"Навык «Взрывчатка» определяет лёгкость обезвреживания мин и эффективность взрывного оружия (все мины, гранаты, гранатомёт, «Толстяк» и т.д.).",,
+strings.xml:skill_explosives_value,values/strings.xml,skill_explosives_value,80,не текст (число/плейсхолдер),80,,
+strings.xml:skill_lockpick,values/strings.xml,skill_lockpick,Lockpick,готово,Взлом,,
+strings.xml:skill_lockpick_description,values/strings.xml,skill_lockpick_description,The Lockpick skill is used to open locked doors and containers.,готово,Навык «Взлом» используется для вскрытия запертых дверей и контейнеров.,,
+strings.xml:skill_lockpick_value,values/strings.xml,skill_lockpick_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_medicine,values/strings.xml,skill_medicine,Medicine,готово,Медицина,,
+strings.xml:skill_medicine_description,values/strings.xml,skill_medicine_description,"""The Medicine skill determines how many hit points you'll replenish upon using a Stimpak, and the effectiveness of Rad-X and RadAway.""",готово,"Навык «Медицина» определяет, сколько очков здоровья восстанавливает Стимпак, а также эффективность Антирадина и РадПрочь.",,
+strings.xml:skill_medicine_value,values/strings.xml,skill_medicine_value,70,не текст (число/плейсхолдер),70,,
+strings.xml:skill_melee_weapons,values/strings.xml,skill_melee_weapons,Melee Weapons,готово,Холодное оружие,,
+strings.xml:skill_melee_weapons_description,values/strings.xml,skill_melee_weapons_description,"The Melee Weapons skill determines your effectiveness with any melee weapon, from the simple lead pipe all the way up to the high-tech Super Sledge.",готово,Навык «Холодное оружие» определяет эффективность с любым оружием ближнего боя — от обычной трубы до высокотехнологичной Супер-кувалды.,,
+strings.xml:skill_melee_weapons_value,values/strings.xml,skill_melee_weapons_value,40,не текст (число/плейсхолдер),40,,
+strings.xml:skill_repair,values/strings.xml,skill_repair,Repair,готово,Ремонт,,
+strings.xml:skill_repair_description,values/strings.xml,skill_repair_description,"The Repair skill allows you to maintain your weapons and apparel. In addition, Repair allows you to create items and Guns ammunition at reloading benches.",готово,"Навык «Ремонт» позволяет обслуживать оружие и снаряжение, а также создавать предметы и патроны на верстаках.",,
+strings.xml:skill_repair_value,values/strings.xml,skill_repair_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_science,values/strings.xml,skill_science,Science,готово,Наука,,
+strings.xml:skill_science_description,values/strings.xml,skill_science_description,"The Science skill represents your combined scientific knowledge, and is primarily used to hack restricted computer terminals. It can also be used to recycle Energy Weapon ammunition at workbenches.",готово,Навык «Наука» отражает ваши научные знания и в первую очередь используется для взлома компьютерных терминалов. Также применяется для переработки боеприпасов к энергооружию на верстаках.,,
+strings.xml:skill_science_value,values/strings.xml,skill_science_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_small_guns,values/strings.xml,skill_small_guns,Small Guns,готово,Лёгкое оружие,,
+strings.xml:skill_small_guns_description,values/strings.xml,skill_small_guns_description,"The Small Guns determines your effectiveness with all conventional projectile weapons, such as 10mm pistol, BB Gun, Assault Rifle, and Combat Shotgun.",готово,"Навык «Лёгкое оружие» определяет эффективность со всем обычным огнестрельным оружием: 10-мм пистолетом, пневматической винтовкой, штурмовой винтовкой и боевым дробовиком.",,
+strings.xml:skill_small_guns_value,values/strings.xml,skill_small_guns_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_sneak,values/strings.xml,skill_sneak,Sneak,готово,Скрытность,,
+strings.xml:skill_sneak_description,values/strings.xml,skill_sneak_description,"""The higher your Sneak skill, the easier it is to remain undetected, steal an item, or pick someone's pocket. Successfully attacking while undetected grants an automatic critical hit.""",готово,"Чем выше «Скрытность», тем легче оставаться незамеченным, красть предметы или залезать в чужие карманы. Успешная атака из скрытности даёт автоматическое критическое попадание.",,
+strings.xml:skill_sneak_value,values/strings.xml,skill_sneak_value,80,не текст (число/плейсхолдер),80,,
+strings.xml:skill_speech,values/strings.xml,skill_speech,Speech,готово,Красноречие,,
+strings.xml:skill_speech_description,values/strings.xml,skill_speech_description,"The Speech skill governs how much you can influence someone through dialogue, and gain access to information they might otherwise not want to share.",готово,"Навык «Красноречие» определяет, насколько сильно вы можете повлиять на собеседника в диалоге и получить доступ к сведениям, которыми иначе бы с вами не поделились.",,
+strings.xml:skill_speech_value,values/strings.xml,skill_speech_value,100,не текст (число/плейсхолдер),100,,
+strings.xml:skill_unarmed,values/strings.xml,skill_unarmed,Unarmed,готово,Рукопашный бой,,
+strings.xml:skill_unarmed_description,values/strings.xml,skill_unarmed_description,"The Unarmed skill is used for fighting without a weapon, or with weapons designed for hand-to-hand combat, like Brass Knuckles, Power Fists, and Displacer Gloves.",готово,"Навык «Рукопашный бой» используется в бою без оружия или с оружием для ближнего боя голыми руками — кастетом, силовыми перчатками и электрошоковыми перчатками.",,Displacer Gloves переведено приблизительно как «электрошоковые перчатки» — точный канон-термин не проверял
+strings.xml:skill_unarmed_value,values/strings.xml,skill_unarmed_value,50,не текст (число/плейсхолдер),50,,
+strings.xml:stats_perks,values/strings.xml,stats_perks,Perks,готово,Перки,да,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:stats_perks_perk1_name,values/strings.xml,stats_perks_perk1_name,Adamantium Skeleton,готово,Адамантиевый скелет,да,
+strings.xml:stats_perks_perk1_description,values/strings.xml,stats_perks_perk1_description,"With the Adamantium Skeleton perk, your limbs only receive 50% of the damage they normally would.",готово,Благодаря перку «Адамантиевый скелет» ваши конечности получают только 50% обычного урона.,да,
+strings.xml:stats_perks_perk2_name,values/strings.xml,stats_perks_perk2_name,Child at Heart,готово,Дитя в душе,да,
+strings.xml:stats_perks_perk2_description,values/strings.xml,stats_perks_perk2_description,"This perk greatly improves your interactions with children, usually in the form of unique dialogue options.",готово,"Этот перк значительно улучшает ваше взаимодействие с детьми, обычно в виде уникальных вариантов диалога.",да,
+strings.xml:stats_perks_perk3_name,values/strings.xml,stats_perks_perk3_name,"""Grim Reaper's Sprint""",готово,«Спринт Мрачного Жнеца»,да,
+strings.xml:stats_perks_perk3_description,values/strings.xml,stats_perks_perk3_description,"If you kill a target while in V.A.T.S., all of your Action Points are restored upon exiting V.A.T.S.",готово,"Если вы убиваете цель в режиме V.A.T.S., все ваши очки действия восстанавливаются сразу после выхода из V.A.T.S.",да,
+strings.xml:stats_perks_perk4_name,values/strings.xml,stats_perks_perk4_name,Mysterious Stranger,готово,Таинственный незнакомец,да,
+strings.xml:stats_perks_perk4_description,values/strings.xml,stats_perks_perk4_description,"Gives you your own personal guardian angel... armed with a fully loaded .44 Magnum. With this perk, the Mysterious Stranger appears occasionally in V.A.T.S. mode to lend a hand, with deadly efficiency.",готово,"Даёт вам личного ангела-хранителя... вооружённого полностью заряженным «Магнумом» .44 калибра. С этим перком Таинственный незнакомец иногда появляется в режиме V.A.T.S., чтобы помочь с смертоносной эффективностью.",да,
+strings.xml:stats_perks_perk5_name,values/strings.xml,stats_perks_perk5_name,Power Armor Training,готово,Обучение силовой броне,да,
+strings.xml:stats_perks_perk5_description,values/strings.xml,stats_perks_perk5_description,You have received the specialized training needed to move in any form of Power Armor.,готово,"Вы прошли специальную подготовку, необходимую для передвижения в любой силовой броне.",да,
+strings.xml:stats_perks_perk6_name,values/strings.xml,stats_perks_perk6_name,Robotics Expert,готово,Эксперт по робототехнике,да,
+strings.xml:stats_perks_perk6_description,values/strings.xml,stats_perks_perk6_description,"With the Robotics Expert perk, you do an additional 25% damage to any robot. Also, sneaking up on a hostile robot undetected and deactivating it will put that robot into a permanent shutdown state.",готово,"С перком «Эксперт по робототехнике» вы наносите на 25% больше урона любым роботам. Также, если незаметно подкрасться к враждебному роботу и деактивировать его, он перейдёт в состояние необратимого отключения.",да,
+strings.xml:stats_perks_perk7_name,values/strings.xml,stats_perks_perk7_name,Wild Wasteland,готово,Дикие пустоши,да,
+strings.xml:stats_perks_perk7_description,values/strings.xml,stats_perks_perk7_description,Wild Wasteland unleashes the most bizarre and silly elements of post-apocalyptic America. Not for the faint of heart or the serious of temperament.,готово,«Дикие пустоши» раскрывают самые странные и нелепые элементы постапокалиптической Америки. Не для слабонервных и серьёзных по натуре.,да,
+strings.xml:stats_general,values/strings.xml,stats_general,General,готово,Общее,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:stats_general_faction_boomers,values/strings.xml,stats_general_faction_boomers,Boomers,готово,Громобои,да,
+strings.xml:stats_general_faction_bos,values/strings.xml,stats_general_faction_bos,Brotherhood of Steel,готово,Братство Стали,да,
+strings.xml:stats_general_faction_caesars_legion,values/strings.xml,stats_general_faction_caesars_legion,Caesars Legion,готово,Легион Цезаря,да,
+strings.xml:stats_general_faction_followers_apocalypse,values/strings.xml,stats_general_faction_followers_apocalypse,Followers of the Apocalypse,готово,Последователи Апокалипсиса,да,
+strings.xml:stats_general_faction_freeside,values/strings.xml,stats_general_faction_freeside,Freeside,готово,Фрисайд,да,
+strings.xml:stats_general_faction_goodsprings,values/strings.xml,stats_general_faction_goodsprings,Goodsprings,готово,Гудспрингс,да,
+strings.xml:stats_general_faction_great_khans,values/strings.xml,stats_general_faction_great_khans,Great Khans,готово,Великие ханы,да,
+strings.xml:stats_general_faction_ncr,values/strings.xml,stats_general_faction_ncr,NCR,готово,НКР,да,
+strings.xml:stats_general_faction_novac,values/strings.xml,stats_general_faction_novac,Novac,готово,Новак,да,
+strings.xml:stats_general_faction_powder_gangers,values/strings.xml,stats_general_faction_powder_gangers,Powder Gangers,готово,Пороховые бандиты,да,проверить точный локализационный термин
+strings.xml:stats_general_faction_primm,values/strings.xml,stats_general_faction_primm,Primm,готово,Примм,да,
+strings.xml:stats_general_faction_the_strip,values/strings.xml,stats_general_faction_the_strip,The Strip,готово,Стрип,да,
+strings.xml:stats_general_faction_white_glove_society,values/strings.xml,stats_general_faction_white_glove_society,White Glove Society,готово,Общество белых перчаток,да,
+strings.xml:stats_general_faction_karma_idolized,values/strings.xml,stats_general_faction_karma_idolized,Idolized,готово,Кумир,да,"весь блок кармы — рабочий вариант, не сверял с официальной локализацией игры"
+strings.xml:stats_general_faction_karma_liked,values/strings.xml,stats_general_faction_karma_liked,Liked,готово,Уважаем,да,
+strings.xml:stats_general_faction_karma_accepted,values/strings.xml,stats_general_faction_karma_accepted,Accepted,готово,Принят,да,
+strings.xml:stats_general_faction_karma_neutral,values/strings.xml,stats_general_faction_karma_neutral,Neutral,готово,Нейтрально,да,
+strings.xml:stats_general_faction_karma_shunned,values/strings.xml,stats_general_faction_karma_shunned,Shunned,готово,Отвергнут,да,
+strings.xml:stats_general_faction_karma_hated,values/strings.xml,stats_general_faction_karma_hated,Hated,готово,Ненавистен,да,
+strings.xml:stats_general_faction_karma_vilified,values/strings.xml,stats_general_faction_karma_vilified,Vilified,готово,Презираем,да,
+strings.xml:placeholder_in_development,values/strings.xml,placeholder_in_development,This section is under development.,готово,Раздел находится в разработке.,,EN дописан задним числом Claude для базового strings.xml
+strings.xml:items_map,values/strings.xml,items_map,Map,готово,Карта,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:items_clock,values/strings.xml,items_clock,Clock,готово,Часы,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:items_journal,values/strings.xml,items_journal,Journal,готово,Журнал,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:data_misc,values/strings.xml,data_misc,Files,готово,Файлы,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:data_misc_entry1_name,values/strings.xml,data_misc_entry1_name,How to play Caravan,готово,Как играть в Караван,,
+strings.xml:data_misc_entry1_description,values/strings.xml,data_misc_entry1_description,"""BUILDING A DECK
+Caravan decks are comprised of at least 30 cards from one or more traditional playing card sets. The deck may have any number of cards of any type that suits a player's strategy, although it cannot have duplicate cards from the same set. For example, a King of Spades from Set A and a King of Spades from the Set B deck is acceptable, but more than one King of Spades from Set A would be illegal.
+
+RULES
+Caravan is played with two players building three opposing piles (or ""caravans"") of numbered cards. The goal is to outbid your opponent's caravan with the highest value of numbered cards without being too light (under 21) or overburdened (over 26).
+
+The game begins with each player taking eight cards from their deck and placing either one numerical card or ace on each caravan. Players may not discard during this initial round.
+
+Once both players have started their three caravans, each player may do ONE of the following on their turn:
+1. Play one card and draw a new card from his or her deck to their hand.
+2. Discard one card from their hand and draw a new card from his or her deck.
+3. Disband one of their three caravans by removing all cards from that pile.
+
+Caravans have a direction, either ascending or descending numerically, and a suit. The suit is determined with the first card placed on a caravan, the direction by the second. All subsequent cards must continue the numerical direction or match the suit of the previous card. Cards of the same numerical value cannot be played in sequence, regardless of suit. Face cards can be attached to numeric cards in any caravan and affects them in various ways.
+
+CARD VALUES
+Joker: Played against ace, 2-10. Effects change based on whether it's an ace or a numbered card (see below). Multiple jokers may be played on the same card.
+
+Ace: Value of 1. Jokers played on aces remove all other non-face cards of the ace's suit from the table. E.g. a joker played on an Ace of Spades removes all spades (except face cards and that card, specifically) from the table.
+
+2-10: Listed value. Jokers played on these cards remove all other cards of this value from the table. E.g. a joker played on a 4 of Hearts removes all 4s (other than that card, specifically) from the table.
+
+Jack: Played against ace, 2-10. Removes that card, along with any face cards attached to it.
+
+Queen: Played against ace, 2-10. Reverses the current direction of the hand and changes the current suit of the hand. Multiple queens may be played on the same card.
+
+King: Played against ace, 2-10. Adds the value of that card again. E.g. a king played on a 9 adds 9 to that hand. Multiple kings may be played on the same card for multiplicative effects. E.g. 4+ king = 8. 4 + 2 kings = 16.
+
+WINNING
+A player's caravan is considered sold when the value of its cards is over 20 and under 27. The other player may still outbid by increasing the value of their opposing pile while staying within the 21-26 range. When each of the three competing caravans has sold, the game is over. In the event that one of the three caravan values are tied between players, the game continues until all three caravans have sold. The player with two or more sales wins the pot.""",готово,"""СБОРКА КОЛОДЫ
+Колода для Каравана должна состоять минимум из 30 карт одной или нескольких обычных колод игральных карт. В колоде может быть любое количество карт любого достоинства, подходящее под вашу стратегию, но не может быть повторяющихся карт из одной и той же колоды. Например, король пик из колоды A и король пик из колоды B — это допустимо, но два короля пик из одной колоды A — уже нет.
+
+ПРАВИЛА
+В Караване играют два игрока, каждый выкладывает три противостоящие стопки (или «караваны») карт с числовыми значениями. Цель — перебить караван соперника, набрав наибольшую сумму числовых карт, не оказавшись при этом слишком лёгким (меньше 21) или перегруженным (больше 26).
+
+Игра начинается с того, что каждый игрок берёт восемь карт из своей колоды и выкладывает по одной числовой карте или тузу на каждый из трёх караванов. В этом первом раунде сбрасывать карты нельзя.
+
+Как только оба игрока разложили свои три каравана, на каждом ходу игрок может сделать ОДНО из следующего:
+1. Сыграть одну карту и взять новую карту из своей колоды в руку.
+2. Сбросить одну карту из руки и взять новую карту из своей колоды.
+3. Распустить один из своих трёх караванов, убрав из него все карты.
+
+У каждого каравана есть направление — по возрастанию или по убыванию — и масть. Масть определяется первой картой, выложенной на караван, направление — второй. Все последующие карты должны либо продолжать числовое направление, либо совпадать по масти с предыдущей картой. Карты с одинаковым числовым значением нельзя класть подряд, независимо от масти. Фигурные карты можно прикреплять к числовым картам в любом караване, и они по-разному на них влияют.
+
+ЗНАЧЕНИЯ КАРТ
+Джокер: играется против туза или карты 2-10. Эффект зависит от того, туз это или числовая карта (см. ниже). На одну карту можно сыграть несколько джокеров.
+
+Туз: значение 1. Джокер, сыгранный на туза, убирает со стола все остальные не фигурные карты той же масти, что и туз. Например, джокер, сыгранный на туза пик, уберёт со стола все пики (кроме фигурных карт и самого туза).
+
+2-10: указанное значение. Джокер, сыгранный на такую карту, убирает со стола все остальные карты с этим же значением. Например, джокер, сыгранный на четвёрку червей, уберёт со стола все остальные четвёрки.
+
+Валет: играется против туза или карты 2-10. Убирает эту карту вместе со всеми прикреплёнными к ней фигурными картами.
+
+Дама: играется против туза или карты 2-10. Меняет текущее направление каравана на противоположное и меняет его текущую масть. На одну карту можно сыграть несколько дам.
+
+Король: играется против туза или карты 2-10. Ещё раз прибавляет значение этой карты к сумме каравана. Например, король, сыгранный на девятку, добавляет к сумме ещё 9. На одну карту можно сыграть несколько королей — эффект умножается. Например: 4 + король = 8. 4 + два короля = 16.
+
+ПОБЕДА
+Караван игрока считается «проданным», когда сумма его карт больше 20 и меньше 27. Соперник всё ещё может перебить его, увеличив сумму своей противостоящей стопки, оставаясь в диапазоне 21-26. Когда все три соревнующихся каравана проданы, игра заканчивается. Если значения одного из трёх караванов у игроков совпадают, игра продолжается, пока не будут проданы все три каравана. Игрок, продавший два каравана или больше, забирает банк.""",,
+strings.xml:data_misc_entry2_name,values/strings.xml,data_misc_entry2_name,Vault-Tec Vault information,готово,Сведения об убежищах Vault-Tec,,
+strings.xml:data_misc_entry2_description,values/strings.xml,data_misc_entry2_description,"""You've downloaded the locations and access codes to Vaults 87, 92, 101, 106 and 108.",готово,"""Вы скачали координаты и коды доступа к Убежищам 87, 92, 101, 106 и 108.",,
+strings.xml:data_holotapes,values/strings.xml,data_holotapes,Holotapes,готово,Голодиски,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:data_radio,values/strings.xml,data_radio,Radio,готово,Радио,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:settings,values/strings.xml,settings,SETTINGS,готово,НАСТРОЙКИ,,
+strings.xml:settings_1_name,values/strings.xml,settings_1_name,Player Name,готово,Имя игрока,,
+strings.xml:settings_region_name,values/strings.xml,settings_region_name,Player Region,готово,Регион игрока,,
+strings.xml:settings_2_name,values/strings.xml,settings_2_name,Player Level,готово,Уровень игрока,,
+strings.xml:settings_3_name,values/strings.xml,settings_3_name,C. Radio MP3 Folder,готово,,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:settings_4_name,values/strings.xml,settings_4_name,Режим работы:,готово,Режим работы:,,
+strings.xml:settings_mode_change_button,values/strings.xml,settings_mode_change_button,Изменить,готово,Изменить,,
+strings.xml:settings_5_name,values/strings.xml,settings_5_name,World Map Scaling,готово,Масштаб карты мира,,
+strings.xml:settings_year_name,values/strings.xml,settings_year_name,Игровой год,готово,Игровой год,,
+strings.xml:settings_6_name,values/strings.xml,settings_6_name,Date Formats,готово,Формат даты,,
+strings.xml:settings_6_value_1,values/strings.xml,settings_6_value_1,MM/DD/YY,готово,ММ/ДД/ГГ,,
+strings.xml:settings_6_value_2,values/strings.xml,settings_6_value_2,MM/DD/YYYY,готово,ММ/ДД/ГГГГ,,
+strings.xml:settings_6_value_3,values/strings.xml,settings_6_value_3,DD/MM/YY,готово,ДД/ММ/ГГ,,
+strings.xml:settings_6_value_4,values/strings.xml,settings_6_value_4,DD/MM/YYYY,готово,ДД/ММ/ГГГГ,,
+strings.xml:settings_6_value_5,values/strings.xml,settings_6_value_5,YYYY/MM/DD,готово,ГГГГ/ММ/ДД,,
+strings.xml:settings_7_name,values/strings.xml,settings_7_name,PLACEHOLDER,не переводится (решение),,,"похоже на неиспользуемый служебный плейсхолдер разработчика ('PLACEHOLDER'), не пользовательский текст — не переводил"
+strings.xml:settings_UI_Colour,values/strings.xml,settings_UI_Colour,UI Colour,готово,Цвет интерфейса,,
+strings.xml:settings_UI_Colour_1,values/strings.xml,settings_UI_Colour_1,Green,готово,Зелёный,,
+strings.xml:settings_UI_Colour_2,values/strings.xml,settings_UI_Colour_2,Amber,готово,Янтарный,,
+strings.xml:settings_UI_Colour_3,values/strings.xml,settings_UI_Colour_3,White,готово,Белый,,
+strings.xml:settings_UI_Colour_4,values/strings.xml,settings_UI_Colour_4,Blue,готово,Синий,,
+strings.xml:next,values/strings.xml,next,"""NEXT""",готово,"""ДАЛЕЕ""",,
+strings.xml:previous,values/strings.xml,previous,"""PREV""",готово,"""НАЗАД""",,
+strings.xml:tutorial_welcome,values/strings.xml,tutorial_welcome,"""----- Welcome to PipDroid! -----
+
+PipDroid is a fan-made, unofficial APP that allows users to live their dream of owning their own PipBoy 3000 MK III.
+
+- COSPLAY YOUR FALLOUT CHARACTER
+Configure your Player name and Level, along with your S.P.E.C.I.A.L. and Skills levels, to represent your play-style.
+
+- CUSTOMIZE THE INTERFACE TO YOUR LIKING
+PipDroid comes in all 4 original colours of PipBoy interface as the Fallout 3 and Fallout New Vegas games. Choose between Green, Amber, White and Blue
+
+- ITEMS
+Look through Weapons, Apparel, Aid, Misc and Ammo to see different items from the Games
+
+- LOCAL AND WORLD MAP
+Use the Local Map to check out the Earth Map through the PipDroid interface. With the World Map, check out locations from both Fallout 3 and Fallout New Vegas
+
+- WASTELAND RADIO
+Listen to wasteland radio stations like Galaxy News Radio, Enclave Radio and New Vegas Radio, or connect to your own Custom Radio, and listen to music from your phone
+
+Check out all PipDroid can do on YouTube - ""PipDroid | Functional Pip-Boy Android APP"" (by MrMalto4)
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_whatsnew1,values/strings.xml,tutorial_whatsnew1,"""----- Whats New with PipDroid v2.0.12 -----
+
+- IMPLEMENTED TUTORIAL SCREEN
+   Due to mass demand, PipDroid now includes a tutorial menu, introducing the APP, presenting new features, and explaining how to navigate and use the APP.
+
+- FACTION REPUTATION MODIFICATION
+   You can now modify your reputation level with all factions inside the APP.
+   Simply press and hold the name of the faction once selected, and watch the reputation level change between the different options.
+
+- MENU CHANGE VARIETY
+   You can now change between different menus in more ways.
+   Simply swiping the top title menu either left or right will switch between the different menus (STATS, ITEMS and DATA)
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_whatsnew2,values/strings.xml,tutorial_whatsnew2,"""
+- FULL SCREEN GOODNESS
+   The APP can now be run in true full screen, hiding both the notification bar and the navigation buttons, allowing for a more immersive experience.
+   This new feature can be found in the SETTINGS.
+
+- PERKS AND ITEMS CUSTOMIZATION
+   Perks and ITEMS (Weapons, Apparel, Aid, etc.) can now be customized, such that you can choose from all of the Perks and ITEMS available in the game, and add/show the ones you want, adding an even more personalized experience.
+   The Weapons and Apparel sub-menus also allow ""equipping"" where you can press and hold the name of an ITEM and ""equip"" it. The logic of ""equipping"" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
+    """,не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_stats1,values/strings.xml,tutorial_stats1,"""---------- STATS ----------
+
+----- STATUS -----
+Here you can see your character's basic information
+ - Player Name
+ - Player Level
+ - Health
+ - Number of Stimpaks
+ - Etc.
+
+If you press and hold a health container for 1 second or longer, it will hurt your character.
+Get hurt enough and you'll see the typical damage expressions
+In order to recover health, simply press the Stimpak button and recover damage
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_stats2,values/strings.xml,tutorial_stats2,"""
+It's also on this submenu where you can find the RAD and EFF menus, where you can see your current RAD levels and status effects.
+
+----- S.P.E.C.I.A.L. -----
+Here you can find all of the classic S.P.E.C.I.A.L. values from the games.
+
+These values can be edited.
+Simply select a S.P.E.C.I.A.L. item, press and hold the name of the item, and watch the value increase and decrease.
+The values you modify will be saved in the APP, so that your character will always have the values you configure.
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_stats3,values/strings.xml,tutorial_stats3,"""
+----- SKILLS -----
+Here you can find the SKILLS from both Fallout 3 and Fallout New Vegas.
+
+These values can be edited.
+Just like the S.P.E.C.I.A.L. values, simply press and hold the name of a SKILL, and watch the value increase and decrease.
+The longer you press and hold the item, the faster the value will increase.
+
+----- PERKS -----
+Here you can find some of the PERKS from the games.
+
+PERKS are now configurable, such that each player can set their own PERKS from a vast list of PERKS from the games. To select the PERKS, simply press and hold the PERKS sub-menu button until the Filter menu pops-up.
+You can then search for specific PERK names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new PERKS will show up dynamically.
+
+----- GENERAL -----
+Here you can find the factions from the games.
+
+These values can be edited.
+Once you select a faction, you will see their icon, and your reputation with that faction.
+Press and hold a faction name for the reputation to change from the different options (Idolized, Liked, Accepted, Neutral, Shunned, Hated, Vilified)
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_stats4,values/strings.xml,tutorial_stats4,"""
+It is here too where you can find the SETTINGS menu, to change between the different MENUs (STATS, ITEMS, DATA)""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_items1,values/strings.xml,tutorial_items1,"""---------- ITEMS ----------
+
+----- WEAPONS, APPAREL, AID, MISC, AMMO -----
+Here you can find some of the classic items from the games.
+
+Currently, these entries are static, and are just for show.
+
+ITEMS are now configurable, such that each player can set their own Weapons, Apparel, Aid, Misc and Ammo from a vast list of ITEMS from the games. To select the ITEMS, simply press and hold the corresponding sub-menu button (Weapons, Apparel, Aid, etc.) until the Filter menu pops-up.
+You can then search for specific Weapons, Apparel, etc. names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new ITEMS will show up dynamically.
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_items2,values/strings.xml,tutorial_items2,"""
+The Weapons and Apparel sub-menus also allow ""equipping"" where you can press and hold the name of an ITEM and ""equip"" it. The logic of ""equipping"" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_data,values/strings.xml,tutorial_data,"""---------- DATA ----------
+
+----- LOCAL MAP -----
+On this menu, you can find a map of the earth.
+
+** Stay tuned for future updates, where there will be little easter eggs added to different key points on the map.
+
+----- WORLD MAP -----
+Here you can find the World Maps from both Fallout 3 and Fallout New Vegas.
+
+Featuring all key locations from both games, you can zoom in and see both key location icons and names.
+
+----- QUESTS -----
+Here you can find some of the key quests from the games.
+
+** Stay tuned for future updates, where even more quests will be added, and will be editable for you to choose which quest to work on / are pending or not.
+
+----- MISC -----
+Here you can find some of the Notes and Holotapes from around the Wasteland.
+
+** Stay tuned for future updates, where even more Notes and Holotapes will be added, and special Holotapes will be implemented.
+
+----- RADIO -----
+On this menu you can find music from some of the radio stations from the Wasteland.
+
+You can also choose to listen to your own local music from inside the APP.
+There is also an option to use PipDroid as a Bed-side clock, using the Clock menu.""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_settings1,values/strings.xml,tutorial_settings1,"""---------- SETTINGS ----------
+
+----- PLAYER NAME -----
+Set your players name (16 character limit)
+
+----- PLAYER LEVEL -----
+Set your players level (3 digit limit)
+
+----- C. RADIO MP3 FOLDER -----
+In order to use the Custom radio, you must choose a folder on your phone where your MP3 files are saved.
+On Android phones, this is typically 'Music' (Internally saved as '/storage/0/Music').
+If you had all your MP3 files in your Downloads folder for example, this value could be 'Download'
+
+----- SCREEN RESIZE -----
+For those of you who wish to use this APP with the PipBoy 3000 from The Fallout 4 Special Edition, you can use this option to set the size of the interface to fit inside of the screen
+Once you have selected this option, you can choose the resize button to enter editing mode and adjust both size (pinching action) and location (single finger moving).
+Simply press the resize button again to exit editing mode.
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:tutorial_settings2,values/strings.xml,tutorial_settings2,"""
+----- WORLD MAP SCALING -----
+Due to every phone having different screen sizes and resolutions sometimes the world map icons don't show up in the correct locations.
+To fix this, we've added a simple scaling value just simply modify this value until the locations appear in the correct spots.
+The following are some example values:
+
+ - Samsung Galaxy S23 Ultra (Resolution 2316x1080)
+ --- 0.9347
+
+ - Samsung Galaxy J3(6) (Resolution 1280x720)
+ --- 0.663
+
+ - Blackberry Passport (Resolution 1440x1440)
+ --- 1.0
+
+----- DATE FORMATS -----
+You can modify the Date format shown on the DATA menus from the different options available.
+
+ - MM/DD/YY
+ - MM/DD/YYYY
+ - DD/MM/YY
+ - DD/MM/YYYY
+ - YYYY/MM/DD
+
+----- UI COLOUR -----
+Here you can change the interface colour from different options available in the games.
+
+** Stay tuned for future updates, where a Custom/modifiable colour will be available
+
+----- ENABLE TRUE FULLSCREEN -----
+This option hides both the notification bar and the navegation buttons, allowing for a more immersive / fullscreen experience.
+
+----- SHOW TUTORIAL AT START -----
+This checkbox indicates whether this tutorial should be shown when the APP is loaded or not.
+
+----- BLUETOOTH SETUP -----
+Here you can configure external devices to connect with PipDroid using Bluetooth (ESP32 S3 mini board for example).
+
+For this, you must first configure:
+ - MAC Address of the Bluetooth device
+ - Service UUID
+ - Read UUID
+ - Write UUID
+
+** These values can be found connecting your bluetooth device with a Bluetooth terminal APP
+
+For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pip-Boy 3000 APK'
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:eff_damage_label,values/strings.xml,eff_damage_label,Damage,готово,Урон,,
+strings.xml:cnd_popup_easter_egg_title,values/strings.xml,cnd_popup_easter_egg_title,"Achievement unlocked:
+Easter Egg found",готово,"Достижение получено:
+Найдено пасхальное яйцо",,
+layout_tab_stats_cnd_popup.xml:40,layout/layout_tab_stats_cnd_popup.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
+strings.xml:cnd_popup_thanks_text,values/strings.xml,cnd_popup_thanks_text,"Thanks for checking out PipDroid!
+
+Stay safe on your journeys
+through the wasteland
+",готово,"Спасибо, что пользуетесь PipDroid!
+
+Берегите себя в путешествиях
+по Пустоши
+",,
+strings.xml:cnd_popup_author_signature,values/strings.xml,cnd_popup_author_signature,-James (Malto4),готово,-James (Malto4),,
+layout_tab_items_clock.xml:30,layout/layout_tab_items_clock.xml,"(hardcoded, нет @string)",100,"не текст (число/плейсхолдер), но не в strings.xml",100,,
+layout_tab_items_clock.xml:53,layout/layout_tab_items_clock.xml,"(hardcoded, нет @string)",:00,"не текст (число/плейсхолдер), но не в strings.xml",:00,,
+layout_tab_items_clock.xml:68,layout/layout_tab_items_clock.xml,"(hardcoded, нет @string)",0:00,"не текст (число/плейсхолдер), но не в strings.xml",0:00,,
+layout_tab_stats_status_rad_content.xml:38,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",-6,"не текст (число/плейсхолдер), но не в strings.xml",-6,,
+layout_tab_stats_status_rad_content.xml:61,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",-4,"не текст (число/плейсхолдер), но не в strings.xml",-4,,
+layout_tab_stats_status_rad_content.xml:116,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",500,"не текст (число/плейсхолдер), но не в strings.xml",500,,
+layout_tab_stats_status_rad_content.xml:127,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",1000,"не текст (число/плейсхолдер), но не в strings.xml",1000,,
+layout_tab_stats_status_rad_content.xml:153,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",24,"не текст (число/плейсхолдер), но не в strings.xml",24,,
+strings.xml:items_map_no_module_detected,values/strings.xml,items_map_no_module_detected,NO LOCAL MAP MODULE DETECTED,готово,МОДУЛЬ ЛОКАЛЬНОЙ КАРТЫ НЕ ОБНАРУЖЕН,,
+layout_tab_settings.xml:33,layout/layout_tab_settings.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
+strings.xml:settings_enable_true_fullscreen,values/strings.xml,settings_enable_true_fullscreen,Enable True Fullscreen,готово,Полноэкранный режим,,
+strings.xml:settings_show_tutorial_at_start,values/strings.xml,settings_show_tutorial_at_start,Show Tutorial at Start,готово,Показывать обучение при запуске,,
+strings.xml:settings_bluetooth_setup_button,values/strings.xml,settings_bluetooth_setup_button,Bluetooth Setup,готово,Настройка Bluetooth,,
+strings.xml:settings_save_button,values/strings.xml,settings_save_button,Save Settings,готово,Сохранить настройки,,
+strings.xml:filter_modification_title,values/strings.xml,filter_modification_title,Modification,готово,Модификация,,
+layout_filter_modification.xml:42,layout/layout_filter_modification.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
+strings.xml:filter_title,values/strings.xml,filter_title,Filter,готово,Фильтр,,
+strings.xml:filter_select_all,values/strings.xml,filter_select_all,Select ALL,готово,Выбрать всё,,
+strings.xml:filter_clear_all,values/strings.xml,filter_clear_all,Clear ALL,готово,Очистить всё,,
+strings.xml:filter_save_button,values/strings.xml,filter_save_button,SAVE,готово,СОХРАНИТЬ,,
+layout_tab_stats_status_cnd_content.xml:40,layout/layout_tab_stats_status_cnd_content.xml,"(hardcoded, нет @string)",-10,"не текст (число/плейсхолдер), но не в strings.xml",-10,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
+strings.xml:stats_status_level_label,values/strings.xml,stats_status_level_label,- Level,готово,- Уровень,,
+strings.xml:bluetooth_setup_heading,values/strings.xml,bluetooth_setup_heading,BLUETOOTH,готово,BLUETOOTH,,
+layout_tab_settings_bluetooth.xml:33,layout/layout_tab_settings_bluetooth.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
+strings.xml:bluetooth_status_disconnected,values/strings.xml,bluetooth_status_disconnected,DISCONNECTED,готово,НЕ ПОДКЛЮЧЕНО,,
+strings.xml:bluetooth_field_mac_address,values/strings.xml,bluetooth_field_mac_address,MAC Address,готово,MAC-адрес,,
+strings.xml:bluetooth_field_service_uuid,values/strings.xml,bluetooth_field_service_uuid,Service UUID,готово,UUID сервиса,,"техническое поле BLE — можно оставить полностью латиницей, на ваше усмотрение"
+strings.xml:bluetooth_field_read_uuid,values/strings.xml,bluetooth_field_read_uuid,Read UUID,готово,UUID для чтения,,
+strings.xml:bluetooth_field_write_uuid,values/strings.xml,bluetooth_field_write_uuid,Write UUID,готово,UUID для записи,,
+strings.xml:action_save,values/strings.xml,action_save,Save,готово,Сохранить,,
+strings.xml:bluetooth_connect_button,values/strings.xml,bluetooth_connect_button,Connect,готово,Подключить,,
+strings.xml:bluetooth_disconnect_button,values/strings.xml,bluetooth_disconnect_button,Disconnect,готово,Отключить,,
+strings.xml:tutorial_close_button,values/strings.xml,tutorial_close_button,Close,готово,Закрыть,,
+strings.xml:settings_show_tutorial_at_start,values/strings.xml,settings_show_tutorial_at_start,Show Tutorial at Start,готово,Показывать обучение при запуске,,
+strings.xml:action_save,values/strings.xml,action_save,Save,готово,Сохранить,,
+strings.xml:recycler_list_header,values/strings.xml,recycler_list_header,LIST,готово,СПИСОК,,"контекст использования не проверял, похоже на служебный дефолт RecyclerView"

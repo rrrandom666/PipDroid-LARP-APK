@@ -39,6 +39,7 @@
         android:layout_marginTop="2dp"
         android:gravity="center"
         android:text="@string/title_bottom_common_name_placeholder"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/img_bottom_box_name"
         app:layout_constraintStart_toStartOf="@id/img_bottom_box_name"
         app:layout_constraintTop_toTopOf="parent" />
@@ -63,6 +64,7 @@
         android:layout_marginTop="2dp"
         android:gravity="center"
         android:text="@string/title_bottom_common_region_placeholder"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/img_bottom_box_region"
         app:layout_constraintStart_toStartOf="@id/img_bottom_box_region"
         app:layout_constraintTop_toTopOf="parent" />
@@ -88,6 +90,7 @@
         android:layout_marginTop="2dp"
         android:gravity="center"
         android:text="@string/title_data_date"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/img_bottom_box_date"
         app:layout_constraintStart_toStartOf="@id/img_bottom_box_date"
         app:layout_constraintTop_toTopOf="parent" />
@@ -112,6 +115,7 @@
         android:layout_marginTop="2dp"
         android:gravity="center"
         android:text="@string/title_data_time"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/img_bottom_box_time"
         app:layout_constraintStart_toStartOf="@id/img_bottom_box_time"
         app:layout_constraintTop_toTopOf="parent" />
@@ -152,6 +156,7 @@
         android:layout_marginStart="4dp"
         android:gravity="center"
         android:text="@string/title_bottom_common_radiation_placeholder"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/img_bottom_box_radiation"
         app:layout_constraintStart_toEndOf="@id/img_bottom_radiation_icon"
         app:layout_constraintTop_toTopOf="parent" />

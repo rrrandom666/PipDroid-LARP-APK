@@ -2429,7 +2429,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             // ставится явно, отдельно от остальных атрибутов стиля.
             val tv = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
                 text = item.label
-                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.monofonto)
+                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
@@ -2517,7 +2517,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             val stripBaseX = stripLoc[0] - strip.translationX
             val targetCenter = targetLoc[0] + targetButton.width / 2
             val activeCenter = activeView.left + activeView.width / 2
-            strip.translationX = (targetCenter - (stripBaseX + activeCenter)).toFloat()
+            var translationX = (targetCenter - (stripBaseX + activeCenter)).toFloat()
+
+            // Центрирование само по себе не гарантирует, что притушенные соседние пункты
+            // останутся на экране — это тот же баг, что уже чинили переходом с левого
+            // выравнивания на центрирование (см. комментарий выше), но при более широком
+            // шрифте, чем был на момент того фикса, он снова достижим. Зажимаем так, чтобы
+            // крайний видимый пункт не пересекал границу, которая была безопасна при
+            // translationX = 0 (левый край строки = левый край row1, симметрично справа).
+            val visible = row2Views.filter { it.visibility == View.VISIBLE }
+            if (visible.isNotEmpty()){
+                val leftMost = visible.minByOrNull { it.left }!!
+                val rightMost = visible.maxByOrNull { it.right }!!
+                val screenWidth = resources.displayMetrics.widthPixels
+                val minTranslation = -leftMost.left.toFloat()
+                val maxTranslation = (screenWidth - stripBaseX - rightMost.right).toFloat()
+                if (minTranslation <= maxTranslation) {
+                    translationX = translationX.coerceIn(minTranslation, maxTranslation)
+                }
+            }
+            strip.translationX = translationX
         }
     }
     private fun enableDisableBottomButtons(action: Boolean, buttonarray: ArrayList<Button>?){
@@ -2837,7 +2856,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 // Set the text for the TextView to the "name" value
                 text = item["name"]
                 // Set custom font to button
-                typeface = TypefaceCache.getMonofontoTypeface(context) // Set the loaded typeface
+                typeface = TypefaceCache.getPipboyTypeface(context) // Set the loaded typeface
             }
 
             // Set the CheckBox checked state based on whether the item ID is in selectedItems
@@ -4898,12 +4917,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 }
 
 object TypefaceCache {
-    private var monofontoTypeface: Typeface? = null
+    private var pipboyTypeface: Typeface? = null
 
-    fun getMonofontoTypeface(context: Context): Typeface {
-        if (monofontoTypeface == null) {
-            monofontoTypeface = Typeface.createFromAsset(context.assets, "fonts/monofonto.ttf")
+    fun getPipboyTypeface(context: Context): Typeface {
+        if (pipboyTypeface == null) {
+            pipboyTypeface = Typeface.createFromAsset(context.assets, "fonts/pipboy_mono.ttf")
         }
-        return monofontoTypeface!!
+        return pipboyTypeface!!
     }
 }

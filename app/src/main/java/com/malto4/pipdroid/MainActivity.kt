@@ -1326,6 +1326,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         refreshModeSettingsLabel()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
+        // Экран выбора режима можно открыть и поверх Settings (кнопка "Изменить" режима
+        // работы) — тогда после выбора режима Settings остаётся видимым под ним (просто
+        // временно перекрыт), и пользователь видит его вместо мастера/STATS, пока не
+        // закроет вручную. Мастер не должен прерываться, поэтому Settings тоже закрываем
+        // здесь — как обычным крестиком (btnSettingsClose), с тем же восстановлением
+        // нижних кнопок/свайпа, которые открытие Settings отключает.
+        if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
+            bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
+            enableDisableBottomButtons(true, listBottomButtons)
+            enableDisableTopSwipe(true)
+        }
+
         // На свежей установке ShowTutorial=true, и есть давно существующий код, который
         // на старте прячет constraintlayoutMain и показывает вместо него Tutorial. Экран
         // выбора режима теперь главный "первый экран" приложения — Tutorial ему больше не

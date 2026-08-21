@@ -8,6 +8,7 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.ColorStateList
@@ -175,6 +176,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private lateinit var networkChangeReceiver: NetworkChangeReceiver
     companion object {
         private const val REQUEST_CODE_PERMISSION_INTERNET = 1
+        // Отладочная инъекция BLE-команд без реального ESP32 (roadmap, этап 7,
+        // "быстрая отладка логики экранов"). См. registerDebugCommandReceiver().
+        private const val ACTION_DEBUG_BLE_COMMAND = "com.malto4.pipdroid.DEBUG_BLE_COMMAND"
+        private const val EXTRA_DEBUG_BLE_RAW = "raw"
     }
 
     /***********************************************************************************************************
@@ -197,6 +202,36 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bleService = null
             bleServiceBound = false
         }
+    }
+    private var debugCommandReceiver: BroadcastReceiver? = null
+    /**
+     * Пускает строки в тот же handleBleCommand(), что и реальный ESP32 по BLE — только
+     * источник команды заменён на adb broadcast с компьютера (roadmap, этап 7, "быстрая
+     * отладка логики экранов" вместо программной эмуляции самой BLE-периферии). Только
+     * debug-сборки — в релизе приёмник не регистрируется и адрес недостижим. Явное
+     * FQCN, не unqualified BuildConfig — в файле уже есть import
+     * org.osmdroid.library.BuildConfig (см. Configuration чуть выше), который иначе
+     * перехватил бы разрешение простого имени.
+     *
+     * adb shell am broadcast -p com.malto4.pipdroid -a com.malto4.pipdroid.DEBUG_BLE_COMMAND --es raw "ENC:+1"
+     */
+    private fun registerDebugCommandReceiver() {
+        if (!com.malto4.pipdroid.BuildConfig.DEBUG) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val raw = intent?.getStringExtra(EXTRA_DEBUG_BLE_RAW) ?: return
+                handleBleCommand(raw)
+            }
+        }
+        val filter = IntentFilter(ACTION_DEBUG_BLE_COMMAND)
+        // adb broadcast приходит извне приложения — начиная с API 33 контекстно
+        // зарегистрированный приёмник обязан явно объявить экспортируемость.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
+        debugCommandReceiver = receiver
     }
     private val permissionRequestLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -1567,6 +1602,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.btnWizardCancel,
             w.btnWizardGrantPermissions,
             w.btnWizardPairingRescan,
+            w.btnWizardPairingSkipDebug,
             w.btnWizardHideHint
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(wizardAccent) }
 
@@ -1619,6 +1655,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         w.btnWizardPairingRescan.setOnClickListener {
             playNewTabSelectAudio()
             startPairingScan()
+        }
+        // Обход пейринга в debug-сборках — без реального ESP32 иначе нельзя пройти
+        // мастер дальше этого шага вообще (roadmap, этап 7, "быстрая отладка логики
+        // экранов"). Не трогает bluetoothMAC_SPKey и не пытается подключиться — просто
+        // пропускает шаг, как будто корпус уже выбран.
+        w.btnWizardPairingSkipDebug.visibility =
+            if (com.malto4.pipdroid.BuildConfig.DEBUG) View.VISIBLE else View.GONE
+        w.btnWizardPairingSkipDebug.setOnClickListener {
+            playNewTabSelectAudio()
+            stopPairingScan()
+            showWizardStep(PipBoyWizardStep.POWER_HINT)
         }
 
         // Шаг 6: подсказка про POWER
@@ -3129,6 +3176,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
         setupModeSelectScreen()
         setupPipBoy2000Wizard()
+        registerDebugCommandReceiver()
 
         //Disable all radioStations
         turnAllRadioOffNoVis()
@@ -4973,6 +5021,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         if (bleServiceBound) {
             unbindService(bleServiceConnection)
             bleServiceBound = false
+        }
+        debugCommandReceiver?.let {
+            unregisterReceiver(it)
+            debugCommandReceiver = null
         }
     }
 

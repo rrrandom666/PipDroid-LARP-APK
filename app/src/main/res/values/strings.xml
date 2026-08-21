@@ -10,7 +10,7 @@
     <!-- Экран выбора режима и мастер PipBoy 2000 (roadmap, "Видение приложения") —
          рабочий текст, взят из roadmap как есть. Финальные RU/EN тексты — отдельная
          задача локализации (roadmap, этап 7). -->
-    <string name="mode_phone">Телефон</string>
+    <string name="mode_phone">Phone</string>
     <string name="mode_pipboy_2000">PipBoy 2000</string>
     <string name="mode_pipboy_3000">PipBoy 3000</string>
     <string name="mode_description_phone">The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware.</string>
@@ -18,18 +18,18 @@
     <string name="mode_description_pipboy_3000">This mode is under development.</string>
     <string name="mode_select_button">Select</string>
 
-    <string name="wizard_hardware_title">ИНСТРУКЦИЯ ПО УСТАНОВКЕ</string>
+    <string name="wizard_hardware_title">HARDWARE INSTRUCTIONS</string>
     <string name="wizard_hardware_text">Insert your phone into the PipBoy case.</string>
-    <string name="wizard_back">Назад</string>
-    <string name="wizard_next">Далее</string>
+    <string name="wizard_back">Back</string>
+    <string name="wizard_next">Next</string>
 
-    <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>
-    <string name="wizard_done">Готово</string>
-    <string name="wizard_reset">Сбросить</string>
-    <string name="wizard_cancel">Отмена</string>
+    <string name="wizard_display_area_title">DISPLAY AREA</string>
+    <string name="wizard_done">Done</string>
+    <string name="wizard_reset">Clear</string>
+    <string name="wizard_cancel">Cancel</string>
     <string name="wizard_hint_resize">Adjust the display area to fit the PipBoy screen.</string>
 
-    <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
+    <string name="wizard_permissions_title">PERMISSIONS</string>
     <string name="wizard_permissions_text">PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware) and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own \u2014 the button below is only needed if the system dialog doesn\'t appear for some reason.</string>
     <string name="wizard_grant_permissions">Grant Permissions</string>
 
@@ -248,10 +248,10 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_region_name">Player Region</string>
     <string name="settings_2_name">Player Level</string>
     <string name="settings_3_name">C. Radio MP3 Folder</string>
-    <string name="settings_4_name">Режим работы:</string>
-    <string name="settings_mode_change_button">Изменить</string>
+    <string name="settings_4_name">Operating Mode:</string>
+    <string name="settings_mode_change_button">Change</string>
     <string name="settings_5_name">World Map Scaling</string>
-    <string name="settings_year_name">Игровой год</string>
+    <string name="settings_year_name">Game Year</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>
     <string name="settings_6_value_2">MM/DD/YYYY</string>
@@ -260,6 +260,13 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_6_value_5">YYYY/MM/DD</string>
 
     <string name="settings_7_name">PLACEHOLDER</string>
+
+    <string name="settings_language_name">Interface Language</string>
+    <!-- Названия языков не переводятся — Русский/English показываются одинаково
+         независимо от текущего языка интерфейса (стандартная практика для языковых
+         переключателей), поэтому этих строк нет в values-ru. -->
+    <string name="settings_language_value_ru">Русский</string>
+    <string name="settings_language_value_en">English</string>
 
     <string name="settings_UI_Colour">UI Colour</string>
     <string name="settings_UI_Colour_1">Green</string>

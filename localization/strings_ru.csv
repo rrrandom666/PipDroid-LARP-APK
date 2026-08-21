@@ -241,10 +241,10 @@ strings.xml:settings_1_name,values/strings.xml,settings_1_name,Player Name,го�
 strings.xml:settings_region_name,values/strings.xml,settings_region_name,Player Region,готово,Регион игрока,,
 strings.xml:settings_2_name,values/strings.xml,settings_2_name,Player Level,готово,Уровень игрока,,
 strings.xml:settings_3_name,values/strings.xml,settings_3_name,C. Radio MP3 Folder,готово,,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
-strings.xml:settings_4_name,values/strings.xml,settings_4_name,Режим работы:,готово,Режим работы:,,
-strings.xml:settings_mode_change_button,values/strings.xml,settings_mode_change_button,Изменить,готово,Изменить,,
+strings.xml:settings_4_name,values/strings.xml,settings_4_name,Operating Mode:,готово,Режим работы:,,
+strings.xml:settings_mode_change_button,values/strings.xml,settings_mode_change_button,Change,готово,Изменить,,
 strings.xml:settings_5_name,values/strings.xml,settings_5_name,World Map Scaling,готово,Масштаб карты мира,,
-strings.xml:settings_year_name,values/strings.xml,settings_year_name,Игровой год,готово,Игровой год,,
+strings.xml:settings_year_name,values/strings.xml,settings_year_name,Game Year,готово,Игровой год,,
 strings.xml:settings_6_name,values/strings.xml,settings_6_name,Date Formats,готово,Формат даты,,
 strings.xml:settings_6_value_1,values/strings.xml,settings_6_value_1,MM/DD/YY,готово,ММ/ДД/ГГ,,
 strings.xml:settings_6_value_2,values/strings.xml,settings_6_value_2,MM/DD/YYYY,готово,ММ/ДД/ГГГГ,,

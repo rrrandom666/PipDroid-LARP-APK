@@ -93,6 +93,7 @@
     <string name="settings_6_value_3">ДД/ММ/ГГ</string>
     <string name="settings_6_value_4">ДД/ММ/ГГГГ</string>
     <string name="settings_6_value_5">ГГГГ/ММ/ДД</string>
+    <string name="settings_language_name">Язык интерфейса</string>
     <string name="settings_UI_Colour">Цвет интерфейса</string>
     <string name="settings_UI_Colour_1">Зелёный</string>
     <string name="settings_UI_Colour_2">Янтарный</string>
@@ -218,4 +219,7 @@
     <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
     <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
     <string name="wizard_reset">Сбросить</string>
+    <string name="settings_4_name">Режим работы:</string>
+    <string name="settings_mode_change_button">Изменить</string>
+    <string name="settings_year_name">Игровой год</string>
 </resources>

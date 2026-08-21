@@ -78,6 +78,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 import java.util.Random
 import java.util.UUID
 import kotlin.jvm.internal.Intrinsics
@@ -115,8 +116,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     val bluetoothRUUID_SPKey = "bluetoothRUUID"
     val bluetoothWUUID_SPKey = "bluetoothWUUID"
     val pipBoyMode_SPKey = "pipBoyMode"
+    val appLanguage_SPKey = "appLanguage"
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
+    private var languageSelector = -1
     private var selected_button = R.drawable.button_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
@@ -2158,6 +2161,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat3,
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat4,
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat5,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsLanguageRu,
+            bindingMain.incLayoutSettingsGlobal.rbSettingsLanguageEn,
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome,
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
             bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings
@@ -3004,7 +3009,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
         sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
@@ -3015,6 +3020,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sharedPreferences.edit().putBoolean("ShowTutorial", showTutorial).apply()
         sharedPreferences.edit().putBoolean("TrueFullscreen", trueFullscreen).apply()
         sharedPreferences.edit().putInt(gameYear_SPKey, gameYear).apply()
+        sharedPreferences.edit().putInt(appLanguage_SPKey, languageID).apply()
     }
     private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
@@ -3031,6 +3037,33 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
 
+
+    /**
+     * Язык интерфейса (roadmap, "Видение приложения", п.2, шаг 4) — независимый от
+     * системного языка телефона, в отличие от обычного механизма values-ru (который сам
+     * по себе продолжает работать как фолбэк, пока язык явно не выбран в Settings).
+     * appLanguage_SPKey не задан (-1) на свежей установке — тогда контекст не трогаем
+     * вообще, приложение ведёт себя как раньше, языком рулит система. `Configuration`
+     * здесь — android.content.res, не org.osmdroid.config.Configuration (тот уже
+     * импортирован под тем же именем выше по файлу, поэтому FQCN, а не import).
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = newBase.getSharedPreferences("PipDroid_Preferences", Context.MODE_PRIVATE)
+        val languageCode = when (prefs.getInt("appLanguage", -1)) {
+            0 -> "ru"
+            1 -> "en"
+            else -> null
+        }
+        if (languageCode == null) {
+            super.attachBaseContext(newBase)
+            return
+        }
+        val locale = Locale(languageCode)
+        Locale.setDefault(locale)
+        val config = android.content.res.Configuration(newBase.resources.configuration)
+        config.setLocale(locale)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
 
     /***********************************************************************************************************
      *
@@ -4546,6 +4579,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 (rg_UIColour_Settings.getChildAt(3)?.id) -> UIColour_Selector = 3
             }
         }
+        val rg_Language_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage
+        rg_Language_Settings.setOnCheckedChangeListener{ _, checkedId ->
+            when (checkedId){
+                (rg_Language_Settings.getChildAt(0)?.id) -> languageSelector = 0 // ru
+                (rg_Language_Settings.getChildAt(1)?.id) -> languageSelector = 1 // en
+            }
+        }
 
 
         /***********************************************************************************************************
@@ -4743,7 +4783,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector)
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -4774,6 +4814,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
             bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.check(bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
             bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.check(bindingMain.incLayoutSettingsGlobal.rgSettingsUiColour.getChildAt(sharedPreferences.getInt(playerUIColour_SPKey, 0)).id)
+            // appLanguage_SPKey не задан (-1) на свежей установке — тогда показываем как
+            // отмеченный тот пункт, который и так уже действует через системную локаль
+            // (см. attachBaseContext()), а не жёстко фиксированный вариант по умолчанию.
+            val effectiveLanguageIndex = sharedPreferences.getInt(appLanguage_SPKey, -1).let {
+                if (it in 0..1) it else if (Locale.getDefault().language == "ru") 0 else 1
+            }
+            bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage.check(bindingMain.incLayoutSettingsGlobal.rgSettingsLanguage.getChildAt(effectiveLanguageIndex).id)
 
 
         /***********************************************************************************************************

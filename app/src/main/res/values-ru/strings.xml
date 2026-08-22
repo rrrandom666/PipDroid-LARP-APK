@@ -58,6 +58,9 @@
     <string name="data_misc_entry2_description">"Вы скачали координаты и коды доступа к Убежищам 87, 92, 101, 106 и 108.</string>
     <string name="data_misc_entry2_name">Сведения об убежищах Vault-Tec</string>
     <string name="data_radio">Радио</string>
+    <string name="disclaimer_dont_show_again">Больше не показывать</string>
+    <string name="disclaimer_skip_button">Пропустить</string>
+    <string name="disclaimer_text">"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели."</string>
     <string name="eff_damage_label">Урон</string>
     <string name="exit">Выход</string>
     <string name="filter_clear_all">Очистить всё</string>
@@ -75,11 +78,9 @@
     <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
     <string name="mode_phone">Телефон</string>
     <string name="mode_select_button">Выбрать</string>
-    <string name="next">"ДАЛЕЕ"</string>
     <string name="placeholder_in_development">Раздел находится в разработке.</string>
     <string name="player_name">Игрок</string>
     <string name="power_off">Выключить питание</string>
-    <string name="previous">"НАЗАД"</string>
     <string name="radio">Радио</string>
     <string name="recycler_list_header">СПИСОК</string>
     <string name="search_menu_title">Поиск</string>
@@ -197,7 +198,6 @@
     <string name="title_stats_RAD">РАД</string>
     <string name="title_stats_status">Статус</string>
     <string name="title_stats_status_status_effects">НЕТ ЭФФЕКТОВ</string>
-    <string name="tutorial_close_button">Закрыть</string>
     <string name="wizard_back">Назад</string>
     <string name="wizard_cancel">Отмена</string>
     <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>

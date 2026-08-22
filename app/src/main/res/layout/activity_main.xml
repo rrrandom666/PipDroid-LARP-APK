@@ -7,24 +7,6 @@
     android:background="@color/pip_background_darker"
     tools:context=".MainActivity">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/constraintlayoutTutorial"
-        android:layout_width="0.0dip"
-        android:layout_height="0.0dip"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_percent="0.96"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_percent="0.96">
-
-        <include
-            android:id="@+id/inc_layout_tab_tutorial_base"
-            layout="@layout/layout_tab_tutorial_base"
-            android:visibility="visible" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/constraintlayoutMain"
@@ -317,12 +299,35 @@
         android:visibility="gone" />
 
     <!-- Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым
-         при каждом запуске, до STATS/ITEMS/DATA. Последний ребёнок root ConstraintLayout —
-         перекрывает буквально всё остальное, пока режим не выбран. -->
+         при каждом запуске, до STATS/ITEMS/DATA. -->
     <include
         android:id="@+id/inc_layout_tab_mode_select"
         layout="@layout/layout_tab_mode_select"
         android:visibility="visible" />
+
+    <!-- Дисклеймер (roadmap, "Дисклеймер при запуске — UX-спецификация") — переиспользует
+         старый Welcome-экран Tutorial. Последний ребёнок root ConstraintLayout после
+         мод-селекта — перекрывает буквально всё остальное, включая мод-селект, пока не
+         закрыт кнопкой [Пропустить] (см. MainActivity.kt). На весь экран (не 96%-вставка,
+         как раньше) — иначе мод-селект под ним торчит по краям, где заканчиваются линии
+         шапки/футера. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraintlayoutTutorial"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:visibility="gone"
+        android:background="@color/pip_background_darker"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include
+            android:id="@+id/inc_layout_tab_tutorial_base"
+            layout="@layout/layout_tab_tutorial_base"
+            android:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Оверлей глитч-эффекта (roadmap, "Видение приложения", п.11 — довесок к анимации
          включения) — последний ребёнок root, перекрывает вообще всё (заставку и основной

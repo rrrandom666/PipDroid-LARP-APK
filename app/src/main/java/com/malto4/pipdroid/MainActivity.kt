@@ -366,9 +366,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var lastY = 0f
 
     /***********************************************************************************************************
-     * TUTORIAL
+     * DISCLAIMER
      **********************************************************************************************************/
-    private var tutorialPage = 0
     private var showTutorialBool = true
 
     /***********************************************************************************************************
@@ -1336,6 +1335,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         button.backgroundTintList = ColorStateList.valueOf(accent)
         button.setBackgroundResource(R.drawable.pip_wizard_button_bg_disabled)
         button.setTextColor(ColorUtils.setAlphaComponent(accent, 0x4D))
+    }
+    /**
+     * Кнопки в вертикальном столбце (wrap_content каждая) иначе "скачут" по ширине вслед
+     * за длиной своего текста/локали — измеряем натуральную ширину каждой (без реального
+     * layout-прохода, unspecified spec) и растягиваем все под самую широкую.
+     */
+    private fun equalizeButtonWidths(vararg buttons: Button) {
+        val widest = buttons.maxOf {
+            it.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+            it.measuredWidth
+        }
+        buttons.forEach { it.layoutParams = it.layoutParams.apply { width = widest } }
     }
     /**
      * Раньше была локальной функцией внутри setupModeSelectScreen() — вынесена в метод,
@@ -3874,163 +3885,43 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
 
         /***********************************************************************************************************
-         * TUTORIAL
+         * DISCLAIMER (переиспользует старый Welcome-экран Tutorial — см. roadmap
+         * "Дисклеймер при запуске — UX-спецификация". Остальные страницы тьюториала
+         * (Whatsnew/Stats/Items/Data/Settings) остаются в разметке нетронутыми про запас
+         * (roadmap п.20), сейчас не подключены — показывается только Welcome/Disclaimer.
          **********************************************************************************************************/
-        if(sharedPreferences.getBoolean("ShowTutorial", true)){
-            bindingMain.constraintlayoutMain.visibility = View.GONE
+        if (sharedPreferences.getBoolean("ShowTutorial", true)) {
             bindingMain.constraintlayoutTutorial.visibility = View.VISIBLE
         } else {
-            bindingMain.constraintlayoutMain.visibility = View.VISIBLE
             bindingMain.constraintlayoutTutorial.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabTutorialBase.btnTutorialClose.setOnClickListener{
-            bindingMain.constraintlayoutMain.visibility = View.VISIBLE
-            bindingMain.constraintlayoutTutorial.visibility = View.GONE
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.tvTutorialWelcome.setTextColor(currentWizardAccentColor())
+        setWizardButtonState(bindingMain.incLayoutTabTutorialBase.btnTutorialClose, selected = false)
+        equalizeButtonWidths(
+            bindingMain.incLayoutTabTutorialBase.btnNextpage,
+            bindingMain.incLayoutTabTutorialBase.btnTutorialClose
+        )
+
+        // [Далее] — визуально задизейблен тем же приёмом, что и [Выбрать] для PipBoy 3000
+        // в мод-селекте: кнопка остаётся кликабельной (не android:enabled=false), но по
+        // клику ничего не делает, кроме звука ошибки. Задел под будущий многостраничный
+        // тьюториал (roadmap п.20) — сейчас у экрана фактически одна страница.
+        setWizardButtonDisabled(bindingMain.incLayoutTabTutorialBase.btnNextpage)
+        bindingMain.incLayoutTabTutorialBase.btnNextpage.setOnClickListener {
+            playErrorAudio()
         }
-        bindingMain.incLayoutTabTutorialBase.btnTutorialWelcomeSave.setOnClickListener{
-            showTutorialBool = bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.isChecked()
+
+        bindingMain.incLayoutTabTutorialBase.btnTutorialClose.setOnClickListener {
+            playNewTabSelectAudio()
+            // Чекбокс на этом экране инвертирован относительно чекбокса в Settings
+            // ("Больше не показывать" вместо "Показывать обучение при запуске") — оба
+            // читают/пишут один и тот же ключ ShowTutorial, поэтому mirror isChecked()
+            // напрямую нельзя, см. roadmap "Дисклеймер при запуске — UX-спецификация".
+            showTutorialBool = !bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.isChecked()
             sharedPreferences.edit().putBoolean("ShowTutorial", showTutorialBool).apply()
-            bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
-            playCNDSelectAudio()
-        }
-
-        bindingMain.incLayoutTabTutorialBase.btnNextpage.setOnClickListener{
-            if(tutorialPage < 6) {
-                tutorialPage++
-                playCNDSelectAudio()
-            }
-            when(tutorialPage){
-                0 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(false)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                1 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                2 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                3 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                4 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                5 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(false)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.VISIBLE
-                }
-            }
-        }
-        bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setOnClickListener{
-            if(tutorialPage > 0) {
-                tutorialPage--
-                playCNDSelectAudio()
-            }
-            when(tutorialPage){
-                0 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(false)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                1 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                2 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                3 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                4 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.GONE
-                }
-                5 -> {
-                    bindingMain.incLayoutTabTutorialBase.btnPreviouspage.setEnabled(true)
-                    bindingMain.incLayoutTabTutorialBase.btnNextpage.setEnabled(false)
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.root.visibility = View.GONE
-                    bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.root.visibility = View.VISIBLE
-
-                }
-            }
+            bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings.setChecked(showTutorialBool)
+            bindingMain.constraintlayoutTutorial.visibility = View.GONE
         }
 
 
@@ -5315,7 +5206,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
             editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
             editSettingsYear.setText((sharedPreferences.getInt(gameYear_SPKey, 2276)).toString())
-            bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
+            // cboxTutorialWelcome ("Больше не показывать") инвертирован относительно
+            // editSettings6/ShowTutorial ("Показывать обучение при запуске") — см.
+            // roadmap "Дисклеймер при запуске — UX-спецификация".
+            bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.setChecked(!sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings6.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings7.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
             refreshModeSettingsLabel()

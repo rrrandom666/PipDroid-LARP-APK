@@ -257,29 +257,9 @@ strings.xml:settings_UI_Colour_1,values/strings.xml,settings_UI_Colour_1,Green,�
 strings.xml:settings_UI_Colour_2,values/strings.xml,settings_UI_Colour_2,Amber,готово,Янтарный,,
 strings.xml:settings_UI_Colour_3,values/strings.xml,settings_UI_Colour_3,White,готово,Белый,,
 strings.xml:settings_UI_Colour_4,values/strings.xml,settings_UI_Colour_4,Blue,готово,Синий,,
-strings.xml:next,values/strings.xml,next,"""NEXT""",готово,"""ДАЛЕЕ""",,
-strings.xml:previous,values/strings.xml,previous,"""PREV""",готово,"""НАЗАД""",,
-strings.xml:tutorial_welcome,values/strings.xml,tutorial_welcome,"""----- Welcome to PipDroid! -----
-
-PipDroid is a fan-made, unofficial APP that allows users to live their dream of owning their own PipBoy 3000 MK III.
-
-- COSPLAY YOUR FALLOUT CHARACTER
-Configure your Player name and Level, along with your S.P.E.C.I.A.L. and Skills levels, to represent your play-style.
-
-- CUSTOMIZE THE INTERFACE TO YOUR LIKING
-PipDroid comes in all 4 original colours of PipBoy interface as the Fallout 3 and Fallout New Vegas games. Choose between Green, Amber, White and Blue
-
-- ITEMS
-Look through Weapons, Apparel, Aid, Misc and Ammo to see different items from the Games
-
-- LOCAL AND WORLD MAP
-Use the Local Map to check out the Earth Map through the PipDroid interface. With the World Map, check out locations from both Fallout 3 and Fallout New Vegas
-
-- WASTELAND RADIO
-Listen to wasteland radio stations like Galaxy News Radio, Enclave Radio and New Vegas Radio, or connect to your own Custom Radio, and listen to music from your phone
-
-Check out all PipDroid can do on YouTube - ""PipDroid | Functional Pip-Boy Android APP"" (by MrMalto4)
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+strings.xml:disclaimer_skip_button,values/strings.xml,disclaimer_skip_button,Skip,готово,Пропустить,,
+strings.xml:disclaimer_dont_show_again,values/strings.xml,disclaimer_dont_show_again,Don't show again,готово,Больше не показывать,,
+strings.xml:disclaimer_text,values/strings.xml,disclaimer_text,"PipDroid LARP is a non-commercial fan project inspired by the Fallout universe, created for LARP use, based on PipDroid by Malto4. It is not affiliated with, endorsed by, or connected to Bethesda Softworks or any official rights holders. All Fallout-related trademarks and intellectual property belong to their respective owners. This application is distributed free of charge, without commercial intent.",готово,"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели.",,бывший tutorial_welcome — экран переделан в дисклеймер (roadmap, 'Дисклеймер при запуске')
 strings.xml:tutorial_whatsnew1,values/strings.xml,tutorial_whatsnew1,"""----- Whats New with PipDroid v2.0.12 -----
 
 - IMPLEMENTED TUTORIAL SCREEN
@@ -508,7 +488,6 @@ strings.xml:bluetooth_field_write_uuid,values/strings.xml,bluetooth_field_write_
 strings.xml:action_save,values/strings.xml,action_save,Save,готово,Сохранить,,
 strings.xml:bluetooth_connect_button,values/strings.xml,bluetooth_connect_button,Connect,готово,Подключить,,
 strings.xml:bluetooth_disconnect_button,values/strings.xml,bluetooth_disconnect_button,Disconnect,готово,Отключить,,
-strings.xml:tutorial_close_button,values/strings.xml,tutorial_close_button,Close,готово,Закрыть,,
 strings.xml:settings_show_tutorial_at_start,values/strings.xml,settings_show_tutorial_at_start,Show Tutorial at Start,готово,Показывать обучение при запуске,,
 strings.xml:action_save,values/strings.xml,action_save,Save,готово,Сохранить,,
 strings.xml:recycler_list_header,values/strings.xml,recycler_list_header,LIST,готово,СПИСОК,,"контекст использования не проверял, похоже на служебный дефолт RecyclerView"

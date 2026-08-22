@@ -20,10 +20,17 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.ColorFilter
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -38,6 +45,7 @@ import android.os.Handler
 import android.os.ParcelUuid
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.GestureDetector
@@ -46,6 +54,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.Animation
+import android.view.animation.LinearInterpolator
 import android.view.animation.TranslateAnimation
 import android.widget.Button
 import android.widget.CheckBox
@@ -180,6 +189,66 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // "быстрая отладка логики экранов"). См. registerDebugCommandReceiver().
         private const val ACTION_DEBUG_BLE_COMMAND = "com.malto4.pipdroid.DEBUG_BLE_COMMAND"
         private const val EXTRA_DEBUG_BLE_RAW = "raw"
+
+        // Анимация включения (roadmap, "Видение приложения", п.11). См. playBootSequence().
+        private const val BOOT_FRAME_LOGO_DURATION_MS = 2500L
+        private const val BOOT_FRAME_CODEWALL_DURATION_MS = 2000L
+        private const val BOOT_TERMINAL_CHAR_DELAY_MS = 30L
+        private const val BOOT_TERMINAL_END_HOLD_MS = 600L
+        private const val BOOT_CURSOR_CHAR = "█" // █ — блочный курсор кадра 3
+        // Флейвор-текст "стены кода" — общий терминальный лор загрузки, не привязан ни
+        // к конкретному приложению-компаньону, ни к вселенной Fallout специально (см.
+        // обсуждение визуальной дистанции от Bethesda, CLAUDE.md). Один блок повторяется
+        // много раз, чтобы гарантировать высоту текста намного больше экрана при любом
+        // размере шрифта/дисплея — иначе скролл кончится раньше, чем экран проскроллит.
+        private const val BOOT_CODEWALL_BLOCK = "* 1 0 0x0000A4 0x0000000000000000 start memory discovery\n" +
+            "0 0x0000A4 0x0000000000000000 1 0 0x000014 0x0000000000000000 CPU0 starting cell\n" +
+            "relocation0 0x0000A4 0x0000000000000000 1 0 0x000009 0x0000000000000000\n" +
+            "CPU0 launch EFI0 0x0000A4 0x0000000000000000 1 0 0x000009 0x00000000000E003D\n" +
+            "CPU0 starting EFI0 0x0000A4 0x0000000000000000 1 0 0x0000A4 0x0000000000000000\n"
+        private val BOOT_CODEWALL_TEXT = BOOT_CODEWALL_BLOCK.repeat(24)
+        // Общий баннер PIP-OS — шапка и загрузочного, и выключающего терминала (см.
+        // SHUTDOWN_HEADER_PREFIX ниже), не дублируется отдельной строкой на каждый случай.
+        private const val PIP_OS_BANNER = "**************** PIP-OS(R) V7.1.0.8 ****************"
+        // Терминальная печать кадра 3 — общий узнаваемый ROBCO/PIP-OS boot-текст,
+        // разлитый по всей серии игр Fallout (не решение конкретно приложения-компаньона
+        // Bethesda) — год и "DEITRIX 303" сознательно оставлены как флейвор, не завязаны
+        // на игровой год/имя игрока из Settings (см. обсуждение спеки).
+        private const val BOOT_TERMINAL_TEXT = PIP_OS_BANNER + "\n\n" +
+            "COPYRIGHT 2075 ROBCO(R)\n" +
+            "LOADER V1.1\n" +
+            "EXEC VERSION 41.10\n" +
+            "64k RAM SYSTEM\n" +
+            "38911 BYTES FREE\n" +
+            "NO HOLOTAPE FOUND\n" +
+            "LOAD ROM(1): DEITRIX 303"
+
+        // Глитч-эффект — короткие импульсы искажения в случайных точках всей заставки,
+        // плюс фоновый режим на всё время работы PipBoy после загрузки (см.
+        // startContinuousGlitch()) и во время "остаёмся на экране" в начале выключения.
+        // См. scheduleGlitchPulses()/triggerGlitchPulse().
+        private const val BOOT_GLITCH_MIN_PULSES = 5
+        private const val BOOT_GLITCH_MAX_PULSES = 8
+        private const val POST_BOOT_GLITCH_MIN_PULSES = 4
+        private const val POST_BOOT_GLITCH_MAX_PULSES = 6
+        private const val GLITCH_PULSE_MIN_MS = 60
+        private const val GLITCH_PULSE_MAX_MS = 150
+        // Интервал между импульсами в фоновом режиме (startContinuousGlitch()) — заметно
+        // реже, чем во время самой заставки, иначе это будет мешать игре, а не быть
+        // фоновой деталью экрана.
+        private const val AMBIENT_GLITCH_MIN_INTERVAL_MS = 4000
+        private const val AMBIENT_GLITCH_MAX_INTERVAL_MS = 12000
+
+        // Анимация выключения (roadmap, "Видение приложения", п.11 — довесок). См.
+        // playShutdownSequence(). Тайминги/пулы глитча переиспользуют константы выше —
+        // окно по длительности близко к POST_BOOT_GLITCH_*, отдельных не заводим.
+        private const val SHUTDOWN_STAY_DURATION_MS = 2000L
+        private const val SHUTDOWN_FADE_TO_BLACK_MS = 500L
+        private const val SHUTDOWN_FINAL_FADE_MS = 500L
+        private val SHUTDOWN_HEADER_PREFIX = "$PIP_OS_BANNER\n\n"
+        private const val SHUTDOWN_BODY_TEXT = "STOPPING ALL PROCESSES...\n" +
+            "DUMPING MEMORY...\n" +
+            "DISCONNECTING..."
     }
 
     /***********************************************************************************************************
@@ -1389,11 +1458,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 stopBleService()
                 menuChangeBLE("STATS")
                 menuNavigator.resetToRoot(statsMenuRoot())
+                // Телефонный режим не проходит через POWER/applyPowerState() (нет ни
+                // ESP32, ни самой загрузки) — фоновый глитч иначе никогда бы не
+                // запустился. cancelBootSequence() на всякий случай гасит чужую цепочку,
+                // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
+                cancelBootSequence()
+                startContinuousGlitch()
             }
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
                 // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
                 // конфигурация внешнего железа появится отдельно (roadmap, видение).
-                applyPowerState(false) // безопасный дефолт OFF, пока не пришёл первый POWER
+                setPowerOffInstant() // безопасный дефолт OFF, пока не пришёл первый POWER
                 bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
                 showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
             }
@@ -1932,23 +2007,37 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * INTERFACE CHANGES
      **********************************************************************************************************/
     /**
+     * Мгновенный "выключенный" вид без звука/анимации — безопасный дефолт при входе в
+     * мастер PipBoy 2000/3000 (selectPipBoyMode()), до того как реально пришёл первый
+     * POWER. Не то же самое, что applyPowerState(false) ниже — та воспроизводит полную
+     * театральную анимацию выключения (roadmap, "Видение приложения", п.11), уместную
+     * только в ответ на реальный POWER:0/debug-инъекцию, а не на служебную подготовку
+     * экрана мастера (баг: до разделения этих двух функций анимация выключения ошибочно
+     * запускалась при заходе в мастер).
+     */
+    private fun setPowerOffInstant() {
+        cancelBootSequence()
+        val overlay = bindingMain.viewPowerOff
+        overlay.animate().cancel()
+        overlay.alpha = 1f
+        overlay.visibility = View.VISIBLE
+    }
+
+    /**
      * État-машина экрана PipBoy (протокол, раздел 3.1): OFF (чёрный экран) <-> ON.
      * ESP32 — хозяин состояния, применяем как есть, не тумблерим локально. Стартовое
      * состояние экрана — OFF (view_power_off видим по умолчанию в разметке), пока не
      * пришёл первый POWER от ESP32.
      *
-     * Анимация здесь — намеренно минимальная заглушка (fade), не хореография загрузки
-     * настоящего Pip-Boy — это отдельная задача для дизайна позже.
+     * Вызывается только из реального разбора команды POWER (handleBleCommand()) — полная
+     * театральная анимация в обе стороны (playBootSequence()/playShutdownSequence(),
+     * roadmap "Видение приложения", п.11), не мгновенная служебная заглушка (см.
+     * setPowerOffInstant() выше, для входа в мастер).
      */
     private fun applyPowerState(on: Boolean) {
-        val overlay = bindingMain.viewPowerOff
         if (on) {
-            overlay.animate().cancel()
-            overlay.alpha = 1f
-            overlay.visibility = View.VISIBLE
-            overlay.animate().alpha(0f).setDuration(400).withEndAction {
-                overlay.visibility = View.GONE
-            }.start()
+            cancelBootSequence()
+            playBootSequence()
             // Мастер настройки PipBoy 2000/3000 больше не нужен — POWER реально пришёл.
             bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
             // Пока шли Permissions/подсказка про POWER, окно было временно fullscreen (не
@@ -1956,11 +2045,370 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             // применяем реально настроенную на шаге DISPLAY AREA область для игры.
             loadViewState()
         } else {
-            overlay.animate().cancel()
-            overlay.alpha = 1f
-            overlay.visibility = View.VISIBLE
+            cancelBootSequence()
+            playShutdownSequence()
         }
     }
+
+    /***********************************************************************************************************
+     * BOOT SEQUENCE (roadmap, "Видение приложения", п.11)
+     **********************************************************************************************************/
+    private var bootSoundPlayer: MediaPlayer? = null
+    // Токен для handler.postAtTime()/removeCallbacksAndMessages() — позволяет оборвать
+    // именно шаги анимации загрузки, не трогая остальные отложенные задачи на том же
+    // общем handler (скан пейринга и т.п.).
+    private val bootSequenceToken = Any()
+
+    private fun bootPostDelayed(delayMs: Long, action: () -> Unit) {
+        handler.postAtTime(Runnable { action() }, bootSequenceToken, SystemClock.uptimeMillis() + delayMs)
+    }
+
+    /** Кадр 1 -> кадр 2 -> кадр 3 -> основной интерфейс. Реальный ESP32 (POWER:1) и
+     * debug-инъекция (dev-tools/ble_key_sim.py, клавиша 'p') ведут сюда одинаково. */
+    private fun playBootSequence() {
+        playBootSwitchSound()
+        val boot = bindingMain.incLayoutBootSequence
+        val accent = currentWizardAccentColor()
+        // Лого кадра 1 — PNG с альфа-маской (ImageView.tint), своей раскраски кодом не
+        // требует, см. layout_boot_sequence.xml.
+        boot.tvBootCodewall.setTextColor(accent)
+        boot.tvBootTerminal.setTextColor(accent)
+
+        bindingMain.viewPowerOff.visibility = View.GONE
+        boot.root.visibility = View.VISIBLE
+        boot.layoutBootFrameLogo.visibility = View.VISIBLE
+        boot.layoutBootFrameCodewall.visibility = View.GONE
+        boot.layoutBootFrameTerminal.visibility = View.GONE
+
+        bootPostDelayed(BOOT_FRAME_LOGO_DURATION_MS) { startBootCodewall() }
+        scheduleGlitchPulses(bootTotalDurationMs, BOOT_GLITCH_MIN_PULSES..BOOT_GLITCH_MAX_PULSES)
+    }
+
+    /** Суммарная длительность всей заставки (кадр 1 + 2 + печать кадра 3 + пауза на
+     * блочном курсоре) — считается, а не хардкодится отдельной константой, чтобы не
+     * разъезжаться с реальным временем печати при правке BOOT_TERMINAL_TEXT. */
+    private val bootTotalDurationMs: Long
+        get() = BOOT_FRAME_LOGO_DURATION_MS + BOOT_FRAME_CODEWALL_DURATION_MS +
+            BOOT_TERMINAL_TEXT.length * BOOT_TERMINAL_CHAR_DELAY_MS + BOOT_TERMINAL_END_HOLD_MS
+
+    private fun startBootCodewall() {
+        val boot = bindingMain.incLayoutBootSequence
+        boot.layoutBootFrameLogo.visibility = View.GONE
+        boot.layoutBootFrameCodewall.visibility = View.VISIBLE
+        boot.tvBootCodewall.text = BOOT_CODEWALL_TEXT
+        startBootSound()
+
+        // Ждём прохода layout, чтобы знать реальную высоту кадра/текста на этом экране,
+        // а не гадать заранее — экраны PipBoy 2000/3000 настраиваются по-разному
+        // (см. шаг DISPLAY AREA мастера).
+        boot.tvBootCodewall.post {
+            val frameHeight = boot.layoutBootFrameCodewall.height.toFloat()
+            val textHeight = boot.tvBootCodewall.height.toFloat()
+            boot.tvBootCodewall.translationY = frameHeight
+            boot.tvBootCodewall.animate()
+                .translationY(-textHeight)
+                .setDuration(BOOT_FRAME_CODEWALL_DURATION_MS)
+                .setInterpolator(LinearInterpolator())
+                .start()
+        }
+
+        bootPostDelayed(BOOT_FRAME_CODEWALL_DURATION_MS) { startBootTerminal() }
+    }
+
+    private fun startBootTerminal() {
+        val boot = bindingMain.incLayoutBootSequence
+        boot.tvBootCodewall.animate().cancel()
+        boot.layoutBootFrameCodewall.visibility = View.GONE
+        boot.layoutBootFrameTerminal.visibility = View.VISIBLE
+        typeTerminalText("", BOOT_TERMINAL_TEXT, 0, boot.tvBootTerminal) {
+            bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishBootSequence() }
+        }
+    }
+
+    /** Посимвольная печать с блочным курсором — курсор всегда сразу за последним
+     * напечатанным символом, включая перевод строки как обычный "символ" темпа печати.
+     * [prefix] выводится целиком сразу, без анимации (шапка терминала выключения — тот
+     * же приём, что и полностью типизированный [BOOT_TERMINAL_TEXT] для загрузки, где
+     * [prefix] пустой), печатается только [body]. [onDone] — что делать после того, как
+     * курсор допечатал последний символ. */
+    private fun typeTerminalText(prefix: String, body: String, charIndex: Int, tv: TextView, onDone: () -> Unit) {
+        if (charIndex >= body.length) {
+            tv.text = prefix + body + BOOT_CURSOR_CHAR
+            onDone()
+            return
+        }
+        tv.text = prefix + body.substring(0, charIndex + 1) + BOOT_CURSOR_CHAR
+        bootPostDelayed(BOOT_TERMINAL_CHAR_DELAY_MS) { typeTerminalText(prefix, body, charIndex + 1, tv, onDone) }
+    }
+
+    private fun startBootSound() {
+        bootSoundPlayer?.release()
+        bootSoundPlayer = MediaPlayer.create(this, R.raw.boot_typing_click)?.apply {
+            isLooping = true
+            start()
+        }
+    }
+
+    private fun stopBootSound() {
+        bootSoundPlayer?.let { player ->
+            try {
+                if (player.isPlaying) player.stop()
+            } catch (e: IllegalStateException) {
+                Log.w("BootSequence", "MediaPlayer уже был в неподходящем состоянии для stop()", e)
+            }
+            player.release()
+        }
+        bootSoundPlayer = null
+    }
+
+    private var bootSwitchSoundPlayer: MediaPlayer? = null
+
+    /** Одноразовый звук POWER:1 (симметрично playShutdownSwitchSound() ниже) — сам себя
+     * освобождает по завершении, не зацикленный. */
+    private fun playBootSwitchSound() {
+        bootSwitchSoundPlayer?.release()
+        bootSwitchSoundPlayer = MediaPlayer.create(this, R.raw.ui_switch_on)?.apply {
+            setOnCompletionListener {
+                it.release()
+                bootSwitchSoundPlayer = null
+            }
+            start()
+        }
+    }
+
+    private fun stopBootSwitchSound() {
+        bootSwitchSoundPlayer?.release()
+        bootSwitchSoundPlayer = null
+    }
+
+    private fun finishBootSequence() {
+        stopBootSound()
+        bindingMain.incLayoutBootSequence.root.visibility = View.GONE
+        // Глитч больше не ограничен коротким окном после загрузки — фоновый эффект на
+        // всё время, пока PipBoy включён, см. startContinuousGlitch().
+        startContinuousGlitch()
+    }
+
+    /** Обрывает анимацию (загрузки или выключения) на любом шаге — повторный POWER
+     * (вкл. debug-инъекцию) посреди воспроизведения не должен оставлять звук/отложенные
+     * шаги/недоигранные fade-анимации висеть. Не проставляет конкретные alpha/visibility
+     * у view_power_off — эту часть стартового состояния каждый раз явно готовит тот play*,
+     * который запускается сразу следом (playBootSequence()/playShutdownSequence()). */
+    private fun cancelBootSequence() {
+        handler.removeCallbacksAndMessages(bootSequenceToken)
+        val boot = bindingMain.incLayoutBootSequence
+        boot.tvBootCodewall.animate().cancel()
+        boot.root.animate().cancel()
+        boot.root.alpha = 1f
+        bindingMain.viewPowerOff.animate().cancel()
+        stopBootSound()
+        stopBootSwitchSound()
+        stopShutdownSwitchSound()
+        boot.root.visibility = View.GONE
+        bindingMain.ivGlitchOverlay.visibility = View.GONE
+        bindingMain.ivGlitchOverlay.setImageDrawable(null)
+    }
+
+    /***********************************************************************************************************
+     * SHUTDOWN SEQUENCE (roadmap, "Видение приложения", п.11 — довесок к анимации включения)
+     **********************************************************************************************************/
+    private var shutdownSwitchSoundPlayer: MediaPlayer? = null
+
+    /** Шаг 1-2 спеки: звук щелчка выключения сразу, затем ~2с остаёмся на текущем экране
+     * (что бы на нём сейчас ни было) с обычными импульсами глитча — тот же
+     * scheduleGlitchPulses(), что и во время/после загрузки. */
+    private fun playShutdownSequence() {
+        playShutdownSwitchSound()
+        scheduleGlitchPulses(SHUTDOWN_STAY_DURATION_MS, POST_BOOT_GLITCH_MIN_PULSES..POST_BOOT_GLITCH_MAX_PULSES)
+        bootPostDelayed(SHUTDOWN_STAY_DURATION_MS) { fadeToShutdownTerminal() }
+    }
+
+    private fun playShutdownSwitchSound() {
+        shutdownSwitchSoundPlayer?.release()
+        shutdownSwitchSoundPlayer = MediaPlayer.create(this, R.raw.ui_switch_off)?.apply {
+            setOnCompletionListener {
+                it.release()
+                shutdownSwitchSoundPlayer = null
+            }
+            start()
+        }
+    }
+
+    private fun stopShutdownSwitchSound() {
+        shutdownSwitchSoundPlayer?.release()
+        shutdownSwitchSoundPlayer = null
+    }
+
+    /** Шаг 3 спеки — текущий (уже глючащий) экран гаснет в чёрное через view_power_off,
+     * и только когда фон полностью чёрный, поверх него появляется терминал выключения —
+     * тот же чёрный фон, что и в обычном OFF, просто с задержкой на fade вместо мгновенной
+     * смены. */
+    private fun fadeToShutdownTerminal() {
+        val overlay = bindingMain.viewPowerOff
+        overlay.animate().cancel()
+        overlay.alpha = 0f
+        overlay.visibility = View.VISIBLE
+        overlay.animate()
+            .alpha(1f)
+            .setDuration(SHUTDOWN_FADE_TO_BLACK_MS)
+            .withEndAction { startShutdownTerminal() }
+            .start()
+    }
+
+    /** Шаг 4 спеки — шапка PIP-OS выводится сразу (без анимации печати, [prefix] у
+     * typeTerminalText()), тело печатается посимвольно под "Clicking" (тот же
+     * bootSoundPlayer/startBootSound(), что и у стены кода/терминала загрузки). */
+    private fun startShutdownTerminal() {
+        val boot = bindingMain.incLayoutBootSequence
+        boot.tvBootTerminal.setTextColor(currentWizardAccentColor())
+        boot.root.alpha = 1f
+        boot.root.visibility = View.VISIBLE
+        boot.layoutBootFrameLogo.visibility = View.GONE
+        boot.layoutBootFrameCodewall.visibility = View.GONE
+        boot.layoutBootFrameTerminal.visibility = View.VISIBLE
+
+        startBootSound()
+        typeTerminalText(SHUTDOWN_HEADER_PREFIX, SHUTDOWN_BODY_TEXT, 0, boot.tvBootTerminal) {
+            stopBootSound()
+            bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishShutdownSequence() }
+        }
+    }
+
+    /** Шаг 5 спеки — терминал выключения гаснет (fade самого layout_boot_sequence, фон под
+     * ним уже сплошной чёрный view_power_off из шага 3), оставляя обычное состояние OFF. */
+    private fun finishShutdownSequence() {
+        val boot = bindingMain.incLayoutBootSequence
+        boot.root.animate()
+            .alpha(0f)
+            .setDuration(SHUTDOWN_FINAL_FADE_MS)
+            .withEndAction {
+                boot.root.visibility = View.GONE
+                boot.root.alpha = 1f
+            }
+            .start()
+    }
+
+    /***********************************************************************************************************
+     * GLITCH EFFECT — довесок к анимации включения (roadmap, "Видение приложения", п.11)
+     **********************************************************************************************************/
+    private val glitchRandom = Random()
+    private fun glitchRandomInt(minInclusive: Int, maxExclusive: Int): Int =
+        minInclusive + glitchRandom.nextInt(maxExclusive - minInclusive)
+
+    // Матрицы для хроматической аберрации — оставляют только один канал, остальные
+    // обнуляют (альфа не трогается), см. buildGlitchBitmap().
+    private val glitchRedChannelMatrix = ColorMatrix(floatArrayOf(
+        1f, 0f, 0f, 0f, 0f,
+        0f, 0f, 0f, 0f, 0f,
+        0f, 0f, 0f, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f
+    ))
+    private val glitchBlueChannelMatrix = ColorMatrix(floatArrayOf(
+        0f, 0f, 0f, 0f, 0f,
+        0f, 0f, 0f, 0f, 0f,
+        0f, 0f, 1f, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f
+    ))
+
+    /** Раскидывает случайное число коротких импульсов глитча по случайным моментам
+     * внутри окна [windowDurationMs] — используется во время всей заставки и во время
+     * "остаёмся на текущем экране" в начале выключения. Живёт на том же bootSequenceToken,
+     * что и остальная анимация — cancelBootSequence() обрывает и это. */
+    private fun scheduleGlitchPulses(windowDurationMs: Long, pulseCountRange: IntRange) {
+        val count = glitchRandomInt(pulseCountRange.first, pulseCountRange.last + 1)
+        val latestStart = (windowDurationMs - GLITCH_PULSE_MAX_MS).coerceAtLeast(1L).toInt()
+        repeat(count) {
+            val triggerAt = glitchRandomInt(0, latestStart).toLong()
+            bootPostDelayed(triggerAt) { triggerGlitchPulse() }
+        }
+    }
+
+    /** Фоновый глитч на всё время, пока PipBoy включён (не ограничен коротким окном после
+     * загрузки) — самоподдерживающаяся цепочка: каждый импульс сам планирует следующий
+     * через случайный интервал. Живёт на том же bootSequenceToken — POWER в любую сторону
+     * (реальный или debug) рвёт цепочку через cancelBootSequence() естественным образом,
+     * т.к. следующее звено просто не будет вызвано. Отдельной stopContinuousGlitch() не
+     * требуется. */
+    private fun startContinuousGlitch() {
+        val delay = glitchRandomInt(AMBIENT_GLITCH_MIN_INTERVAL_MS, AMBIENT_GLITCH_MAX_INTERVAL_MS).toLong()
+        bootPostDelayed(delay) {
+            triggerGlitchPulse()
+            startContinuousGlitch()
+        }
+    }
+
+    /** Один импульс: снимок текущего экрана (что бы на нём сейчас ни было — заставка или
+     * уже основной интерфейс) -> та же картинка с полосным сдвигом/аберрацией -> короткий
+     * показ поверх всего -> назад к нормальному, неискажённому виду. */
+    private fun triggerGlitchPulse() {
+        val root = bindingMain.root
+        if (root.width <= 0 || root.height <= 0) return
+        val snapshot = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        root.draw(Canvas(snapshot))
+        val glitched = buildGlitchBitmap(snapshot)
+        snapshot.recycle()
+
+        val overlay = bindingMain.ivGlitchOverlay
+        // Тема прописывает android:tint в дефолтном стиле ImageView (styles.xml) — годится
+        // для монохромных иконок-силуэтов (см. CLAUDE.md, тематизация), но тут ImageView
+        // показывает полноцветный снимок экрана: SRC_IN-тинт иначе заливал бы весь кадр
+        // сплошным цветом темы поверх любых реальных сдвигов полос.
+        overlay.imageTintList = null
+        overlay.setImageBitmap(glitched)
+        overlay.visibility = View.VISIBLE
+        val pulseDuration = glitchRandomInt(GLITCH_PULSE_MIN_MS, GLITCH_PULSE_MAX_MS).toLong()
+        bootPostDelayed(pulseDuration) {
+            overlay.visibility = View.GONE
+            overlay.setImageDrawable(null)
+            glitched.recycle()
+        }
+    }
+
+    /** Полосный сдвиг по случайным горизонтальным срезам + хроматическая аберрация на
+     * паре срезов — только Canvas.drawBitmap по прямоугольникам, без ручных пиксельных
+     * циклов, чтобы не подвисать при частых вызовах. */
+    private fun buildGlitchBitmap(source: Bitmap): Bitmap {
+        val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(result)
+        canvas.drawBitmap(source, 0f, 0f, null)
+
+        val bandCount = glitchRandomInt(7, 16)
+        val bandHeight = (source.height / bandCount).coerceAtLeast(1)
+        for (i in 0 until bandCount) {
+            if (glitchRandom.nextFloat() > 0.5f) continue
+            val top = i * bandHeight
+            val bottom = if (i == bandCount - 1) source.height else (top + bandHeight)
+            val offset = glitchRandomInt(-50, 50)
+            canvas.drawBitmap(
+                source,
+                Rect(0, top, source.width, bottom),
+                Rect(offset, top, source.width + offset, bottom),
+                null
+            )
+        }
+
+        repeat(glitchRandomInt(1, 4)) {
+            val bandH = glitchRandomInt(6, 26)
+            val top = glitchRandomInt(0, (source.height - bandH).coerceAtLeast(1))
+            val bottom = (top + bandH).coerceAtMost(source.height)
+            val shift = glitchRandomInt(8, 22)
+            val srcRect = Rect(0, top, source.width, bottom)
+
+            val redPaint = Paint().apply {
+                colorFilter = ColorMatrixColorFilter(glitchRedChannelMatrix)
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+            }
+            val bluePaint = Paint().apply {
+                colorFilter = ColorMatrixColorFilter(glitchBlueChannelMatrix)
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+            }
+            canvas.drawBitmap(source, srcRect, Rect(shift, top, source.width + shift, bottom), redPaint)
+            canvas.drawBitmap(source, srcRect, Rect(-shift, top, source.width - shift, bottom), bluePaint)
+        }
+
+        return result
+    }
+
     /**
      * Деревья меню для энкодера (roadmap, "Модель навигации энкодером"). [onSelect] у
      * каждого узла — `performClick()` на уже существующей touch-кнопке этого экрана, а не
@@ -5015,6 +5463,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     override fun onDestroy() {
         super.onDestroy()
         turnAllRadioOff()
+        cancelBootSequence()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
         // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся
         // только от локального биндинга, чтобы не утекала ссылка на Activity.

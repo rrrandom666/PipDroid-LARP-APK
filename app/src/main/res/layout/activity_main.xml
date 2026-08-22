@@ -292,6 +292,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Анимация включения (roadmap, "Видение приложения", п.11) — поверх view_power_off,
+         показывается на время playBootSequence() при реальном POWER:1, потом прячется
+         целиком, открывая уже готовый интерфейс под ней. -->
+    <include
+        android:id="@+id/inc_layout_boot_sequence"
+        layout="@layout/layout_boot_sequence"
+        android:visibility="gone" />
+
     <!-- Мастер настройки PipBoy 2000/3000 (roadmap, "Видение приложения"): регулировка
          рабочей области поверх тёмного экрана, потом подсказка про подключение железа.
          Видим только в режиме PipBoy, поверх view_power_off. -->
@@ -315,5 +323,19 @@
         android:id="@+id/inc_layout_tab_mode_select"
         layout="@layout/layout_tab_mode_select"
         android:visibility="visible" />
+
+    <!-- Оверлей глитч-эффекта (roadmap, "Видение приложения", п.11 — довесок к анимации
+         включения) — последний ребёнок root, перекрывает вообще всё (заставку и основной
+         интерфейс), пока идёт короткий импульс. См. MainActivity.triggerGlitchPulse(). -->
+    <ImageView
+        android:id="@+id/iv_glitch_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

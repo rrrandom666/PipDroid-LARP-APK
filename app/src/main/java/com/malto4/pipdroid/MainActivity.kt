@@ -2055,6 +2055,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /** Кадр 1 -> кадр 2 -> кадр 3 -> основной интерфейс. Реальный ESP32 (POWER:1) и
      * debug-инъекция (dev-tools/ble_key_sim.py, клавиша 'p') ведут сюда одинаково. */
     private fun playBootSequence() {
+        playBootSwitchSound()
         val boot = bindingMain.incLayoutBootSequence
         val accent = currentWizardAccentColor()
         // Лого кадра 1 — PNG с альфа-маской (ImageView.tint), своей раскраски кодом не
@@ -2149,6 +2150,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bootSoundPlayer = null
     }
 
+    private var bootSwitchSoundPlayer: MediaPlayer? = null
+
+    /** Одноразовый звук POWER:1 (симметрично playShutdownSwitchSound() ниже) — сам себя
+     * освобождает по завершении, не зацикленный. */
+    private fun playBootSwitchSound() {
+        bootSwitchSoundPlayer?.release()
+        bootSwitchSoundPlayer = MediaPlayer.create(this, R.raw.ui_switch_on)?.apply {
+            setOnCompletionListener {
+                it.release()
+                bootSwitchSoundPlayer = null
+            }
+            start()
+        }
+    }
+
+    private fun stopBootSwitchSound() {
+        bootSwitchSoundPlayer?.release()
+        bootSwitchSoundPlayer = null
+    }
+
     private fun finishBootSequence() {
         stopBootSound()
         bindingMain.incLayoutBootSequence.root.visibility = View.GONE
@@ -2170,6 +2191,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         boot.root.alpha = 1f
         bindingMain.viewPowerOff.animate().cancel()
         stopBootSound()
+        stopBootSwitchSound()
         stopShutdownSwitchSound()
         boot.root.visibility = View.GONE
         bindingMain.ivGlitchOverlay.visibility = View.GONE

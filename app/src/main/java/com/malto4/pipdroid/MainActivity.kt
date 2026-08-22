@@ -223,16 +223,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             "NO HOLOTAPE FOUND\n" +
             "LOAD ROM(1): DEITRIX 303"
 
-        // Глитч-эффект (довесок к анимации включения) — короткие импульсы искажения в
-        // случайных точках всей заставки, плюс отдельное окно поверх уже готового
-        // основного экрана сразу после POWER. См. scheduleGlitchPulses()/triggerGlitchPulse().
+        // Глитч-эффект — короткие импульсы искажения в случайных точках всей заставки,
+        // плюс фоновый режим на всё время работы PipBoy после загрузки (см.
+        // startContinuousGlitch()) и во время "остаёмся на экране" в начале выключения.
+        // См. scheduleGlitchPulses()/triggerGlitchPulse().
         private const val BOOT_GLITCH_MIN_PULSES = 5
         private const val BOOT_GLITCH_MAX_PULSES = 8
-        private const val POST_BOOT_GLITCH_WINDOW_MS = 2500L
         private const val POST_BOOT_GLITCH_MIN_PULSES = 4
         private const val POST_BOOT_GLITCH_MAX_PULSES = 6
         private const val GLITCH_PULSE_MIN_MS = 60
         private const val GLITCH_PULSE_MAX_MS = 150
+        // Интервал между импульсами в фоновом режиме (startContinuousGlitch()) — заметно
+        // реже, чем во время самой заставки, иначе это будет мешать игре, а не быть
+        // фоновой деталью экрана.
+        private const val AMBIENT_GLITCH_MIN_INTERVAL_MS = 4000
+        private const val AMBIENT_GLITCH_MAX_INTERVAL_MS = 12000
 
         // Анимация выключения (roadmap, "Видение приложения", п.11 — довесок). См.
         // playShutdownSequence(). Тайминги/пулы глитча переиспользуют константы выше —
@@ -1453,6 +1458,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 stopBleService()
                 menuChangeBLE("STATS")
                 menuNavigator.resetToRoot(statsMenuRoot())
+                // Телефонный режим не проходит через POWER/applyPowerState() (нет ни
+                // ESP32, ни самой загрузки) — фоновый глитч иначе никогда бы не
+                // запустился. cancelBootSequence() на всякий случай гасит чужую цепочку,
+                // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
+                cancelBootSequence()
+                startContinuousGlitch()
             }
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
                 // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
@@ -2173,9 +2184,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun finishBootSequence() {
         stopBootSound()
         bindingMain.incLayoutBootSequence.root.visibility = View.GONE
-        // Ещё немного "нестабильности" поверх уже готового основного экрана — тот же
-        // приём, что и во время заставки, отдельным более коротким окном.
-        scheduleGlitchPulses(POST_BOOT_GLITCH_WINDOW_MS, POST_BOOT_GLITCH_MIN_PULSES..POST_BOOT_GLITCH_MAX_PULSES)
+        // Глитч больше не ограничен коротким окном после загрузки — фоновый эффект на
+        // всё время, пока PipBoy включён, см. startContinuousGlitch().
+        startContinuousGlitch()
     }
 
     /** Обрывает анимацию (загрузки или выключения) на любом шаге — повторный POWER
@@ -2300,15 +2311,29 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     ))
 
     /** Раскидывает случайное число коротких импульсов глитча по случайным моментам
-     * внутри окна [windowDurationMs] — используется и во время всей заставки, и отдельным
-     * более коротким окном сразу после появления основного экрана. Живёт на том же
-     * bootSequenceToken, что и остальная анимация — cancelBootSequence() обрывает и это. */
+     * внутри окна [windowDurationMs] — используется во время всей заставки и во время
+     * "остаёмся на текущем экране" в начале выключения. Живёт на том же bootSequenceToken,
+     * что и остальная анимация — cancelBootSequence() обрывает и это. */
     private fun scheduleGlitchPulses(windowDurationMs: Long, pulseCountRange: IntRange) {
         val count = glitchRandomInt(pulseCountRange.first, pulseCountRange.last + 1)
         val latestStart = (windowDurationMs - GLITCH_PULSE_MAX_MS).coerceAtLeast(1L).toInt()
         repeat(count) {
             val triggerAt = glitchRandomInt(0, latestStart).toLong()
             bootPostDelayed(triggerAt) { triggerGlitchPulse() }
+        }
+    }
+
+    /** Фоновый глитч на всё время, пока PipBoy включён (не ограничен коротким окном после
+     * загрузки) — самоподдерживающаяся цепочка: каждый импульс сам планирует следующий
+     * через случайный интервал. Живёт на том же bootSequenceToken — POWER в любую сторону
+     * (реальный или debug) рвёт цепочку через cancelBootSequence() естественным образом,
+     * т.к. следующее звено просто не будет вызвано. Отдельной stopContinuousGlitch() не
+     * требуется. */
+    private fun startContinuousGlitch() {
+        val delay = glitchRandomInt(AMBIENT_GLITCH_MIN_INTERVAL_MS, AMBIENT_GLITCH_MAX_INTERVAL_MS).toLong()
+        bootPostDelayed(delay) {
+            triggerGlitchPulse()
+            startContinuousGlitch()
         }
     }
 

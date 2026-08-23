@@ -52,6 +52,7 @@
             android:id="@+id/recycler_mode_select"
             android:layout_width="0dp"
             android:layout_height="0dp"
+            android:layout_marginTop="16dp"
             android:fadeScrollbars="false"
             android:scrollbarAlwaysDrawVerticalTrack="true"
             android:scrollbarSize="3dp"
@@ -64,17 +65,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/img_mode_select_line_top" />
 
+        <!-- Фиксированная точка привязки кнопки [Выбрать] — не зависит от длины текста
+             описания (roadmap, "Косметические правки мастера" — было "скачет" вслед за
+             объёмом текста). -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline_mode_select_confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.6" />
+
         <!-- Высота — wrap_content, не растянута на всю колонку: конструкция
              top/bottom=линии рамки + вертикальный bias по умолчанию (0.5) центрирует блок
-             по высоте, как раньше был центрирован сам текст. Кнопка [Выбрать] теперь у
-             правого края и сразу под текстом, а не пришита к низу экрана (roadmap,
-             косметические правки — пункт 3). -->
+             по высоте, как раньше был центрирован сам текст. Горизонтально — по левому
+             краю (center по обеим осям путал бы с кнопкой у правого края). -->
         <TextView
             android:id="@+id/tv_mode_select_description"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:padding="24dp"
-            android:gravity="center"
+            android:gravity="center_vertical|start"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
             android:textSize="16sp"
@@ -91,7 +101,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginEnd="24dp"
             android:text="@string/mode_select_button"
-            app:layout_constraintTop_toBottomOf="@id/tv_mode_select_description"
+            app:layout_constraintTop_toBottomOf="@id/guideline_mode_select_confirm"
             app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

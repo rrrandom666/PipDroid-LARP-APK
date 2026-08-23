@@ -1496,6 +1496,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
     private fun showWizardStep(step: PipBoyWizardStep) {
         val w = bindingMain.incLayoutPipboy2000Wizard
+        // Рамка (тонкие линии) — только под шагами 2-5, не под подсказкой POWER: это
+        // чёрный экран состояния OFF, а не страница мастера (roadmap "Косметические
+        // правки мастера" — рамка не должна была затрагивать этот шаг вообще, но
+        // chrome_frame раньше не прятался и оставался виден поверх/позади него).
+        w.layoutWizardChromeFrame.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.GONE else View.VISIBLE
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
         w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
         w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE

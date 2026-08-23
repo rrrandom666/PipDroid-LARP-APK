@@ -69,6 +69,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -3395,6 +3397,20 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     // Hide the system UI (notification bar and navigation bar)
+    // Вырез экрана бывает только слева или справа (ориентация зафиксирована landscape,
+    // камера на короткой стороне устройства), и на разных устройствах — разной ширины
+    // или отсутствует вовсе. Читаем реальный отступ и дублируем его на противоположную
+    // сторону, чтобы декоративная 96%-рамка (шапка/футер, дисклеймер, мастер) оставалась
+    // симметричной независимо от конкретного телефона игрока (BYOD).
+    private fun mirrorDisplayCutoutInset(root: View) {
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val sideInset = maxOf(cutout.left, cutout.right)
+            view.setPadding(sideInset, view.paddingTop, sideInset, view.paddingBottom)
+            insets
+        }
+    }
+
     private fun hideSystemUI(){
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
@@ -3682,6 +3698,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain =  ActivityMainBinding.inflate(layoutInflater)
         val viewMain = bindingMain.root
         setContentView(viewMain)
+        mirrorDisplayCutoutInset(viewMain)
 
         //Load saved size and position
         loadViewState()

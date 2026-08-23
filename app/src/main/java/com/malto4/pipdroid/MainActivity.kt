@@ -342,11 +342,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         setupBluetooth()
     }
     private fun onRequiredPermissionsGranted() {
-        setupBluetooth()
-        // Если разрешения выдавались с шага PERMISSIONS мастера PipBoy 2000/3000 —
-        // сразу ведём дальше, к сопряжению с корпусом, не заставляя жать что-то ещё.
+        // Если разрешения выдавались с шага PERMISSIONS мастера — режим Телефон
+        // заканчивает флоу сразу (BLE-корпус не используется), PipBoy 2000/3000 ведёт
+        // дальше, к сопряжению с корпусом, не заставляя жать что-то ещё.
         val wizard = bindingMain.incLayoutPipboy2000Wizard
-        if (wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE) {
+        val fromWizardPermissions = wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE
+        if (fromWizardPermissions && pipBoyMode == PipBoyMode.PHONE) {
+            finishPhoneModeSetup()
+            return
+        }
+        setupBluetooth()
+        if (fromWizardPermissions) {
             showWizardStep(PipBoyWizardStep.PAIRING)
         }
     }
@@ -1186,21 +1192,24 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * BLUETOOTH
      **********************************************************************************************************/
-    private fun checkPermissions() {
-        val permissions = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-                add(Manifest.permission.BLUETOOTH_SCAN)
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-            } else {
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
+    /**
+     * Список разрешений зависит от режима (roadmap, "Косметические правки мастера" — экран
+     * PERMISSIONS раньше вообще не показывался в режиме Телефон, хотя геопозиция и
+     * уведомления нужны и там). Bluetooth (SCAN/CONNECT) — только для PipBoy 2000/3000,
+     * в Телефоне BLE-корпус не используется вовсе.
+     */
+    private fun requiredPermissionsForCurrentMode(): List<String> = buildList {
+        add(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (pipBoyMode != PipBoyMode.PHONE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            add(Manifest.permission.BLUETOOTH_SCAN)
+            add(Manifest.permission.BLUETOOTH_CONNECT)
         }
-
-        val permissionsToRequest = permissions.filter {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    private fun checkPermissions() {
+        val permissionsToRequest = requiredPermissionsForCurrentMode().filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
@@ -1210,7 +1219,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             // permissionRequestLauncher выше сразу после закрытия диалога.
             applyTemporaryFullScreenLayout()
             permissionRequestLauncher.launch(permissionsToRequest.toTypedArray())
-        } else {
+        } else if (pipBoyMode != PipBoyMode.PHONE) {
             setupBluetooth()
         }
     }
@@ -1289,6 +1298,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
      */
     private var modeSelectHighlighted = PipBoyMode.PHONE
+    private lateinit var modeSelectAdapter: ModeSelectAdapter
 
     /**
      * Акцентный цвет текущей темы оформления (playerUIColour_SPKey — тот же ключ, что и у
@@ -1362,11 +1372,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
             PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
         }
-        // Текущий выбранный режим — контур без заливки, остальные два — обычная
-        // сплошная заливка активной кнопки.
-        setWizardButtonState(ms.btnModeSelectPhone, selected = mode == PipBoyMode.PHONE)
-        setWizardButtonState(ms.btnModeSelectPipboy2000, selected = mode == PipBoyMode.PIPBOY_2000)
-        setWizardButtonState(ms.btnModeSelectPipboy3000, selected = mode == PipBoyMode.PIPBOY_3000)
+        // Подсветка выбранного пункта — тем же приёмом, что у списка Perks (RecyclerView,
+        // roadmap "Косметические правки мастера").
+        modeSelectAdapter.setSelectedMode(mode)
         // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание. Кнопка
         // остаётся кликабельной, чтобы поймать тап и проиграть звук ошибки.
         if (mode != PipBoyMode.PIPBOY_3000) {
@@ -1407,25 +1415,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
-        val modeButtons = listOf(ms.btnModeSelectPhone, ms.btnModeSelectPipboy2000, ms.btnModeSelectPipboy3000)
 
         // Текст описания — тоже акцентом текущей темы, не жёстко зелёным (смысл темы —
         // красить весь экран, не только кнопки, см. currentWizardAccentColor()).
         ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
 
-        showModeDescription(PipBoyMode.PHONE)
-        modeButtons.forEach { button ->
-            button.setOnClickListener {
-                playNewTabSelectAudio()
-                showModeDescription(
-                    when (button) {
-                        ms.btnModeSelectPhone -> PipBoyMode.PHONE
-                        ms.btnModeSelectPipboy2000 -> PipBoyMode.PIPBOY_2000
-                        else -> PipBoyMode.PIPBOY_3000
-                    }
-                )
-            }
+        // Список режимов — тот же паттерн, что у Perks (RecyclerView + описание справа,
+        // roadmap "Косметические правки мастера"), вместо трёх отдельных кнопок.
+        ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
+        modeSelectAdapter = ModeSelectAdapter(
+            modes = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000),
+            modeLabel = { pipBoyModeDisplayName(it) },
+            selectedButtonBackground = selected_button,
+            selectedMode = PipBoyMode.PHONE
+        ) { mode ->
+            playNewTabSelectAudio()
+            showModeDescription(mode)
         }
+        ms.recyclerModeSelect.adapter = modeSelectAdapter
+
+        showModeDescription(PipBoyMode.PHONE)
         ms.btnModeSelectConfirm.setOnClickListener {
             if (modeSelectHighlighted == PipBoyMode.PIPBOY_3000) {
                 playErrorAudio()
@@ -1463,18 +1472,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         when (mode) {
             PipBoyMode.PHONE -> {
-                resetToFullScreen()
-                bindingMain.viewPowerOff.animate().cancel()
-                bindingMain.viewPowerOff.visibility = View.GONE
-                stopBleService()
-                menuChangeBLE("STATS")
-                menuNavigator.resetToRoot(statsMenuRoot())
-                // Телефонный режим не проходит через POWER/applyPowerState() (нет ни
-                // ESP32, ни самой загрузки) — фоновый глитч иначе никогда бы не
-                // запустился. cancelBootSequence() на всякий случай гасит чужую цепочку,
-                // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
-                cancelBootSequence()
-                startContinuousGlitch()
+                // Раньше сразу приземлялись на STATS, вообще не спрашивая разрешения
+                // (roadmap, "Косметические правки мастера" — упущение: геопозиция и
+                // уведомления нужны и в этом режиме, не только Bluetooth). Теперь идём через
+                // тот же экран PERMISSIONS мастера — если уже выданы, showWizardStep() сам
+                // пропустит его и сразу вызовет finishPhoneModeSetup().
+                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
+                showWizardStep(PipBoyWizardStep.PERMISSIONS)
             }
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
                 // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
@@ -1484,6 +1488,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
             }
         }
+    }
+    /**
+     * Завершение флоу режима Телефон — раньше выполнялось сразу внутри selectPipBoyMode(),
+     * теперь отложено до момента, пока не разрешится экран PERMISSIONS (уже был выдан,
+     * пропущен автоматически, или выдан только что через системный диалог).
+     */
+    private fun finishPhoneModeSetup() {
+        bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        resetToFullScreen()
+        bindingMain.viewPowerOff.animate().cancel()
+        bindingMain.viewPowerOff.visibility = View.GONE
+        stopBleService()
+        menuChangeBLE("STATS")
+        menuNavigator.resetToRoot(statsMenuRoot())
+        // Телефонный режим не проходит через POWER/applyPowerState() (нет ни
+        // ESP32, ни самой загрузки) — фоновый глитч иначе никогда бы не
+        // запустился. cancelBootSequence() на всякий случай гасит чужую цепочку,
+        // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
+        cancelBootSequence()
+        startContinuousGlitch()
     }
 
     /**
@@ -1496,6 +1520,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
     private fun showWizardStep(step: PipBoyWizardStep) {
         val w = bindingMain.incLayoutPipboy2000Wizard
+        // Рамка (тонкие линии) — только под шагами 2-5, не под подсказкой POWER: это
+        // чёрный экран состояния OFF, а не страница мастера (roadmap "Косметические
+        // правки мастера" — рамка не должна была затрагивать этот шаг вообще, но
+        // chrome_frame раньше не прятался и оставался виден поверх/позади него).
+        w.layoutWizardChromeFrame.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.GONE else View.VISIBLE
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
         w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
         w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE
@@ -1530,6 +1559,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             wizardMinContentWidthPx = 0
             wizardMinContentHeightPx = 0
             applyTemporaryFullScreenLayout()
+        } else if (pipBoyMode == PipBoyMode.PHONE) {
+            // Режим Телефон не проходит через DISPLAY AREA вообще — рабочая область всегда
+            // fullscreen (это концепция только для аппаратного PipBoy 2000/3000), сохранённое
+            // loadViewState() тут ни при чём и могло бы ошибочно подставить чужой размер.
+            wizardMinContentWidthPx = 0
+            wizardMinContentHeightPx = 0
+            resetToFullScreen()
         } else {
             // PERMISSIONS/POWER_HINT — идут ПОСЛЕ "Готово" на шаге DISPLAY AREA, область уже
             // настроена игроком и сохранена (см. saveViewState в ScaleListener/resetToFullScreen).
@@ -1545,8 +1581,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         if (step == PipBoyWizardStep.PERMISSIONS && hasAllRequiredPermissions()) {
             // Уже выданы раньше — не задерживаем игрока на этом экране.
-            setupBluetooth()
-            showWizardStep(PipBoyWizardStep.PAIRING)
+            if (pipBoyMode == PipBoyMode.PHONE) {
+                finishPhoneModeSetup()
+            } else {
+                setupBluetooth()
+                showWizardStep(PipBoyWizardStep.PAIRING)
+            }
         }
     }
     private fun applyTemporaryFullScreenLayout() {
@@ -1558,17 +1598,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.root.layoutParams = layoutParams
     }
     private fun hasAllRequiredPermissions(): Boolean {
-        val required = buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                add(Manifest.permission.BLUETOOTH_SCAN)
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
+        return requiredPermissionsForCurrentMode().all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
-        return required.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
     /**
      * Шаг PAIRING мастера (roadmap) — скан по Service UUID Nordic UART (та же константа,
@@ -1686,7 +1718,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.btnWizardDone,
             w.btnWizardReset,
             w.btnWizardCancel,
+            w.btnWizardPermissionsBack,
             w.btnWizardGrantPermissions,
+            w.btnWizardPairingBack,
             w.btnWizardPairingRescan,
             w.btnWizardPairingSkipDebug,
             w.btnWizardHideHint
@@ -1705,6 +1739,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.tvWizardPairingStatus,
             w.tvWizardPowerHint
         ).forEach { it.setTextColor(wizardAccent) }
+
+        // Шаг 3: одна ширина у [Готово]/[Сбросить]/[Отмена] в горизонтальном ряду (roadmap,
+        // "Косметические правки мастера") — тот же приём, что и у кнопок дисклеймера.
+        equalizeButtonWidths(w.btnWizardDone, w.btnWizardReset, w.btnWizardCancel)
 
         // Шаг 2: Hardware Instructions
         w.btnWizardHardwareBack.setOnClickListener {
@@ -1731,13 +1769,29 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
         }
 
-        // Шаг 4: Permissions
+        // Шаг 4: Permissions. В режиме Телефон это первый и единственный шаг мастера
+        // (нет ни HARDWARE_INSTRUCTIONS, ни DISPLAY AREA перед ним) — [Назад] ведёт на
+        // экран выбора режима, а не на несуществующий для этого режима предыдущий шаг.
+        w.btnWizardPermissionsBack.setOnClickListener {
+            playNewTabSelectAudio()
+            if (pipBoyMode == PipBoyMode.PHONE) {
+                w.root.visibility = View.GONE
+                bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
+            } else {
+                showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
+            }
+        }
         w.btnWizardGrantPermissions.setOnClickListener {
             playNewTabSelectAudio()
             checkPermissions()
         }
 
         // Шаг 5: Pairing
+        w.btnWizardPairingBack.setOnClickListener {
+            playNewTabSelectAudio()
+            stopPairingScan()
+            showWizardStep(PipBoyWizardStep.PERMISSIONS)
+        }
         w.btnWizardPairingRescan.setOnClickListener {
             playNewTabSelectAudio()
             startPairingScan()

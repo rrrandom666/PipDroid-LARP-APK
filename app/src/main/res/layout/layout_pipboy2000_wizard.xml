@@ -6,14 +6,52 @@
     android:layout_height="fill_parent"
     android:background="@android:color/black">
 
+    <!-- 96%-вставка + тонкие линии сверху/снизу — общая рамка для экранов 2-5 мастера
+         (roadmap "Косметические правки мастера"), тот же приём, что у дисклеймера
+         (layout_tab_tutorial_base.xml) и мод-селекта (layout_tab_mode_select.xml). Шаг 6
+         (подсказка POWER) сознательно вне рамки — это чёрный экран состояния OFF, не
+         страница мастера. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_chrome_frame"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
+
+        <ImageView
+            android:id="@+id/img_wizard_line_top"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
+        <ImageView
+            android:id="@+id/img_wizard_line_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
     <!-- Шаг 2: HARDWARE INSTRUCTIONS -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_hardware"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -46,59 +84,70 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
-            android:layout_marginBottom="24dp"
             android:gravity="center"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:text="@string/wizard_hardware_text"
-            app:layout_constraintBottom_toTopOf="@id/btn_wizard_hardware_back"
+            app:layout_constraintTop_toBottomOf="@id/img_wizard_vaultboy"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
-            android:id="@+id/btn_wizard_hardware_back"
-            style="@style/PipWizardButtonStyle"
+        <!-- Единый принцип для всех шагов с кнопками (roadmap, "Косметические правки
+             мастера" — раньше на каждом шаге кнопки были расположены и привязаны по-своему,
+             "скакали"): один центрированный горизонтальный ряд, прибитый прямо под текстом,
+             не к нижнему краю экрана. Слева направо — назад/вперёд, как и раньше. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_hardware_buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="48dp"
-            android:text="@string/wizard_back"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_hardware_text"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btn_wizard_hardware_next" />
+            app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
-            android:id="@+id/btn_wizard_hardware_next"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="48dp"
-            android:text="@string/wizard_next"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btn_wizard_hardware_back"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <Button
+                android:id="@+id/btn_wizard_hardware_back"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_back" />
+
+            <Button
+                android:id="@+id/btn_wizard_hardware_next"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wizard_next" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Шаг 3: DISPLAY AREA. Заголовок и уголки — намеренно ближе к самому краю, чтобы
-         оставить максимум места стеку из 3 кнопок под ним (roadmap, косметические
-         правки — "экономить пространство", отдельный отчёт про Отмена, уезжающую за
-         экран). -->
+    <!-- Шаг 3: DISPLAY AREA. -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_display_area"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Отступ сверху унифицирован с остальными шагами (32dp, roadmap "Косметические
+             правки мастера" — единые отступы). Раньше был 4dp, чтобы экономить место под
+             вертикальным стеком кнопок — не актуально после перехода на горизонтальный ряд. -->
         <TextView
             android:id="@+id/tv_wizard_display_area_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="32dp"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
             android:textSize="20sp"
@@ -128,6 +177,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
+            android:layout_marginTop="20dp"
             android:gravity="center"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
@@ -137,44 +187,51 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Отступы под стеком кнопок уменьшены (roadmap, локализация — замена шрифта на
-             IBM Plex Mono Bold): у него межстрочный интервал примерно на 8% больше, чем был
-             у Monofonto, на этом экране (специально ужатом под нехватку места, см. комментарий
-             выше) выросшая высота заголовка/подсказки утапливала Cancel за нижний край экрана. -->
-        <Button
-            android:id="@+id/btn_wizard_done"
-            style="@style/PipWizardButtonStyle"
+        <!-- Один горизонтальный ряд вместо вертикального стека (roadmap, "Косметические
+             правки мастера" — освободило место под увеличенный отступ заголовок/текст выше).
+             Одна ширина у всех трёх — код, equalizeButtonWidths() (MainActivity.kt), тот же
+             приём, что и у кнопок дисклеймера. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_display_area_buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/wizard_done"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_hint"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <Button
-            android:id="@+id/btn_wizard_reset"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/wizard_reset"
-            app:layout_constraintTop_toBottomOf="@id/btn_wizard_done"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <Button
-            android:id="@+id/btn_wizard_cancel"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/wizard_cancel"
-            app:layout_constraintTop_toBottomOf="@id/btn_wizard_reset"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- Порядок слева направо — Отмена (назад)/Сбросить/Готово (вперёд), та же
+                 логика "слева назад, справа вперёд", что и на остальных экранах (roadmap,
+                 "Косметические правки мастера" — при переходе на горизонтальный ряд порядок
+                 сбился, Done и Cancel были перепутаны местами). -->
+            <Button
+                android:id="@+id/btn_wizard_cancel"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_cancel" />
+
+            <Button
+                android:id="@+id/btn_wizard_reset"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_reset" />
+
+            <Button
+                android:id="@+id/btn_wizard_done"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wizard_done" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -184,8 +241,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -202,33 +259,57 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Отступ сверху унифицирован с остальными шагами (20dp после заголовка, roadmap
+             "Косметические правки мастера" — единые отступы). Раньше был привязан к верху
+             экрана (parent), не к заголовку — визуально не связанные друг с другом
+             элементы, найдено при сверке отступов. -->
         <TextView
             android:id="@+id/tv_wizard_permissions_text"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
-            android:layout_marginBottom="24dp"
-            android:gravity="center_vertical"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:text="@string/wizard_permissions_text"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/btn_wizard_grant_permissions"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_permissions_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
-            android:id="@+id/btn_wizard_grant_permissions"
-            style="@style/PipWizardButtonStyle"
+        <!-- Единый принцип для всех шагов с кнопками (roadmap, "Косметические правки
+             мастера") — центрированный ряд прямо под текстом, не по краям/низу экрана. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_permissions_buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="48dp"
-            android:text="@string/wizard_grant_permissions"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_permissions_text"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Button
+                android:id="@+id/btn_wizard_permissions_back"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_back" />
+
+            <Button
+                android:id="@+id/btn_wizard_grant_permissions"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wizard_grant_permissions" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -240,8 +321,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -264,7 +345,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="20dp"
             android:gravity="center"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
@@ -274,16 +355,22 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Высота — wrap_content, но ограничена сверху (constrainedHeight) местом до
+             кнопок ниже: короткий список (мало найденных корпусов) занимает только
+             свою фактическую высоту, кнопки идут сразу под ним, не отрываясь фиксированной
+             позицией у низа экрана (roadmap, "Косметические правки мастера" — единый
+             принцип для всех шагов с кнопками). Длинный список по-прежнему упирается в этот
+             потолок и скроллится сам. -->
         <ScrollView
             android:id="@+id/scroll_wizard_pairing_devices"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginStart="64dp"
             android:layout_marginEnd="64dp"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
+            app:layout_constrainedHeight="true"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_pairing_status"
-            app:layout_constraintBottom_toTopOf="@id/btn_wizard_pairing_skip_debug"
+            app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
@@ -294,35 +381,57 @@
                 android:orientation="vertical" />
         </ScrollView>
 
-        <!-- Обход реального сопряжения в debug-сборках (roadmap, этап 7, "быстрая отладка
-             логики экранов") — видимость переключается кодом в setupPipBoy2000Wizard(),
-             в release всегда gone. -->
-        <Button
-            android:id="@+id/btn_wizard_pairing_skip_debug"
-            style="@style/PipWizardButtonStyle"
+        <!-- Единый принцип для всех шагов с кнопками (roadmap, "Косметические правки
+             мастера") — центрированный ряд прямо под списком, не по краям/низу экрана.
+             [Skip (debug)] по-прежнему вплотную к [Скан. снова]. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_pairing_buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="SKIP (DEBUG)"
-            android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/btn_wizard_pairing_rescan"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <Button
-            android:id="@+id/btn_wizard_pairing_rescan"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="32dp"
-            android:text="@string/wizard_pairing_rescan"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/scroll_wizard_pairing_devices"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Button
+                android:id="@+id/btn_wizard_pairing_back"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_back" />
+
+            <!-- Обход реального сопряжения в debug-сборках (roadmap, этап 7, "быстрая
+                 отладка логики экранов") — видимость переключается кодом в
+                 setupPipBoy2000Wizard(), в release всегда gone. -->
+            <Button
+                android:id="@+id/btn_wizard_pairing_skip_debug"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="SKIP (DEBUG)"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btn_wizard_pairing_rescan"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wizard_pairing_rescan" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Шаг 6: подсказка про POWER -->
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Шаг 6: подсказка про POWER — вне рамки (état OFF, чёрный экран, не страница мастера,
+         roadmap "Косметические правки мастера"). -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_power_hint"
         android:layout_width="0dp"

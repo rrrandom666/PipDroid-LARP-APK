@@ -118,10 +118,9 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Шаг 3: DISPLAY AREA. Заголовок и уголки — намеренно ближе к самому краю, чтобы
-         оставить максимум места стеку из 3 кнопок под ним (roadmap, косметические
-         правки — "экономить пространство", отдельный отчёт про Отмена, уезжающую за
-         экран). -->
+    <!-- Шаг 3: DISPLAY AREA. Заголовок и уголки — намеренно ближе к самому краю (было
+         актуально при вертикальном стеке кнопок, roadmap-история; после перехода на
+         горизонтальный ряд освободившееся место ушло в отступ заголовок/текст ниже). -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_display_area"
         android:layout_width="0dp"
@@ -166,6 +165,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
+            android:layout_marginTop="20dp"
             android:gravity="center"
             android:fontFamily="@font/pipboy_mono"
             android:textColor="@android:color/white"
@@ -175,44 +175,46 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Отступы под стеком кнопок уменьшены (roadmap, локализация — замена шрифта на
-             IBM Plex Mono Bold): у него межстрочный интервал примерно на 8% больше, чем был
-             у Monofonto, на этом экране (специально ужатом под нехватку места, см. комментарий
-             выше) выросшая высота заголовка/подсказки утапливала Cancel за нижний край экрана. -->
-        <Button
-            android:id="@+id/btn_wizard_done"
-            style="@style/PipWizardButtonStyle"
+        <!-- Один горизонтальный ряд вместо вертикального стека (roadmap, "Косметические
+             правки мастера" — освободило место под увеличенный отступ заголовок/текст выше).
+             Одна ширина у всех трёх — код, equalizeButtonWidths() (MainActivity.kt), тот же
+             приём, что и у кнопок дисклеймера. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_display_area_buttons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/wizard_done"
+            android:orientation="horizontal"
+            android:gravity="center"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_hint"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <Button
-            android:id="@+id/btn_wizard_reset"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/wizard_reset"
-            app:layout_constraintTop_toBottomOf="@id/btn_wizard_done"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <Button
-            android:id="@+id/btn_wizard_cancel"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/wizard_cancel"
-            app:layout_constraintTop_toBottomOf="@id/btn_wizard_reset"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Button
+                android:id="@+id/btn_wizard_done"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_done" />
+
+            <Button
+                android:id="@+id/btn_wizard_reset"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_reset" />
+
+            <Button
+                android:id="@+id/btn_wizard_cancel"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wizard_cancel" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

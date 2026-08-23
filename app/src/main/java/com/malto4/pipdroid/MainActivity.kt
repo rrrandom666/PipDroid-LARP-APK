@@ -1706,6 +1706,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.tvWizardPowerHint
         ).forEach { it.setTextColor(wizardAccent) }
 
+        // Шаг 3: одна ширина у [Готово]/[Сбросить]/[Отмена] в горизонтальном ряду (roadmap,
+        // "Косметические правки мастера") — тот же приём, что и у кнопок дисклеймера.
+        equalizeButtonWidths(w.btnWizardDone, w.btnWizardReset, w.btnWizardCancel)
+
         // Шаг 2: Hardware Instructions
         w.btnWizardHardwareBack.setOnClickListener {
             playNewTabSelectAudio()

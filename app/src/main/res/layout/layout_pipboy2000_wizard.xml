@@ -6,14 +6,52 @@
     android:layout_height="fill_parent"
     android:background="@android:color/black">
 
+    <!-- 96%-вставка + тонкие линии сверху/снизу — общая рамка для экранов 2-5 мастера
+         (roadmap "Косметические правки мастера"), тот же приём, что у дисклеймера
+         (layout_tab_tutorial_base.xml) и мод-селекта (layout_tab_mode_select.xml). Шаг 6
+         (подсказка POWER) сознательно вне рамки — это чёрный экран состояния OFF, не
+         страница мастера. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_chrome_frame"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
+
+        <ImageView
+            android:id="@+id/img_wizard_line_top"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
+        <ImageView
+            android:id="@+id/img_wizard_line_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
     <!-- Шаг 2: HARDWARE INSTRUCTIONS -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_hardware"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -89,8 +127,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -184,8 +222,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -240,8 +278,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -322,7 +360,10 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Шаг 6: подсказка про POWER -->
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Шаг 6: подсказка про POWER — вне рамки (état OFF, чёрный экран, не страница мастера,
+         roadmap "Косметические правки мастера"). -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_wizard_power_hint"
         android:layout_width="0dp"

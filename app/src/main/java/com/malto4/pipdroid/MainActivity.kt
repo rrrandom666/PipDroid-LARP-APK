@@ -1289,6 +1289,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
      */
     private var modeSelectHighlighted = PipBoyMode.PHONE
+    private lateinit var modeSelectAdapter: ModeSelectAdapter
 
     /**
      * Акцентный цвет текущей темы оформления (playerUIColour_SPKey — тот же ключ, что и у
@@ -1362,11 +1363,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
             PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
         }
-        // Текущий выбранный режим — контур без заливки, остальные два — обычная
-        // сплошная заливка активной кнопки.
-        setWizardButtonState(ms.btnModeSelectPhone, selected = mode == PipBoyMode.PHONE)
-        setWizardButtonState(ms.btnModeSelectPipboy2000, selected = mode == PipBoyMode.PIPBOY_2000)
-        setWizardButtonState(ms.btnModeSelectPipboy3000, selected = mode == PipBoyMode.PIPBOY_3000)
+        // Подсветка выбранного пункта — тем же приёмом, что у списка Perks (RecyclerView,
+        // roadmap "Косметические правки мастера").
+        modeSelectAdapter.setSelectedMode(mode)
         // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание. Кнопка
         // остаётся кликабельной, чтобы поймать тап и проиграть звук ошибки.
         if (mode != PipBoyMode.PIPBOY_3000) {
@@ -1407,25 +1406,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
-        val modeButtons = listOf(ms.btnModeSelectPhone, ms.btnModeSelectPipboy2000, ms.btnModeSelectPipboy3000)
 
         // Текст описания — тоже акцентом текущей темы, не жёстко зелёным (смысл темы —
         // красить весь экран, не только кнопки, см. currentWizardAccentColor()).
         ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
 
-        showModeDescription(PipBoyMode.PHONE)
-        modeButtons.forEach { button ->
-            button.setOnClickListener {
-                playNewTabSelectAudio()
-                showModeDescription(
-                    when (button) {
-                        ms.btnModeSelectPhone -> PipBoyMode.PHONE
-                        ms.btnModeSelectPipboy2000 -> PipBoyMode.PIPBOY_2000
-                        else -> PipBoyMode.PIPBOY_3000
-                    }
-                )
-            }
+        // Список режимов — тот же паттерн, что у Perks (RecyclerView + описание справа,
+        // roadmap "Косметические правки мастера"), вместо трёх отдельных кнопок.
+        ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
+        modeSelectAdapter = ModeSelectAdapter(
+            modes = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000),
+            modeLabel = { pipBoyModeDisplayName(it) },
+            selectedButtonBackground = selected_button,
+            selectedMode = PipBoyMode.PHONE
+        ) { mode ->
+            playNewTabSelectAudio()
+            showModeDescription(mode)
         }
+        ms.recyclerModeSelect.adapter = modeSelectAdapter
+
+        showModeDescription(PipBoyMode.PHONE)
         ms.btnModeSelectConfirm.setOnClickListener {
             if (modeSelectHighlighted == PipBoyMode.PIPBOY_3000) {
                 playErrorAudio()

@@ -193,13 +193,17 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Порядок слева направо — Отмена (назад)/Сбросить/Готово (вперёд), та же
+                 логика "слева назад, справа вперёд", что и на остальных экранах (roadmap,
+                 "Косметические правки мастера" — при переходе на горизонтальный ряд порядок
+                 сбился, Done и Cancel были перепутаны местами). -->
             <Button
-                android:id="@+id/btn_wizard_done"
+                android:id="@+id/btn_wizard_cancel"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="12dp"
-                android:text="@string/wizard_done" />
+                android:text="@string/wizard_cancel" />
 
             <Button
                 android:id="@+id/btn_wizard_reset"
@@ -210,11 +214,11 @@
                 android:text="@string/wizard_reset" />
 
             <Button
-                android:id="@+id/btn_wizard_cancel"
+                android:id="@+id/btn_wizard_done"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/wizard_cancel" />
+                android:text="@string/wizard_done" />
 
         </LinearLayout>
 

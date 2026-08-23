@@ -18,6 +18,7 @@ import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.text.TextUtils
 import android.os.PowerManager
 import android.provider.Settings
 import android.graphics.Bitmap
@@ -135,6 +136,39 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var selected_button = R.drawable.button_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
+    // Будильник (roadmap, "Часы — UX-спецификация") — один однократный, время в стенных
+    // часах (не игровых — gameCalendar подменяет только YEAR). Сбрасывается при
+    // перезапуске процесса (не сохраняется в SharedPreferences) — согласованное решение,
+    // не полноценный AlarmManager.
+    private var alarmHour = 7
+    private var alarmMinute = 0
+    private var alarmArmed = false
+    private var clockFiredRingtonePlayer: MediaPlayer? = null
+    // Таймер (roadmap, "Часы — UX-спецификация") — один, длительность настраивается
+    // колёсами, пока IDLE. Отсчёт — по целевому времени в epoch millis, не декрементом
+    // счётчика каждый тик, чтобы не копить дрейф от джиттера 300мс-цикла.
+    private enum class TimerState { IDLE, RUNNING, PAUSED }
+    private var timerHours = 0
+    private var timerMinutes = 5
+    private var timerSeconds = 0
+    private var timerState = TimerState.IDLE
+    private var timerTargetEpochMillis = 0L
+    private var timerRemainingSecondsAtPause = 0
+    // Секундомер (roadmap, "Часы — UX-спецификация") — старт/пауза/сброс, без кругов.
+    // Тот же приём с epoch millis, что у таймера, только считаем вверх, а не вниз.
+    private enum class StopwatchState { IDLE, RUNNING, PAUSED }
+    private var stopwatchState = StopwatchState.IDLE
+    private var stopwatchStartEpochMillis = 0L
+    private var stopwatchElapsedMillisAtPause = 0L
+    // Мелодия звонка (roadmap, "Часы — UX-спецификация") — общий трек на будильник и
+    // таймер, один слот. В отличие от состояния будильника/таймера — это скорее настройка,
+    // чем разовое состояние, поэтому персистится в SharedPreferences (как тема/имя игрока),
+    // не сбрасывается при перезапуске.
+    private val selectedRingtone_SPKey = "selectedRingtoneIndex"
+    private var melodyFocusedIndex = 0
+    private var melodyPreviewPlayer: MediaPlayer? = null
+    private var melodyPreviewPlayingIndex: Int? = null
+    private val melodyTrackRowViews = ArrayList<TextView>()
 
 
 
@@ -143,6 +177,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      **********************************************************************************************************/
     private var listBottomButtons = ArrayList<Button>()
     private var listStatsStatusCndRadEff = ArrayList<Button>()
+    private var listItemsClockButtons = ArrayList<Button>()
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
     private var listStatsSkills = ArrayList<ConstraintLayout>()
     private var listStatsGeneralFactions = ArrayList<ConstraintLayout>()
@@ -2577,9 +2612,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
+        val clockButtons = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons
+        val clockNode = MenuNode(
+            id = "CLOCK",
+            children = listOf(
+                MenuNode("TIME") { clockButtons.btnClockTime.performClick() },
+                MenuNode("ALARM") { clockButtons.btnClockAlarm.performClick() },
+                MenuNode("TIMER") { clockButtons.btnClockTimer.performClick() },
+                MenuNode("STOPWATCH") { clockButtons.btnClockStopwatch.performClick() },
+                MenuNode("MELODY") { clockButtons.btnClockMelody.performClick() },
+            ),
+            onSelect = { bottom.btnItemsClock.performClick() }
+        )
         return listOf(
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
-            MenuNode("CLOCK") { bottom.btnItemsClock.performClick() },
+            clockNode,
             MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
         )
     }
@@ -2804,6 +2851,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
+    private fun setSelectedClockButton(button: Button?, listArrayListButtons: ArrayList<Button>?) {
+        button?.setBackgroundResource(selected_button)
+        playCNDSelectAudio()
+        val it: Iterator<Button> = listArrayListButtons!!.iterator()
+        while (it.hasNext()) {
+            val next = it.next()
+            if (!Intrinsics.areEqual(next as Any, button as Any)) {
+                next.setBackgroundResource(R.drawable.button_unselected)
+            }
+        }
+    }
     private fun setSelectedSPECIALButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?, selectedItem: String) {
         layout?.setBackgroundResource(selected_button)
         playItemSelectAudio()
@@ -2853,6 +2911,172 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun setupDATA(){
         //Set Selected buttons by default
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
+    }
+    private fun setupITEMSClock(){
+        //Set Selected buttons by default
+        findViewById<Button>(R.id.btn_clock_time).setBackgroundResource(selected_button)
+    }
+    /**
+     * Проверка срабатывания будильника (roadmap, "Часы — UX-спецификация") — вызывается
+     * из того же 300мс-цикла, что и обновление часов (onCreate), сверяет часы/минуты
+     * [gameCalendar] (реальное время, только YEAR игровой) с выставленным будильником.
+     * Совпадение сразу разоружает будильник — иначе сработает повторно на следующей
+     * итерации цикла в той же самой минуте.
+     */
+    private fun checkAlarmFiring(gameCalendar: Calendar) {
+        if (!alarmArmed) return
+        val hour = gameCalendar.get(Calendar.HOUR_OF_DAY)
+        val minute = gameCalendar.get(Calendar.MINUTE)
+        if (hour == alarmHour && minute == alarmMinute) {
+            fireAlarm()
+        }
+    }
+    private fun fireAlarm() {
+        alarmArmed = false
+        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
+        alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
+        alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
+        bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_alarm_fired_title)
+        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
+        playClockFiredSound()
+    }
+    /**
+     * Звук срабатывания — выбранный трек из "Мелодия звонка" (roadmap, "Часы —
+     * UX-спецификация"), общий слот для будильника и таймера. sharedPreferences хранит
+     * только индекс — до первого явного выбора игроком это индекс 0 (первый трек списка),
+     * не отсутствие звука вовсе.
+     */
+    private fun playClockFiredSound() {
+        stopClockFiredSound()
+        val trackIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        val uri = Uri.parse("android.resource://$packageName/${ringtoneTracks[trackIndex].rawResId}")
+        // Без явных AudioAttributes(USAGE_ALARM) — тот канал управляется отдельным
+        // системным регулятором громкости "будильник", независимым от того, которым
+        // игрок уже пользуется для остального звука приложения (баг, найденный на
+        // устройстве: звук был заметно тише и не следовал системной громкости). Дефолтный
+        // канал MediaPlayer — тот же, что у радио/кликов интерфейса.
+        clockFiredRingtonePlayer = MediaPlayer().apply {
+            setDataSource(this@MainActivity, uri)
+            isLooping = true
+            prepare()
+            start()
+        }
+    }
+    private fun stopClockFiredSound() {
+        clockFiredRingtonePlayer?.stop()
+        clockFiredRingtonePlayer?.release()
+        clockFiredRingtonePlayer = null
+    }
+    /**
+     * Проверка срабатывания таймера (roadmap, "Часы — UX-спецификация") — вызывается из
+     * того же 300мс-цикла, что и часы/будильник. Отсчёт — по целевому epoch millis
+     * ([timerTargetEpochMillis]), не декрементом счётчика, поэтому просто сверяем текущее
+     * время и обновляем отображение остатка, пока RUNNING.
+     */
+    private fun checkTimerFiring() {
+        if (timerState != TimerState.RUNNING) return
+        val remainingMs = timerTargetEpochMillis - System.currentTimeMillis()
+        if (remainingMs <= 0) {
+            fireTimer()
+            return
+        }
+        val remainingSeconds = (remainingMs / 1000).toInt()
+        val h = remainingSeconds / 3600
+        val m = (remainingSeconds % 3600) / 60
+        val s = remainingSeconds % 60
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.tvClockTimerCountdown.text =
+            String.format("%02d:%02d:%02d", h, m, s)
+    }
+    private fun fireTimer() {
+        timerState = TimerState.IDLE
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        timer.layoutClockTimerRunning.visibility = View.GONE
+        timer.layoutClockTimerSetup.visibility = View.VISIBLE
+        bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_timer_fired_title)
+        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
+        playClockFiredSound()
+    }
+    /**
+     * Мелодия звонка (roadmap, "Часы — UX-спецификация") — функции уровня класса, не
+     * локальные closure в onCreate: openClockMelodyScreen() вызывается из обработчика
+     * клика по кнопке "Мелодия звонка" в списке фичей Clock, который регистрируется
+     * раньше по тексту onCreate, чем сама секция настройки экрана Мелодии — локальные
+     * fun в Kotlin не видны при таком опережающем вызове (в отличие от методов класса).
+     */
+    private fun updateMelodySelectedLabel() {
+        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
+        val index = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        melody.tvClockMelodySelectedName.apply {
+            text = ringtoneTracks[index].displayName
+            isSelected = false // застывшее обрезанное состояние, пока не нажали [Выбрать]
+        }
+    }
+    /** Один проход marquee у названия в строке "Выбрано:" сразу после [Выбрать]
+     * (roadmap, "Часы — UX-спецификация") — сброс isSelected перед повторной установкой
+     * нужен, иначе TextView считает лимит повторов уже исчерпанным и не скроллит заново,
+     * если выбрать тот же самый трек второй раз подряд. */
+    private fun playMelodySelectedMarqueeOnce() {
+        val nameView = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.tvClockMelodySelectedName
+        nameView.isSelected = false
+        nameView.post { nameView.isSelected = true }
+    }
+    private fun highlightMelodyRow() {
+        for ((index, row) in melodyTrackRowViews.withIndex()) {
+            val isActive = index == melodyFocusedIndex
+            row.setBackgroundResource(if (isActive) selected_button else R.drawable.button_unselected)
+            // isSelected запускает marquee у активного пункта (нужно read полное название),
+            // остальные остаются статично обрезанными многоточием.
+            row.isSelected = isActive
+        }
+    }
+    private fun stopMelodyPreview() {
+        melodyPreviewPlayer?.stop()
+        melodyPreviewPlayer?.release()
+        melodyPreviewPlayer = null
+        melodyPreviewPlayingIndex = null
+    }
+    private fun startMelodyPreview(index: Int) {
+        stopMelodyPreview()
+        melodyPreviewPlayingIndex = index
+        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
+        melodyPreviewPlayer = MediaPlayer.create(this, ringtoneTracks[index].rawResId).apply {
+            isLooping = true
+            start()
+        }
+        val audioSessionId = melodyPreviewPlayer?.audioSessionId
+        if (checkAudioPermission() && audioSessionId != null && audioSessionId != -1) {
+            melody.melodyWave.release()
+            melody.melodyWave.setPlayer(audioSessionId)
+            melody.melodyWave.visibility = View.VISIBLE
+        } else if (!checkAudioPermission()) {
+            requestAudioPermission()
+        }
+    }
+    private fun openClockMelodyScreen() {
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.layoutTabItemsClockButtonsContainer.visibility = View.GONE
+        clock.layoutTabItemsClockContent.visibility = View.GONE
+        clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
+        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        highlightMelodyRow()
+        updateMelodySelectedLabel()
+    }
+    private fun closeClockMelodyScreen() {
+        stopMelodyPreview()
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
+        clock.layoutTabItemsClockContent.visibility = View.VISIBLE
+    }
+    /** Обновление отображения секундомера — вызывается из общего 300мс-цикла, пока RUNNING. */
+    private fun updateStopwatchDisplay() {
+        if (stopwatchState != StopwatchState.RUNNING) return
+        val elapsedSeconds = (System.currentTimeMillis() - stopwatchStartEpochMillis) / 1000
+        val h = elapsedSeconds / 3600
+        val m = (elapsedSeconds % 3600) / 60
+        val s = elapsedSeconds % 60
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.tvClockStopwatchElapsed.text =
+            String.format("%02d:%02d:%02d", h, m, s)
     }
     /**
      * Строка 1 новой шапки — подсветка активного верхнего раздела (тот же приём, что и у
@@ -3832,6 +4056,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave)
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom)
 
+        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockTime)
+        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockAlarm)
+        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockTimer)
+        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockStopwatch)
+        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockMelody)
+
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
         translateAnimation.duration = 9000
@@ -3842,6 +4072,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         //Set Selected buttons by default
         setupSTATS()
         setupDATA()
+        setupITEMSClock()
         selectedSubMenu = bindingMain.incLayoutTabStatsBottom.btnStatsStatus
         findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
         topLevelButtonsModify("STATS")
@@ -3906,9 +4137,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                             val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomDateValue.text = dateOnly
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomTimeValue.text = timeHHmm
-                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupHm.text = timeHHmm
-                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupS.text = timess
-                            bindingMain.incLayoutTabItemsClock.tvTabRadioClockPopupBattery.text = getBatteryPercent().toString()
+                            bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTime.tvClockTimeHm.text = timeHHmm
+                            bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTime.tvClockTimeS.text = timess
+                            bindingMain.incLayoutHeaderToplevel.tvHeaderBattery.text = getBatteryPercent().toString()
+                            checkAlarmFiring(gameCalendar)
+                            checkTimerFiring()
+                            updateStopwatchDisplay()
                         }
                     }
                 } catch (_: InterruptedException) {}
@@ -5089,6 +5323,247 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - список фичей слева (roadmap, "Часы — UX-спецификация"):
+        Часы/Будильник/Таймер/Секундомер/Мелодия звонка, справа содержимое выбранной.
+        */
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.incLayoutTabItemsClockButtons.btnClockTime.setOnClickListener {
+            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockTime, listItemsClockButtons)
+            clock.incLayoutTabItemsClockTime.root.visibility = View.VISIBLE
+            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        }
+        clock.incLayoutTabItemsClockButtons.btnClockAlarm.setOnClickListener {
+            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockAlarm, listItemsClockButtons)
+            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockAlarm.root.visibility = View.VISIBLE
+            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        }
+        clock.incLayoutTabItemsClockButtons.btnClockTimer.setOnClickListener {
+            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockTimer, listItemsClockButtons)
+            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockTimer.root.visibility = View.VISIBLE
+            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        }
+        clock.incLayoutTabItemsClockButtons.btnClockStopwatch.setOnClickListener {
+            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockStopwatch, listItemsClockButtons)
+            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
+            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.VISIBLE
+            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        }
+        clock.incLayoutTabItemsClockButtons.btnClockMelody.setOnClickListener {
+            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockMelody, listItemsClockButtons)
+            openClockMelodyScreen()
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - БУДИЛЬНИК (roadmap, "Часы — UX-спецификация") — свайповое колесо
+        на часы/минуты (ClockWheelPicker.kt, по образцу системных часов Android, инерция —
+        родная физика RecyclerView), заворот на границах, один однократный будильник.
+        */
+        val clockAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        val alarm = clock.incLayoutTabItemsClockAlarm
+        alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
+
+        fun updateAlarmStatusViews() {
+            if (alarmArmed) {
+                alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_on, String.format("%02d:%02d", alarmHour, alarmMinute))
+                alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_cancel)
+            } else {
+                alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
+                alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
+            }
+        }
+        updateAlarmStatusViews()
+
+        ClockWheelPicker(alarm.rvClockAlarmHour, 0..23, alarmHour) { value ->
+            alarmHour = value
+            updateAlarmStatusViews()
+        }
+        ClockWheelPicker(alarm.rvClockAlarmMinute, 0..59, alarmMinute) { value ->
+            alarmMinute = value
+            updateAlarmStatusViews()
+        }
+        alarm.btnClockAlarmToggle.setOnClickListener {
+            playNewTabSelectAudio()
+            alarmArmed = !alarmArmed
+            updateAlarmStatusViews()
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - ТАЙМЕР (roadmap, "Часы — UX-спецификация") — три колеса ЧЧ:ММ:СС
+        (тот же ClockWheelPicker, что у Будильника) + пресеты, один таймер.
+        */
+        // layout_clock_timer_setup/layout_clock_timer_running — обычные вложенные
+        // ConstraintLayout внутри layout_tab_items_clock_timer.xml, не <include>, поэтому
+        // ViewBinding кладёт все id этого файла плоско на один timer-объект (без .root у
+        // вложенных блоков — то же самое, что и остальные плоские экраны приложения).
+        val timer = clock.incLayoutTabItemsClockTimer
+        for (btn in listOf(timer.btnClockTimerPreset5, timer.btnClockTimerPreset10, timer.btnClockTimerStart,
+            timer.btnClockTimerPauseResume, timer.btnClockTimerReset)) {
+            btn.backgroundTintList = clockAccentTint
+        }
+
+        val timerHourWheel = ClockWheelPicker(timer.rvClockTimerHour, 0..23, timerHours) { timerHours = it }
+        val timerMinuteWheel = ClockWheelPicker(timer.rvClockTimerMinute, 0..59, timerMinutes) { timerMinutes = it }
+        val timerSecondWheel = ClockWheelPicker(timer.rvClockTimerSecond, 0..59, timerSeconds) { timerSeconds = it }
+
+        fun addTimerPresetMinutes(minutesToAdd: Int) {
+            val totalMinutes = (timerHours * 60 + timerMinutes + minutesToAdd) % (24 * 60)
+            timerHours = totalMinutes / 60
+            timerMinutes = totalMinutes % 60
+            timerHourWheel.scrollToValue(timerHours)
+            timerMinuteWheel.scrollToValue(timerMinutes)
+        }
+        timer.btnClockTimerPreset5.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(5) }
+        timer.btnClockTimerPreset10.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(10) }
+
+        timer.btnClockTimerStart.setOnClickListener {
+            playNewTabSelectAudio()
+            val totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds
+            if (totalSeconds > 0) {
+                timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
+                timerState = TimerState.RUNNING
+                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+                timer.layoutClockTimerSetup.visibility = View.GONE
+                timer.layoutClockTimerRunning.visibility = View.VISIBLE
+            }
+        }
+        timer.btnClockTimerPauseResume.setOnClickListener {
+            playNewTabSelectAudio()
+            when (timerState) {
+                TimerState.RUNNING -> {
+                    timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
+                    timerState = TimerState.PAUSED
+                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
+                }
+                TimerState.PAUSED -> {
+                    timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
+                    timerState = TimerState.RUNNING
+                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+                }
+                TimerState.IDLE -> {}
+            }
+        }
+        timer.btnClockTimerReset.setOnClickListener {
+            playNewTabSelectAudio()
+            timerState = TimerState.IDLE
+            timer.layoutClockTimerRunning.visibility = View.GONE
+            timer.layoutClockTimerSetup.visibility = View.VISIBLE
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - СЕКУНДОМЕР (roadmap, "Часы — UX-спецификация") — старт/пауза/сброс,
+        без кругов.
+        */
+        val stopwatch = clock.incLayoutTabItemsClockStopwatch
+        stopwatch.btnClockStopwatchStartPause.backgroundTintList = clockAccentTint
+        stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
+
+        stopwatch.btnClockStopwatchStartPause.setOnClickListener {
+            playNewTabSelectAudio()
+            when (stopwatchState) {
+                StopwatchState.IDLE -> {
+                    stopwatchStartEpochMillis = System.currentTimeMillis()
+                    stopwatchState = StopwatchState.RUNNING
+                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
+                }
+                StopwatchState.RUNNING -> {
+                    stopwatchElapsedMillisAtPause = System.currentTimeMillis() - stopwatchStartEpochMillis
+                    stopwatchState = StopwatchState.PAUSED
+                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_resume)
+                }
+                StopwatchState.PAUSED -> {
+                    stopwatchStartEpochMillis = System.currentTimeMillis() - stopwatchElapsedMillisAtPause
+                    stopwatchState = StopwatchState.RUNNING
+                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
+                }
+            }
+        }
+        stopwatch.btnClockStopwatchReset.setOnClickListener {
+            playNewTabSelectAudio()
+            stopwatchState = StopwatchState.IDLE
+            stopwatchElapsedMillisAtPause = 0L
+            stopwatch.tvClockStopwatchElapsed.text = "00:00:00"
+            stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_start)
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - МЕЛОДИЯ ЗВОНКА (roadmap, "Часы — UX-спецификация") — список строится
+        кодом из ringtoneTracks (Data.kt), последний пункт — [Назад]. Клик по треку — превью
+        play/stop (визуализатор — тот же LineVisualizer, что у Radio, отдельный инстанс).
+        */
+        val melody = clock.incLayoutTabItemsClockMelody
+        melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
+        // Отдельный от Radio инстанс LineVisualizer — applyTextColor() красит только
+        // общий lineVisualizer радио, этот без явного setColor() рисует линию дефолтным
+        // цветом библиотеки, неотличимым от тёмного фона (баг, найденный на устройстве).
+        melody.melodyWave.setColor(currentWizardAccentColor())
+        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+
+        melody.layoutClockMelodyTracks.removeAllViews()
+        melodyTrackRowViews.clear()
+        for ((index, track) in ringtoneTracks.withIndex()) {
+            val row = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
+                text = track.displayName
+                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
+                setPadding(24, 16, 24, 16)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                // Длинные названия треков раздвигали строку — одна строка + marquee
+                // вместо переноса (roadmap, правка после проверки на устройстве). Скроллится
+                // только активный (выбранный) пункт — isSelected переключается в
+                // highlightMelodyRow(), остальные показывают статичное "...".
+                maxLines = 1
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                setOnClickListener {
+                    playItemSelectAudio()
+                    melodyFocusedIndex = index
+                    highlightMelodyRow()
+                    if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
+                }
+            }
+            melody.layoutClockMelodyTracks.addView(row)
+            melodyTrackRowViews.add(row)
+        }
+        val backRow = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
+            text = getString(R.string.wizard_back)
+            typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
+            setPadding(24, 16, 24, 16)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener { playItemSelectAudio(); closeClockMelodyScreen() }
+        }
+        melody.layoutClockMelodyTracks.addView(backRow)
+
+        melody.btnClockMelodySelect.setOnClickListener {
+            playNewTabSelectAudio()
+            sharedPreferences.edit().putInt(selectedRingtone_SPKey, melodyFocusedIndex).apply()
+            updateMelodySelectedLabel()
+            playMelodySelectedMarqueeOnce()
+        }
+
+        bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
+        bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.setOnClickListener {
+            playNewTabSelectAudio()
+            stopClockFiredSound()
+            bindingMain.incLayoutClockFiredOverlay.root.visibility = View.GONE
         }
 
         /*

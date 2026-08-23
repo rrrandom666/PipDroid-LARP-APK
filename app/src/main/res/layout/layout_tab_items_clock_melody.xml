@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ITEMS/Clock/Мелодия звонка (roadmap, "Часы — UX-спецификация") — отдельный
+     полноэкранный переход (не контент общей рамки Clock, см. layout_tab_items_clock.xml).
+     Слева — список треков, строится кодом (MainActivity, аналог setupRow2()), последний
+     пункт — [Назад]. Справа — шкала+визуализатор (те же декоративные drawable, что у
+     DATA/RADIO, radio_box_side/bottom) и кнопка [Выбрать]. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_items_clock_melody"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@color/pip_background_darker">
+
+    <ScrollView
+        android:id="@+id/scroll_clock_melody_tracks"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fadeScrollbars="false"
+        android:scrollbarAlwaysDrawVerticalTrack="true"
+        android:scrollbarSize="3dp"
+        android:scrollbarStyle="insideInset"
+        android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+        android:scrollbars="vertical"
+        android:verticalScrollbarPosition="left"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.35">
+
+        <LinearLayout
+            android:id="@+id/layout_clock_melody_tracks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_clock_melody_visualizer_area"
+        android:layout_width="0dp"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/scroll_clock_melody_tracks"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Одна строка, ширина фиксирована независимо от длины названия трека — иначе
+             блок визуализатора ниже "скачет" по высоте вслед за length названия (баг,
+             найденный на устройстве). Слово "Выбрано:" неподвижно, скроллится (marquee)
+             только само название, и то один раз сразу после [Выбрать]
+             (MainActivity.playMelodySelectedMarqueeOnce()), дальше застывает обрезанным. -->
+        <LinearLayout
+            android:id="@+id/layout_clock_melody_selected"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tv_clock_melody_selected_label"
+                style="@style/TextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:text="@string/clock_melody_selected_label" />
+
+            <TextView
+                android:id="@+id/tv_clock_melody_selected_name"
+                style="@style/TextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="1" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/img_clock_melody_box_side"
+            style="@style/ColorTintStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="0.0dp"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toTopOf="@id/melody_wave"
+            app:layout_constraintBottom_toBottomOf="@id/img_clock_melody_box_bottom"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/radio_box_side" />
+
+        <com.chibde.visualizer.LineVisualizer
+            android:id="@+id/melody_wave"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintTop_toBottomOf="@id/layout_clock_melody_selected"
+            app:layout_constraintBottom_toTopOf="@id/btn_clock_melody_select"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/img_clock_melody_box_side"
+            app:layout_constraintHeight_percent="0.35"
+            app:layout_constraintWidth_percent="0.85"
+            app:layout_constraintHorizontal_bias="0.9"
+            app:layout_constraintVertical_bias="0.4" />
+
+        <ImageView
+            android:id="@+id/img_clock_melody_box_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dp"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toBottomOf="@id/melody_wave"
+            app:layout_constraintStart_toStartOf="@id/melody_wave"
+            app:layout_constraintEnd_toEndOf="@id/melody_wave"
+            app:srcCompat="@drawable/radio_box_bottom" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_clock_melody_select"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/mode_select_button"
+            app:layout_constraintTop_toBottomOf="@id/img_clock_melody_box_bottom"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

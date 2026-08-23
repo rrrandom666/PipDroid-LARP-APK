@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Один пункт вертикального колеса-степпера (roadmap, "Часы — UX-спецификация",
+     свайповая версия) — ClockWheelPicker.kt переиспользует этот layout и для часов, и
+     для минут/секунд Будильника и Таймера. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/ClockStyle"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:textSize="28sp" />

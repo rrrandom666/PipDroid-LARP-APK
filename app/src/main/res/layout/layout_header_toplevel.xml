@@ -113,4 +113,20 @@
         app:layout_constraintWidth_percent="0.06"
         app:srcCompat="@drawable/ic_ble_status" />
 
+    <!-- Батарея телефона (roadmap, "Часы — UX-спецификация") — раньше только в углу
+         экрана ITEMS/Clock, единственное место во всём приложении, где вообще
+         показывается заряд устройства. Перенесена сюда, чтобы быть видна на любом
+         разделе, не только на Clock. -->
+    <TextView
+        android:id="@+id/tv_header_battery"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="0.0dip"
+        android:layout_marginEnd="8dp"
+        android:gravity="center_vertical"
+        android:text="100"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/img_header_ble_status"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

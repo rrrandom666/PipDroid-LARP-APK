@@ -203,6 +203,34 @@
     <string name="items_clock">Clock</string>
     <string name="items_journal">Journal</string>
 
+    <!-- ITEMS/Clock — список фичей слева (roadmap, "Часы — UX-спецификация") -->
+    <string name="clock_feature_time">Time</string>
+    <string name="clock_feature_alarm">Alarm</string>
+    <string name="clock_feature_timer">Timer</string>
+    <string name="clock_feature_stopwatch">Stopwatch</string>
+    <string name="clock_feature_melody">Ringtone</string>
+
+    <!-- ITEMS/Clock/Будильник (roadmap, "Часы — UX-спецификация") -->
+    <string name="clock_alarm_status_off">Alarm is off</string>
+    <string name="clock_alarm_status_on">Alarm set for %1$s</string>
+    <string name="clock_alarm_set">Set</string>
+    <string name="clock_alarm_cancel">Cancel</string>
+
+    <!-- Оверлей срабатывания будильника/таймера — общий для обоих (roadmap, "Часы —
+         UX-спецификация", "Срабатывание") -->
+    <string name="clock_alarm_fired_title">ALARM</string>
+    <string name="clock_fired_stop">Stop</string>
+
+    <!-- ITEMS/Clock/Таймер (roadmap, "Часы — UX-спецификация") -->
+    <string name="clock_timer_preset_5">+5 min</string>
+    <string name="clock_timer_preset_10">+10 min</string>
+    <string name="clock_timer_start">Start</string>
+    <string name="clock_timer_pause">Pause</string>
+    <string name="clock_timer_resume">Resume</string>
+    <string name="clock_timer_reset">Reset</string>
+    <string name="clock_timer_fired_title">TIMER</string>
+    <string name="clock_melody_selected_label">Selected:</string>
+
     <string name="data_misc">Files</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>
     <string name="data_misc_entry1_description">"BUILDING A DECK

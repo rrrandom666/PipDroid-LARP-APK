@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ITEMS/Clock/Таймер (roadmap, "Часы — UX-спецификация") — один таймер, длительность
+     тремя колёсами ЧЧ:ММ:СС (ClockWheelPicker.kt, тот же компонент, что у Будильника) +
+     пресеты +5/+10 мин. Два подэкрана: настройка (колёса+пресеты+Старт) и обратный отсчёт
+     (крупные цифры+Пауза/Сброс), переключаются видимостью. Срабатывание — общий оверлей
+     layout_clock_fired_overlay.xml (MainActivity.fireTimer()). -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_items_clock_timer"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_clock_timer_setup"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:id="@+id/layout_clock_timer_wheels"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintHeight_percent="0.5"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/layout_clock_timer_presets"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:layout_constraintVertical_bias="0.05">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_clock_timer_hour"
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:overScrollMode="never" />
+
+            <TextView
+                style="@style/ClockStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:textSize="24sp"
+                android:text=":" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_clock_timer_minute"
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:overScrollMode="never" />
+
+            <TextView
+                style="@style/ClockStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:textSize="24sp"
+                android:text=":" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_clock_timer_second"
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:overScrollMode="never" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_clock_timer_presets"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_clock_timer_wheels"
+            app:layout_constraintBottom_toTopOf="@id/btn_clock_timer_start">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_clock_timer_preset_5"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/clock_timer_preset_5" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_clock_timer_preset_10"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/clock_timer_preset_10" />
+
+        </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_clock_timer_start"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/clock_timer_start"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_clock_timer_presets"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_clock_timer_running"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_clock_timer_countdown"
+            style="@style/ClockStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="64.0dip"
+            android:text="00:05:00"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/layout_clock_timer_running_buttons"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:layout_constraintVertical_bias="0.4" />
+
+        <LinearLayout
+            android:id="@+id/layout_clock_timer_running_buttons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="24dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_clock_timer_countdown"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_clock_timer_pause_resume"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/clock_timer_pause" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_clock_timer_reset"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/clock_timer_reset" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

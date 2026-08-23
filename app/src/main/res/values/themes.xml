@@ -21,6 +21,12 @@
     <style name="Theme.PipDroid.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
+        <!-- Без этого система на части устройств (обычно на API < 30) сама сужает
+             окно с той стороны, где физически есть вырез экрана, вместо того чтобы
+             дать приложению рисовать под ним — то самое асимметричное поведение,
+             которое иначе нечем скомпенсировать в коде (MainActivity.onCreate,
+             симметризация safe-inset выреза). -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
     </style>
 
     <style name="Theme.PipDroid.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />

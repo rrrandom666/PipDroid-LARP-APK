@@ -343,4 +343,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <include
+        android:id="@+id/inc_layout_clock_fired_overlay"
+        layout="@layout/layout_clock_fired_overlay" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

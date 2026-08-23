@@ -1,76 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ITEMS/Clock (roadmap, этап 6, п.3) — раньше попап поверх RADIO (пункт "Clock" в
-     списке радиостанций, открывался/закрывался кнопкой X), теперь обычный раздел второго
-     уровня ITEMS: занимает весь экран, закрывать нечего — уходишь через строку 2, как с
-     любого другого раздела. Фон-плашка попапа (settings_menu_background_green) и кнопка
-     закрытия убраны, содержимое (батарея + время) не тронуто. -->
+<!-- ITEMS/Clock (roadmap, "Часы — UX-спецификация") — список фичей слева (Часы/
+     Будильник/Таймер/Секундомер/Мелодия звонка), содержимое выбранной справа, по
+     образцу layout_tab_stats_status.xml (STATUS -> CND/RAD/EFF). Раньше этот файл был
+     самим содержимым (просто цифровые часы на весь экран + батарея в углу) — теперь
+     контейнер, часы переехали в layout_tab_items_clock_time.xml, батарея — в шапку
+     (layout_header_toplevel.xml). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/layout_tab_items_clock"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:orientation="vertical">
+    android:layout_height="fill_parent">
 
-<androidx.constraintlayout.widget.ConstraintLayout
-    android:id="@+id/layout_tab_radio_clock_popup_topbuttons"
-    android:layout_width="fill_parent"
-    android:layout_height="0.0dip"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintHeight_percent="0.1">
-
-    <TextView
-        android:id="@+id/tv_tab_radio_clock_popup_battery"
-        style="@style/TextStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12.0dip"
-        android:text="100"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_items_clock_buttons_container"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.3">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_buttons"
+            layout="@layout/layout_tab_items_clock_buttons"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-<androidx.constraintlayout.widget.ConstraintLayout
-android:id="@+id/layout_tab_radio_clock_popup_time"
-android:layout_width="fill_parent"
-android:layout_height="fill_parent"
-app:layout_constraintBottom_toBottomOf="parent"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintTop_toBottomOf="@+id/layout_tab_radio_clock_popup_topbuttons">
+    <FrameLayout
+        android:id="@+id/layout_tab_items_clock_content"
+        android:layout_width="0.0dip"
+        android:layout_height="fill_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/layout_tab_items_clock_buttons_container"
+        app:layout_constraintTop_toTopOf="parent">
 
-<TextView
-    android:id="@+id/tv_tab_radio_clock_popup_s"
-    style="@style/ClockStyle"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginStart="8.0dip"
-    android:layout_marginTop="32.0dip"
-    android:text=":00"
-    android:textSize="64.0dip"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toEndOf="@+id/tv_tab_radio_clock_popup_hm"
-    app:layout_constraintTop_toTopOf="parent" />
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_time"
+            layout="@layout/layout_tab_items_clock_time" />
 
-<!-- Пара HH:MM + :SS — packed-цепочка (roadmap: "часы визуально были одним блоком"),
-     раньше был spread по умолчанию (оба TextView просто ссылались друг на друга без
-     chainStyle) — секунды разъезжались далеко от минут вместо того, чтобы стоять рядом. -->
-<TextView
-    android:id="@+id/tv_tab_radio_clock_popup_hm"
-    style="@style/ClockStyle"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="00:00"
-    android:textSize="112.0dip"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toStartOf="@+id/tv_tab_radio_clock_popup_s"
-    app:layout_constraintHorizontal_chainStyle="packed"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_alarm"
+            layout="@layout/layout_tab_items_clock_alarm"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_timer"
+            layout="@layout/layout_tab_items_clock_timer"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_stopwatch"
+            layout="@layout/layout_tab_items_clock_stopwatch"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/inc_layout_tab_items_clock_melody"
+            layout="@layout/layout_tab_items_clock_melody"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

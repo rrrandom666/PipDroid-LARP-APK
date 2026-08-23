@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Оверлей срабатывания будильника/таймера (roadmap, "Часы — UX-спецификация",
+     "Срабатывание") — полноэкранный, поверх любого раздела приложения, как системный
+     будильник Android. Общий для будильника и таймера — заголовок выставляется в коде
+     перед показом (MainActivity.fireAlarm()/fireTimer()). Последний ребёнок root
+     ConstraintLayout (activity_main.xml) — перекрывает вообще всё. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_clock_fired_overlay"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:visibility="gone"
+    android:background="@color/pip_background_darker"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_clock_fired_title"
+            style="@style/ClockStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="48.0dip"
+            android:text="@string/clock_alarm_fired_title" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_clock_fired_stop"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/clock_fired_stop" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

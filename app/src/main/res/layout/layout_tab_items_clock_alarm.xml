@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ITEMS/Clock/Будильник (roadmap, "Часы — UX-спецификация") — один однократный
+     будильник, время задаётся свайповым колесом (ClockWheelPicker.kt, переиспользуется
+     Таймером) по образцу системных часов Android. Срабатывание —
+     MainActivity.checkAlarmFiring(), полноэкранный оверлей layout_clock_fired_overlay.xml
+     поверх любого раздела приложения. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_items_clock_alarm"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <!-- Вертикальная цепочка (колесо -> статус -> кнопка), packed с небольшим смещением
+         к верху — гарантирует, что кнопка всегда попадает в видимую область независимо от
+         реальной высоты экрана конкретного телефона (BYOD), в отличие от фиксированного
+         vertical_bias у одного только колеса (баг, найденный при проверке на устройстве:
+         кнопка [Set] уезжала за подвал). Высота колеса — в процентах от экрана, не
+         фиксированный dp, по той же причине. -->
+    <LinearLayout
+        android:id="@+id/layout_clock_alarm_time"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintHeight_percent="0.55"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/tv_clock_alarm_status"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintVertical_bias="0.1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_clock_alarm_hour"
+            android:layout_width="72dp"
+            android:layout_height="match_parent"
+            android:overScrollMode="never" />
+
+        <TextView
+            style="@style/ClockStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="28sp"
+            android:text=":" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_clock_alarm_minute"
+            android:layout_width="72dp"
+            android:layout_height="match_parent"
+            android:overScrollMode="never" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_clock_alarm_status"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/clock_alarm_status_off"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_clock_alarm_time"
+        app:layout_constraintBottom_toTopOf="@id/btn_clock_alarm_toggle" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_clock_alarm_toggle"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/clock_alarm_set"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_clock_alarm_status"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

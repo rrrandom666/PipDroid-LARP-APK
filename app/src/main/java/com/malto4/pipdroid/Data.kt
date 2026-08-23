@@ -149,3 +149,17 @@ val dmiscs = listOf(
     mapOf("id" to "4", "name" to "apple", "type" to "fruit"),
     mapOf("id" to "5", "name" to "peacock", "type" to "bird")
 )
+
+/** ITEMS/Clock/Мелодия звонка (roadmap, "Часы — UX-спецификация") — треки вселенной
+ * Fallout, извлечённые из архивов игр (Git LFS, см. .gitattributes). */
+data class RingtoneTrack(val displayName: String, val rawResId: Int)
+val ringtoneTracks = listOf(
+    RingtoneTrack("Bob Crosby — Happy Times", R.raw.ringtone_bob_crosby_happy_times),
+    RingtoneTrack("The Ink Spots — I Don't Want to Set the World on Fire", R.raw.ringtone_ink_spots_idont),
+    RingtoneTrack("The Ink Spots — Maybe", R.raw.ringtone_ink_spots_maybe),
+    RingtoneTrack("Connie Allen — Rocket 69", R.raw.ringtone_connie_allen_rocket_69),
+    RingtoneTrack("Elton Britt — Uranium Fever", R.raw.ringtone_elton_britt_uranium_fever),
+    RingtoneTrack("Roy Brown — Good Rockin' Tonight", R.raw.ringtone_roy_brown_good_rockin_tonight),
+    RingtoneTrack("The Five Stars — Atom Bomb Baby", R.raw.ringtone_five_stars_atom_bomb_baby),
+    RingtoneTrack("Warren Smith — Uranium Rock", R.raw.ringtone_warren_smith_uranium_rock),
+)

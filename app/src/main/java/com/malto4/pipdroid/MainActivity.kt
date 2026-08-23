@@ -18,6 +18,7 @@ import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.text.TextUtils
 import android.os.PowerManager
 import android.provider.Settings
 import android.graphics.Bitmap
@@ -34,9 +35,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.BatteryManager
@@ -161,6 +160,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var stopwatchState = StopwatchState.IDLE
     private var stopwatchStartEpochMillis = 0L
     private var stopwatchElapsedMillisAtPause = 0L
+    // Мелодия звонка (roadmap, "Часы — UX-спецификация") — общий трек на будильник и
+    // таймер, один слот. В отличие от состояния будильника/таймера — это скорее настройка,
+    // чем разовое состояние, поэтому персистится в SharedPreferences (как тема/имя игрока),
+    // не сбрасывается при перезапуске.
+    private val selectedRingtone_SPKey = "selectedRingtoneIndex"
+    private var melodyFocusedIndex = 0
+    private var melodyPreviewPlayer: MediaPlayer? = null
+    private var melodyPreviewPlayingIndex: Int? = null
+    private val melodyTrackRowViews = ArrayList<TextView>()
 
 
 
@@ -2933,16 +2941,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         playClockFiredSound()
     }
     /**
-     * Звук срабатывания — временная заглушка системным будильником Android, пока не
-     * реализована "Мелодия звонка" (roadmap, этап 7 спеки) — сама механика выбора и
-     * хранения трека ещё не существует, подменить на выбранный трек одной строкой,
-     * когда экран будет готов.
+     * Звук срабатывания — выбранный трек из "Мелодия звонка" (roadmap, "Часы —
+     * UX-спецификация"), общий слот для будильника и таймера. sharedPreferences хранит
+     * только индекс — до первого явного выбора игроком это индекс 0 (первый трек списка),
+     * не отсутствие звука вовсе.
      */
     private fun playClockFiredSound() {
         stopClockFiredSound()
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val trackIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        val uri = Uri.parse("android.resource://$packageName/${ringtoneTracks[trackIndex].rawResId}")
+        // Без явных AudioAttributes(USAGE_ALARM) — тот канал управляется отдельным
+        // системным регулятором громкости "будильник", независимым от того, которым
+        // игрок уже пользуется для остального звука приложения (баг, найденный на
+        // устройстве: звук был заметно тише и не следовал системной громкости). Дефолтный
+        // канал MediaPlayer — тот же, что у радио/кликов интерфейса.
         clockFiredRingtonePlayer = MediaPlayer().apply {
-            setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
             setDataSource(this@MainActivity, uri)
             isLooping = true
             prepare()
@@ -2982,6 +2995,78 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_timer_fired_title)
         bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
         playClockFiredSound()
+    }
+    /**
+     * Мелодия звонка (roadmap, "Часы — UX-спецификация") — функции уровня класса, не
+     * локальные closure в onCreate: openClockMelodyScreen() вызывается из обработчика
+     * клика по кнопке "Мелодия звонка" в списке фичей Clock, который регистрируется
+     * раньше по тексту onCreate, чем сама секция настройки экрана Мелодии — локальные
+     * fun в Kotlin не видны при таком опережающем вызове (в отличие от методов класса).
+     */
+    private fun updateMelodySelectedLabel() {
+        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
+        val index = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        melody.tvClockMelodySelectedName.apply {
+            text = ringtoneTracks[index].displayName
+            isSelected = false // застывшее обрезанное состояние, пока не нажали [Выбрать]
+        }
+    }
+    /** Один проход marquee у названия в строке "Выбрано:" сразу после [Выбрать]
+     * (roadmap, "Часы — UX-спецификация") — сброс isSelected перед повторной установкой
+     * нужен, иначе TextView считает лимит повторов уже исчерпанным и не скроллит заново,
+     * если выбрать тот же самый трек второй раз подряд. */
+    private fun playMelodySelectedMarqueeOnce() {
+        val nameView = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.tvClockMelodySelectedName
+        nameView.isSelected = false
+        nameView.post { nameView.isSelected = true }
+    }
+    private fun highlightMelodyRow() {
+        for ((index, row) in melodyTrackRowViews.withIndex()) {
+            val isActive = index == melodyFocusedIndex
+            row.setBackgroundResource(if (isActive) selected_button else R.drawable.button_unselected)
+            // isSelected запускает marquee у активного пункта (нужно read полное название),
+            // остальные остаются статично обрезанными многоточием.
+            row.isSelected = isActive
+        }
+    }
+    private fun stopMelodyPreview() {
+        melodyPreviewPlayer?.stop()
+        melodyPreviewPlayer?.release()
+        melodyPreviewPlayer = null
+        melodyPreviewPlayingIndex = null
+    }
+    private fun startMelodyPreview(index: Int) {
+        stopMelodyPreview()
+        melodyPreviewPlayingIndex = index
+        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
+        melodyPreviewPlayer = MediaPlayer.create(this, ringtoneTracks[index].rawResId).apply {
+            isLooping = true
+            start()
+        }
+        val audioSessionId = melodyPreviewPlayer?.audioSessionId
+        if (checkAudioPermission() && audioSessionId != null && audioSessionId != -1) {
+            melody.melodyWave.release()
+            melody.melodyWave.setPlayer(audioSessionId)
+            melody.melodyWave.visibility = View.VISIBLE
+        } else if (!checkAudioPermission()) {
+            requestAudioPermission()
+        }
+    }
+    private fun openClockMelodyScreen() {
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.layoutTabItemsClockButtonsContainer.visibility = View.GONE
+        clock.layoutTabItemsClockContent.visibility = View.GONE
+        clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
+        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        highlightMelodyRow()
+        updateMelodySelectedLabel()
+    }
+    private fun closeClockMelodyScreen() {
+        stopMelodyPreview()
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
+        clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
+        clock.layoutTabItemsClockContent.visibility = View.VISIBLE
     }
     /** Обновление отображения секундомера — вызывается из общего 300мс-цикла, пока RUNNING. */
     private fun updateStopwatchDisplay() {
@@ -5280,11 +5365,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         clock.incLayoutTabItemsClockButtons.btnClockMelody.setOnClickListener {
             setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockMelody, listItemsClockButtons)
-            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
+            openClockMelodyScreen()
         }
 
         /*
@@ -5317,6 +5398,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             updateAlarmStatusViews()
         }
         alarm.btnClockAlarmToggle.setOnClickListener {
+            playNewTabSelectAudio()
             alarmArmed = !alarmArmed
             updateAlarmStatusViews()
         }
@@ -5347,10 +5429,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             timerHourWheel.scrollToValue(timerHours)
             timerMinuteWheel.scrollToValue(timerMinutes)
         }
-        timer.btnClockTimerPreset5.setOnClickListener { addTimerPresetMinutes(5) }
-        timer.btnClockTimerPreset10.setOnClickListener { addTimerPresetMinutes(10) }
+        timer.btnClockTimerPreset5.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(5) }
+        timer.btnClockTimerPreset10.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(10) }
 
         timer.btnClockTimerStart.setOnClickListener {
+            playNewTabSelectAudio()
             val totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds
             if (totalSeconds > 0) {
                 timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
@@ -5361,6 +5444,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
+            playNewTabSelectAudio()
             when (timerState) {
                 TimerState.RUNNING -> {
                     timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
@@ -5376,6 +5460,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
         timer.btnClockTimerReset.setOnClickListener {
+            playNewTabSelectAudio()
             timerState = TimerState.IDLE
             timer.layoutClockTimerRunning.visibility = View.GONE
             timer.layoutClockTimerSetup.visibility = View.VISIBLE
@@ -5391,6 +5476,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
 
         stopwatch.btnClockStopwatchStartPause.setOnClickListener {
+            playNewTabSelectAudio()
             when (stopwatchState) {
                 StopwatchState.IDLE -> {
                     stopwatchStartEpochMillis = System.currentTimeMillis()
@@ -5410,14 +5496,72 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
         stopwatch.btnClockStopwatchReset.setOnClickListener {
+            playNewTabSelectAudio()
             stopwatchState = StopwatchState.IDLE
             stopwatchElapsedMillisAtPause = 0L
             stopwatch.tvClockStopwatchElapsed.text = "00:00:00"
             stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_start)
         }
 
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - CLOCK - МЕЛОДИЯ ЗВОНКА (roadmap, "Часы — UX-спецификация") — список строится
+        кодом из ringtoneTracks (Data.kt), последний пункт — [Назад]. Клик по треку — превью
+        play/stop (визуализатор — тот же LineVisualizer, что у Radio, отдельный инстанс).
+        */
+        val melody = clock.incLayoutTabItemsClockMelody
+        melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
+        // Отдельный от Radio инстанс LineVisualizer — applyTextColor() красит только
+        // общий lineVisualizer радио, этот без явного setColor() рисует линию дефолтным
+        // цветом библиотеки, неотличимым от тёмного фона (баг, найденный на устройстве).
+        melody.melodyWave.setColor(currentWizardAccentColor())
+        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+
+        melody.layoutClockMelodyTracks.removeAllViews()
+        melodyTrackRowViews.clear()
+        for ((index, track) in ringtoneTracks.withIndex()) {
+            val row = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
+                text = track.displayName
+                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
+                setPadding(24, 16, 24, 16)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                // Длинные названия треков раздвигали строку — одна строка + marquee
+                // вместо переноса (roadmap, правка после проверки на устройстве). Скроллится
+                // только активный (выбранный) пункт — isSelected переключается в
+                // highlightMelodyRow(), остальные показывают статичное "...".
+                maxLines = 1
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                setOnClickListener {
+                    playItemSelectAudio()
+                    melodyFocusedIndex = index
+                    highlightMelodyRow()
+                    if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
+                }
+            }
+            melody.layoutClockMelodyTracks.addView(row)
+            melodyTrackRowViews.add(row)
+        }
+        val backRow = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
+            text = getString(R.string.wizard_back)
+            typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
+            setPadding(24, 16, 24, 16)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setOnClickListener { playItemSelectAudio(); closeClockMelodyScreen() }
+        }
+        melody.layoutClockMelodyTracks.addView(backRow)
+
+        melody.btnClockMelodySelect.setOnClickListener {
+            playNewTabSelectAudio()
+            sharedPreferences.edit().putInt(selectedRingtone_SPKey, melodyFocusedIndex).apply()
+            updateMelodySelectedLabel()
+            playMelodySelectedMarqueeOnce()
+        }
+
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.setOnClickListener {
+            playNewTabSelectAudio()
             stopClockFiredSound()
             bindingMain.incLayoutClockFiredOverlay.root.visibility = View.GONE
         }

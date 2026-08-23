@@ -55,11 +55,21 @@
             layout="@layout/layout_tab_items_clock_stopwatch"
             android:visibility="gone" />
 
-        <include
-            android:id="@+id/inc_layout_tab_items_clock_melody"
-            layout="@layout/layout_tab_items_clock_melody"
-            android:visibility="gone" />
-
     </FrameLayout>
+
+    <!-- Мелодия звонка (roadmap, "Часы — UX-спецификация") — не контент общей рамки, как
+         остальные 4 пункта, а отдельный полноэкранный переход поверх ОБЕИХ колонок (список
+         фичей слева тоже скрывается). Возврат — [Назад] последним пунктом собственного
+         списка треков (layout_tab_items_clock_melody.xml), не через дерево фичей. -->
+    <include
+        android:id="@+id/inc_layout_tab_items_clock_melody"
+        layout="@layout/layout_tab_items_clock_melody"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -229,6 +229,7 @@
     <string name="clock_timer_resume">Resume</string>
     <string name="clock_timer_reset">Reset</string>
     <string name="clock_timer_fired_title">TIMER</string>
+    <string name="clock_melody_selected_label">Selected:</string>
 
     <string name="data_misc">Files</string>
     <string name="data_misc_entry1_name">How to play Caravan</string>

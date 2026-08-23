@@ -509,3 +509,4 @@ strings.xml:clock_timer_pause,values/strings.xml,clock_timer_pause,Pause,гот�
 strings.xml:clock_timer_resume,values/strings.xml,clock_timer_resume,Resume,готово,Продолжить,,
 strings.xml:clock_timer_reset,values/strings.xml,clock_timer_reset,Reset,готово,Сброс,,
 strings.xml:clock_timer_fired_title,values/strings.xml,clock_timer_fired_title,TIMER,готово,ТАЙМЕР,,
+strings.xml:clock_melody_selected_label,values/strings.xml,clock_melody_selected_label,Selected:,готово,Выбрано:,,

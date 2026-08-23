@@ -1688,6 +1688,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.btnWizardCancel,
             w.btnWizardPermissionsBack,
             w.btnWizardGrantPermissions,
+            w.btnWizardPairingBack,
             w.btnWizardPairingRescan,
             w.btnWizardPairingSkipDebug,
             w.btnWizardHideHint
@@ -1747,6 +1748,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
         // Шаг 5: Pairing
+        w.btnWizardPairingBack.setOnClickListener {
+            playNewTabSelectAudio()
+            stopPairingScan()
+            showWizardStep(PipBoyWizardStep.PERMISSIONS)
+        }
         w.btnWizardPairingRescan.setOnClickListener {
             playNewTabSelectAudio()
             startPairingScan()

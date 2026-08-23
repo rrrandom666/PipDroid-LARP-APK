@@ -1686,6 +1686,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             w.btnWizardDone,
             w.btnWizardReset,
             w.btnWizardCancel,
+            w.btnWizardPermissionsBack,
             w.btnWizardGrantPermissions,
             w.btnWizardPairingRescan,
             w.btnWizardPairingSkipDebug,
@@ -1736,6 +1737,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
         // Шаг 4: Permissions
+        w.btnWizardPermissionsBack.setOnClickListener {
+            playNewTabSelectAudio()
+            showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
+        }
         w.btnWizardGrantPermissions.setOnClickListener {
             playNewTabSelectAudio()
             checkPermissions()

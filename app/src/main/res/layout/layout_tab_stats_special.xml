@@ -435,11 +435,65 @@
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
             app:layout_constraintBottom_toTopOf="@id/layout_tab_special_descriptions_text"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/layout_special_value_buttons"
             app:layout_constraintHeight_percent="0.4"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/special_strength" />
+
+        <!-- Кнопки +/- редактирования значения SPECIAL (roadmap, "Финализация STATS") —
+             действуют на выбранную характеристику (selectedSPECIAL), заменяют долгий тап
+             по строке в списке слева. Узкая колонка справа от картинки, той же высоты
+             (верхние 40% правой колонки), ниже (зона описания) не занимают. -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_special_value_buttons"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="6.0dip"
+            app:layout_constraintBottom_toTopOf="@id/layout_tab_special_descriptions_text"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.2"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.09">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_special_increase"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginBottom="4.0dip"
+                android:text="+"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:paddingLeft="2dip"
+                android:paddingRight="2dip"
+                android:paddingTop="0dip"
+                android:paddingBottom="0dip"
+                app:layout_constraintBottom_toTopOf="@id/btn_special_decrease"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_special_decrease"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:text="−"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:paddingLeft="2dip"
+                android:paddingRight="2dip"
+                android:paddingTop="0dip"
+                android:paddingBottom="0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btn_special_increase" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <ImageView
             android:id="@+id/img_special_selected_border"

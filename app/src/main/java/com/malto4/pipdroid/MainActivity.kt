@@ -185,7 +185,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var listItemsClockButtons = ArrayList<Button>()
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
     private var listStatsSkills = ArrayList<ConstraintLayout>()
-    private var listStatsGeneralFactions = ArrayList<ConstraintLayout>()
     private var listDataMisc = ArrayList<ConstraintLayout>()
     private var listDataRadios = ArrayList<ConstraintLayout>()
 
@@ -453,7 +452,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      **********************************************************************************************************/
     private var statsCndPopupIsHolding = false
     private var menuSwipeEnabled = true
-    private var perkModification = false
     private var isFlashlightOn = false
     private var isFlashlightOff = false
     private var delayIterationCount = 0
@@ -477,43 +475,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var crippledRightLeg = false
 
     private var selectedSPECIAL = "STRENGTH"
-    private var isSPECIAL_S = false
-    private var isSPECIAL_P = false
-    private var isSPECIAL_E = false
-    private var isSPECIAL_C = false
-    private var isSPECIAL_I = false
-    private var isSPECIAL_A = false
-    private var isSPECIAL_L = false
+    // Кнопки +/- (roadmap, "Финализация STATS") — действуют на выбранный selectedSPECIAL/
+    // selectedSKILL, не на конкретную строку, поэтому один общий флаг на весь экран
+    // достаточен (в отличие от старой схемы с отдельным флагом на каждый атрибут/навык).
+    private var isSPECIALValueIncreasing = false
+    private var isSPECIALValueDecreasing = false
 
     private var selectedSKILL = "BARTER"
-    private var isSKILL_1 = false
-    private var isSKILL_2 = false
-    private var isSKILL_3 = false
-    private var isSKILL_4 = false
-    private var isSKILL_5 = false
-    private var isSKILL_6 = false
-    private var isSKILL_7 = false
-    private var isSKILL_8 = false
-    private var isSKILL_9 = false
-    private var isSKILL_10 = false
-    private var isSKILL_11 = false
-    private var isSKILL_12 = false
-    private var isSKILL_13 = false
-
-    private var selectedFACTION = "BOOMERS"
-    private var isFACTION_1 = false
-    private var isFACTION_2 = false
-    private var isFACTION_3 = false
-    private var isFACTION_4 = false
-    private var isFACTION_5 = false
-    private var isFACTION_6 = false
-    private var isFACTION_7 = false
-    private var isFACTION_8 = false
-    private var isFACTION_9 = false
-    private var isFACTION_10 = false
-    private var isFACTION_11 = false
-    private var isFACTION_12 = false
-    private var isFACTION_13 = false
+    private var isSKILLValueIncreasing = false
+    private var isSKILLValueDecreasing = false
 
     private lateinit var selectedSubMenu: Button
 
@@ -535,17 +505,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 enableDisableBottomButtons(false, listBottomButtons)
                 enableDisableTopSwipe(false)
             }
-            if (perkModification){
-                filteringMenu = "PERKS"
-                listEntries(filterFrame, perks)
-                bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-                bindingMain.layoutStats.visibility = View.GONE
-                bindingMain.layoutItems.visibility = View.GONE
-                bindingMain.layoutData.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-                perkModification = false
-            }
             if (isFlashlightOn){
                 playLightOnAudio()
                 bindingMain.titleConstraintLayout.visibility = View.GONE
@@ -562,432 +521,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 bindingMain.flFlashlight.visibility = View.GONE
                 isFlashlightOn = false
             }
-
-            /*
-            ---------------- SPECIAL
-            */
-            if(isSPECIAL_S){
-                var curValue = sharedPreferences.getInt("SPECIAL_S", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialStrengthValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_S", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
+            if(isSPECIALValueIncreasing || isSPECIALValueDecreasing){
+                adjustSelectedSpecial(if (isSPECIALValueIncreasing) 1 else -1)
+                handler.postDelayed(this, 500) // 500 msecond — SPECIAL (1-10) не разгоняется
             }
-            if(isSPECIAL_P){
-                var curValue = sharedPreferences.getInt("SPECIAL_P", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialPerceptionValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_P", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isSPECIAL_E){
-                var curValue = sharedPreferences.getInt("SPECIAL_E", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialEnduranceValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_E", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isSPECIAL_C){
-                var curValue = sharedPreferences.getInt("SPECIAL_C", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialCharismaValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_C", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isSPECIAL_I){
-                var curValue = sharedPreferences.getInt("SPECIAL_I", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialIntelligenceValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_I", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isSPECIAL_A){
-                var curValue = sharedPreferences.getInt("SPECIAL_A", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialAgilityValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_A", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isSPECIAL_L){
-                var curValue = sharedPreferences.getInt("SPECIAL_L", 5)
-                curValue++
-                if(curValue > 10) {
-                    curValue = 1
-                }
-                bindingMain.incLayoutTabStatsSpecial.tvSpecialLuckValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SPECIAL_L", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-
-            /*
-            ---------------- SKILLS
-            */
-            if(isSKILL_1){
-                var curValue = sharedPreferences.getInt("SKILLS_1", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsBarterValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_1", curValue).apply()
-                playCNDSelectAudio()
+            if(isSKILLValueIncreasing || isSKILLValueDecreasing){
+                adjustSelectedSkill(if (isSKILLValueIncreasing) 1 else -1)
                 if (delayIterationCount % 10 == 0) {
                     // Decrease the delay every 10 iterations
                     delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
                 }
+                delayIterationCount++
                 handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_2){
-                var curValue = sharedPreferences.getInt("SKILLS_2", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsBigGunsValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_2", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_3){
-                var curValue = sharedPreferences.getInt("SKILLS_3", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsEnergyWeaponsValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_3", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_4){
-                var curValue = sharedPreferences.getInt("SKILLS_4", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsExplosivesValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_4", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_5){
-                var curValue = sharedPreferences.getInt("SKILLS_5", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsLockpickValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_5", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_6){
-                var curValue = sharedPreferences.getInt("SKILLS_6", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsMedicineValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_6", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_7){
-                var curValue = sharedPreferences.getInt("SKILLS_7", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsMeleeWeaponsValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_7", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_8){
-                var curValue = sharedPreferences.getInt("SKILLS_8", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsRepairValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_8", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_9){
-                var curValue = sharedPreferences.getInt("SKILLS_9", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsScienceValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_9", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_10){
-                var curValue = sharedPreferences.getInt("SKILLS_10", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsSmallGunsValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_10", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_11){
-                var curValue = sharedPreferences.getInt("SKILLS_11", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsSneakValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_11", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_12){
-                var curValue = sharedPreferences.getInt("SKILLS_12", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsSpeechValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_12", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-            if(isSKILL_13){
-                var curValue = sharedPreferences.getInt("SKILLS_13", 10)
-                curValue++
-                if(curValue > 100) {
-                    curValue = 10
-                }
-                bindingMain.incLayoutTabStatsSkills.tvSkillsUnarmedValue.text = curValue.toString()
-                sharedPreferences.edit().putInt("SKILLS_13", curValue).apply()
-                playCNDSelectAudio()
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                handler.postDelayed(this, delayModify)
-            }
-
-            /*
-            ---------------- FACTIONS
-            */
-            if(isFACTION_1){
-                var curValue = sharedPreferences.getInt("FACTION_1", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_1", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_2){
-                var curValue = sharedPreferences.getInt("FACTION_2", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_2", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_3){
-                var curValue = sharedPreferences.getInt("FACTION_3", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_3", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_4){
-                var curValue = sharedPreferences.getInt("FACTION_4", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_4", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_5){
-                var curValue = sharedPreferences.getInt("FACTION_5", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_5", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_6){
-                var curValue = sharedPreferences.getInt("FACTION_6", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_6", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_7){
-                var curValue = sharedPreferences.getInt("FACTION_7", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_7", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_8){
-                var curValue = sharedPreferences.getInt("FACTION_8", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_8", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_9){
-                var curValue = sharedPreferences.getInt("FACTION_9", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_9", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_10){
-                var curValue = sharedPreferences.getInt("FACTION_10", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_10", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_11){
-                var curValue = sharedPreferences.getInt("FACTION_11", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_11", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_12){
-                var curValue = sharedPreferences.getInt("FACTION_12", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_12", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
-            }
-            if(isFACTION_13){
-                var curValue = sharedPreferences.getInt("FACTION_13", 3)
-                curValue++
-                if(curValue > 6) {
-                    curValue = 0
-                }
-                bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(curValue))
-                sharedPreferences.edit().putInt("FACTION_13", curValue).apply()
-                playCNDSelectAudio()
-                handler.postDelayed(this, 500) // 500 msecond
             }
         }
     }
@@ -2729,33 +2274,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             ),
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSkills.performClick() }
         )
-        val general = bindingMain.incLayoutTabStatsGeneral
-        val generalNode = MenuNode(
-            id = "GENERAL",
-            children = listOf(
-                MenuNode("BOOMERS") { general.layoutTabGeneralBoomers.performClick() },
-                MenuNode("BOS") { general.layoutTabGeneralBos.performClick() },
-                MenuNode("CAESARS_LEGION") { general.layoutTabGeneralCaesarsLegion.performClick() },
-                MenuNode("FOLLOWERS_APOCALYPSE") { general.layoutTabGeneralFollowersApocalypse.performClick() },
-                MenuNode("FREESIDE") { general.layoutTabGeneralFreeside.performClick() },
-                MenuNode("GOODSPRINGS") { general.layoutTabGeneralGoodsprings.performClick() },
-                MenuNode("GREAT_KHANS") { general.layoutTabGeneralGreatKhans.performClick() },
-                MenuNode("NCR") { general.layoutTabGeneralNcr.performClick() },
-                MenuNode("NOVAC") { general.layoutTabGeneralNovac.performClick() },
-                MenuNode("POWDER_GANGERS") { general.layoutTabGeneralPowderGangers.performClick() },
-                MenuNode("PRIMM") { general.layoutTabGeneralPrimm.performClick() },
-                MenuNode("THE_STRIP") { general.layoutTabGeneralTheStrip.performClick() },
-                MenuNode("WHITE_GLOVE_SOCIETY") { general.layoutTabGeneralWhiteGloveSociety.performClick() },
-            ),
-            onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsGeneral.performClick() }
-        )
         val bottom = bindingMain.incLayoutTabStatsBottom
         return listOf(
             statusNode,
             specialNode,
             skillsNode,
             MenuNode("PERKS") { bottom.btnStatsPerks.performClick() },
-            generalNode,
         )
     }
     /**
@@ -2842,7 +2366,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         when(menu){
             "STATS" -> {
                 curMenu = "STATS"
-                bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
+                bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
                 menuOptionClickedBLE("STATS")
             }
             "ITEMS" -> {
@@ -2968,7 +2492,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial,
                 bindingMain.incLayoutTabStatsSkills.scrollTabSkills,
                 bindingMain.incLayoutTabStatsPerks.recyclerTabPerks,
-                bindingMain.incLayoutTabStatsGeneral.scrollTabGeneral,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
                 bindingMain.incLayoutSettingsGlobal.scrollTabSettings,
@@ -3035,6 +2558,61 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         selectedSKILL = selectedItem
     }
+    /**
+     * Кнопки +/- SPECIAL/Skills (roadmap, "Финализация STATS") — [prefKey]/[SharedPreferences]
+     * и [TextView] для текущего selectedSPECIAL/selectedSKILL. Диапазоны и дефолты те же,
+     * что были у старой схемы долгого тапа по строке (SPECIAL 1-10/5, Skills 10-100/10),
+     * но теперь клампятся на границе, а не зацикливаются — с отдельными кнопками +/-
+     * зацикливание было осмысленно только при "можно было исключительно прибавлять".
+     */
+    private fun specialPrefKeyAndView(name: String): Pair<String, TextView>? {
+        val special = bindingMain.incLayoutTabStatsSpecial
+        return when (name) {
+            "STRENGTH" -> "SPECIAL_S" to special.tvSpecialStrengthValue
+            "PERCEPTION" -> "SPECIAL_P" to special.tvSpecialPerceptionValue
+            "ENDURANCE" -> "SPECIAL_E" to special.tvSpecialEnduranceValue
+            "CHARISMA" -> "SPECIAL_C" to special.tvSpecialCharismaValue
+            "INTELLIGENCE" -> "SPECIAL_I" to special.tvSpecialIntelligenceValue
+            "AGILITY" -> "SPECIAL_A" to special.tvSpecialAgilityValue
+            "LUCK" -> "SPECIAL_L" to special.tvSpecialLuckValue
+            else -> null
+        }
+    }
+    private fun adjustSelectedSpecial(delta: Int) {
+        val (prefKey, textView) = specialPrefKeyAndView(selectedSPECIAL) ?: return
+        val prevValue = sharedPreferences.getInt(prefKey, 5)
+        val curValue = (prevValue + delta).coerceIn(1, 10)
+        textView.text = curValue.toString()
+        sharedPreferences.edit().putInt(prefKey, curValue).apply()
+        if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+    }
+    private fun skillPrefKeyAndView(name: String): Pair<String, TextView>? {
+        val skills = bindingMain.incLayoutTabStatsSkills
+        return when (name) {
+            "BARTER" -> "SKILLS_1" to skills.tvSkillsBarterValue
+            "BIGGUNS" -> "SKILLS_2" to skills.tvSkillsBigGunsValue
+            "ENERGYWEAPONS" -> "SKILLS_3" to skills.tvSkillsEnergyWeaponsValue
+            "EXPLOSIVES" -> "SKILLS_4" to skills.tvSkillsExplosivesValue
+            "LOCKPICK" -> "SKILLS_5" to skills.tvSkillsLockpickValue
+            "MEDICINE" -> "SKILLS_6" to skills.tvSkillsMedicineValue
+            "MELEEWEAPONS" -> "SKILLS_7" to skills.tvSkillsMeleeWeaponsValue
+            "REPAIR" -> "SKILLS_8" to skills.tvSkillsRepairValue
+            "SCIENCE" -> "SKILLS_9" to skills.tvSkillsScienceValue
+            "SMALLGUNS" -> "SKILLS_10" to skills.tvSkillsSmallGunsValue
+            "SNEAK" -> "SKILLS_11" to skills.tvSkillsSneakValue
+            "SPEECH" -> "SKILLS_12" to skills.tvSkillsSpeechValue
+            "UNARMED" -> "SKILLS_13" to skills.tvSkillsUnarmedValue
+            else -> null
+        }
+    }
+    private fun adjustSelectedSkill(delta: Int) {
+        val (prefKey, textView) = skillPrefKeyAndView(selectedSKILL) ?: return
+        val prevValue = sharedPreferences.getInt(prefKey, 10)
+        val curValue = (prevValue + delta).coerceIn(10, 100)
+        textView.text = curValue.toString()
+        sharedPreferences.edit().putInt(prefKey, curValue).apply()
+        if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+    }
     private fun setSelectedSubMenuButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?) {
         layout?.setBackgroundResource(selected_button)
         playItemSelectAudio()
@@ -3057,7 +2635,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         updateWoundButtonsUI()
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_special_strength).setBackgroundResource(selected_button)
         findViewById<ConstraintLayout>(R.id.layout_tab_skills_barter).setBackgroundResource(selected_button)
-        findViewById<ConstraintLayout>(R.id.layout_tab_general_boomers).setBackgroundResource(selected_button)
     }
     private fun setupDATA(){
         //Set Selected buttons by default
@@ -3289,8 +2866,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_special).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_skills).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_perks).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
@@ -3312,7 +2887,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_4_settings).visibility = View.GONE
 
         if (menu == "STATS"){
-            findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.VISIBLE
+            findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_status).visibility = View.VISIBLE
         } else if (menu == "ITEMS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.VISIBLE
         } else if (menu == "DATA"){
@@ -3327,8 +2902,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_special).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_skills).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_perks).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_general).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.layout_tab_stats_general_main).visibility = View.VISIBLE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
@@ -3366,7 +2939,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             Row2Item(bottom.btnStatsSpecial.text) { bottom.btnStatsSpecial.performClick() },
             Row2Item(bottom.btnStatsSkills.text) { bottom.btnStatsSkills.performClick() },
             Row2Item(bottom.btnStatsPerks.text) { bottom.btnStatsPerks.performClick() },
-            Row2Item(bottom.btnStatsGeneral.text) { bottom.btnStatsGeneral.performClick() },
         )
     }
     private fun itemsRow2Items(): List<Row2Item> {
@@ -3964,22 +3536,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         return level
     }
 
-    private fun getFactionReputation(curValue: Int): String {
-        when(curValue){
-            0 -> {return "Idolized"}
-            1 -> {return "Liked"}
-            2 -> {return "Accepted"}
-            3 -> {return "Neutral"}
-            4 -> {return "Shunned"}
-            5 -> {return "Hated"}
-            6 -> {return "Vilified"}
-        }
-        return "Neutral"
-    }
-    private fun setSelectedFaction(faction: String){
-        selectedFACTION = faction
-    }
-
     // Hide the system UI (notification bar and navigation bar)
     // Вырез экрана бывает только слева или справа (ориентация зафиксирована landscape,
     // камера на короткой стороне устройства), и на разных устройствах — разной ширины
@@ -4046,6 +3602,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                     checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
                     // Listen for CheckBox state changes to update selectedItems
                     checkBox.setOnCheckedChangeListener { _, isChecked ->
+                        playItemSelectAudio()
                         if (isChecked) {
                             selectedFilterSTATSPerks.add(itemId)  // Add item ID to selected set
                         } else {
@@ -4148,18 +3705,55 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             if (!selectedDATAMiscArray.isNullOrEmpty()) {selectedDATAMiscArray?.let { selectedFilterDATAMisc.addAll(it.split(",")) }}
         }
     }
+    /**
+     * Открывает экран фильтра Perks (roadmap, "Финализация STATS") — точка входа
+     * `btn_perks_filter` (иконка-воронка в правом верхнем углу экрана Perks), заменяет
+     * сломанный долгий тап по row2-вкладке (CLAUDE.md/память).
+     */
+    private fun openPerksFilter() {
+        playNewTabSelectAudio()
+        filteringMenu = "PERKS"
+        listEntries(filterFrame, localizedPerks)
+        bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
+        bindingMain.layoutStats.visibility = View.GONE
+        bindingMain.layoutItems.visibility = View.GONE
+        bindingMain.layoutData.visibility = View.GONE
+        enableDisableBottomButtons(false, listBottomButtons)
+        enableDisableTopSwipe(false)
+    }
+    /**
+     * Локализованная копия [perks] (roadmap, "Финализация STATS") — `Data.kt` хранит только
+     * английский текст (id/name/desc/icon), перевод не встроен в структуру напрямую (иначе
+     * пришлось бы городить отдельный тип для 140 записей). Вместо этого имя/описание каждого
+     * перка резолвятся через `perk_<id>_name`/`perk_<id>_desc` в strings.xml/values-ru —
+     * тот же приём (`getIdentifier` по имени ресурса), что уже используется для иконок
+     * перков. Вычисляется один раз: язык интерфейса меняется только через полный рестарт
+     * Activity (см. `attachBaseContext()`), а не на лету.
+     */
+    private val localizedPerks: List<Map<String, String>> by lazy {
+        perks.map { perk ->
+            val id = perk["id"]
+            val nameResId = resources.getIdentifier("perk_${id}_name", "string", packageName)
+            val descResId = resources.getIdentifier("perk_${id}_desc", "string", packageName)
+            perk + mapOf(
+                "name" to if (nameResId != 0) getString(nameResId) else perk["name"].orEmpty(),
+                "desc" to if (descResId != 0) getString(descResId) else perk["desc"].orEmpty(),
+            )
+        }
+    }
     private fun STATSPerksSetup(recyclerView: RecyclerView){
         val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
 
         // Filter the perk list based on the selected items
-        val filteredPerksList = perks.filter { perk ->
+        val filteredPerksList = localizedPerks.filter { perk ->
             perk["id"] in selectedSTATSPerksArray
         }
 
         // Set up RecyclerView
         recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = PerkAdapter(perks, selectedSTATSPerksArray, selected_button) { perk ->
+        val adapter = PerkAdapter(localizedPerks, selectedSTATSPerksArray, selected_button) { perk ->
+            playItemSelectAudio()
             bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = (perk["desc"] ?: "No description available")
             bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
             // Additional selection handling if necessary
@@ -4170,8 +3764,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         recyclerView.adapter = adapter
 
         // Optional: Scroll to a pre-selected item or update UI as needed
-        if (perks.isNotEmpty()) {
-            val firstPerk = perks.find { it["id"] == selectedSTATSPerksArray[0] }
+        if (localizedPerks.isNotEmpty()) {
+            val firstPerk = localizedPerks.find { it["id"] == selectedSTATSPerksArray[0] }
             firstPerk?.let {
                 bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = (it["desc"] ?: "No description available")
                 bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
@@ -4335,7 +3929,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // turnRadioOnBuiltIn() (живут дольше одного проигрывания, до явного стопа).
 
         //BOTTOM BUTTON SETUP (DEFAULT STATUS)
-        bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
+        bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
 
 
         listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength)
@@ -4381,20 +3975,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabStatsSkills.tvSkillsSneakValue.text = sharedPreferences.getInt("SKILLS_11", 10).toString()
         bindingMain.incLayoutTabStatsSkills.tvSkillsSpeechValue.text = sharedPreferences.getInt("SKILLS_12", 10).toString()
         bindingMain.incLayoutTabStatsSkills.tvSkillsUnarmedValue.text = sharedPreferences.getInt("SKILLS_13", 10).toString()
-
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBoomers)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBos)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralCaesarsLegion)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFollowersApocalypse)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFreeside)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGoodsprings)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGreatKhans)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNcr)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNovac)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPowderGangers)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPrimm)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralTheStrip)
-        listStatsGeneralFactions.add(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralWhiteGloveSociety)
 
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
@@ -4589,6 +4169,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationClose.setOnClickListener{
+            playNewTabSelectAudio()
             bindingMain.incLayoutFilterModification.root.visibility = View.GONE
             bindingMain.layoutStats.visibility = View.VISIBLE
             bindingMain.layoutItems.visibility = View.VISIBLE
@@ -4598,26 +4179,30 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
+            playNewTabSelectAudio()
             when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, perks, true)
+                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, true)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationClear.setOnClickListener{
+            playNewTabSelectAudio()
             when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, perks, false)
+                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, false)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationFilter.setOnClickListener{
+            playNewTabSelectAudio()
             val filterText = bindingMain.incLayoutFilterModification.etFilterModificationValue.text.toString()
 
             when(filteringMenu){
-                "PERKS" -> filterList(perks, filterText)
+                "PERKS" -> filterList(localizedPerks, filterText)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
+            playNewTabSelectAudio()
             when(filteringMenu){
                 "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
             }
@@ -4637,7 +4222,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsGeneral.root.visibility = View.GONE
         }
 
         val statusButtonsSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
@@ -4700,7 +4284,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsGeneral.root.visibility = View.GONE
         }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength.setOnClickListener{
@@ -4708,41 +4291,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_strength)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_strength_description)
         }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "STRENGTH"){
-                        isSPECIAL_S = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_S = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception.setOnClickListener{
             setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception, listStatsSpecials, "PERCEPTION")
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_perception)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_perception_description)
-        }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "PERCEPTION"){
-                        isSPECIAL_P = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_P = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialEndurance.setOnClickListener{
@@ -4750,41 +4303,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_endurance)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_endurance_description)
         }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialEndurance.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "ENDURANCE"){
-                        isSPECIAL_E = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_E = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma.setOnClickListener{
             setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma, listStatsSpecials, "CHARISMA")
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_charisma)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_charisma_description)
-        }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "CHARISMA"){
-                        isSPECIAL_C = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_C = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialIntelligence.setOnClickListener{
@@ -4792,41 +4315,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_intelligence)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_intelligence_description)
         }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialIntelligence.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "INTELLIGENCE"){
-                        isSPECIAL_I = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_I = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility.setOnClickListener{
             setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility, listStatsSpecials, "AGILITY")
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_agility)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_agility_description)
-        }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "AGILITY"){
-                        isSPECIAL_A = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_A = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialLuck.setOnClickListener{
@@ -4834,21 +4327,46 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_luck)
             bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_luck_description)
         }
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialLuck.setOnTouchListener { view, event ->
+
+        // Кнопки +/- (roadmap, "Финализация STATS") — тап меняет значение выбранной
+        // характеристики на 1 (onClick), удержание повторяет через longPressRunnable
+        // (onTouch, тот же приём, что раньше был у самой строки). SPECIAL (1-10) без
+        // разгона — фиксированный интервал 500мс.
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.setOnClickListener {
+            adjustSelectedSpecial(1)
+        }
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if(selectedSPECIAL == "LUCK"){
-                        isSPECIAL_L = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
+                    isSPECIALValueIncreasing = true
+                    handler.postDelayed(longPressRunnable, 500)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIAL_L = false
+                    isSPECIALValueIncreasing = false
                     handler.removeCallbacks(longPressRunnable)
                 }
             }
             false
         }
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.setOnClickListener {
+            adjustSelectedSpecial(-1)
+        }
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isSPECIALValueDecreasing = true
+                    handler.postDelayed(longPressRunnable, 500)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    isSPECIALValueDecreasing = false
+                    handler.removeCallbacks(longPressRunnable)
+                }
+            }
+            false
+        }
+        val specialValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.backgroundTintList = specialValueButtonsAccentTint
+        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.backgroundTintList = specialValueButtonsAccentTint
 
 
 
@@ -4862,7 +4380,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsGeneral.root.visibility = View.GONE
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBarter.setOnClickListener{
@@ -4870,45 +4387,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_barter)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_barter_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBarter.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "BARTER"){
-                        isSKILL_1 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_1 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns, listStatsSkills, "BIGGUNS")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_big_guns)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_big_guns_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "BIGGUNS"){
-                        isSKILL_2 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_2 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsEnergyWeapons.setOnClickListener{
@@ -4916,45 +4399,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_energy_weapons)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_energy_weapons_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsEnergyWeapons.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "ENERGYWEAPONS"){
-                        isSKILL_3 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_3 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives, listStatsSkills, "EXPLOSIVES")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_explosives)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_explosives_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "EXPLOSIVES"){
-                        isSKILL_4 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_4 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsLockpick.setOnClickListener{
@@ -4962,45 +4411,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_lockpick)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_lockpick_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsLockpick.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "LOCKPICK"){
-                        isSKILL_5 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_5 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine, listStatsSkills, "MEDICINE")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_medicine)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_medicine_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "MEDICINE"){
-                        isSKILL_6 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_6 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMeleeWeapons.setOnClickListener{
@@ -5008,45 +4423,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_melee_weapons)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_melee_weapons_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMeleeWeapons.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "MELEEWEAPONS"){
-                        isSKILL_7 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_7 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair, listStatsSkills, "REPAIR")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_repair)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_repair_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "REPAIR"){
-                        isSKILL_8 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_8 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsScience.setOnClickListener{
@@ -5054,45 +4435,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_science)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_science_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsScience.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "SCIENCE"){
-                        isSKILL_9 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_9 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns, listStatsSkills, "SMALLGUNS")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_small_guns)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_small_guns_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "SMALLGUNS"){
-                        isSKILL_10 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_10 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSneak.setOnClickListener{
@@ -5100,45 +4447,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_sneak)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_sneak_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSneak.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "SNEAK"){
-                        isSKILL_11 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_11 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
 
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech.setOnClickListener{
             setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech, listStatsSkills, "SPEECH")
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_speech)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_speech_description)
-        }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "SPEECH"){
-                        isSKILL_12 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_12 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
         }
         
         bindingMain.incLayoutTabStatsSkills.layoutTabSkillsUnarmed.setOnClickListener{
@@ -5146,23 +4459,50 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_unarmed)
             bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_unarmed_description)
         }
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsUnarmed.setOnTouchListener { view, event ->
+
+        // Кнопки +/- (roadmap, "Финализация STATS") — тап меняет значение выбранного
+        // навыка на 1 (onClick), удержание повторяет через longPressRunnable (onTouch) с
+        // разгоном (интервал 500мс→50мс, как раньше у строки) — диапазон Skills (10-100)
+        // большой, без разгона листать неудобно.
+        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.setOnClickListener {
+            adjustSelectedSkill(1)
+        }
+        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if(selectedSKILL == "UNARMED"){
-                        isSKILL_13 = true
-                        delayModify = 500L // Reset delay to 1 second when initially pressed
-                        delayIterationCount = 0 // Reset iteration count
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
+                    isSKILLValueIncreasing = true
+                    delayModify = 500L
+                    delayIterationCount = 0
+                    handler.postDelayed(longPressRunnable, 500)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILL_13 = false
+                    isSKILLValueIncreasing = false
                     handler.removeCallbacks(longPressRunnable)
                 }
             }
             false
         }
+        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.setOnClickListener {
+            adjustSelectedSkill(-1)
+        }
+        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isSKILLValueDecreasing = true
+                    delayModify = 500L
+                    delayIterationCount = 0
+                    handler.postDelayed(longPressRunnable, 500)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    isSKILLValueDecreasing = false
+                    handler.removeCallbacks(longPressRunnable)
+                }
+            }
+            false
+        }
+        val skillValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.backgroundTintList = skillValueButtonsAccentTint
+        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.backgroundTintList = skillValueButtonsAccentTint
 
 
         /*
@@ -5175,338 +4515,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsGeneral.root.visibility = View.GONE
             STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
         }
-        bindingMain.incLayoutTabStatsBottom.btnStatsPerks.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(bindingMain.incLayoutTabStatsBottom.btnStatsPerks == selectedSubMenu){
-                        perkModification = true
-                        handler.postDelayed(longPressRunnable, 2000) // 2seconds
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    perkModification = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-
-        /*
-        ////////////////////////////////////////////////////////
-        STATS - GENERAL MENU
-        */
-        bindingMain.incLayoutTabStatsBottom.btnStatsGeneral.setOnClickListener {
-            setSelectedButton(bindingMain.incLayoutTabStatsBottom.btnStatsGeneral, listBottomButtons)
-            bindingMain.incLayoutTabStatsStatus.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsGeneral.root.visibility = View.VISIBLE
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_1", 3)))
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBoomers.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBoomers, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_boomers)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_boomers)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_1", 3)))
-            setSelectedFaction("BOOMERS")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBoomers.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "BOOMERS"){
-                        isFACTION_1 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_1 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBos.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBos, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_brotherhood_of_steel)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_bos)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_2", 3)))
-            setSelectedFaction("BOS")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralBos.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "BOS"){
-                        isFACTION_2 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_2 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralCaesarsLegion.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralCaesarsLegion, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_caesars_legion)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_caesars_legion)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_3", 3)))
-            setSelectedFaction("CAESARSLEGION")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralCaesarsLegion.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "CAESARSLEGION"){
-                        isFACTION_3 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_3 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFollowersApocalypse.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFollowersApocalypse, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_followers_apocalypse)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_followers_apocalypse)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_4", 3)))
-            setSelectedFaction("FOLLOWERSAPOCALYPSE")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFollowersApocalypse.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "FOLLOWERSAPOCALYPSE"){
-                        isFACTION_4 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_4 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFreeside.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFreeside, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_freeside)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_freeside)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_5", 3)))
-            setSelectedFaction("FREESIDE")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralFreeside.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "FREESIDE"){
-                        isFACTION_5 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_5 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGoodsprings.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGoodsprings, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_goodsprings)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_goodsprings)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_6", 3)))
-            setSelectedFaction("GOODSPRINGS")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGoodsprings.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "GOODSPRINGS"){
-                        isFACTION_6 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_6 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGreatKhans.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGreatKhans, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_great_khans)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_great_khans)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_7", 3)))
-            setSelectedFaction("GREATKHANS")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralGreatKhans.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "GREATKHANS"){
-                        isFACTION_7 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_7 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNcr.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNcr, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_ncr)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_ncr)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_8", 3)))
-            setSelectedFaction("NCR")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNcr.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "NCR"){
-                        isFACTION_8 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_8 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNovac.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNovac, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_novac)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_novac)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_9", 3)))
-            setSelectedFaction("NOVAC")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralNovac.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "NOVAC"){
-                        isFACTION_9 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_9 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPowderGangers.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPowderGangers, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_powder_ganger)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_powder_gangers)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_10", 3)))
-            setSelectedFaction("POWDERGANGERS")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPowderGangers.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "POWDERGANGERS"){
-                        isFACTION_10 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_10 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPrimm.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPrimm, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_primm)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_primm)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_11", 3)))
-            setSelectedFaction("PRIMM")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralPrimm.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "PRIMM"){
-                        isFACTION_11 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_11 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralTheStrip.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralTheStrip, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_the_strip)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_the_strip)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_12", 3)))
-            setSelectedFaction("STRIP")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralTheStrip.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "STRIP"){
-                        isFACTION_12 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_12 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralWhiteGloveSociety.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralWhiteGloveSociety, listStatsGeneralFactions)
-            bindingMain.incLayoutTabStatsGeneral.imgStatsGeneralFactionSelected.setImageResource(R.drawable.reputations_white_glove_society)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionName.setText(R.string.stats_general_faction_white_glove_society)
-            bindingMain.incLayoutTabStatsGeneral.tvStatsGeneralFactionReputation.setText(getFactionReputation(sharedPreferences.getInt("FACTION_13", 3)))
-            setSelectedFaction("WHITEGLOVE")
-        }
-        bindingMain.incLayoutTabStatsGeneral.layoutTabGeneralWhiteGloveSociety.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if(selectedFACTION == "WHITEGLOVE"){
-                        isFACTION_13 = true
-                        handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFACTION_13 = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
+        bindingMain.incLayoutTabStatsPerks.btnPerksFilter.setOnClickListener {
+            openPerksFilter()
         }
 
 

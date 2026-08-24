@@ -49,6 +49,26 @@
             app:srcCompat="@drawable/perk_adamantium_skeleton"
             />
 
+        <!-- Точка входа в фильтр Perks (roadmap, "Финализация STATS") — маленькая иконка-
+             воронка в правом верхнем углу экрана, заменяет сломанный долгий тап по row2-
+             вкладке (CLAUDE.md/память: долгий тап не форвардится с GONE-кнопки после
+             переделки шапки, чиниться не будет как есть). -->
+        <ImageView
+            android:id="@+id/btn_perks_filter"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginTop="8.0dip"
+            android:layout_marginEnd="8.0dip"
+            android:padding="4dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/perks_filter_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.09"
+            app:srcCompat="@drawable/ic_filter_funnel" />
+
         <ImageView
             android:id="@+id/img_perk_selected_border"
             style="@style/ColorTintStyle"
@@ -94,7 +114,7 @@
                     style="@style/TextStyle"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/stats_perks_perk1_description"
+                    android:text="@string/perk_1_desc"
                     android:textAllCaps="false" />
             </ScrollView>
         

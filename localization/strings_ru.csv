@@ -464,6 +464,7 @@ layout_tab_stats_status_rad_content.xml:127,layout/layout_tab_stats_status_rad_c
 layout_tab_stats_status_rad_content.xml:153,layout/layout_tab_stats_status_rad_content.xml,"(hardcoded, нет @string)",24,"не текст (число/плейсхолдер), но не в strings.xml",24,,
 strings.xml:items_map_no_module_detected,values/strings.xml,items_map_no_module_detected,NO LOCAL MAP MODULE DETECTED,готово,МОДУЛЬ ЛОКАЛЬНОЙ КАРТЫ НЕ ОБНАРУЖЕН,,
 layout_tab_settings.xml:33,layout/layout_tab_settings.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
+strings.xml:settings_enable_ambient_sound,values/strings.xml,settings_enable_ambient_sound,Enable Ambient Background Sound,готово,Фоновый эмбиент-звук,,
 strings.xml:settings_enable_true_fullscreen,values/strings.xml,settings_enable_true_fullscreen,Enable True Fullscreen,готово,Полноэкранный режим,,
 strings.xml:settings_show_tutorial_at_start,values/strings.xml,settings_show_tutorial_at_start,Show Tutorial at Start,готово,Показывать обучение при запуске,,
 strings.xml:settings_bluetooth_setup_button,values/strings.xml,settings_bluetooth_setup_button,Bluetooth Setup,готово,Настройка Bluetooth,,

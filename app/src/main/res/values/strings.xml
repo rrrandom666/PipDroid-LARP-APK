@@ -508,6 +508,7 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="items_map_no_module_detected">NO LOCAL MAP MODULE DETECTED</string>
     <string name="settings_enable_true_fullscreen">Enable True Fullscreen</string>
     <string name="settings_show_tutorial_at_start">Show Tutorial at Start</string>
+    <string name="settings_enable_ambient_sound">Enable Ambient Background Sound</string>
     <string name="settings_bluetooth_setup_button">Bluetooth Setup</string>
     <string name="settings_save_button">Save Settings</string>
     <string name="filter_modification_title">Modification</string>

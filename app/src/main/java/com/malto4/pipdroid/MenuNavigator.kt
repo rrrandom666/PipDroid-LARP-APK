@@ -56,6 +56,19 @@ class MenuNavigator {
         activateCurrent()
     }
 
+    /**
+     * Restore-путь (roadmap, "Восстановление состояния после убийства процесса —
+     * спецификация") — прыжок сразу на сохранённую позицию верхнего уровня, без
+     * проигрывания onSelect() промежуточных узлов, через которые пришлось бы пройти
+     * повторными вызовами [moveCursor].
+     */
+    fun resetToRootAtIndex(rootNodes: List<MenuNode>, index: Int) {
+        if (rootNodes.isEmpty()) return
+        val clamped = index.coerceIn(0, rootNodes.size - 1)
+        stack = mutableListOf(Level(rootNodes, clamped))
+        activateCurrent()
+    }
+
     fun moveCursor(delta: Int) {
         val level = stack.lastOrNull() ?: return
         val newCursor = (level.cursor + delta).coerceIn(0, level.nodes.size - 1)

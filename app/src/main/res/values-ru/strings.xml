@@ -119,6 +119,7 @@
     <string name="settings_UI_Colour_3">Белый</string>
     <string name="settings_UI_Colour_4">Синий</string>
     <string name="settings_bluetooth_setup_button">Настройка Bluetooth</string>
+    <string name="settings_enable_ambient_sound">Фоновый эмбиент-звук</string>
     <string name="settings_enable_true_fullscreen">Полноэкранный режим</string>
     <string name="settings_region_name">Регион игрока</string>
     <string name="settings_save_button">Сохранить настройки</string>

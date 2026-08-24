@@ -61,7 +61,6 @@
     <string name="disclaimer_dont_show_again">Больше не показывать</string>
     <string name="disclaimer_skip_button">Пропустить</string>
     <string name="disclaimer_text">"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели."</string>
-    <string name="eff_damage_label">Урон</string>
     <string name="exit">Выход</string>
     <string name="filter_clear_all">Очистить всё</string>
     <string name="filter_modification_title">Модификация</string>
@@ -71,6 +70,7 @@
     <string name="items_clock">Часы</string>
     <string name="items_journal">Журнал</string>
     <string name="items_map">Карта</string>
+    <string name="items_geiger">Гейгер</string>
     <string name="clock_feature_time">Часы</string>
     <string name="clock_feature_alarm">Будильник</string>
     <string name="clock_feature_timer">Таймер</string>
@@ -87,7 +87,7 @@
     <string name="clock_timer_start">Старт</string>
     <string name="clock_timer_pause">Пауза</string>
     <string name="clock_timer_resume">Продолжить</string>
-    <string name="clock_timer_reset">Сброс</string>
+    <string name="clock_timer_reset">Стоп</string>
     <string name="clock_timer_fired_title">ТАЙМЕР</string>
     <string name="clock_melody_selected_label">Выбрано:</string>
     <string name="items_map_no_module_detected">МОДУЛЬ ЛОКАЛЬНОЙ КАРТЫ НЕ ОБНАРУЖЕН</string>
@@ -98,7 +98,6 @@
     <string name="mode_phone">Телефон</string>
     <string name="mode_select_button">Выбрать</string>
     <string name="placeholder_in_development">Раздел находится в разработке.</string>
-    <string name="player_name">Игрок</string>
     <string name="power_off">Выключить питание</string>
     <string name="radio">Радио</string>
     <string name="recycler_list_header">СПИСОК</string>
@@ -164,6 +163,7 @@
     <string name="special_perception_description">Высокое Восприятие даёт бонус к навыкам «Взрывчатка», «Взлом» и «Энергооружие», а также определяет, когда появляются красные метки угроз.</string>
     <string name="special_strength_description">Сила — показатель вашей физической мощи. Влияет на переносимый вес, силу ударов в ближнем бою и эффективность использования тяжёлого оружия.</string>
     <string name="stats_cnd_status_crippled">ПОВРЕЖДЕНО</string>
+    <string name="stats_cnd_status_dead">МЁРТВ</string>
     <string name="stats_general">Общее</string>
     <string name="stats_general_faction_boomers">Громобои</string>
     <string name="stats_general_faction_bos">Братство Стали</string>
@@ -202,8 +202,6 @@
     <string name="stats_perks_perk7_name">Дикие пустоши</string>
     <string name="stats_skills">Навыки</string>
     <string name="stats_special_strength">Сила</string>
-    <string name="stats_status_level_label">" - Уровень "</string>
-    <string name="stimpack">Стимулятор</string>
     <string name="title_bottom_common_name_placeholder">ИГРОК</string>
     <string name="title_bottom_common_radiation_icon_description">Радиация</string>
     <string name="title_bottom_common_region_placeholder">РИЧМОНД</string>
@@ -212,11 +210,19 @@
     <string name="title_items">МОДУЛИ</string>
     <string name="title_radio">РАДИО</string>
     <string name="title_stats">ХАР-КИ</string>
-    <string name="title_stats_CND">СОСТ</string>
-    <string name="title_stats_EFF">ЭФФ</string>
-    <string name="title_stats_RAD">РАД</string>
     <string name="title_stats_status">Статус</string>
-    <string name="title_stats_status_status_effects">НЕТ ЭФФЕКТОВ</string>
+    <string name="title_stats_wound_light">Легко ранен</string>
+    <string name="title_stats_wound_heavy">Тяжело ранен</string>
+    <string name="title_stats_stunned">Оглушён</string>
+    <string name="status_wound_bleeding_label">Кровотечение</string>
+    <string name="status_wound_bandage_label">Перевязка</string>
+    <string name="status_wound_stunned_label">До пробуждения</string>
+    <string name="status_wound_skip">Skip</string>
+    <string name="status_revive_hint">Нажми на ваулт-боя, чтобы обновить</string>
+    <string name="status_text_healthy">"Ура, вы здоровы!\nЕсли получите ранение, нажмите кнопку.\nМожете указать на теле ваулт-боя, куда вас ранили."</string>
+    <string name="status_text_stunned">"Упс, вы оглушены!\nДо пробуждения: "</string>
+    <string name="status_text_wounded">"Ой, вы ранены!\n"</string>
+    <string name="status_text_dead_header">О нет, вы умерли!</string>
     <string name="wizard_back">Назад</string>
     <string name="wizard_cancel">Отмена</string>
     <string name="wizard_display_area_title">РАБОЧАЯ ОБЛАСТЬ</string>

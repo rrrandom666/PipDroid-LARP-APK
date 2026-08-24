@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Курсор списка на STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация",
+     фидбек по итогам тестирования) — та же пара цветов, что у button_selected_green.xml
+     (используется на /SPECIAL и т.д.), но с более толстой рамкой: 0.25mm там на реальном
+     экране почти не видна. Применяется на весь строка-контейнер (fill_parent), не на
+     сам Button — поэтому ширина рамки не зависит от длины текста пункта. -->
+<shape android:shape="rectangle"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <stroke android:width="2dp" android:color="@color/themeGreen" />
+    <solid android:color="@color/themeGreenCND" />
+</shape>

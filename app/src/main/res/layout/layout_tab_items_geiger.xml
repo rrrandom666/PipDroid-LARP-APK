@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ITEMS/Гейгер (roadmap, "Редизайн STATS/Status — UX-спецификация") — переехал как есть
+     со STATS/Status/RAD, содержимое статичное (хардкод-цифры, без логики), задел под
+     этап 19 (накопление дозы по GEIGER:<0-255>). -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_tab_items_geiger"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tv_radaway"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="5.0dip"
+        android:text="@string/radaway"
+        android:textAllCaps="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.1" />
+
+    <TextView
+        android:id="@+id/tv_radaway_value"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="3.0dip"
+        android:text="(6)"
+        android:textAllCaps="false"
+        app:layout_constraintBaseline_toBaselineOf="@id/tv_radaway"
+        app:layout_constraintEnd_toStartOf="@id/tv_radaway" />
+
+    <TextView
+        android:id="@+id/tv_radx"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12.0dip"
+        android:layout_marginEnd="5.0dip"
+        android:text="@string/radx"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toEndOf="@id/tv_radaway"
+        app:layout_constraintTop_toBottomOf="@id/tv_radaway" />
+
+    <TextView
+        android:id="@+id/tv_radx_value"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="3.0dip"
+        android:text="(4)"
+        android:textAllCaps="false"
+        app:layout_constraintBaseline_toBaselineOf="@id/tv_radx"
+        app:layout_constraintEnd_toStartOf="@id/tv_radx" />
+
+    <ImageView
+        android:id="@+id/img_rad_resist"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="@id/img_rad_scale"
+        app:layout_constraintEnd_toStartOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/img_rad_scale"
+        app:srcCompat="@drawable/rad_resist_img" />
+
+    <TextView
+        android:id="@+id/tv_rad_resist"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/RAD_RESIST"
+        app:layout_constraintStart_toStartOf="@id/img_rad_resist"
+        app:layout_constraintTop_toTopOf="@id/img_rad_resist" />
+
+    <TextView
+        android:id="@+id/tv_rad_resist_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/rad_resist_amount"
+        app:layout_constraintEnd_toEndOf="@id/img_rad_resist"
+        app:layout_constraintTop_toTopOf="@id/img_rad_resist" />
+
+    <ImageView
+        android:id="@+id/img_rad_scale"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginRight="3.0dip"
+        android:layout_marginBottom="64.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="889:70"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.65"
+        app:srcCompat="@drawable/rad_scale2"
+        tools:layout_constraintVertical_bias="0.5" />
+
+    <TextView
+        android:id="@+id/tv_rad_scale_500"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="500"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintEnd_toEndOf="@id/img_rad_scale"
+        app:layout_constraintHorizontal_bias="0.615"
+        app:layout_constraintStart_toStartOf="@id/img_rad_scale" />
+
+    <TextView
+        android:id="@+id/tv_rad_scale_1000"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="1000"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintEnd_toEndOf="@id/img_rad_scale" />
+
+    <ImageView
+        android:id="@+id/img_rad_arrow"
+        style="@style/ColorTintStyle"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:scaleType="fitXY"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="30:65"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.06"
+        app:layout_constraintHorizontal_bias="0.515"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/img_rad_scale"
+        app:layout_constraintVertical_bias="0.2"
+        app:srcCompat="@drawable/rad_arrow" />
+
+    <TextView
+        android:id="@+id/tv_rad_arrow_value"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8.0dip"
+        android:text="24"
+        app:layout_constraintBottom_toBottomOf="@id/img_rad_arrow"
+        app:layout_constraintEnd_toEndOf="@id/img_rad_arrow" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

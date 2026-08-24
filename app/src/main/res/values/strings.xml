@@ -46,14 +46,12 @@
 
     <string name="RAD_RESIST">RAD RESIST</string>
     <string name="current_rad_value">0</string>
-    <string name="player_name">Player</string>
     <string name="max">MAX</string>
     <string name="power_off">Power Off</string>
     <string name="rad_resist_amount">8%</string>
     <string name="radaway">RadAway</string>
     <string name="radx">RadX</string>
     <string name="rad_cur_value">0</string>
-    <string name="stimpack">Stimpak</string>
     <string name="radio">Radio</string>
     <string name="radio_enclave">Enclave Radio</string>
     <string name="radio_galaxy_news">Galaxy News Radio</string>
@@ -63,15 +61,24 @@
     <string name="bluetooth">Bluetooth</string>
 
     <string name="title_stats">STATS</string>
-    <string name="title_stats_CND">CND</string>
-    <string name="title_stats_EFF">EFF</string>
-    <string name="title_stats_RAD">RAD</string>
     <string name="title_stats_status">Status</string>
     <string name="title_stats_status_lvl">1</string>
-    <string name="title_stats_status_hp">720/720</string>
-    <string name="title_stats_status_ap">136/136</string>
-    <string name="title_stats_status_xp">1337/2460</string>
-    <string name="title_stats_status_status_effects">NO STATUS EFFECTS</string>
+
+    <!-- STATUS — система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
+         UX-спецификация") -->
+    <string name="title_stats_wound_light">Light Wound</string>
+    <string name="title_stats_wound_heavy">Heavy Wound</string>
+    <string name="title_stats_stunned">Stunned</string>
+    <string name="status_wound_bleeding_label">Bleeding</string>
+    <string name="status_wound_bandage_label">Bandage</string>
+    <string name="status_wound_stunned_label">Waking up in</string>
+    <string name="status_wound_skip">Skip</string>
+    <string name="status_revive_hint">Tap the Vault Boy figure to reset</string>
+    <string name="status_text_healthy">"Hooray, you\'re healthy!\nIf you get wounded, press a button.\nYou can tap the Vault Boy\'s body to mark where you got hit."</string>
+    <string name="status_text_stunned">"Whoops, you\'re stunned!\nWaking up in: "</string>
+    <string name="status_text_wounded">"Ouch, you\'re wounded!\n"</string>
+    <string name="status_text_dead_header">Oh no, you died!</string>
+    <string name="stats_cnd_status_dead">DEAD</string>
 
     <string name="title_items">ITEMS</string>
 
@@ -202,6 +209,7 @@
     <string name="items_map">Map</string>
     <string name="items_clock">Clock</string>
     <string name="items_journal">Journal</string>
+    <string name="items_geiger">Geiger</string>
 
     <!-- ITEMS/Clock — список фичей слева (roadmap, "Часы — UX-спецификация") -->
     <string name="clock_feature_time">Time</string>
@@ -227,7 +235,7 @@
     <string name="clock_timer_start">Start</string>
     <string name="clock_timer_pause">Pause</string>
     <string name="clock_timer_resume">Resume</string>
-    <string name="clock_timer_reset">Reset</string>
+    <string name="clock_timer_reset">Stop</string>
     <string name="clock_timer_fired_title">TIMER</string>
     <string name="clock_melody_selected_label">Selected:</string>
 
@@ -494,7 +502,6 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
 
     <!-- Локализация (roadmap, шаг 1-3): строки, вынесенные из захардкоженного
          android:text= в layout — раньше не было @string, перевода не было в принципе. -->
-    <string name="eff_damage_label">Damage</string>
     <string name="cnd_popup_easter_egg_title">Achievement unlocked:\nEaster Egg found</string>
     <string name="cnd_popup_thanks_text">Thanks for checking out PipDroid!\n\nStay safe on your journeys\nthrough the wasteland\n</string>
     <string name="cnd_popup_author_signature">-James (Malto4)</string>
@@ -509,7 +516,6 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="filter_clear_all">Clear ALL</string>
     <string name="filter_save_button">" SAVE "</string>
     <string name="stats_cnd_status_crippled">CRIPPLED</string>
-    <string name="stats_status_level_label">" - Level "</string>
     <string name="bluetooth_setup_heading">BLUETOOTH</string>
     <string name="bluetooth_status_disconnected">DISCONNECTED</string>
     <string name="bluetooth_status_connected">CONNECTED</string>

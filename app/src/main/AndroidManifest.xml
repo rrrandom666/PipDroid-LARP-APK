@@ -37,6 +37,7 @@
             android:label="@string/app_name"
             android:theme="@style/Theme.PipDroid.NoActionBar"
             android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|smallestScreenSize|navigation|fontScale|layoutDirection"
             tools:ignore="DiscouragedApi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

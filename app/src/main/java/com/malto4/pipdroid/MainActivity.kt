@@ -134,6 +134,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var dateFormat_Selector = 0
     private var languageSelector = -1
     private var selected_button = R.drawable.button_selected_green
+    // Курсор списка на STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация",
+    // фидбек по итогам тестирования) — толще и заметнее selected_button, применяется на
+    // строку-контейнер целиком (fill_parent), не на сам Button, поэтому ширина рамки не
+    // зависит от длины текста пункта. Меняется вместе с selected_button при смене темы.
+    private var selectedRowButton = R.drawable.status_row_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
     // Будильник (roadmap, "Часы — UX-спецификация") — один однократный, время в стенных
@@ -176,7 +181,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * LIST DEFINITIONS
      **********************************************************************************************************/
     private var listBottomButtons = ArrayList<Button>()
-    private var listStatsStatusCndRadEff = ArrayList<Button>()
     private var listItemsClockButtons = ArrayList<Button>()
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
     private var listStatsSkills = ArrayList<ConstraintLayout>()
@@ -192,8 +196,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private val REQUEST_CODE_PERMISSION_MEDIA = 123
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
     private var mediaPlayerCRF: MediaPlayer? = null
-    private val mediaPlayerStimpakList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerDamage: MediaPlayer? = null
     private var mediaPlayerRadaway: MediaPlayer? = null
     private var mediaPlayerRadX: MediaPlayer? = null
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
@@ -286,6 +288,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         private const val SHUTDOWN_BODY_TEXT = "STOPPING ALL PROCESSES...\n" +
             "DUMPING MEMORY...\n" +
             "DISCONNECTING..."
+
+        // Система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
+        // UX-спецификация") — длительности BLEED/BANDAGE и STUNNED.
+        private const val WOUND_BLEED_BANDAGE_DURATION_SECONDS = 600
+        private const val STUN_DURATION_SECONDS = 300
     }
 
     /***********************************************************************************************************
@@ -429,25 +436,25 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var perkModification = false
     private var isFlashlightOn = false
     private var isFlashlightOff = false
-    private var numStimpak = 10
-    private var hpLevel = 720
     private var delayIterationCount = 0
     private var delayModify = 500L
 
-    private var lvlDmgTotal = 0
-    private var lvlDmgHead = 0
-    private var lvlDmgTorso = 0
-    private var lvlDmgLftArm = 0
-    private var lvlDmgRgtArm = 0
-    private var lvlDmgLftLeg = 0
-    private var lvlDmgRgtLeg = 0
-
-    private var isDmgHead = false
-    private var isDmgTorso = false
-    private var isDmgLftArm = false
-    private var isDmgRgtArm = false
-    private var isDmgLftLeg = false
-    private var isDmgRgtLeg = false
+    /***********************************************************************************************************
+     * STATUS — система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
+     * UX-спецификация"). woundPhase/woundSeverity — единый источник истины, одновременно
+     * "что сейчас с персонажем" и "на что таймер" (timerState/timerTargetEpochMillis,
+     * общий таймер, реализован на этапе "Часы" — переиспользуется, не отдельный механизм).
+     **********************************************************************************************************/
+    private enum class WoundPhase { NONE, BLEED, BANDAGE, STUNNED, DEAD }
+    private enum class WoundSeverity { LIGHT, HEAVY }
+    private var woundPhase = WoundPhase.NONE
+    private var woundSeverity = WoundSeverity.LIGHT
+    private var crippledHead = false
+    private var crippledTorso = false
+    private var crippledLeftArm = false
+    private var crippledRightArm = false
+    private var crippledLeftLeg = false
+    private var crippledRightLeg = false
 
     private var selectedSPECIAL = "STRENGTH"
     private var isSPECIAL_S = false
@@ -491,6 +498,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private lateinit var selectedSubMenu: Button
 
     private val handler = Handler(Looper.getMainLooper())
+    // 300мс-тик (часы/будильник/таймер/секундомер) — заведён в onCreate(), ссылка нужна
+    // здесь, чтобы onDestroy() мог его остановить. Раньше был локальной переменной внутри
+    // onCreate() и никогда не прерывался — при пересоздании Activity (MIUI регулярно
+    // пересоздаёт её при блокировке/разблокировке экрана, подтверждено логом) старый поток
+    // продолжал тикать по отвязанному bindingMain и мог всё ещё довести таймер ранения до
+    // срабатывания: звук стартовал (MediaPlayer не привязан к View), а оверлей с [Стоп]
+    // показать было уже некому — принадлежал уничтоженному экрану.
+    private var tickThread: Thread? = null
     private val longPressRunnable = object : Runnable {
         override fun run() {
             if (statsCndPopupIsHolding) {
@@ -526,30 +541,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 bindingMain.bottomConstraintLayout.visibility = View.VISIBLE
                 bindingMain.flFlashlight.visibility = View.GONE
                 isFlashlightOn = false
-            }
-            if (isDmgHead){
-                playerCharacterUpdate("head", "damage")
-                handler.postDelayed(this, 1000) // 1000 second
-            }
-            if (isDmgTorso){
-                playerCharacterUpdate("torso", "damage")
-                handler.postDelayed(this, 1000) // 1000 second
-            }
-            if (isDmgLftArm){
-                playerCharacterUpdate("leftArm", "damage")
-                handler.postDelayed(this, 1000) // 1000 second
-            }
-            if (isDmgRgtArm){
-                playerCharacterUpdate("rightArm", "damage")
-                handler.postDelayed(this, 1000) // 1000 second
-            }
-            if (isDmgLftLeg){
-                playerCharacterUpdate("leftLeg", "damage")
-                handler.postDelayed(this, 1000) // 1000 second
-            }
-            if (isDmgRgtLeg){
-                playerCharacterUpdate("rightLeg", "damage")
-                handler.postDelayed(this, 1000) // 1 second
             }
 
             /*
@@ -2535,9 +2526,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val statusNode = MenuNode(
             id = "STATUS",
             children = listOf(
-                MenuNode("CND") { statusButtons.btnCnd.performClick() },
-                MenuNode("RAD") { statusButtons.btnRad.performClick() },
-                MenuNode("EFF") { statusButtons.btnEff.performClick() },
+                MenuNode("LIGHT") { statusButtons.btnWoundLight.performClick() },
+                MenuNode("HEAVY") { statusButtons.btnWoundHeavy.performClick() },
+                MenuNode("STUNNED") { statusButtons.btnStunned.performClick() },
             ),
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsStatus.performClick() }
         )
@@ -2628,6 +2619,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
             clockNode,
             MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
+            MenuNode("GEIGER") { bottom.btnItemsGeiger.performClick() },
         )
     }
     private fun dataMenuRoot(): List<MenuNode> {
@@ -2692,7 +2684,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsClock, bindingMain.incLayoutTabItemsBottom.btnItemsJournal)
+                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsClock, bindingMain.incLayoutTabItemsBottom.btnItemsJournal, bindingMain.incLayoutTabItemsBottom.btnItemsGeiger)
                 menuOptionClickedBLE("ITEMS")
             }
             "DATA" -> {
@@ -2764,13 +2756,17 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         var backgroundRes = R.drawable.settings_menu_background_green
         when(Colour){
             0 -> {backgroundRes = R.drawable.settings_menu_background_green
-                selected_button = R.drawable.button_selected_green}
+                selected_button = R.drawable.button_selected_green
+                selectedRowButton = R.drawable.status_row_selected_green}
             1 -> {backgroundRes = R.drawable.settings_menu_background_amber
-                selected_button = R.drawable.button_selected_amber}
+                selected_button = R.drawable.button_selected_amber
+                selectedRowButton = R.drawable.status_row_selected_amber}
             2 -> {backgroundRes = R.drawable.settings_menu_background_white
-                selected_button = R.drawable.button_selected_white}
+                selected_button = R.drawable.button_selected_white
+                selectedRowButton = R.drawable.status_row_selected_white}
             3 -> {backgroundRes = R.drawable.settings_menu_background_blue
-                selected_button = R.drawable.button_selected_blue}
+                selected_button = R.drawable.button_selected_blue
+                selectedRowButton = R.drawable.status_row_selected_blue}
         }
         backgrounds.forEach { it.setBackgroundResource(backgroundRes) }
     }
@@ -2840,17 +2836,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
     }
-    private fun setSelectedCNDEFFRADButton(button: Button?, listArrayListButtons: ArrayList<Button>?) {
-        button?.setBackgroundResource(selected_button)
-        playCNDSelectAudio()
-        val it: Iterator<Button> = listArrayListButtons!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, button as Any)) {
-                next.setBackgroundResource(R.drawable.button_unselected)
-            }
-        }
-    }
     private fun setSelectedClockButton(button: Button?, listArrayListButtons: ArrayList<Button>?) {
         button?.setBackgroundResource(selected_button)
         playCNDSelectAudio()
@@ -2903,7 +2888,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
     private fun setupSTATS(){
         //Set Selected buttons by default
-        findViewById<Button>(R.id.btn_cnd).setBackgroundResource(selected_button)
+        // Здоров по умолчанию (woundPhase == NONE) — ни одна из трёх кнопок статуса не
+        // выделена, updateWoundButtonsUI() сама так и посчитает.
+        updateWoundButtonsUI()
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_special_strength).setBackgroundResource(selected_button)
         findViewById<ConstraintLayout>(R.id.layout_tab_skills_barter).setBackgroundResource(selected_button)
         findViewById<ConstraintLayout>(R.id.layout_tab_general_boomers).setBackgroundResource(selected_button)
@@ -2986,15 +2973,52 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val s = remainingSeconds % 60
         bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.tvClockTimerCountdown.text =
             String.format("%02d:%02d:%02d", h, m, s)
+        if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
+            updateWoundCountdownText(remainingSeconds)
+        }
+        updateClockTimerLabel()
     }
+    /** Подпись над отсчётом на экране ITEMS/Таймер (roadmap, "Редизайн STATS/Status —
+     * UX-спецификация", фидбек по итогам тестирования) — тот же общий таймер, что и на
+     * STATUS, поэтому у него может быть та же стадия (Оглушение/Кровотечение/Перевязка).
+     * Пустая для обычного запуска с этого экрана (woundPhase == NONE). */
+    private fun clockTimerLabelText(): String = when (woundPhase) {
+        WoundPhase.STUNNED -> getString(R.string.status_wound_stunned_label)
+        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
+        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
+        else -> ""
+    }
+    private fun updateClockTimerLabel() {
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.tvClockTimerLabel.text = clockTimerLabelText()
+    }
+    /**
+     * Общий таймер приложения (roadmap, "Часы — UX-спецификация") переиспользуется и
+     * системой ранений (roadmap, "Редизайн STATS/Status — UX-спецификация") — один и тот
+     * же timerState/timerTargetEpochMillis "принадлежит" либо обычному запуску с экрана
+     * ITEMS/Таймер (woundPhase == NONE — прежнее поведение без изменений), либо текущей
+     * фазе ранения (woundPhase != NONE — сброс UI экрана ITEMS/Таймер не нужен, там
+     * ничего не открывалось, дальнейшую логику берёт fireWoundTimer()).
+     */
     private fun fireTimer() {
         timerState = TimerState.IDLE
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        timer.layoutClockTimerRunning.visibility = View.GONE
-        timer.layoutClockTimerSetup.visibility = View.VISIBLE
+        if (woundPhase == WoundPhase.NONE) {
+            syncClockTimerScreenVisibility()
+        } else {
+            fireWoundTimer()
+        }
         bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_timer_fired_title)
         bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
         playClockFiredSound()
+    }
+    /** Экран ITEMS/Часы/Таймер и таймер ранения на STATUS — один и тот же таймер
+     * (roadmap, "Редизайн STATS/Status — UX-спецификация"): setup/running-панели этого
+     * экрана просто следуют timerState, независимо от того, кто таймер запустил, чтобы
+     * заглянувший на этот экран во время ранения игрок видел тот же отсчёт. */
+    private fun syncClockTimerScreenVisibility() {
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        val running = timerState != TimerState.IDLE
+        timer.layoutClockTimerRunning.visibility = if (running) View.VISIBLE else View.GONE
+        timer.layoutClockTimerSetup.visibility = if (running) View.GONE else View.VISIBLE
     }
     /**
      * Мелодия звонка (roadmap, "Часы — UX-спецификация") — функции уровня класса, не
@@ -3107,6 +3131,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_geiger).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_holotapes).visibility = View.GONE
@@ -3144,6 +3169,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_map).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_clock).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_journal).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_items_geiger).visibility = View.GONE
 
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_misc).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_data_holotapes).visibility = View.GONE
@@ -3186,6 +3212,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             Row2Item(bottom.btnItemsMap.text) { bottom.btnItemsMap.performClick() },
             Row2Item(bottom.btnItemsClock.text) { bottom.btnItemsClock.performClick() },
             Row2Item(bottom.btnItemsJournal.text) { bottom.btnItemsJournal.performClick() },
+            Row2Item(bottom.btnItemsGeiger.text) { bottom.btnItemsGeiger.performClick() },
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
@@ -3373,188 +3400,317 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         enableDisableTopSwipe(true)
         sendBLEText(menu)
     }
-    @SuppressLint("SetTextI18n")
-    @Suppress("KotlinConstantConditions")
-    private fun playerCharacterUpdate(affectedPart: String, bodyAction: String){
-        if ((lvlDmgTotal >= 23) && (bodyAction == "damage")){lvlDmgTotal = 23; bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_04); return}
-
-        when(affectedPart){
-            "head" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyHeadHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyHeadHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyHead
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgHead >= 0){lvlDmgTotal--}; if (lvlDmgHead > 0){lvlDmgHead--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgHead >= 4){return}; if (lvlDmgHead < 4){lvlDmgHead++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgHead <= 0){lvlDmgHead = 0}
-                if (lvlDmgHead >= 4){lvlDmgHead = 4}
-                when(lvlDmgHead){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_center)
-                        bodyPart.setImageResource(R.drawable.man_head)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg1)
-                        bodyPart.setImageResource(R.drawable.man_head)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg2)
-                        bodyPart.setImageResource(R.drawable.man_head)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.man_head)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.head_broken)}
-                }
-            }
-            "torso" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyTorsoHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyTorsoHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyTorso
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgTorso >= 0){lvlDmgTotal--}; if (lvlDmgTorso > 0){lvlDmgTorso--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgTorso >= 4){return}; if (lvlDmgTorso < 4){lvlDmgTorso++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgTorso <= 0){lvlDmgTorso = 0}
-                if (lvlDmgTorso >= 4){lvlDmgTorso = 4}
-                when(lvlDmgTorso){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_center)
-                        bodyPart.setImageResource(R.drawable.torso)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg1)
-                        bodyPart.setImageResource(R.drawable.torso)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg2)
-                        bodyPart.setImageResource(R.drawable.torso)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_center_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.torso)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.torso_broken)}
-                }
-            }
-            "leftArm" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftArmHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyLeftArmHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftArm
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgLftArm >= 0){lvlDmgTotal--}; if (lvlDmgLftArm > 0){lvlDmgLftArm--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgLftArm >= 4){return}; if (lvlDmgLftArm < 4){lvlDmgLftArm++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgLftArm <= 0){lvlDmgLftArm = 0}
-                if (lvlDmgLftArm >= 4){lvlDmgLftArm = 4}
-                when(lvlDmgLftArm){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_left)
-                        bodyPart.setImageResource(R.drawable.man_arm_left)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg1)
-                        bodyPart.setImageResource(R.drawable.man_arm_left)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg2)
-                        bodyPart.setImageResource(R.drawable.man_arm_left)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.man_arm_left)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.left_arm_broken)}
-                }
-            }
-            "rightArm" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightArmHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyRightArmHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightArm
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgRgtArm >= 0){lvlDmgTotal--}; if (lvlDmgRgtArm > 0){lvlDmgRgtArm--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgRgtArm >= 4){return}; if (lvlDmgRgtArm < 4){lvlDmgRgtArm++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgRgtArm <= 0){lvlDmgRgtArm = 0}
-                if (lvlDmgRgtArm >= 4){lvlDmgRgtArm = 4}
-                when(lvlDmgRgtArm){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_right)
-                        bodyPart.setImageResource(R.drawable.man_arm_right)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg1)
-                        bodyPart.setImageResource(R.drawable.man_arm_right)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg2)
-                        bodyPart.setImageResource(R.drawable.man_arm_right)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.man_arm_right)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.right_arm_broken)}
-                }
-            }
-            "leftLeg" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftLegHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyLeftLegHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftLeg
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgLftLeg >= 0){lvlDmgTotal--}; if (lvlDmgLftLeg > 0){lvlDmgLftLeg--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgLftLeg >= 4){return}; if (lvlDmgLftLeg < 4){lvlDmgLftLeg++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgLftLeg <= 0){lvlDmgLftLeg = 0}
-                if (lvlDmgLftLeg >= 4){lvlDmgLftLeg = 4}
-                when(lvlDmgLftLeg){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_left)
-                        bodyPart.setImageResource(R.drawable.man_leg_left)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg1)
-                        bodyPart.setImageResource(R.drawable.man_leg_left)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg2)
-                        bodyPart.setImageResource(R.drawable.man_leg_left)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_left_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.man_leg_left)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.left_leg_broken)}
-                }
-            }
-            "rightLeg" -> {
-                val healthCounter = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightLegHp
-                val healthCounterCrippled = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndPipboyRightLegHpCrippled
-                val bodyPart = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightLeg
-                when(bodyAction){
-                    "heal" -> {if (lvlDmgRgtLeg >= 0){lvlDmgTotal--}; if (lvlDmgRgtLeg > 0){lvlDmgRgtLeg--; numStimpak--; hpLevel+=30; playStimpakAudio()}}
-                    "damage" -> {if (lvlDmgRgtLeg >= 4){return}; if (lvlDmgRgtLeg < 4){lvlDmgRgtLeg++; lvlDmgTotal++; hpLevel-=30; mediaPlayerDamage?.start()};}
-                }
-                if (lvlDmgRgtLeg <= 0){lvlDmgRgtLeg = 0}
-                if (lvlDmgRgtLeg >= 4){lvlDmgRgtLeg = 4}
-                when(lvlDmgRgtLeg){
-                    0 -> {healthCounter.setImageResource(R.drawable.hp_right)
-                        bodyPart.setImageResource(R.drawable.man_leg_right)}
-                    1 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg1)
-                        bodyPart.setImageResource(R.drawable.man_leg_right)}
-                    2 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg2)
-                        bodyPart.setImageResource(R.drawable.man_leg_right)}
-                    3 -> {healthCounter.setImageResource(R.drawable.hp_right_dmg3)
-                        healthCounter.visibility = View.VISIBLE
-                        healthCounterCrippled.visibility = View.GONE
-                        bodyPart.setImageResource(R.drawable.man_leg_right)}
-                    4 -> {healthCounter.visibility = View.GONE
-                        healthCounterCrippled.visibility = View.VISIBLE
-                        bodyPart.setImageResource(R.drawable.right_leg_broken)}
-                }
-            }
-        }
-
-        if (numStimpak <= 0){numStimpak = 10;}
-        if (lvlDmgTotal <= 0){lvlDmgTotal = 0; bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.man_face)}
-        if ((lvlDmgTotal >= 0) && (lvlDmgTotal <= 4)){bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.man_face)}
-        if ((lvlDmgTotal >= 5) && (lvlDmgTotal <= 11)){bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_02)}
-        if ((lvlDmgTotal >= 12) && (lvlDmgTotal <= 21)){bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_03)}
-        if (lvlDmgTotal >= 23){lvlDmgTotal = 23; bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(R.drawable.face_04)}
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndStimpacksValue.text = "(${numStimpak})"
-
+    /**
+     * Система ранений/кровотечения (roadmap, "Редизайн STATS/Status — UX-спецификация").
+     * woundPhase/woundSeverity — единый источник истины и для лица персонажа, и для
+     * подсветки трёх кнопок статуса, и для того, что произойдёт по истечении общего
+     * таймера (fireTimer()/checkTimerFiring() — переиспользуются как есть, см. ниже).
+     */
+    private fun woundFaceDrawable(): Int = when (woundPhase) {
+        WoundPhase.NONE -> R.drawable.man_face
+        WoundPhase.BLEED, WoundPhase.BANDAGE -> if (woundSeverity == WoundSeverity.LIGHT) R.drawable.face_02 else R.drawable.face_03
+        WoundPhase.STUNNED, WoundPhase.DEAD -> R.drawable.face_04
     }
-    private fun playStimpakAudio(){
-        val mediaPlayerStimpak = MediaPlayer.create(this, R.raw.stimpack)
-        mediaPlayerStimpakList.add(mediaPlayerStimpak)
-        mediaPlayerStimpak.start()
-        mediaPlayerStimpak.setOnCompletionListener {
-            it.release()
-            mediaPlayerStimpakList.remove(it)
+    private fun applyWoundFace() {
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(woundFaceDrawable())
+    }
+    /**
+     * Рамка-курсор вокруг одной из трёх строк статуса (по образцу /SPECIAL, где рамка
+     * двигается энкодером между Strength/Perception/и т.д. — тот же смысл: "сюда попадёт
+     * нажатие", а не "это сейчас активный статус"). Пока энкодер не подключён к этому
+     * экрану — курсор двигает тач (см. onWoundActionTapped()), по умолчанию стоит на
+     * "Лёгкое ранение". Полностью независим от disabled/alpha ниже — фидбек по итогам
+     * тестирования: раньше подсвеченная кнопка при этом ещё и не гасла вместе с
+     * остальными, что читалось как "эта кнопка работает", хотя клик по ней тоже давал
+     * ошибку. Рамка/фон — на строке-контейнере (fill_parent), не на самом Button
+     * (wrap_content) — иначе ширина рамки скачет от длины текста пункта (тот же фидбек).
+     */
+    private var statusCursorRow: View? = null
+    private fun updateWoundButtonsUI() {
+        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        val rows = listOf(buttons.layoutTabStatusWoundLightRow, buttons.layoutTabStatusWoundHeavyRow, buttons.layoutTabStatusStunnedRow)
+        val cursor = statusCursorRow ?: buttons.layoutTabStatusWoundLightRow
+        statusCursorRow = cursor
+        for (row in rows) {
+            row.setBackgroundResource(if (row === cursor) selectedRowButton else R.drawable.button_unselected)
         }
+        // isEnabled остаётся true всегда — иначе Android вообще не даст клику дойти до
+        // обработчика, а по нажатию на недоступную сейчас кнопку нужен звук ошибки (см.
+        // onWoundActionTapped()), не молчаливое игнорирование. "Задизейбленность" здесь
+        // только визуальная (alpha, на строке — гасит и рамку, и текст разом) — и
+        // одинаковая для всех трёх строк, включая ту, что под курсором: раз клик по ней
+        // тоже ничего не делает, кроме звука ошибки, она не должна визуально выделяться
+        // как "рабочая".
+        val enabled = woundPhase == WoundPhase.NONE
+        val dimAlpha = if (enabled) 1.0f else 0.4f
+        for (row in rows) {
+            row.alpha = dimAlpha
+        }
+        // Таймер ранения нельзя ставить на паузу — ни отсюда, ни с экрана ITEMS/Таймер
+        // (roadmap, "Редизайн STATS/Status — UX-спецификация"). DEAD — таймера уже нет,
+        // Пауза снова доступна (следующий обычный запуск с экрана Таймера). Здесь клик
+        // по-настоящему блокируется (isEnabled=false) — эта кнопка не относится к трём
+        // кнопкам статуса, звук ошибки для неё не требовался.
+        val pauseResume = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.btnClockTimerPauseResume
+        pauseResume.isEnabled = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
+        pauseResume.alpha = if (pauseResume.isEnabled) 1.0f else 0.4f
+    }
+    private fun woundStageLabel(): String = when (woundPhase) {
+        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
+        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
+        else -> ""
+    }
+    /** Панель текста статуса справа от фигуры (roadmap, "Редизайн STATS/Status —
+     * UX-спецификация", фидбек по итогам тестирования) — четыре взаимоисключающих текста
+     * (здоров/оглушён-ранен со сменным таймером/мёртв). Для оглушён/ранен статичную часть
+     * (заголовок, кнопки) выставляет этот метод, текст с таймером — updateWoundCountdownText()
+     * сразу следующим вызовом (см. startWoundTimer()). */
+    private fun updateWoundStatusLine() {
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        when (woundPhase) {
+            WoundPhase.NONE -> {
+                cnd.tvTabStatusWoundText.text = getString(R.string.status_text_healthy)
+                cnd.layoutTabStatusWoundButtons.visibility = View.GONE
+            }
+            WoundPhase.DEAD -> {
+                cnd.tvTabStatusWoundText.text =
+                    getString(R.string.status_text_dead_header) + "\n" + getString(R.string.status_revive_hint)
+                cnd.layoutTabStatusWoundButtons.visibility = View.GONE
+            }
+            else -> {
+                cnd.layoutTabStatusWoundButtons.visibility = View.VISIBLE
+                cnd.btnTabStatusWoundSkip.visibility = if (com.malto4.pipdroid.BuildConfig.DEBUG) View.VISIBLE else View.GONE
+            }
+        }
+    }
+    /** Вызывается из checkTimerFiring() каждый тик, пока woundPhase — таймерная фаза —
+     * длительности здесь всегда ≤10 мин, часовая часть не нужна (в отличие от
+     * tv_clock_timer_countdown на экране ITEMS/Таймер). */
+    private fun updateWoundCountdownText(remainingSeconds: Int) {
+        val m = remainingSeconds / 60
+        val s = remainingSeconds % 60
+        val timerText = String.format("%02d:%02d", m, s)
+        val text = when (woundPhase) {
+            WoundPhase.STUNNED -> getString(R.string.status_text_stunned) + timerText
+            WoundPhase.BLEED, WoundPhase.BANDAGE -> getString(R.string.status_text_wounded) + woundStageLabel() + ": " + timerText
+            else -> return
+        }
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusWoundText.text = text
+    }
+    /** Общая точка входа для всех переходов, которые запускают общий таймер под новую
+     * "цель" (roadmap — таймер переиспользуется, не отдельный механизм). severity==null
+     * оставляет woundSeverity как есть (STUNNED тяжесть не различает). */
+    private fun startWoundTimer(phase: WoundPhase, severity: WoundSeverity?, durationSeconds: Int) {
+        woundPhase = phase
+        if (severity != null) woundSeverity = severity
+        // Курсор идёт за фазой и при автоматических переходах (эскалация/рецидив
+        // унаследованного таймера), не только за тапом игрока — фидбек по итогам
+        // тестирования: после эскалации Light -> Heavy рамка должна сама переехать на
+        // "Тяжело ранен", а не оставаться на прежнем пункте.
+        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        statusCursorRow = when {
+            phase == WoundPhase.STUNNED -> buttons.layoutTabStatusStunnedRow
+            woundSeverity == WoundSeverity.LIGHT -> buttons.layoutTabStatusWoundLightRow
+            else -> buttons.layoutTabStatusWoundHeavyRow
+        }
+        applyWoundFace()
+        updateWoundButtonsUI()
+        timerState = TimerState.RUNNING
+        timerTargetEpochMillis = System.currentTimeMillis() + durationSeconds * 1000L
+        syncClockTimerScreenVisibility()
+        updateWoundStatusLine()
+        updateWoundCountdownText(durationSeconds)
+        updateClockTimerLabel()
+    }
+    /** Общий обработчик тапа по любой из трёх кнопок статуса — двигает курсор туда
+     * независимо от исхода, и только потом либо выполняет действие (woundPhase == NONE),
+     * либо играет звук ошибки (кнопка "задизейблена" только по alpha/звуку, не по
+     * isEnabled — см. updateWoundButtonsUI()). */
+    private fun onWoundActionTapped(row: View, action: () -> Unit) {
+        statusCursorRow = row
+        updateWoundButtonsUI()
+        if (woundPhase != WoundPhase.NONE) {
+            playErrorAudio()
+        } else {
+            playNewTabSelectAudio()
+            action()
+        }
+    }
+    /** Вылечен — общий финал и для BANDAGE (успели), и для STUNNED (прошло/остановлено):
+     * возврат к man_face, таймер снят. CRIPPLED-тоггл по конечностям не трогается — это
+     * независимая механика, лечение ранения на неё не влияет. */
+    private fun healWoundsToHealthy() {
+        woundPhase = WoundPhase.NONE
+        applyWoundFace()
+        updateWoundButtonsUI()
+        updateWoundStatusLine()
+        timerState = TimerState.IDLE
+        syncClockTimerScreenVisibility()
+    }
+    /** [Стоп] на STATUS — и обработчик btn_clock_timer_reset на экране ITEMS/Таймер, когда
+     * woundPhase != NONE (roadmap: сброс таймера ранения оттуда должен давать те же
+     * последствия, что и [Стоп] на STATUS, не тихий обрыв). */
+    private fun stopWoundTimerEarly() {
+        when (woundPhase) {
+            WoundPhase.BLEED -> startWoundTimer(WoundPhase.BANDAGE, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+            WoundPhase.BANDAGE, WoundPhase.STUNNED -> healWoundsToHealthy()
+            else -> {}
+        }
+    }
+    /** Натуральное истечение — вызывается из fireTimer(), когда таймер принадлежит
+     * системе ранений (woundPhase != NONE/DEAD). */
+    private fun fireWoundTimer() {
+        when (woundPhase) {
+            WoundPhase.BLEED -> {
+                if (woundSeverity == WoundSeverity.LIGHT) {
+                    startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+                } else {
+                    killCharacter()
+                }
+            }
+            WoundPhase.BANDAGE -> startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+            WoundPhase.STUNNED -> healWoundsToHealthy()
+            else -> {}
+        }
+    }
+    private fun killCharacter() {
+        woundPhase = WoundPhase.DEAD
+        applyWoundFace()
+        updateWoundButtonsUI()
+        updateWoundStatusLine()
+        timerState = TimerState.IDLE
+        syncClockTimerScreenVisibility()
+        applyDeathVisuals()
+    }
+    /** Revive-жест — тап по фигуре целиком, активен только пока woundPhase == DEAD (см.
+     * unified touch-обработчик ниже). Полный сброс — вся система статусов самоучёт
+     * игрока, не принудительный контроль. */
+    private fun reviveCharacter() {
+        if (woundPhase != WoundPhase.DEAD) return
+        woundPhase = WoundPhase.NONE
+        applyWoundFace()
+        updateWoundButtonsUI()
+        updateWoundStatusLine()
+        applyReviveVisuals()
+    }
+    /** Смерть — все 6 частей рисуются `*_broken`, но подпись CRIPPLED показывается только
+     * на туловище (и то заменяется на DEAD) — остальным пяти отдельная подпись не нужна,
+     * само состояние DEAD уже всё говорит (фидбек по итогам тестирования). */
+    private fun applyDeathVisuals() {
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        crippledHead = true; crippledTorso = true; crippledLeftArm = true
+        crippledRightArm = true; crippledLeftLeg = true; crippledRightLeg = true
+        cnd.imgTabStatusCndPipboyHead.setImageResource(R.drawable.head_broken)
+        cnd.tvTabStatusCndPipboyHeadHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyTorso.setImageResource(R.drawable.torso_broken)
+        cnd.tvTabStatusCndPipboyTorsoHpCrippled.text = getString(R.string.stats_cnd_status_dead)
+        cnd.tvTabStatusCndPipboyTorsoHpCrippled.visibility = View.VISIBLE
+        cnd.imgTabStatusCndPipboyLeftArm.setImageResource(R.drawable.left_arm_broken)
+        cnd.tvTabStatusCndPipboyLeftArmHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyRightArm.setImageResource(R.drawable.right_arm_broken)
+        cnd.tvTabStatusCndPipboyRightArmHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyLeftLeg.setImageResource(R.drawable.left_leg_broken)
+        cnd.tvTabStatusCndPipboyLeftLegHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyRightLeg.setImageResource(R.drawable.right_leg_broken)
+        cnd.tvTabStatusCndPipboyRightLegHpCrippled.visibility = View.GONE
+    }
+    private fun applyReviveVisuals() {
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        crippledHead = false; crippledTorso = false; crippledLeftArm = false
+        crippledRightArm = false; crippledLeftLeg = false; crippledRightLeg = false
+        cnd.imgTabStatusCndPipboyHead.setImageResource(R.drawable.man_head)
+        cnd.tvTabStatusCndPipboyHeadHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyTorso.setImageResource(R.drawable.torso)
+        cnd.tvTabStatusCndPipboyTorsoHpCrippled.text = getString(R.string.stats_cnd_status_crippled)
+        cnd.tvTabStatusCndPipboyTorsoHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyLeftArm.setImageResource(R.drawable.man_arm_left)
+        cnd.tvTabStatusCndPipboyLeftArmHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyRightArm.setImageResource(R.drawable.man_arm_right)
+        cnd.tvTabStatusCndPipboyRightArmHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyLeftLeg.setImageResource(R.drawable.man_leg_left)
+        cnd.tvTabStatusCndPipboyLeftLegHpCrippled.visibility = View.GONE
+        cnd.imgTabStatusCndPipboyRightLeg.setImageResource(R.drawable.man_leg_right)
+        cnd.tvTabStatusCndPipboyRightLegHpCrippled.visibility = View.GONE
+    }
+    private fun applyCrippledVisual(bodyPart: ImageView, label: TextView, crippled: Boolean, normalRes: Int, brokenRes: Int) {
+        bodyPart.setImageResource(if (crippled) brokenRes else normalRes)
+        label.visibility = if (crippled) View.VISIBLE else View.GONE
+    }
+    /** Независимый тоггл CRIPPLED по одной конечности (короткий тап, работает при любом
+     * woundPhase кроме DEAD — см. спеку; пока DEAD короткий тап по любой части фигуры
+     * уходит на revive, см. setupFigureTouchTarget()) — не трогает woundPhase/лицо/
+     * остальные части. */
+    private fun toggleCrippledHead() {
+        crippledHead = !crippledHead
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
+    }
+    private fun toggleCrippledTorso() {
+        crippledTorso = !crippledTorso
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
+    }
+    private fun toggleCrippledLeftArm() {
+        crippledLeftArm = !crippledLeftArm
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
+    }
+    private fun toggleCrippledRightArm() {
+        crippledRightArm = !crippledRightArm
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
+    }
+    private fun toggleCrippledLeftLeg() {
+        crippledLeftLeg = !crippledLeftLeg
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
+    }
+    private fun toggleCrippledRightLeg() {
+        crippledRightLeg = !crippledRightLeg
+        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
+    }
+    /**
+     * Тач-цель на фигуре персонажа (roadmap, "Редизайн STATS/Status — UX-спецификация",
+     * фидбек по итогам тестирования) — общий обработчик вешается на все 6 картинок частей
+     * тела И на сам контейнер фигуры (для тапов по "пустым" промежуткам), а не только на
+     * контейнер: у каждой картинки уже есть свой клик (CRIPPLED-тоггл), и он поглощает
+     * touch раньше, чем событие доходит до родителя — старая версия только на контейнере
+     * ловила revive/пасхалку лишь в редких пустых зазорах между частями. Короткий тап:
+     * revive, если персонаж мёртв, иначе — переданное действие (toggle этой части, либо
+     * ничего для самого контейнера). 5-секундный hold — пасхалка, всегда, независимо от
+     * того, по какой именно части держали палец.
+     */
+    private fun setupFigureTouchTarget(view: View, onShortTap: () -> Unit) {
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    statsCndPopupIsHolding = true
+                    handler.postDelayed(longPressRunnable, 5000) // 5 seconds
+                }
+                MotionEvent.ACTION_UP -> {
+                    statsCndPopupIsHolding = false
+                    handler.removeCallbacks(longPressRunnable)
+                    val popupShown = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility == View.VISIBLE
+                    if (!popupShown) {
+                        if (woundPhase == WoundPhase.DEAD) reviveCharacter() else onShortTap()
+                    }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    statsCndPopupIsHolding = false
+                    handler.removeCallbacks(longPressRunnable)
+                }
+            }
+            true
+        }
+    }
+    /** [Skip] (debug-only) — принудительно "истекает" текущий таймер ранения прямо сейчас,
+     * не дублируя логику fireTimer(): просто переносит целевой epoch в прошлое и даёт
+     * checkTimerFiring() увидеть остаток ≤0 на следующей проверке. */
+    private fun skipWoundTimer() {
+        if (timerState != TimerState.RUNNING) return
+        timerTargetEpochMillis = System.currentTimeMillis()
+        checkTimerFiring()
     }
     private fun playItemSelectAudio(){
         val mediaPlayerItemSelect = MediaPlayer.create(this, R.raw.item_select)
@@ -3967,7 +4123,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         //MEDIA SETUP
         mediaPlayerCRF = MediaPlayer.create(applicationContext, R.raw.cnd_rad_eff)
-        mediaPlayerDamage = MediaPlayer.create(applicationContext, R.raw.damage_sfx)
         mediaPlayerRadaway = MediaPlayer.create(applicationContext, R.raw.radaway)
         mediaPlayerRadX = MediaPlayer.create(applicationContext, R.raw.radx)
         mediaPlayerLightOn = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_on)
@@ -3985,10 +4140,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         //BOTTOM BUTTON SETUP (DEFAULT STATUS)
         bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
 
-        //(DEFAULT STATS SETUP)
-        listStatsStatusCndRadEff.add(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnCnd)
-        listStatsStatusCndRadEff.add(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnRad)
-        listStatsStatusCndRadEff.add(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnEff)
 
         listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength)
         listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception)
@@ -4120,7 +4271,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             3 -> { selectedDateFormat = "dd.MM.yyyy"}
             4 -> { selectedDateFormat = "yyyy.MM.dd"}
         }
-        val thread: Thread = object : Thread() {
+        tickThread = object : Thread() {
             @SuppressLint("SimpleDateFormat")
             override fun run() {
                 try {
@@ -4148,7 +4299,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 } catch (_: InterruptedException) {}
             }
         }
-        thread.start()
+        tickThread?.start()
 
         // Initialize the GestureDetector
         menuGestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
@@ -4292,146 +4443,55 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabStatsGeneral.root.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnCnd.setOnClickListener {
-            setSelectedCNDEFFRADButton(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnCnd, listStatsStatusCndRadEff)
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusRadContent.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusEffContent.root.visibility = View.GONE
+        val statusButtonsSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        statusButtonsSetup.btnWoundLight.setOnClickListener {
+            onWoundActionTapped(statusButtonsSetup.layoutTabStatusWoundLightRow) {
+                startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+            }
         }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnRad.setOnClickListener {
-            setSelectedCNDEFFRADButton(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnRad, listStatsStatusCndRadEff)
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusRadContent.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusEffContent.root.visibility = View.GONE
+        statusButtonsSetup.btnWoundHeavy.setOnClickListener {
+            onWoundActionTapped(statusButtonsSetup.layoutTabStatusWoundHeavyRow) {
+                startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+            }
         }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnEff.setOnClickListener {
-            setSelectedCNDEFFRADButton(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.btnEff, listStatsStatusCndRadEff)
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusRadContent.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusEffContent.root.visibility = View.VISIBLE
+        statusButtonsSetup.btnStunned.setOnClickListener {
+            onWoundActionTapped(statusButtonsSetup.layoutTabStatusStunnedRow) {
+                startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
+            }
+        }
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop.setOnClickListener {
+            playNewTabSelectAudio()
+            stopWoundTimerEarly()
+        }
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundSkip.setOnClickListener {
+            skipWoundTimer()
         }
 
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndName.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    statsCndPopupIsHolding = true
-                    handler.postDelayed(longPressRunnable, 5000) // 5 seconds
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    statsCndPopupIsHolding = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.btnTabStatsCndPopupClose.setOnClickListener{
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility = View.GONE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.layoutTabStatusCndContent.visibility = View.VISIBLE
+        // Тач-цели на всей фигуре (roadmap, "Редизайн STATS/Status — UX-спецификация",
+        // фидбек по итогам тестирования): каждая часть тела + сам контейнер фигуры (для
+        // пустых промежутков) — короткий тап toggle'ит CRIPPLED этой части (или revive,
+        // если персонаж мёртв), 5-секундный hold откуда угодно — пасхалка (перенесена
+        // сюда с прежнего tv_tab_status_cnd_name). См. setupFigureTouchTarget().
+        val cndContentSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) { toggleCrippledHead() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) { toggleCrippledTorso() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) { toggleCrippledLeftArm() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) { toggleCrippledRightArm() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) { toggleCrippledLeftLeg() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) { toggleCrippledRightLeg() }
+        cndContentSetup.incLayoutTabStatsCndPopup.btnTabStatsCndPopupClose.setOnClickListener{
+            cndContentSetup.incLayoutTabStatsCndPopup.root.visibility = View.GONE
+            cndContentSetup.layoutTabStatusCndContent.visibility = View.VISIBLE
             enableDisableBottomButtons(true, listBottomButtons)
             enableDisableTopSwipe(true)
         }
 
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyHeadHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgHead = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgHead = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyHead.setOnClickListener {
-            playerCharacterUpdate("head", "heal")
-        }
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyTorsoHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgTorso = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgTorso = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyTorso.setOnClickListener {
-            playerCharacterUpdate("torso", "heal")
-        }
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftArmHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgLftArm = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgLftArm = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftArm.setOnClickListener {
-            playerCharacterUpdate("leftArm", "heal")
-        }
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightArmHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgRgtArm = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgRgtArm = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightArm.setOnClickListener {
-            playerCharacterUpdate("rightArm", "heal")
-        }
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftLegHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgLftLeg = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgLftLeg = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyLeftLeg.setOnClickListener {
-            playerCharacterUpdate("leftLeg", "heal")
-        }
-
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightLegHp.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isDmgRgtLeg = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 msecond
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDmgRgtLeg = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyRightLeg.setOnClickListener {
-            playerCharacterUpdate("rightLeg", "heal")
-        }
+        // Кнопки таймера ранения должны выглядеть как кнопки — тонируем текущим акцентом
+        // темы, тем же приёмом, что кнопки экрана ITEMS/Часы (currentWizardAccentColor()).
+        val woundAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        cndContentSetup.btnTabStatusWoundStop.backgroundTintList = woundAccentTint
+        cndContentSetup.btnTabStatusWoundSkip.backgroundTintList = woundAccentTint
 
         /*
         ////////////////////////////////////////////////////////
@@ -5308,6 +5368,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsMap.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
         }
 
         networkChangeReceiver = NetworkChangeReceiver(this)
@@ -5323,6 +5384,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
         }
 
         /*
@@ -5441,6 +5503,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
                 timer.layoutClockTimerSetup.visibility = View.GONE
                 timer.layoutClockTimerRunning.visibility = View.VISIBLE
+                updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
             }
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
@@ -5461,9 +5524,16 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         timer.btnClockTimerReset.setOnClickListener {
             playNewTabSelectAudio()
-            timerState = TimerState.IDLE
-            timer.layoutClockTimerRunning.visibility = View.GONE
-            timer.layoutClockTimerSetup.visibility = View.VISIBLE
+            // Если сейчас идёт таймер ранения — "Сброс" здесь равнозначен [Стоп] на
+            // STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация"): не тихий обрыв
+            // без итога, а те же последствия (перевязка/лечение). Обычный сброс — только
+            // когда woundPhase == NONE.
+            if (woundPhase != WoundPhase.NONE) {
+                stopWoundTimerEarly()
+            } else {
+                timerState = TimerState.IDLE
+                syncClockTimerScreenVisibility()
+            }
         }
 
         /*
@@ -5576,6 +5646,14 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
+            bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
+        }
+        bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
+            setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, listBottomButtons)
+            bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
+            bindingMain.incLayoutTabItemsGeiger.root.visibility = View.VISIBLE
         }
 
         /***********************************************************************************************************
@@ -5738,8 +5816,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             startActivity(intent)
         }
 
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndName.text = sharedPreferences.getString(playerName_SPKey, "Player")
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusCndNameLevelValue.text = (sharedPreferences.getInt(playerLevel_SPKey, 1)).toString()
             // Общая нижняя панель (roadmap, "Новая шапка + единый Settings") — имя и регион
             // выставляются один раз при старте, как и остальные Settings-поля ниже:
             // сохранение настроек всегда идёт через полный перезапуск Activity (см.
@@ -5902,6 +5978,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
     override fun onDestroy() {
         super.onDestroy()
+        tickThread?.interrupt()
         turnAllRadioOff()
         cancelBootSequence()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,

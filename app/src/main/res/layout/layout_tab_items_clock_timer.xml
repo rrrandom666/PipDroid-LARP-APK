@@ -116,6 +116,25 @@
         android:layout_height="fill_parent"
         android:visibility="gone">
 
+        <!-- Подпись над отсчётом (roadmap, "Редизайн STATS/Status — UX-спецификация",
+             фидбек по итогам тестирования) — если у текущего таймера есть стадия
+             (Оглушение/Кровотечение/Перевязка, см. систему ранений на STATUS), она
+             показывается здесь же, поскольку это тот же самый общий таймер. Пустая и не
+             влияет на высоту блока для обычного запуска с этого экрана (woundPhase ==
+             NONE) — см. updateWoundCountdownText()/checkTimerFiring() в MainActivity.kt. -->
+        <TextView
+            android:id="@+id/tv_clock_timer_label"
+            style="@style/ClockStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24.0dip"
+            android:text=""
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/tv_clock_timer_countdown"
+            app:layout_constraintVertical_chainStyle="packed" />
+
         <TextView
             android:id="@+id/tv_clock_timer_countdown"
             style="@style/ClockStyle"
@@ -125,9 +144,8 @@
             android:text="00:05:00"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_clock_timer_label"
             app:layout_constraintBottom_toTopOf="@id/layout_clock_timer_running_buttons"
-            app:layout_constraintVertical_chainStyle="packed"
             app:layout_constraintVertical_bias="0.4" />
 
         <LinearLayout

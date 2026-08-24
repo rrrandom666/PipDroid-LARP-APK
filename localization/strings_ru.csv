@@ -35,14 +35,12 @@ strings.xml:wizard_hint_connect_hardware,values/strings.xml,wizard_hint_connect_
 strings.xml:wizard_hide_hint,values/strings.xml,wizard_hide_hint,Hide Hint,готово,Скрыть подсказку,,EN дописан задним числом Claude для базового strings.xml
 strings.xml:RAD_RESIST,values/strings.xml,RAD_RESIST,RAD RESIST,не переводится (решение),СОПРОТИВЛЕНИЕ РАДИАЦИИ,,
 strings.xml:current_rad_value,values/strings.xml,current_rad_value,0,не текст (число/плейсхолдер),0,,
-strings.xml:player_name,values/strings.xml,player_name,Player,готово,Игрок,,
 strings.xml:max,values/strings.xml,max,MAX,готово,МАКС,,
 strings.xml:power_off,values/strings.xml,power_off,Power Off,готово,Выключить питание,,
 strings.xml:rad_resist_amount,values/strings.xml,rad_resist_amount,8%,не текст (число/плейсхолдер),8%,,
 strings.xml:radaway,values/strings.xml,radaway,RadAway,не переводится (решение),RadAway,,
 strings.xml:radx,values/strings.xml,radx,RadX,не переводится (решение),RadX,,
 strings.xml:rad_cur_value,values/strings.xml,rad_cur_value,0,не текст (число/плейсхолдер),0,,
-strings.xml:stimpack,values/strings.xml,stimpack,Stimpak,готово,Стимулятор,,
 strings.xml:radio,values/strings.xml,radio,Radio,готово,Радио,,
 strings.xml:radio_enclave,values/strings.xml,radio_enclave,Enclave Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
 strings.xml:radio_galaxy_news,values/strings.xml,radio_galaxy_news,Galaxy News Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
@@ -50,15 +48,21 @@ strings.xml:radio_newvegas,values/strings.xml,radio_newvegas,New Vegas Radio,н�
 strings.xml:radio_custom,values/strings.xml,radio_custom,Custom Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
 strings.xml:bluetooth,values/strings.xml,bluetooth,Bluetooth,не переводится (решение),Bluetooth,,
 strings.xml:title_stats,values/strings.xml,title_stats,STATS,готово,ХАР-КИ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
-strings.xml:title_stats_CND,values/strings.xml,title_stats_CND,CND,готово,СОСТ,,
-strings.xml:title_stats_EFF,values/strings.xml,title_stats_EFF,EFF,готово,ЭФФ,,
-strings.xml:title_stats_RAD,values/strings.xml,title_stats_RAD,RAD,готово,РАД,,
 strings.xml:title_stats_status,values/strings.xml,title_stats_status,Status,готово,Статус,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:title_stats_status_lvl,values/strings.xml,title_stats_status_lvl,1,не текст (число/плейсхолдер),1,,
-strings.xml:title_stats_status_hp,values/strings.xml,title_stats_status_hp,720/720,не текст (число/плейсхолдер),720/720,,
-strings.xml:title_stats_status_ap,values/strings.xml,title_stats_status_ap,136/136,не текст (число/плейсхолдер),136/136,,
-strings.xml:title_stats_status_xp,values/strings.xml,title_stats_status_xp,1337/2460,не текст (число/плейсхолдер),1337/2460,,
-strings.xml:title_stats_status_status_effects,values/strings.xml,title_stats_status_status_effects,NO STATUS EFFECTS,готово,НЕТ ЭФФЕКТОВ,,
+strings.xml:title_stats_wound_light,values/strings.xml,title_stats_wound_light,Light Wound,готово,Легко ранен,,
+strings.xml:title_stats_wound_heavy,values/strings.xml,title_stats_wound_heavy,Heavy Wound,готово,Тяжело ранен,,
+strings.xml:title_stats_stunned,values/strings.xml,title_stats_stunned,Stunned,готово,Оглушён,,
+strings.xml:status_wound_bleeding_label,values/strings.xml,status_wound_bleeding_label,Bleeding,готово,Кровотечение,,
+strings.xml:status_wound_bandage_label,values/strings.xml,status_wound_bandage_label,Bandage,готово,Перевязка,,
+strings.xml:status_wound_stunned_label,values/strings.xml,status_wound_stunned_label,Waking up in,готово,До пробуждения,,подпись над таймером ITEMS/Часы
+strings.xml:status_wound_skip,values/strings.xml,status_wound_skip,Skip,готово,Skip,,debug-only кнопка
+strings.xml:status_revive_hint,values/strings.xml,status_revive_hint,Tap the Vault Boy figure to reset,готово,"Нажми на ваулт-боя, чтобы обновить",,
+strings.xml:stats_cnd_status_dead,values/strings.xml,stats_cnd_status_dead,DEAD,готово,МЁРТВ,,
+strings.xml:status_text_healthy,values/strings.xml,status_text_healthy,"Hooray, you're healthy! If you get wounded, press a button. You can tap the Vault Boy's body to mark where you got hit.",готово,"Ура, вы здоровы! Если получите ранение, нажмите кнопку. Можете указать на теле ваулт-боя, куда вас ранили.",,правая панель STATUS
+strings.xml:status_text_stunned,values/strings.xml,status_text_stunned,"Whoops, you're stunned! Waking up in: ",готово,"Упс, вы оглушены! До пробуждения: ",,правая панель STATUS
+strings.xml:status_text_wounded,values/strings.xml,status_text_wounded,"Ouch, you're wounded! ",готово,"Ой, вы ранены! ",,правая панель STATUS
+strings.xml:status_text_dead_header,values/strings.xml,status_text_dead_header,Oh no, you died!,готово,"О нет, вы умерли!",,правая панель STATUS
 strings.xml:title_items,values/strings.xml,title_items,ITEMS,готово,МОДУЛИ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:title_data,values/strings.xml,title_data,DATA,готово,ДАННЫЕ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:title_data_location,values/strings.xml,title_data_location,Megaton,готово,Мегатонна,,
@@ -171,6 +175,7 @@ strings.xml:placeholder_in_development,values/strings.xml,placeholder_in_develop
 strings.xml:items_map,values/strings.xml,items_map,Map,готово,Карта,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:items_clock,values/strings.xml,items_clock,Clock,готово,Часы,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:items_journal,values/strings.xml,items_journal,Journal,готово,Журнал,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
+strings.xml:items_geiger,values/strings.xml,items_geiger,Geiger,готово,Гейгер,,переехал со STATS/Status/RAD
 strings.xml:data_misc,values/strings.xml,data_misc,Files,готово,Файлы,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:data_misc_entry1_name,values/strings.xml,data_misc_entry1_name,How to play Caravan,готово,Как играть в Караван,,
 strings.xml:data_misc_entry1_description,values/strings.xml,data_misc_entry1_description,"""BUILDING A DECK
@@ -435,7 +440,6 @@ For this, you must first configure:
 
 For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pip-Boy 3000 APK'
 """,не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:eff_damage_label,values/strings.xml,eff_damage_label,Damage,готово,Урон,,
 strings.xml:cnd_popup_easter_egg_title,values/strings.xml,cnd_popup_easter_egg_title,"Achievement unlocked:
 Easter Egg found",готово,"Достижение получено:
 Найдено пасхальное яйцо",,
@@ -477,7 +481,6 @@ strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippl
 strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
 strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
 strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
-strings.xml:stats_status_level_label,values/strings.xml,stats_status_level_label,- Level,готово,- Уровень,,
 strings.xml:bluetooth_setup_heading,values/strings.xml,bluetooth_setup_heading,BLUETOOTH,готово,BLUETOOTH,,
 layout_tab_settings_bluetooth.xml:33,layout/layout_tab_settings_bluetooth.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
 strings.xml:bluetooth_status_disconnected,values/strings.xml,bluetooth_status_disconnected,DISCONNECTED,готово,НЕ ПОДКЛЮЧЕНО,,
@@ -507,6 +510,6 @@ strings.xml:clock_timer_preset_10,values/strings.xml,clock_timer_preset_10,+10 m
 strings.xml:clock_timer_start,values/strings.xml,clock_timer_start,Start,готово,Старт,,
 strings.xml:clock_timer_pause,values/strings.xml,clock_timer_pause,Pause,готово,Пауза,,
 strings.xml:clock_timer_resume,values/strings.xml,clock_timer_resume,Resume,готово,Продолжить,,
-strings.xml:clock_timer_reset,values/strings.xml,clock_timer_reset,Reset,готово,Сброс,,
+strings.xml:clock_timer_reset,values/strings.xml,clock_timer_reset,Stop,готово,Стоп,,переименовано из Reset для единообразия со STATUS
 strings.xml:clock_timer_fired_title,values/strings.xml,clock_timer_fired_title,TIMER,готово,ТАЙМЕР,,
 strings.xml:clock_melody_selected_label,values/strings.xml,clock_melody_selected_label,Selected:,готово,Выбрано:,,

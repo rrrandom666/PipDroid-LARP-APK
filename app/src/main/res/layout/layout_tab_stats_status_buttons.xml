@@ -1,39 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- STATUS -> три кнопки статуса ранений (roadmap, "Редизайн STATS/Status —
+     UX-спецификация"). Вёрстка списка слева — та же схема строки, что и в
+     layout_tab_stats_special.xml/layout_tab_stats_skills.xml: строка — ConstraintLayout
+     wrap_content (компактная, не растянута на всю высоту), внутри спейсер слева + Button.
+     Курсор-рамка (roadmap, фидбек по итогам тестирования — "точно такая же, как в
+     SPECIAL/Skills/Perks/General/Clock/Files/мастере, ширина не должна прыгать") — на
+     самой СТРОКЕ (fill_parent), не на Button (который wrap_content и менял бы ширину
+     рамки от длины текста) — см. updateWoundButtonsUI()/selectedRowButton в
+     MainActivity.kt. Сам Button внутри — прозрачный фон, рамку не дублирует. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/linearlayout_tab_status_buttons"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:layout_gravity="center"
+    android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_cnd"
-        style="@style/CNDEFFRADButtonStyle"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_status_wound_light_row"
         android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:text="@string/title_stats_CND" />
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6.0dp"
+        android:background="@drawable/button_unselected"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_rad"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:text="@string/title_stats_RAD" />
+        <TextView
+            android:id="@+id/tv_status_wound_light_spacer"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.03" />
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_eff"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:text="@string/title_stats_EFF" />
+        <Button
+            android:id="@+id/btn_wound_light"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:background="@android:color/transparent"
+            android:gravity="center|left"
+            android:minWidth="0.0dip"
+            android:minHeight="0.0dip"
+            android:text="@string/title_stats_wound_light"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_status_wound_light_spacer"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_status_wound_heavy_row"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6.0dp"
+        android:background="@drawable/button_unselected"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/tv_status_wound_heavy_spacer"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.03" />
+
+        <Button
+            android:id="@+id/btn_wound_heavy"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:background="@android:color/transparent"
+            android:gravity="center|left"
+            android:minWidth="0.0dip"
+            android:minHeight="0.0dip"
+            android:text="@string/title_stats_wound_heavy"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_status_wound_heavy_spacer"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_status_stunned_row"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6.0dp"
+        android:background="@drawable/button_unselected"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/tv_status_stunned_spacer"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.03" />
+
+        <Button
+            android:id="@+id/btn_stunned"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:background="@android:color/transparent"
+            android:gravity="center|left"
+            android:minWidth="0.0dip"
+            android:minHeight="0.0dip"
+            android:text="@string/title_stats_stunned"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_status_stunned_spacer"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
 </LinearLayout>

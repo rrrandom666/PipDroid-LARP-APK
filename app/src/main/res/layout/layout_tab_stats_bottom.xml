@@ -103,34 +103,8 @@
         android:minHeight="0.0dip"
         android:text="@string/stats_perks"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/img_bottom_link_4"
-        app:layout_constraintStart_toEndOf="@id/img_bottom_link_3"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="TouchTargetSizeCheck" />
-
-    <ImageView
-        android:id="@+id/img_bottom_link_4"
-        style="@style/ColorTintStyle"
-        android:layout_width="0.0dip"
-        android:layout_height="0.0dip"
-        android:scaleType="fitXY"
-        app:layout_constraintBottom_toBottomOf="@id/btn_stats_perks"
-        app:layout_constraintEnd_toStartOf="@id/btn_stats_general"
-        app:layout_constraintHeight_percent="0.05"
-        app:layout_constraintStart_toEndOf="@id/btn_stats_perks"
-        app:layout_constraintTop_toTopOf="@id/btn_stats_perks"
-        app:srcCompat="@drawable/bottom_linking_line" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_stats_general"
-        style="@style/BottomButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:minHeight="0.0dip"
-        android:text="@string/stats_general"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_right"
-        app:layout_constraintStart_toEndOf="@id/img_bottom_link_4"
+        app:layout_constraintStart_toEndOf="@id/img_bottom_link_3"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="TouchTargetSizeCheck" />
 
@@ -140,7 +114,7 @@
         android:layout_width="0.0dip"
         android:layout_height="0.0dip"
         android:scaleType="fitXY"
-        app:layout_constraintBottom_toBottomOf="@id/img_bottom_link_4"
+        app:layout_constraintBottom_toBottomOf="@id/btn_stats_perks"
         app:layout_constraintDimensionRatio="W, 1.5:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintWidth_percent="0.03"

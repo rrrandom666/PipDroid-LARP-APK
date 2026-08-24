@@ -767,6 +767,44 @@
                         app:layout_constraintWidth_percent="0.06" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layout_tab_settings_8"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10.0dp">
+
+                    <TextView
+                        android:id="@+id/tv_settings_8_left_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.03" />
+
+                   <CheckBox
+                        android:id="@+id/cbox_ambient_sound_settings"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:gravity="center|left"
+                        android:minWidth="0.0dip"
+                        android:minHeight="0.0dip"
+                        android:text="@string/settings_enable_ambient_sound"
+                        android:checked="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/tv_settings_8_left_spacer"
+                        app:layout_constraintTop_toTopOf="parent"/>
+
+                    <TextView
+                        android:id="@+id/tv_settings_8_right_spacer"
+                        android:layout_width="0.0dip"
+                        android:layout_height="0.0dip"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.06" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
             </LinearLayout>
         </ScrollView>
 

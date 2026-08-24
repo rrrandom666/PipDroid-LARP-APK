@@ -1,5 +1,6 @@
 package com.malto4.pipdroid
 
+import kotlin.reflect.KMutableProperty0
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -195,14 +196,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
     private val REQUEST_CODE_PERMISSION_MEDIA = 123
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerCRF: MediaPlayer? = null
-    private var mediaPlayerRadaway: MediaPlayer? = null
-    private var mediaPlayerRadX: MediaPlayer? = null
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerLightOn: MediaPlayer? = null
-    private var mediaPlayerLightOff: MediaPlayer? = null
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerLightOnOffList = mutableListOf<MediaPlayer>()
+    // Фоновый эмбиент и радиостанции живут дольше одного проигрывания (крутятся, пока их
+    // явно не остановят/не сменят) — в отличие от одноразовых UI-звуков выше, им нужно
+    // хранить ссылку на текущий MediaPlayer, а не только список для release-по-завершении.
     private var mediaPlayerBackGround: MediaPlayer? = null
     private var enclaveRadioMediaPlayer: MediaPlayer? = null
     private var galaxyRadioMediaPlayer: MediaPlayer? = null
@@ -293,6 +293,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // UX-спецификация") — длительности BLEED/BANDAGE и STUNNED.
         private const val WOUND_BLEED_BANDAGE_DURATION_SECONDS = 600
         private const val STUN_DURATION_SECONDS = 300
+
+        // Восстановление состояния после убийства процесса в фоне (roadmap, "Восстановление
+        // состояния после убийства процесса — спецификация") — ключи onSaveInstanceState()/
+        // onCreate(savedInstanceState). savedInstanceState != null — сигнал именно этого
+        // случая, не обычного холодного старта (см. спеку — Bundle, не SharedPreferences).
+        private const val KEY_CUR_MENU = "restore_curMenu"
+        private const val KEY_ROOT_CURSOR = "restore_rootCursor"
+        private const val KEY_PIPBOY_MODE = "restore_pipBoyMode"
+        private const val KEY_WOUND_PHASE = "restore_woundPhase"
+        private const val KEY_WOUND_SEVERITY = "restore_woundSeverity"
+        private const val KEY_TIMER_STATE = "restore_timerState"
+        private const val KEY_TIMER_TARGET_EPOCH = "restore_timerTargetEpochMillis"
+        private const val KEY_TIMER_REMAINING_AT_PAUSE = "restore_timerRemainingSecondsAtPause"
+        private const val KEY_CRIPPLED_HEAD = "restore_crippledHead"
+        private const val KEY_CRIPPLED_TORSO = "restore_crippledTorso"
+        private const val KEY_CRIPPLED_LEFT_ARM = "restore_crippledLeftArm"
+        private const val KEY_CRIPPLED_RIGHT_ARM = "restore_crippledRightArm"
+        private const val KEY_CRIPPLED_LEFT_LEG = "restore_crippledLeftLeg"
+        private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
+        private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
     }
 
     /***********************************************************************************************************
@@ -527,7 +547,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 perkModification = false
             }
             if (isFlashlightOn){
-                mediaPlayerLightOn?.start()
+                playLightOnAudio()
                 bindingMain.titleConstraintLayout.visibility = View.GONE
                 bindingMain.mainConstraintLayout.visibility = View.GONE
                 bindingMain.bottomConstraintLayout.visibility = View.GONE
@@ -535,7 +555,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 isFlashlightOff = false
             }
             if (isFlashlightOff){
-                mediaPlayerLightOff?.start()
+                playLightOffAudio()
                 bindingMain.titleConstraintLayout.visibility = View.VISIBLE
                 bindingMain.mainConstraintLayout.visibility = View.VISIBLE
                 bindingMain.bottomConstraintLayout.visibility = View.VISIBLE
@@ -1137,20 +1157,58 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         currentCustomTrackIndex = (currentCustomTrackIndex + 1) % customMP3Files.size
         playTrack(customMP3Files[currentCustomTrackIndex])
     }
-    private fun turnRadioOn(paramMediaPlayer: MediaPlayer) {
-
+    /**
+     * Радиостанции (roadmap, "Рефакторинг кода" — память фонового процесса). Раньше "выключить
+     * станцию" значило просто обнулить громкость (setVolume(0,0)) — сама станция продолжала
+     * молча крутиться и декодироваться в фоне, поэтому стоило игроку за сессию заглянуть во
+     * все станции по разу, все они в итоге оказывались одновременно загружены и работали.
+     * Теперь "выключить" — это по-настоящему stop()+release(): в любой момент времени
+     * загружена максимум одна станция, и то только если её реально включали.
+     */
+    private fun releaseRadioPlayer(target: KMutableProperty0<MediaPlayer?>) {
+        target.get()?.apply {
+            try {
+                if (isPlaying) stop()
+            } catch (e: IllegalStateException) {
+                Log.w("MainActivity", "Радио-MediaPlayer уже был в неподходящем состоянии для stop()", e)
+            }
+            release()
+        }
+        target.set(null)
+    }
+    private fun turnAllRadioOff() {
+        // lineVisualizer больше не прячется при остановке — горизонтальная шкала (тот же
+        // View, что рисует бегущую волну во время игры) должна оставаться на экране
+        // независимо от того, играет музыка или нет.
+        releaseRadioPlayer(::galaxyRadioMediaPlayer)
+        releaseRadioPlayer(::enclaveRadioMediaPlayer)
+        releaseRadioPlayer(::newVegasRadioMediaPlayer)
+        if (customMP3FilesFound) {
+            releaseRadioPlayer(::customRadioMediaPlayer)
+        }
+    }
+    /** Встроенная станция (Galaxy/Enclave/New Vegas) — лениво создаётся здесь же, по resId,
+     * не заранее в onCreate(). Кастомная станция идёт другим путём (playTrack() уже создаёт
+     * и стартует её из файла на диске) — см. activateRadioAudio() ниже, общий хвост для обеих. */
+    private fun turnRadioOnBuiltIn(resId: Int, target: KMutableProperty0<MediaPlayer?>) {
         turnAllRadioOff()
-
-        @Suppress("NAME_SHADOWING") var paramMediaPlayer: MediaPlayer? = paramMediaPlayer
         val random = Random()
-        if (paramMediaPlayer != null) paramMediaPlayer.isLooping = true
-        paramMediaPlayer?.seekTo(random.nextInt(paramMediaPlayer.duration))
-        paramMediaPlayer?.start()
-
-        val audioSessionId: Int? = paramMediaPlayer?.audioSessionId
-
+        val player = MediaPlayer.create(applicationContext, resId) ?: return
+        player.isLooping = true
+        player.seekTo(random.nextInt(player.duration))
+        player.start()
+        target.set(player)
+        activateRadioAudio(player)
+    }
+    /** Общий хвост turnRadioOnBuiltIn() и клика по Custom (та уже создана и запущена
+     * playTrack() к моменту вызова — здесь только громкость и подключение визуализатора,
+     * без повторного seekTo()/isLooping, что сломало бы переход на следующий трек по
+     * завершении, см. playNextTrack()). */
+    private fun activateRadioAudio(player: MediaPlayer) {
+        player.setVolume(1.0f, 1.0f)
+        val audioSessionId = player.audioSessionId
         if (checkAudioPermission()) {
-            if (audioSessionId != -1 && audioSessionId != null) {
+            if (audioSessionId != -1) {
                 // BaseVisualizer.setPlayer() создаёт новый android.media.audiofx.Visualizer
                 // поверх старого, не освобождая предыдущий (баг библиотеки) — старый
                 // экземпляр остаётся enabled и продолжает слать колбэки от прежней,
@@ -1164,55 +1222,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         } else {
             requestAudioPermission()
-        }
-
-        when(paramMediaPlayer){
-            galaxyRadioMediaPlayer -> {
-                val mediaPlayer: MediaPlayer? = galaxyRadioMediaPlayer
-                mediaPlayer?.setVolume(1.0f, 1.0f)
-            }
-            enclaveRadioMediaPlayer -> {
-                val mediaPlayer: MediaPlayer? = enclaveRadioMediaPlayer
-                mediaPlayer?.setVolume(1.0f, 1.0f)
-            }
-            newVegasRadioMediaPlayer -> {
-                val mediaPlayer: MediaPlayer? = newVegasRadioMediaPlayer
-                mediaPlayer?.setVolume(1.0f, 1.0f)
-            }
-            customRadioMediaPlayer -> {
-                val mediaPlayer: MediaPlayer? = customRadioMediaPlayer
-                mediaPlayer?.setVolume(1.0f, 1.0f)
-            }
-        }
-    }
-    private fun turnRadioOff(paramMediaPlayer: MediaPlayer?) {
-        // lineVisualizer больше не прячется при остановке — горизонтальная шкала (тот же
-        // View, что рисует бегущую волну во время игры) должна оставаться на экране
-        // независимо от того, играет музыка или нет.
-        paramMediaPlayer?.setVolume(0.0f, 0.0f)
-    }
-    private fun turnAllRadioOff() {
-        val radioMedia1: MediaPlayer? = galaxyRadioMediaPlayer
-        radioMedia1?.setVolume(0.0f, 0.0f)
-        val radioMedia2: MediaPlayer? = enclaveRadioMediaPlayer
-        radioMedia2?.setVolume(0.0f, 0.0f)
-        val radioMedia3: MediaPlayer? = newVegasRadioMediaPlayer
-        radioMedia3?.setVolume(0.0f, 0.0f)
-        if(customMP3FilesFound){
-            val radioMedia4: MediaPlayer? = customRadioMediaPlayer
-            radioMedia4?.setVolume(0.0f, 0.0f)
-        }
-    }
-    private fun turnAllRadioOffNoVis() {
-        val radioMedia1: MediaPlayer? = galaxyRadioMediaPlayer
-        radioMedia1?.setVolume(0.0f, 0.0f)
-        val radioMedia2: MediaPlayer? = enclaveRadioMediaPlayer
-        radioMedia2?.setVolume(0.0f, 0.0f)
-        val radioMedia3: MediaPlayer? = newVegasRadioMediaPlayer
-        radioMedia3?.setVolume(0.0f, 0.0f)
-        if(customMP3FilesFound){
-            val radioMedia4: MediaPlayer? = customRadioMediaPlayer
-            radioMedia4?.setVolume(0.0f, 0.0f)
         }
     }
 
@@ -1473,6 +1482,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
     }
     private fun selectPipBoyMode(mode: PipBoyMode) {
+        // Смена режима через Settings ("Изменить") может застать эмбиент уже играющим
+        // (предыдущий режим/сессия) — глушим его здесь безусловно, до входа в мастер, а не
+        // только в finishPhoneModeSetup()/finishBootSequence(): иначе он звучит через весь
+        // мастер настройки и заставку, включая состояние выключенного PipBoy до первого
+        // POWER:1, где эмбиенту быть не должно. Для Телефона он тут же запустится заново
+        // через finishPhoneModeSetup(), для PipBoy 2000/3000 — только после реального POWER.
+        stopAmbientBackgroundSound()
         pipBoyMode = mode
         sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
         refreshModeSettingsLabel()
@@ -1536,6 +1552,102 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
         cancelBootSequence()
         startContinuousGlitch()
+        startAmbientBackgroundSound()
+    }
+
+    /**
+     * Восстановление после убийства процесса в фоне (roadmap, "Восстановление состояния
+     * после убийства процесса — спецификация", этап 15) — вызывается из onCreate() только
+     * когда savedInstanceState != null (Android сам гарантирует, что это именно
+     * восстановление, не холодный старт). Полностью пропускает дисклеймер и мастер выбора
+     * режима/PipBoy 2000/3000 — не трогает их обычный путь показа при первом запуске,
+     * только эту отдельную ветку.
+     */
+    private fun restoreAppState(savedInstanceState: Bundle) {
+        bindingMain.constraintlayoutTutorial.visibility = View.GONE
+        bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
+        bindingMain.constraintlayoutMain.visibility = View.VISIBLE
+
+        val restoredMode = try {
+            PipBoyMode.valueOf(savedInstanceState.getString(KEY_PIPBOY_MODE, PipBoyMode.PHONE.name))
+        } catch (e: IllegalArgumentException) {
+            PipBoyMode.PHONE
+        }
+        pipBoyMode = restoredMode
+        refreshModeSettingsLabel()
+        when (restoredMode) {
+            PipBoyMode.PHONE -> finishPhoneModeSetup()
+            PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
+                // Мастер уже был пройден в прошлой (убитой) сессии — не переоткрываем его
+                // заново. Экран состояния (ON/OFF) — во власти ESP32 (см. applyPowerState()),
+                // мы не можем знать его сейчас без реального BLE-переподключения, поэтому
+                // безопасный дефолт тот же, что и при первом входе в мастер (setPowerOffInstant()),
+                // а не попытка угадать "было включено". checkPermissions() сам либо пропустит
+                // (уже выданы) и переподключит BLE, либо покажет системный диалог.
+                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+                loadViewState()
+                setPowerOffInstant()
+                checkPermissions()
+            }
+        }
+
+        // Раздел + вкладка (roadmap, спека, п.3) — тот же путь, что и BLE-команды STATS/
+        // ITEMS/DATA/RADIO (handleBleCommand()), но resetToRootAtIndex() вместо resetToRoot():
+        // прыжок сразу на сохранённую позицию, без проигрывания onSelect() промежуточных
+        // пунктов, через которые пришлось бы пройти повторными moveCursor().
+        val restoredMenu = savedInstanceState.getString(KEY_CUR_MENU, "STATS")
+            ?.takeIf { it in setOf("STATS", "ITEMS", "DATA", "RADIO") } ?: "STATS"
+        val restoredRootCursor = savedInstanceState.getInt(KEY_ROOT_CURSOR, 0)
+        val rootNodes = when (restoredMenu) {
+            "ITEMS" -> itemsMenuRoot()
+            "DATA" -> dataMenuRoot()
+            "RADIO" -> radioMenuRoot()
+            else -> statsMenuRoot()
+        }
+        menuChangeBLE(restoredMenu)
+        menuNavigator.resetToRootAtIndex(rootNodes, restoredRootCursor)
+
+        // Система ранений (roadmap, спека, п.4) — присваиваем поля напрямую, затем
+        // переприменяем визуал уже существующими функциями. CRIPPLED-конечности —
+        // отдельно ниже, applyCrippledVisual()/applyDeathVisuals() рисуют "по известному
+        // значению", в отличие от toggleCrippled*(), которые бы его инвертировали.
+        woundPhase = try {
+            WoundPhase.valueOf(savedInstanceState.getString(KEY_WOUND_PHASE, WoundPhase.NONE.name))
+        } catch (e: IllegalArgumentException) { WoundPhase.NONE }
+        woundSeverity = try {
+            WoundSeverity.valueOf(savedInstanceState.getString(KEY_WOUND_SEVERITY, WoundSeverity.LIGHT.name))
+        } catch (e: IllegalArgumentException) { WoundSeverity.LIGHT }
+        crippledHead = savedInstanceState.getBoolean(KEY_CRIPPLED_HEAD)
+        crippledTorso = savedInstanceState.getBoolean(KEY_CRIPPLED_TORSO)
+        crippledLeftArm = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_ARM)
+        crippledRightArm = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_ARM)
+        crippledLeftLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_LEG)
+        crippledRightLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_LEG)
+        statusCursorRow = statusCursorRowFromIndex(savedInstanceState.getInt(KEY_STATUS_CURSOR_ROW))
+        timerState = try {
+            TimerState.valueOf(savedInstanceState.getString(KEY_TIMER_STATE, TimerState.IDLE.name))
+        } catch (e: IllegalArgumentException) { TimerState.IDLE }
+        timerTargetEpochMillis = savedInstanceState.getLong(KEY_TIMER_TARGET_EPOCH)
+        timerRemainingSecondsAtPause = savedInstanceState.getInt(KEY_TIMER_REMAINING_AT_PAUSE)
+
+        applyWoundFace()
+        updateWoundButtonsUI()
+        updateWoundStatusLine()
+        syncClockTimerScreenVisibility()
+        updateClockTimerLabel()
+        if (woundPhase == WoundPhase.DEAD) {
+            applyDeathVisuals()
+        } else {
+            val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
+            applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
+        }
+        // checkTimerFiring() трогать не нужно (roadmap, спека, п.5) — если таймер истёк,
+        // пока процесс был мёртв, обычный следующий тик 300мс-цикла обработает это сам.
     }
 
     /**
@@ -2144,6 +2256,55 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     /***********************************************************************************************************
+     * AMBIENT BACKGROUND (roadmap, "Рефакторинг кода" — память фонового процесса) —
+     * фоновый гул интерфейса. Раньше создавался и настраивался (loop, громкость) в
+     * onCreate(), но start() нигде не вызывался — фича по факту никогда не играла. Теперь
+     * создаётся лениво в момент, когда интерфейс реально становится доступен игроку
+     * (finishPhoneModeSetup() для Телефона, finishBootSequence() для PipBoy 2000/3000 —
+     * после анимации загрузки), и останавливается при выключении экрана
+     * (playShutdownSequence()) — экран PipBoy выключен, гула тоже быть не должно.
+     * Настройки → "Фоновый эмбиент-звук" (AmbientSoundEnabled, по умолчанию включён) —
+     * решение целиком на совести игрока, не авторитетная механика. Как и остальные
+     * Settings, применяется после перезапуска Activity кнопкой [Сохранить] (см.
+     * saveButtonSettings.setOnClickListener), не живым переключением на лету.
+     *
+     * [ambientShouldBePlaying] — намерение, отдельно от факта существования плеера:
+     * true, пока интерфейс логически "включён" и настройка это разрешает (выставляется
+     * в startAmbientBackgroundSound(), сбрасывается только в stopAmbientBackgroundSound()
+     * — реальные причины остановки: POWER off, смена режима, onDestroy()). onStop()/
+     * onStart() — сворачивание приложения/блокировка экрана — используют отдельную пару
+     * releaseAmbientPlayer()/startAmbientBackgroundSound() и НЕ трогают это намерение:
+     * ambient должен на время уйти (экономия памяти/декодирования, пока игрок не
+     * смотрит на экран) и вернуться сам, без необходимости заново решать, разрешён ли
+     * он сейчас логикой режима/шага мастера.
+     **********************************************************************************************************/
+    private var ambientShouldBePlaying = false
+    private fun startAmbientBackgroundSound() {
+        if (!sharedPreferences.getBoolean("AmbientSoundEnabled", true)) return
+        ambientShouldBePlaying = true
+        if (mediaPlayerBackGround?.isPlaying == true) return
+        mediaPlayerBackGround?.release()
+        mediaPlayerBackGround = MediaPlayer.create(applicationContext, R.raw.background)?.apply {
+            isLooping = true
+            setVolume(0.5f, 0.5f)
+            start()
+        }
+    }
+    private fun releaseAmbientPlayer() {
+        mediaPlayerBackGround?.apply {
+            try { if (isPlaying) stop() } catch (e: IllegalStateException) {
+                Log.w("MainActivity", "mediaPlayerBackGround уже был в неподходящем состоянии для stop()", e)
+            }
+            release()
+        }
+        mediaPlayerBackGround = null
+    }
+    private fun stopAmbientBackgroundSound() {
+        ambientShouldBePlaying = false
+        releaseAmbientPlayer()
+    }
+
+    /***********************************************************************************************************
      * BOOT SEQUENCE (roadmap, "Видение приложения", п.11)
      **********************************************************************************************************/
     private var bootSoundPlayer: MediaPlayer? = null
@@ -2280,6 +2441,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Глитч больше не ограничен коротким окном после загрузки — фоновый эффект на
         // всё время, пока PipBoy включён, см. startContinuousGlitch().
         startContinuousGlitch()
+        startAmbientBackgroundSound()
     }
 
     /** Обрывает анимацию (загрузки или выключения) на любом шаге — повторный POWER
@@ -2312,6 +2474,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * scheduleGlitchPulses(), что и во время/после загрузки. */
     private fun playShutdownSequence() {
         playShutdownSwitchSound()
+        stopAmbientBackgroundSound()
         scheduleGlitchPulses(SHUTDOWN_STAY_DURATION_MS, POST_BOOT_GLITCH_MIN_PULSES..POST_BOOT_GLITCH_MAX_PULSES)
         bootPostDelayed(SHUTDOWN_STAY_DURATION_MS) { fadeToShutdownTerminal() }
     }
@@ -2782,7 +2945,8 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutSettingsGlobal.rbSettingsLanguageEn,
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome,
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
-            bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings
+            bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings
             // Add other radio buttons and text views as needed
         )
         var primaryColor = R.color.themeGreen
@@ -3383,7 +3547,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         menuSwipeEnabled = action
     }
     private fun menuOptionClicked(menu: String){
-        mediaPlayerCRF?.start()
+        // Тот же звук (cnd_rad_eff.wav), что и playCNDSelectAudio() ниже — раньше здесь был
+        // отдельный вечно висящий в памяти MediaPlayer (mediaPlayerCRF) под тот же файл,
+        // теперь оба места используют один ленивый create-play-release путь.
+        playCNDSelectAudio()
         topLevelButtonsModify(menu)
         setupMainContent(menu)
         setupRow2(menu)
@@ -3392,7 +3559,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sendBLEText(menu)
     }
     private fun menuOptionClickedBLE(menu: String){
-        mediaPlayerCRF?.start()
+        playCNDSelectAudio()
         topLevelButtonsModify(menu)
         setupMainContentBLE(menu)
         setupRow2(menu)
@@ -3426,6 +3593,25 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * (wrap_content) — иначе ширина рамки скачет от длины текста пункта (тот же фидбек).
      */
     private var statusCursorRow: View? = null
+    /** Индекс 0/1/2 (Light/Heavy/Stunned) — [statusCursorRow] сам View, его нельзя
+     * положить в Bundle (roadmap, "Восстановление состояния после убийства процесса —
+     * спецификация"), поэтому для onSaveInstanceState()/restore нужна пара конверсий. */
+    private fun statusCursorRowIndex(): Int {
+        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        return when (statusCursorRow) {
+            buttons.layoutTabStatusWoundHeavyRow -> 1
+            buttons.layoutTabStatusStunnedRow -> 2
+            else -> 0
+        }
+    }
+    private fun statusCursorRowFromIndex(index: Int): View {
+        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        return when (index) {
+            1 -> buttons.layoutTabStatusWoundHeavyRow
+            2 -> buttons.layoutTabStatusStunnedRow
+            else -> buttons.layoutTabStatusWoundLightRow
+        }
+    }
     private fun updateWoundButtonsUI() {
         val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
         val rows = listOf(buttons.layoutTabStatusWoundLightRow, buttons.layoutTabStatusWoundHeavyRow, buttons.layoutTabStatusStunnedRow)
@@ -3748,6 +3934,24 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             mediaPlayerCndRadEffList.remove(it)
         }
     }
+    private fun playLightOnAudio(){
+        val mediaPlayerLightOn = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_on)
+        mediaPlayerLightOnOffList.add(mediaPlayerLightOn)
+        mediaPlayerLightOn.start()
+        mediaPlayerLightOn.setOnCompletionListener {
+            it.release()
+            mediaPlayerLightOnOffList.remove(it)
+        }
+    }
+    private fun playLightOffAudio(){
+        val mediaPlayerLightOff = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_off)
+        mediaPlayerLightOnOffList.add(mediaPlayerLightOff)
+        mediaPlayerLightOff.start()
+        mediaPlayerLightOff.setOnCompletionListener {
+            it.release()
+            mediaPlayerLightOnOffList.remove(it)
+        }
+    }
 
 
     /***********************************************************************************************************
@@ -3977,7 +4181,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
         sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
@@ -3989,6 +4193,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         sharedPreferences.edit().putBoolean("TrueFullscreen", trueFullscreen).apply()
         sharedPreferences.edit().putInt(gameYear_SPKey, gameYear).apply()
         sharedPreferences.edit().putInt(appLanguage_SPKey, languageID).apply()
+        sharedPreferences.edit().putBoolean("AmbientSoundEnabled", ambientSoundEnabled).apply()
     }
     private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
@@ -4088,8 +4293,9 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         setupPipBoy2000Wizard()
         registerDebugCommandReceiver()
 
-        //Disable all radioStations
-        turnAllRadioOffNoVis()
+        // Радиостанции теперь создаются лениво (см. turnRadioOnBuiltIn()) — на холодном
+        // старте им и так нечего выключать, но вызов оставлен на случай будущих путей входа.
+        turnAllRadioOff()
 
         //Keep phone screen active
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -4121,21 +4327,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
         }
 
-        //MEDIA SETUP
-        mediaPlayerCRF = MediaPlayer.create(applicationContext, R.raw.cnd_rad_eff)
-        mediaPlayerRadaway = MediaPlayer.create(applicationContext, R.raw.radaway)
-        mediaPlayerRadX = MediaPlayer.create(applicationContext, R.raw.radx)
-        mediaPlayerLightOn = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_on)
-        mediaPlayerLightOff = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_off)
-        galaxyRadioMediaPlayer = MediaPlayer.create(applicationContext, R.raw.galaxynewsradio)
-        enclaveRadioMediaPlayer = MediaPlayer.create(applicationContext, R.raw.enclaveradio)
-        newVegasRadioMediaPlayer = MediaPlayer.create(applicationContext, R.raw.newvegasradio)
-        mediaPlayerBackGround = MediaPlayer.create(applicationContext, R.raw.background)
-        val mediaPlayer = mediaPlayerBackGround
-        if (mediaPlayer != null) {
-            mediaPlayer.isLooping = true
-            mediaPlayer.setVolume(0.5f, 0.5f)
-        }
+        // MEDIA SETUP — намеренно пусто. Все звуки/радиостанции/фоновый эмбиент теперь
+        // создаются лениво, в момент реального использования (roadmap, "Рефакторинг кода" —
+        // память фонового процесса), а не все разом здесь при каждом старте. См.
+        // playCNDSelectAudio()/playNewTabSelectAudio()/playLightOnAudio()/playLightOffAudio()
+        // (одноразовые UI-звуки, create-play-release), startAmbientBackgroundSound()/
+        // turnRadioOnBuiltIn() (живут дольше одного проигрывания, до явного стопа).
 
         //BOTTOM BUTTON SETUP (DEFAULT STATUS)
         bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks, bindingMain.incLayoutTabStatsBottom.btnStatsGeneral)
@@ -5705,13 +5902,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabDataRadio.layoutTabRadioGnr.setOnClickListener{
             if(radioGNRStateSelected){
                 if(bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility != View.VISIBLE){
-                    turnRadioOn(galaxyRadioMediaPlayer!!)
+                    turnRadioOnBuiltIn(R.raw.galaxynewsradio, ::galaxyRadioMediaPlayer)
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.VISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
                 } else {
-                    turnRadioOff(galaxyRadioMediaPlayer!!)
+                    turnAllRadioOff()
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
                 }
             } else {
@@ -5725,13 +5922,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave.setOnClickListener{
             if(radioEnclaveStateSelected){
                 if(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility != View.VISIBLE){
-                    turnRadioOn(enclaveRadioMediaPlayer!!)
+                    turnRadioOnBuiltIn(R.raw.enclaveradio, ::enclaveRadioMediaPlayer)
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.VISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
                 } else {
-                    turnRadioOff(enclaveRadioMediaPlayer!!)
+                    turnAllRadioOff()
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
                 }
             } else {
@@ -5745,13 +5942,13 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.incLayoutTabDataRadio.layoutTabRadioNvr.setOnClickListener{
             if(radioNVRStateSelected){
                 if(bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility != View.VISIBLE){
-                    turnRadioOn(newVegasRadioMediaPlayer!!)
+                    turnRadioOnBuiltIn(R.raw.newvegasradio, ::newVegasRadioMediaPlayer)
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.VISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
                 } else {
-                    turnRadioOff(newVegasRadioMediaPlayer!!)
+                    turnAllRadioOff()
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
                 }
             } else {
@@ -5766,10 +5963,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             if(radioCustomStateSelected){
                 if(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility != View.VISIBLE){
                     if (checkCustomMediaPermission()) {
+                        // turnAllRadioOff() ДО создания нового трека — иначе, если бы он шёл
+                        // после playRandomTrack()/playTrack() (как раньше, внутри старого
+                        // turnRadioOn()), он бы немедленно release()-нул только что созданный
+                        // customRadioMediaPlayer вместо предыдущей станции.
+                        turnAllRadioOff()
                         loadMp3Files()
                         playRandomTrack()
                         if(customMP3FilesFound){
-                            turnRadioOn(customRadioMediaPlayer!!)
+                            activateRadioAudio(customRadioMediaPlayer!!)
                         }
                     } else {
                         requestCustomMediaPermission()
@@ -5779,9 +5981,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.VISIBLE
                 } else {
-                    if(customMP3FilesFound){
-                        turnRadioOff(customRadioMediaPlayer!!)
-                    }
+                    turnAllRadioOff()
                     bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
                 }
             } else {
@@ -5802,11 +6002,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
         var editSettings6 = bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings //ShowTutorial
         var editSettings7 = bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings //Fullscreen
+        var editSettings8 = bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings //AmbientSoundEnabled
         val editSettingsYear = bindingMain.incLayoutSettingsGlobal.etSettingsYearValue //GameYear
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector)
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
             }
             turnAllRadioOff()
             sendBLEText("STATS")
@@ -5834,6 +6035,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.setChecked(!sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings6.setChecked(sharedPreferences.getBoolean("ShowTutorial", true))
             editSettings7.setChecked(sharedPreferences.getBoolean("TrueFullscreen", true))
+            editSettings8.setChecked(sharedPreferences.getBoolean("AmbientSoundEnabled", true))
             refreshModeSettingsLabel()
 
             bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.check(bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat.getChildAt(sharedPreferences.getInt(dateFormat_SPKey, 0)).id)
@@ -5974,12 +6176,68 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             true
         }
 
+        // Восстановление после убийства процесса в фоне (roadmap, "Восстановление состояния
+        // после убийства процесса — спецификация", этап 15) — savedInstanceState != null
+        // гарантированно означает именно это, не холодный старт (Android сам разводит эти
+        // два случая). Последний шаг onCreate() — всё остальное выше уже успело развесить
+        // слушатели/собрать биндинги, на которые restoreAppState() опирается.
+        if (savedInstanceState != null) {
+            restoreAppState(savedInstanceState)
+        }
+    }
+
+    /**
+     * Восстановление состояния после убийства процесса в фоне (roadmap, "Восстановление
+     * состояния после убийства процесса — спецификация", этап 15) — сохраняем ровно то,
+     * что перечислено в спеке: текущий раздел+вкладка, режим работы, и всё состояние
+     * системы ранений (этап 14). Bundle, не SharedPreferences — только он различает
+     * "холодный старт" (savedInstanceState == null в onCreate) от восстановления.
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_CUR_MENU, curMenu)
+        outState.putInt(KEY_ROOT_CURSOR, menuNavigator.rootCursor())
+        outState.putString(KEY_PIPBOY_MODE, pipBoyMode.name)
+        outState.putString(KEY_WOUND_PHASE, woundPhase.name)
+        outState.putString(KEY_WOUND_SEVERITY, woundSeverity.name)
+        outState.putString(KEY_TIMER_STATE, timerState.name)
+        outState.putLong(KEY_TIMER_TARGET_EPOCH, timerTargetEpochMillis)
+        outState.putInt(KEY_TIMER_REMAINING_AT_PAUSE, timerRemainingSecondsAtPause)
+        outState.putBoolean(KEY_CRIPPLED_HEAD, crippledHead)
+        outState.putBoolean(KEY_CRIPPLED_TORSO, crippledTorso)
+        outState.putBoolean(KEY_CRIPPLED_LEFT_ARM, crippledLeftArm)
+        outState.putBoolean(KEY_CRIPPLED_RIGHT_ARM, crippledRightArm)
+        outState.putBoolean(KEY_CRIPPLED_LEFT_LEG, crippledLeftLeg)
+        outState.putBoolean(KEY_CRIPPLED_RIGHT_LEG, crippledRightLeg)
+        outState.putInt(KEY_STATUS_CURSOR_ROW, statusCursorRowIndex())
+    }
+
+    /** Сворачивание приложения или блокировка экрана — Activity перестаёт быть видимой
+     * (в отличие от onPause(), который срабатывает и на кратких перекрытиях вроде системных
+     * диалогов разрешений, onStop() — именно "игрок больше не смотрит на экран"). Эмбиент
+     * освобождается (не просто мьютится — та же логика "по-настоящему стоп", что и у
+     * радиостанций, см. releaseRadioPlayer()), но намерение [ambientShouldBePlaying] не
+     * трогаем — тикThread/BLE-сервис по-прежнему работают в фоне независимо от этого. */
+    override fun onStop() {
+        super.onStop()
+        releaseAmbientPlayer()
+    }
+    /** Возврат в приложение — как при обычном первом запуске, так и после onStop(). На
+     * самом первом запуске ambientShouldBePlaying ещё false (флаг выставляется только
+     * внутри startAmbientBackgroundSound(), которая к этому моменту ещё не вызывалась),
+     * поэтому лишнего старта здесь не происходит. */
+    override fun onStart() {
+        super.onStart()
+        if (ambientShouldBePlaying) {
+            startAmbientBackgroundSound()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         tickThread?.interrupt()
         turnAllRadioOff()
+        stopAmbientBackgroundSound()
         cancelBootSequence()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
         // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся

@@ -436,11 +436,11 @@ strings.xml:settings_show_tutorial_at_start,values/strings.xml,settings_show_tut
 strings.xml:settings_bluetooth_setup_button,values/strings.xml,settings_bluetooth_setup_button,Bluetooth Setup,готово,Настройка Bluetooth,,
 strings.xml:settings_save_button,values/strings.xml,settings_save_button,Save Settings,готово,Сохранить настройки,,
 strings.xml:filter_modification_title,values/strings.xml,filter_modification_title,Modification,готово,Модификация,,
-layout_filter_modification.xml:42,layout/layout_filter_modification.xml,"(hardcoded, нет @string)",X,"не текст (символ кнопки), но не в strings.xml",X,,"кнопка закрытия ""X"" — символ, не текст"
 strings.xml:filter_title,values/strings.xml,filter_title,Filter,готово,Фильтр,,
 strings.xml:filter_select_all,values/strings.xml,filter_select_all,Select ALL,готово,Выбрать всё,,
 strings.xml:filter_clear_all,values/strings.xml,filter_clear_all,Clear ALL,готово,Очистить всё,,
-strings.xml:filter_save_button,values/strings.xml,filter_save_button,SAVE,готово,СОХРАНИТЬ,,
+strings.xml:filter_save_button,values/strings.xml,filter_save_button,Save,готово,Сохранить,,"был капс (SAVE), поправлено — названия кнопок капсом не пишем"
+strings.xml:filter_cancel_button,values/strings.xml,filter_cancel_button,Cancel,готово,Отмена,,"кнопка X убрана (roadmap, ""Редизайн экрана фильтра""), вместо неё пара Save/Cancel"
 layout_tab_stats_status_cnd_content.xml:40,layout/layout_tab_stats_status_cnd_content.xml,"(hardcoded, нет @string)",-10,"не текст (число/плейсхолдер), но не в strings.xml",-10,,
 strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,
 strings.xml:stats_cnd_status_crippled,values/strings.xml,stats_cnd_status_crippled,CRIPPLED,готово,ПОВРЕЖДЕНО,,

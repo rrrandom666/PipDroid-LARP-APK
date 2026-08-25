@@ -105,6 +105,13 @@
         <item name="android:paddingBottom">4.0dip</item>
         <item name="android:minWidth">0.0dip</item>
         <item name="android:minHeight">0.0dip</item>
+        <!-- Единое место для высоты всех кнопок этого стиля (roadmap, "Редизайн экрана
+             фильтра — UX-спецификация") — раньше каждый экран дублировал одинаковый
+             android:layout_height="wrap_content" на каждой кнопке по отдельности; тот же
+             результат, но теперь регулируется в одном месте. Инстансы, которым нужен другой
+             размер (например +/- на SPECIAL/Skills, match_constraint под зону картинки),
+             переопределяют этот атрибут у себя как обычно — инстанс всегда сильнее стиля. -->
+        <item name="android:layout_height">wrap_content</item>
     </style>
     <style name="SettingsButtonStyle">
         <item name="android:paddingLeft">8.0dip</item>

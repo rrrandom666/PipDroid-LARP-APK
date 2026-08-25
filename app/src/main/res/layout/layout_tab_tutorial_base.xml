@@ -113,7 +113,6 @@
                 android:id="@+id/btn_nextpage"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:text="@string/wizard_next" />
 
@@ -121,7 +120,6 @@
                 android:id="@+id/btn_tutorial_close"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:text="@string/disclaimer_skip_button" />
 
@@ -136,5 +134,17 @@
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Блик экрана (activity_main.xml, img_screenglare) поверх дисклеймера — своя копия
+         по той же причине, что и у заставки/мастера: дисклеймер рисуется отдельным
+         инклюдом поверх оригинального блика и перекрывает его собой. -->
+    <ImageView
+        android:id="@+id/img_screenglare_welcome"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@drawable/screenglare_alpha"
+        android:scaleType="fitXY"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

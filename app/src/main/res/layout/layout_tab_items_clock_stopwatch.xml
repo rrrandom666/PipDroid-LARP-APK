@@ -37,7 +37,6 @@
             android:id="@+id/btn_clock_stopwatch_start_pause"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:text="@string/clock_timer_start" />
 
@@ -45,7 +44,6 @@
             android:id="@+id/btn_clock_stopwatch_reset"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:text="@string/clock_timer_reset" />
 
     </LinearLayout>

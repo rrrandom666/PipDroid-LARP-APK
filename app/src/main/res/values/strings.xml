@@ -757,7 +757,8 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="filter_title">Filter</string>
     <string name="filter_select_all">Select ALL</string>
     <string name="filter_clear_all">Clear ALL</string>
-    <string name="filter_save_button">" SAVE "</string>
+    <string name="filter_save_button">" Save "</string>
+    <string name="filter_cancel_button">" Cancel "</string>
     <string name="stats_cnd_status_crippled">CRIPPLED</string>
     <string name="bluetooth_setup_heading">BLUETOOTH</string>
     <string name="bluetooth_status_disconnected">DISCONNECTED</string>

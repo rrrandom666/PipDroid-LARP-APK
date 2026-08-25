@@ -73,6 +73,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.CompoundButtonCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -446,6 +447,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private lateinit var filteringMenu: String
     private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
     private var selectedFilterDATAMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
+    // Снимок selectedFilterSTATSPerks на момент открытия экрана (roadmap, "Редизайн экрана
+    // фильтра — UX-спецификация") — чекбоксы мутируют selectedFilterSTATSPerks сразу по
+    // тапу, ещё до Save; Cancel должен откатить эти правки, иначе при повторном открытии
+    // экрана (без рестарта приложения) будут видны несохранённые правки прошлой сессии.
+    private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
 
     /***********************************************************************************************************
      * LongButtonPresses - EasterEgg + FLASHLIGHT + PlayerDamage
@@ -1011,7 +1017,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             selectedButtonBackground = selected_button,
             selectedMode = PipBoyMode.PHONE
         ) { mode ->
-            playNewTabSelectAudio()
+            // Пункт списка (не кнопка/таб) — тот же звук, что у выбора перка/атрибута/
+            // навыка на SPECIAL/Skills/Perks (roadmap, "Редизайн экрана фильтра —
+            // UX-спецификация"), был ошибочно звук кнопок (playNewTabSelectAudio()).
+            playItemSelectAudio()
             showModeDescription(mode)
         }
         ms.recyclerModeSelect.adapter = modeSelectAdapter
@@ -2431,13 +2440,15 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun applyBackgroundResource(Colour: Int) {
         // Apply background to relevant views
         val backgrounds = listOf(
-            bindingMain.incLayoutSettingsGlobal.layoutTabSettings,
-            bindingMain.incLayoutFilterModification.layoutFilterModification,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup
             // Часы (ITEMS/Clock, roadmap этап 6 п.3) больше не в этом списке — раньше это
             // был попап со своим фоном-плашкой (settings_menu_background_green), теперь
             // обычный полноэкранный раздел без такого фона, перекрашивать нечего.
+            // Settings и экран фильтра тоже убраны (roadmap, "Редизайн экрана фильтра —
+            // UX-спецификация") — их корни больше не используют этот бокс-drawable, теперь
+            // тонкие линии (ColorTintStyle, самотонируются темой Activity), перекрашивать
+            // фон программно не нужно.
             // Add other views as necessary
         )
         var backgroundRes = R.drawable.settings_menu_background_green
@@ -3588,6 +3599,10 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // Iterate over the items and create CheckBox and TextView for each
         for (item in items) {
             val checkBox = CheckBox(this)
+            // Рамка/галочка чекбокса акцентом темы — на тёмном фоне экрана фильтра
+            // нетематизированный Material-дефолт на грани видимости (roadmap, "Редизайн
+            // экрана фильтра — UX-спецификация").
+            CompoundButtonCompat.setButtonTintList(checkBox, ColorStateList.valueOf(currentWizardAccentColor()))
             val textView = TextView(this).apply {
                 // Set the text for the TextView to the "name" value
                 text = item["name"]
@@ -3713,6 +3728,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private fun openPerksFilter() {
         playNewTabSelectAudio()
         filteringMenu = "PERKS"
+        filterSelectionSnapshot = selectedFilterSTATSPerks.toMutableSet()
         listEntries(filterFrame, localizedPerks)
         bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
         bindingMain.layoutStats.visibility = View.GONE
@@ -3720,6 +3736,19 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         bindingMain.layoutData.visibility = View.GONE
         enableDisableBottomButtons(false, listBottomButtons)
         enableDisableTopSwipe(false)
+    }
+    /**
+     * Закрывает экран фильтра, общая часть для Save и Cancel (roadmap, "Редизайн экрана
+     * фильтра — UX-спецификация") — раньше был отдельный крестик [X] с этой же логикой,
+     * теперь оба выхода [Save]/[Cancel] должны её выполнять.
+     */
+    private fun closeFilterScreen() {
+        bindingMain.incLayoutFilterModification.root.visibility = View.GONE
+        bindingMain.layoutStats.visibility = View.VISIBLE
+        bindingMain.layoutItems.visibility = View.VISIBLE
+        bindingMain.layoutData.visibility = View.VISIBLE
+        enableDisableBottomButtons(true, listBottomButtons)
+        enableDisableTopSwipe(true)
     }
     /**
      * Локализованная копия [perks] (roadmap, "Финализация STATS") — `Data.kt` хранит только
@@ -3882,21 +3911,16 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         //Load saved size and position
         loadViewState()
 
-        // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
-        setupModeSelectScreen()
-        setupPipBoy2000Wizard()
-        registerDebugCommandReceiver()
-
-        // Радиостанции теперь создаются лениво (см. turnRadioOnBuiltIn()) — на холодном
-        // старте им и так нечего выключать, но вызов оставлен на случай будущих путей входа.
-        turnAllRadioOff()
-
-        //Keep phone screen active
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
         //Initialize RadioWave-View
         lineVisualizer = findViewById(R.id.radioWave)
 
+        // Тема (selected_button/selectedRowButton и т.п., applyAppTheme()) должна быть
+        // применена ДО setupModeSelectScreen()/setupPipBoy2000Wizard() — экран выбора
+        // режима строит ModeSelectAdapter с текущим selected_button сразу при вызове, а не
+        // лениво при показе. Раньше блок стоял ниже — selected_button ещё был на
+        // компилируемом дефолте (зелёный, см. объявление private var selected_button)
+        // независимо от сохранённой темы, подсветка выбранного пункта в мастере оставалась
+        // зелёной на всех темах (баг, найден при тесте редизайна экрана фильтра).
         /* CHANGE Drawables / apply theme extras */
         when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
             //GREEN
@@ -3920,6 +3944,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
                 applyAppTheme(3, scrollBarDrawable)
             }
         }
+
+        // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
+        setupModeSelectScreen()
+        setupPipBoy2000Wizard()
+        registerDebugCommandReceiver()
+
+        // Радиостанции теперь создаются лениво (см. turnRadioOnBuiltIn()) — на холодном
+        // старте им и так нечего выключать, но вызов оставлен на случай будущих путей входа.
+        turnAllRadioOff()
+
+        //Keep phone screen active
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // MEDIA SETUP — намеренно пусто. Все звуки/радиостанции/фоновый эмбиент теперь
         // создаются лениво, в момент реального использования (roadmap, "Рефакторинг кода" —
@@ -4168,14 +4204,36 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             // Any UI updates can be done here after the function completes
         }
 
-        bindingMain.incLayoutFilterModification.btnFilterModificationClose.setOnClickListener{
+        // Плейсхолдер "Filter" — то же слабое затенение, что у соседних (не активных)
+        // пунктов row2 (renderRow2(), alpha 0.55 для dist ±1), а не дефолтный
+        // android:textColorHint темы (тот на ~10% альфы, themeXCND, слишком блёклый) —
+        // и явно акцентом темы, не системным серым (roadmap, "Редизайн экрана фильтра —
+        // UX-спецификация").
+        bindingMain.incLayoutFilterModification.etFilterModificationValue.setHintTextColor(
+            ColorUtils.setAlphaComponent(currentWizardAccentColor(), (0.55f * 255).toInt())
+        )
+
+        // Тематизация 5 кнопок экрана (roadmap, "Редизайн экрана фильтра —
+        // UX-спецификация") — тот же приём, что у мастера/Settings: PipWizardButtonStyle
+        // в разметке даёт нейтральную заливку, акцент темы — backgroundTintList кодом.
+        val filterAccent = currentWizardAccentColor()
+        listOf(
+            bindingMain.incLayoutFilterModification.btnFilterModificationCancel,
+            bindingMain.incLayoutFilterModification.btnFilterModificationFilter,
+            bindingMain.incLayoutFilterModification.btnFilterModificationSelect,
+            bindingMain.incLayoutFilterModification.btnFilterModificationClear,
+            bindingMain.incLayoutFilterModification.btnFilterModificationSave
+        ).forEach { it.backgroundTintList = ColorStateList.valueOf(filterAccent) }
+
+        bindingMain.incLayoutFilterModification.btnFilterModificationCancel.setOnClickListener{
             playNewTabSelectAudio()
-            bindingMain.incLayoutFilterModification.root.visibility = View.GONE
-            bindingMain.layoutStats.visibility = View.VISIBLE
-            bindingMain.layoutItems.visibility = View.VISIBLE
-            bindingMain.layoutData.visibility = View.VISIBLE
-            enableDisableBottomButtons(true, listBottomButtons)
-            enableDisableTopSwipe(true)
+            // Откатываем несохранённые правки чекбоксов (см. filterSelectionSnapshot) —
+            // saveSelectedItems() не вызывается, персистентные настройки и видимый список
+            // Perks не трогаются.
+            when(filteringMenu){
+                "PERKS" -> selectedFilterSTATSPerks = filterSelectionSnapshot.toMutableSet()
+            }
+            closeFilterScreen()
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
@@ -4206,6 +4264,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             when(filteringMenu){
                 "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
             }
+            closeFilterScreen()
         }
 
         /***********************************************************************************************************
@@ -4521,6 +4580,26 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             openPerksFilter()
         }
 
+
+        // Тематизация Close/Bluetooth setup/Save (roadmap, "Редизайн экрана фильтра —
+        // UX-спецификация") — те же PipWizardButtonStyle-кнопки, что у мастера: нейтральная
+        // заливка в разметке, акцент темы — backgroundTintList кодом. Сохранение всегда идёт
+        // через полный перезапуск Activity (см. saveButtonSettings.setOnClickListener ниже),
+        // живого повторного тонирования при смене темы не требуется — обычный onCreate-путь.
+        val settingsAccent = currentWizardAccentColor()
+        listOf(
+            bindingMain.incLayoutSettingsGlobal.btnSettingsClose,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsSave
+        ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
+        // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
+        // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
+        // фоне на грани видимости.
+        listOf(
+            bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings
+        ).forEach { CompoundButtonCompat.setButtonTintList(it, ColorStateList.valueOf(settingsAccent)) }
 
         // Единый экран Settings (roadmap, "Новая шапка + единый Settings") — показывается
         // поверх текущей вкладки, не нужно больше прятать её содержимое под собой. Открытие

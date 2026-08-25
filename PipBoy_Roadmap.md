@@ -1343,6 +1343,66 @@ SharedPreferences): SharedPreferences не различает "холодный 
         + `backgroundTintList` из `currentWizardAccentColor()` кодом), не жёстко зелёные.
 ---
 
+### Редизайн экрана фильтра — UX-спецификация (этап 17, в работе, ветка `app-filter-redesign`)
+
+Экран — `layout_filter_modification.xml` (открывается из STATS/Perks иконкой-воронкой,
+см. "Финализация STATS" выше). Правки чисто визуальные — механика (поиск, Select/Clear
+All, Save, ручной `LinearLayout` со списком чекбоксов через `listEntries()`) не трогается.
+По итогам ревью кода нашлось, что у экрана Settings (`layout_tab_settings.xml`) те же три
+болячки — чиним оба экрана в этой же ветке.
+
+1. **Рамка.** `android:background="@drawable/settings_menu_background_green"` (скруглённый
+   бокс, 5dp зелёная обводка, заливка `pip_background`) — не тематизирован у отдельных
+   View, куда его ставят инлайново (см. п.2), хотя у самих корневых контейнеров (`layout_
+   filter_modification`, `layout_tab_settings` и ещё 2 вью) он **уже** живёт через
+   `applyBackgroundResource()` и правильно свапается на amber/white/blue-варианты —
+   баг именно в инлайновых копиях на кнопках, не в самом механизме. Меняем сам приём:
+   рамка → две тонкие линии сверху/снизу (`ColorTintStyle` + `@drawable/bottom_linking_line`,
+   тот же паттерн, что у дисклеймера/мастера/шапки основного экрана), фон экрана — сплошной
+   `pip_background_darker`. Применяется к обоим корням — `layout_filter_modification.xml`
+   и `layout_tab_settings.xml`.
+2. **Кнопки.** У фильтра 5 кнопок (Close/Filter/Select All/Clear All/Save) сейчас —
+   `style="@style/CNDEFFRADButtonStyle"` с инлайновым `android:background="@drawable/
+   settings_menu_background_green"` поверх (жёстко-зелёный бокс, не тематизирован).
+   В Settings тот же паттерн — у его собственных экранных кнопок (Close/Save/Bluetooth
+   setup). **Различие по категориям, не по экрану:** `CNDEFFRADButtonStyle` (плоский
+   прозрачный `button_unselected`, без инлайновой рамки) — стиль пунктов меню третьего
+   уровня (строки-лейблы типа `tv_settings_1`), это база всего остального приложения и
+   трогать не нужно. А вот кнопки-**действия** — Close/Save/Bluetooth setup в Settings и
+   все 5 кнопок фильтра — переезжают на `PipWizardButtonStyle` (залитый прямоугольник,
+   заливка через `backgroundTintList`/`currentWizardAccentColor()` кодом, тёмный текст
+   поверх), тот же стиль, что у [Далее]/[Пропустить] в мастере и дисклеймере.
+3. **Чекбоксы.** Ни у фильтра (чекбоксы создаются кодом в `listEntries()`), ни у трёх
+   чекбоксов Settings (`cbox_truefullscreen_settings`, `cbox_ambient_sound_settings`,
+   `cbox_tutorial_settings`) графика самого чекбокса (рамка/галочка) не тонируется —
+   `applyTextColor()` красит только текст-лейбл рядом с ним, MaterialComponents-дефолт для
+   галочки не трогает. На тёмном фоне это на грани видимости, с переходом рамки на п.1
+   (более тёмный сплошной фон вместо бокса) станет хуже. Фикс — `buttonTintList` акцентом
+   текущей темы (`currentWizardAccentColor()`-подобный ресолвер), заодно для обоих экранов.
+
+Дополнительно по ходу (уже сделано, до начала этой части): **блик экрана
+(`img_screenglare`, `screenglare_alpha.png`, полупрозрачный градиент, имитирует блик на
+стекле)** раньше был виден только на основном экране STATS/ITEMS/DATA — заставка, мастер
+и дисклеймер рисуются как отдельные `<include>` поверх него в `activity_main.xml` и
+целиком его закрывали собой. Добавлены 3 отдельные копии `ImageView` (`img_screenglare_
+boot`/`_wizard`/`_welcome`) как последний дочерний элемент прямо внутри каждого из
+соответствующих layout-файлов (`layout_boot_sequence.xml`, `layout_pipboy2000_wizard.xml`,
+`layout_tab_tutorial_base.xml`) — видимость автоматически следует за самим экраном, без
+правок в Kotlin. **Уточнение по итогам теста на устройстве:** у мастера копия блика — не
+на корне `layout_pipboy2000_wizard` целиком, а внутри `layout_wizard_chrome_frame` (шаги
+2-5) — шаг 6 (подсказка про POWER, `layout_wizard_power_hint`) это чёрный экран state OFF,
+не страница мастера, блика на нём быть не должно (сознательно "вне рамки", см. "Космети-
+ческие правки мастера" выше).
+
+**Не в этой части, отдельно всплыло по ходу ревью, не сделано:**
+- `drawable/pip_background.png` — неиспользуемая текстура (тёмно-зелёная, со сканлайнами),
+  нигде не подключена, кандидат на удаление.
+- Мёртвый путь `DATA/Misc`-фильтра (`selectedFilterDATAMisc`, ветка `"selectedDATAMiscArray"`
+  в `saveSelectedItems()`/`selectClearAllCheckBoxes()`/`listEntries()`) — реально работает
+  только `"PERKS"` ветка `filteringMenu`, Misc-путь висит мёртвым грузом с тех пор как
+  выяснилось, что `dmiscs` в `Data.kt` — фейковые тестовые записи (см. `CLAUDE.md`,
+  "Hidden content sources").
+
 ## 3. Среда разработки на MacBook
 
 - **Android Studio + встроенный эмулятор** — подходит для разработки и отладки UI/логики

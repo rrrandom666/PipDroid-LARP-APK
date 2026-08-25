@@ -6,156 +6,153 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical"
-    android:background="@drawable/settings_menu_background_green">
+    android:background="@color/pip_background_darker">
 
-<androidx.constraintlayout.widget.ConstraintLayout
-    android:id="@+id/layout_filter_modification_topbuttons"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    android:paddingBottom="10dp"
-    app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_text">
-
-    <TextView
-        android:id="@+id/tv_filter_modification_title"
-        style="@style/TextStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="@string/filter_modification_title"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
-        android:id="@+id/btn_filter_modification_close"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
-        android:text=" X "
-        android:textAllCaps="false"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
-
-<androidx.constraintlayout.widget.ConstraintLayout
-android:id="@+id/layout_filter_modification_text"
-android:layout_width="0.0dp"
-android:layout_height="wrap_content"
-app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_entries"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_topbuttons">
-
-    <EditText
-        android:id="@+id/et_filter_modification_value"
-        style="@style/SettingsButtonStyle"
-        android:layout_width="0.0dp"
-        android:layout_height="wrap_content"
-        android:gravity="center|left"
-        android:hint="FILTER"
-        android:maxLines="1"
-        android:maxLength="32"
-        android:singleLine="true"
-        android:layout_marginStart="10dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_filter"/>
-    <Button
-        android:id="@+id/btn_filter_modification_filter"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
-        android:text="@string/filter_title"
-        android:textAllCaps="false"
-        android:layout_marginEnd="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
-        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_select"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-    <Button
-        android:id="@+id/btn_filter_modification_select"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
-        android:text="@string/filter_select_all"
-        android:textAllCaps="false"
-        android:layout_marginEnd="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btn_filter_modification_filter"
-        app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_clear"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-    <Button
-        android:id="@+id/btn_filter_modification_clear"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
-        android:text="@string/filter_clear_all"
-        android:textAllCaps="false"
-        android:layout_marginEnd="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-</androidx.constraintlayout.widget.ConstraintLayout>
-
+    <!-- 96%-вставка + тонкие линии сверху/снизу вместо старой боксовой рамки
+         (settings_menu_background_green) — тот же приём, что у мастера/дисклеймера/
+         мод-селекта (roadmap, "Редизайн экрана фильтра — UX-спецификация"). -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_filter_modification_entries"
-        android:layout_width="0.0dp"
-        android:layout_height="0.0dp"
-        app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_bottombuttons"
+        android:id="@+id/layout_filter_modification_frame"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_text">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
 
-        <ScrollView
-            android:id="@+id/scroll_filter_modification"
+        <ImageView
+            android:id="@+id/img_filter_modification_line_top"
+            style="@style/ColorTintStyle"
             android:layout_width="0.0dip"
-            android:layout_height="0.0dip"
-            android:fadeScrollbars="false"
-            android:overScrollMode="never"
-            android:scrollbarAlwaysDrawVerticalTrack="true"
-            android:scrollbarSize="3dp"
-            android:scrollbarStyle="insideInset"
-            android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
-            android:scrollbars="vertical"
-            android:verticalScrollbarPosition="left"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
+        <ImageView
+            android:id="@+id/img_filter_modification_line_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_filter_modification_topbuttons"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
+            app:layout_constraintTop_toBottomOf="@id/img_filter_modification_line_top"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_text">
+
+            <TextView
+                android:id="@+id/tv_filter_modification_title"
+                style="@style/TextStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/filter_modification_title"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_filter_modification_text"
+            android:layout_width="0.0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_entries"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_topbuttons">
+
+            <EditText
+                android:id="@+id/et_filter_modification_value"
+                style="@style/SettingsButtonStyle"
+                android:layout_width="0.0dp"
+                android:layout_height="wrap_content"
+                android:gravity="center|left"
+                android:hint="Filter"
+                android:maxLines="1"
+                android:maxLength="32"
+                android:singleLine="true"
+                android:layout_marginStart="10dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_filter"/>
+            <Button
+                android:id="@+id/btn_filter_modification_filter"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/filter_title"
+                android:layout_marginEnd="10dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
+                app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_select"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintVertical_bias="0.0" />
+            <Button
+                android:id="@+id/btn_filter_modification_select"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/filter_select_all"
+                android:layout_marginEnd="10dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/btn_filter_modification_filter"
+                app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_clear"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintVertical_bias="0.0" />
+            <Button
+                android:id="@+id/btn_filter_modification_clear"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/filter_clear_all"
+                android:layout_marginEnd="10dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintVertical_bias="0.0" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_filter_modification_entries"
+            android:layout_width="0.0dp"
+            android:layout_height="0.0dp"
+            app:layout_constraintBottom_toTopOf="@id/layout_filter_modification_bottombuttons"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_text">
+
+            <ScrollView
+                android:id="@+id/scroll_filter_modification"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:fadeScrollbars="false"
+                android:overScrollMode="never"
+                android:scrollbarAlwaysDrawVerticalTrack="true"
+                android:scrollbarSize="3dp"
+                android:scrollbarStyle="insideInset"
+                android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
+                android:scrollbars="vertical"
+                android:verticalScrollbarPosition="left"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent">
 
                 <FrameLayout
                     android:id="@+id/filter_modification_frame"
@@ -163,35 +160,39 @@ app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_topbuttons"
                     android:layout_height="match_parent">
                     <!-- Dynamic Entries will be added here -->
                 </FrameLayout>
-        </ScrollView>
+            </ScrollView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_filter_modification_bottombuttons"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_filter_modification_entries"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <Button
-            android:id="@+id/btn_filter_modification_save"
-            style="@style/CNDEFFRADButtonStyle"
-            android:layout_width="wrap_content"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_filter_modification_bottombuttons"
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/settings_menu_background_green"
-            android:clickable="false"
-            android:gravity="center|left"
-            android:minWidth="0.0dip"
-            android:minHeight="0.0dip"
-            android:text="@string/filter_save_button"
-            android:textAllCaps="false"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/img_filter_modification_line_bottom"
+            app:layout_constraintTop_toBottomOf="@id/layout_filter_modification_entries"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintVertical_bias="0.0" />
+            app:layout_constraintStart_toStartOf="parent">
+
+            <Button
+                android:id="@+id/btn_filter_modification_cancel"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:layout_marginEnd="10dp"
+                android:text="@string/filter_cancel_button"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_save" />
+
+            <Button
+                android:id="@+id/btn_filter_modification_save"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:text="@string/filter_save_button"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

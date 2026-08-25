@@ -99,4 +99,16 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Блик экрана (activity_main.xml, img_screenglare) поверх заставки — тот же приём,
+         что и на основном экране, просто своя копия, т.к. заставка рисуется отдельным
+         инклюдом поверх оригинального блика и раньше перекрывала его собой. -->
+    <ImageView
+        android:id="@+id/img_screenglare_boot"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@drawable/screenglare_alpha"
+        android:scaleType="fitXY"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

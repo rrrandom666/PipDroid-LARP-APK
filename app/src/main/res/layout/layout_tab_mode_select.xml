@@ -100,7 +100,6 @@
             android:id="@+id/btn_mode_select_confirm"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:layout_marginEnd="24dp"
             android:text="@string/mode_select_button"

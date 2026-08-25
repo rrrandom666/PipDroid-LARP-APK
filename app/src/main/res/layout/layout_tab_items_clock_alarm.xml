@@ -69,7 +69,6 @@
         android:id="@+id/btn_clock_alarm_toggle"
         style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="@string/clock_alarm_set"
         app:layout_constraintEnd_toEndOf="parent"

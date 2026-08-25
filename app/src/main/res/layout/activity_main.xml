@@ -139,11 +139,6 @@
                     android:layout_width="fill_parent"
                     android:layout_height="fill_parent">
 
-                    <include
-                        android:id="@+id/inc_layout_filter_modification"
-                        layout="@layout/layout_filter_modification"
-                        android:visibility="gone" />
-
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/layout_stats"
                         android:layout_width="match_parent"
@@ -296,6 +291,15 @@
     <include
         android:id="@+id/inc_layout_settings_global"
         layout="@layout/layout_tab_settings"
+        android:visibility="gone" />
+
+    <!-- Экран фильтра Perks (roadmap, "Редизайн экрана фильтра — UX-спецификация") —
+         раньше был вложен внутрь tabcontent (только средняя зона между шапкой и футером),
+         поэтому шапка/футер основного экрана торчали по краям. Теперь корневой оверлей на
+         весь экран, как Settings/мастер/мод-селект. -->
+    <include
+        android:id="@+id/inc_layout_filter_modification"
+        layout="@layout/layout_filter_modification"
         android:visibility="gone" />
 
     <!-- Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым

@@ -62,9 +62,10 @@
     <string name="disclaimer_skip_button">Пропустить</string>
     <string name="disclaimer_text">"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели."</string>
     <string name="exit">Выход</string>
+    <string name="filter_cancel_button">" Отмена "</string>
     <string name="filter_clear_all">Очистить всё</string>
     <string name="filter_modification_title">Модификация</string>
-    <string name="filter_save_button">" СОХРАНИТЬ "</string>
+    <string name="filter_save_button">" Сохранить "</string>
     <string name="filter_select_all">Выбрать всё</string>
     <string name="filter_title">Фильтр</string>
     <string name="items_clock">Часы</string>

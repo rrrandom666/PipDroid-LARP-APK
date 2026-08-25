@@ -6,7 +6,43 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical"
-    android:background="@drawable/settings_menu_background_green">
+    android:background="@color/pip_background_darker">
+
+    <!-- 96%-вставка + тонкие линии сверху/снизу вместо старой боксовой рамки
+         (settings_menu_background_green) — тот же приём, что у мастера/дисклеймера/
+         мод-селекта/фильтра (roadmap, "Редизайн экрана фильтра — UX-спецификация"). -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_settings_frame"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_percent="0.96"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.96">
+
+        <ImageView
+            android:id="@+id/img_settings_line_top"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
+
+        <ImageView
+            android:id="@+id/img_settings_line_bottom"
+            style="@style/ColorTintStyle"
+            android:layout_width="0.0dip"
+            android:layout_height="1.5dp"
+            android:scaleType="fitXY"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:srcCompat="@drawable/bottom_linking_line" />
 
     <TextView
         android:id="@+id/tv_settings"
@@ -14,35 +50,24 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/settings"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_settings_line_top"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintHorizontal_bias="0.0" />
 
     <Button
         android:id="@+id/btn_settings_close"
-        style="@style/CNDEFFRADButtonStyle"
+        style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
         android:text=" X "
-        android:textAllCaps="false"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintTop_toBottomOf="@id/img_settings_line_top"
+        app:layout_constraintHorizontal_bias="0.0" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_settings_layout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/img_settings_line_bottom"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_settings_close">
@@ -824,16 +849,9 @@
                  вкладки, когда копий было три. При одном общем экране это лишнее. -->
             <Button
                 android:id="@+id/btn_settings_bluetooth"
-                style="@style/CNDEFFRADButtonStyle"
+                style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/settings_menu_background_green"
-                android:clickable="false"
-                android:gravity="center|left"
-                android:minWidth="0.0dip"
-                android:minHeight="0.0dip"
                 android:text="@string/settings_bluetooth_setup_button"
-                android:textAllCaps="false"
                 app:layout_constraintBottom_toTopOf="@id/btn_settings_save"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
@@ -841,16 +859,9 @@
 
             <Button
                 android:id="@+id/btn_settings_save"
-                style="@style/CNDEFFRADButtonStyle"
+                style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/settings_menu_background_green"
-                android:clickable="false"
-                android:gravity="center|left"
-                android:minWidth="0.0dip"
-                android:minHeight="0.0dip"
                 android:text="@string/settings_save_button"
-                android:textAllCaps="false"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
@@ -866,10 +877,11 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/img_settings_line_bottom"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_settings_close" />
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -83,7 +83,6 @@
                 android:id="@+id/btn_clock_timer_preset_5"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="@string/clock_timer_preset_5" />
 
@@ -91,7 +90,6 @@
                 android:id="@+id/btn_clock_timer_preset_10"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:text="@string/clock_timer_preset_10" />
 
         </LinearLayout>
@@ -100,7 +98,6 @@
             android:id="@+id/btn_clock_timer_start"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/clock_timer_start"
             app:layout_constraintEnd_toEndOf="parent"
@@ -163,7 +160,6 @@
                 android:id="@+id/btn_clock_timer_pause_resume"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="@string/clock_timer_pause" />
 
@@ -171,7 +167,6 @@
                 android:id="@+id/btn_clock_timer_reset"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:text="@string/clock_timer_reset" />
 
         </LinearLayout>

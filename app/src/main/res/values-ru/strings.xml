@@ -91,7 +91,18 @@
     <string name="clock_timer_reset">Стоп</string>
     <string name="clock_timer_fired_title">ТАЙМЕР</string>
     <string name="clock_melody_selected_label">Выбрано:</string>
-    <string name="items_map_no_module_detected">МОДУЛЬ ЛОКАЛЬНОЙ КАРТЫ НЕ ОБНАРУЖЕН</string>
+    <string name="items_map_no_bundle_imported">БАНДЛ КАРТЫ НЕ ИМПОРТИРОВАН — ИМПОРТИРУЙТЕ В НАСТРОЙКАХ</string>
+    <string name="map_bundle_heading">ДАННЫЕ КАРТЫ</string>
+    <string name="map_bundle_status_none">Бандл карты не импортирован</string>
+    <string name="map_bundle_status_imported">Импортирован: %1$s, %2$s</string>
+    <string name="map_bundle_import_button">Импортировать бандл</string>
+    <string name="map_bundle_import_success">Бандл карты импортирован</string>
+    <string name="map_bundle_import_error_unknown">Не удалось импортировать</string>
+    <string name="map_bundle_import_error_folder">Не удалось открыть выбранную папку</string>
+    <string name="map_bundle_import_error_missing_files">В папке нет файла(ов): %1$s</string>
+    <string name="map_bundle_import_error_read">Не удалось прочитать %1$s</string>
+    <string name="map_bundle_import_error_parse">%1$s повреждён или имеет неверный формат</string>
+    <string name="map_recenter_button">Центр</string>
     <string name="max">МАКС</string>
     <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
     <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
@@ -122,6 +133,7 @@
     <string name="settings_bluetooth_setup_button">Настройка Bluetooth</string>
     <string name="settings_enable_ambient_sound">Фоновый эмбиент-звук</string>
     <string name="settings_enable_true_fullscreen">Полноэкранный режим</string>
+    <string name="settings_map_bundle_button">Данные карты</string>
     <string name="settings_region_name">Регион игрока</string>
     <string name="settings_save_button">Сохранить настройки</string>
     <string name="settings_show_tutorial_at_start">Показывать обучение при запуске</string>

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ITEMS/Map (roadmap, этап 6, п.2) — переехал из DATA/Local Map как есть, просто
-     переименован (Local Map -> Map); реальная GPS-карта (osmdroid) не трогалась. -->
+<!-- ITEMS/Map (roadmap, этап 6, п.2). Карта больше не живая osmdroid + online OSM-тайлы —
+     единственный источник карты теперь бандл (map.png + map_bounds.json + map_roads.json),
+     импортируемый игроком в Settings (см. layout_tab_settings_map_bundle.xml) из готового
+     пайплайна falloutize_map.py (полигон часто без интернета, см. CLAUDE.md). PhotoView
+     показывает статичную привязанную по координатам картинку, MapOverlayView поверх неё —
+     GPS-точка игрока (Фаза D), позже маркеры и маршрут (Фазы E/F). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -9,17 +13,59 @@
     android:layout_height="fill_parent"
     android:orientation="vertical">
 
-    <org.osmdroid.views.MapView
-        android:id="@+id/localMapView"
-        android:layout_width="match_parent"
+    <com.github.chrisbanes.photoview.PhotoView
+        android:id="@+id/photo_view_map"
+        android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:visibility="gone"/>
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/layout_map_sidebar"/>
+
+    <com.malto4.pipdroid.MapOverlayView
+        android:id="@+id/view_map_overlay"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"/>
+
+    <!-- Боковая панель — кнопки поверх картинки карты терялись на глаз, на статичном фоне
+         видно. Ширина небольшая (карта на полигоне некрупная, панель не должна отъедать
+         много места), место под будущие кнопки маркеров/маршрута (Фазы E/F) заложено. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_map_sidebar"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:background="@color/pip_background_darker"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintWidth_percent="0.16">
+
+        <Button
+            android:id="@+id/btn_map_recenter"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="0dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="16dp"
+            android:text="@string/map_recenter_button"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <TextView
         android:id="@+id/tv_PermissionsCheckResult"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/items_map_no_module_detected"
+        android:text="@string/items_map_no_bundle_imported"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"

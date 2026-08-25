@@ -848,6 +848,16 @@
                  шапка + единый Settings") — был нужен только чтобы попасть в Settings другой
                  вкладки, когда копий было три. При одном общем экране это лишнее. -->
             <Button
+                android:id="@+id/btn_settings_map_bundle"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/settings_map_bundle_button"
+                app:layout_constraintBottom_toTopOf="@id/btn_settings_bluetooth"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintVertical_bias="0.0" />
+
+            <Button
                 android:id="@+id/btn_settings_bluetooth"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -874,6 +884,17 @@
     <include
         android:id="@+id/inc_layout_tab_settings_bluetooth"
         layout="@layout/layout_tab_settings_bluetooth"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/img_settings_line_bottom"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_settings_close" />
+
+    <include
+        android:id="@+id/inc_layout_tab_settings_map_bundle"
+        layout="@layout/layout_tab_settings_map_bundle"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"

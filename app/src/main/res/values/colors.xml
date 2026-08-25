@@ -78,16 +78,12 @@
          (заливка тонируется акцентом текущей темы, см. currentWizardAccentColor() в
          MainActivity.kt, — этот тёмный текст читается на любом из 4 акцентов). -->
     <color name="pip_button_text_dark">#0a160d</color>
-    <color name="themeGreenLocalMap">#80229153</color>
     <color name="themeAmber">#8E6A33</color>
     <color name="themeAmberCND">#1A8E6A33</color>
-    <color name="themeAmberLocalMap">#808E6A33</color>
     <color name="themeWhite">#FFFFFF</color>
     <color name="themeWhiteCND">#1AFFFFFF</color>
-    <color name="themeWhiteLocalMap">#80FFFFFF</color>
     <color name="themeBlue">#2C748B</color>
     <color name="themeBlueCND">#1A2C748B</color>
-    <color name="themeBlueLocalMap">#802C748B</color>
     <color name="transparent">#00FFFFFF</color>
     <color name="scrollbar_blank">#00FFFFFF</color>
     <color name="tooltip_background_dark">#e6616161</color>

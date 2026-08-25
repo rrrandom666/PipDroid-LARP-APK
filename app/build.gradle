@@ -8,7 +8,10 @@ android {
 
     defaultConfig {
         applicationId "com.malto4.pipdroid"
-        minSdk 19
+        // 19 -> 21 (карта, ветка app-map): импорт бандла карты идёт через SAF-пикер папки
+        // (ACTION_OPEN_DOCUMENT_TREE), который требует API 21. Прецедент подъёма minSdk уже
+        // был (18 -> 19, ради библиотеки визуализатора) — тот же случай.
+        minSdk 21
         targetSdk 34
         versionCode 12
         versionName "2.0.12"
@@ -56,9 +59,12 @@ dependencies {
     implementation 'androidx.navigation:navigation-fragment-ktx:2.4.2'
     implementation 'androidx.navigation:navigation-ui-ktx:2.4.2'
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
+    // DocumentFile.fromTreeUri() для импорта бандла карты через SAF-пикер папки
+    // (MapBundleRepository) — уже была транзитивной зависимостью (через core/appcompat),
+    // объявляем явно раз используем её API напрямую.
+    implementation 'androidx.documentfile:documentfile:1.0.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.0'
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
-    implementation 'org.osmdroid:osmdroid-android:6.1.10'
     implementation 'com.github.bumptech.glide:glide:4.12.0'
     implementation("io.github.gautamchibde:audiovisualizer:2.2.7")
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'

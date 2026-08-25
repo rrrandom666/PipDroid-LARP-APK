@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Подпанель Settings > Map Data — импорт бандла карты (map.png + map_bounds.json +
+     map_roads.json, готовятся заранее вне телефона falloutize_map.py, см. CLAUDE.md).
+     Та же GONE/VISIBLE-подпанель, что и Bluetooth Setup рядом (layout_tab_settings_bluetooth.xml),
+     но с тематизацией через currentWizardAccentColor() (MainActivity.kt) вместо
+     захардкоженного зелёного фона/кнопок исходного Bluetooth-экрана. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_settings_map_bundle"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:background="@color/pip_background_darker">
+
+    <TextView
+        android:id="@+id/tv_map_bundle"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/map_bundle_heading"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_bias="0.0" />
+
+    <Button
+        android:id="@+id/btn_settings_map_bundle_close"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:text=" X "
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_settings_map_bundle_body"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_settings_map_bundle_close"
+        app:layout_constraintWidth_percent="0.975">
+
+        <TextView
+            android:id="@+id/tv_map_bundle_status"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/map_bundle_status_none"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_map_bundle_import_result"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text=""
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_status" />
+
+        <Button
+            android:id="@+id/btn_map_bundle_import"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:text="@string/map_bundle_import_button"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -13,6 +13,7 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
@@ -23,6 +24,7 @@ import android.text.TextUtils
 import android.os.PowerManager
 import android.provider.Settings
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
@@ -36,9 +38,10 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.media.MediaPlayer
-import android.net.ConnectivityManager
-import android.net.NetworkInfo
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -83,16 +86,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.osmdroid.config.Configuration
-import org.osmdroid.library.BuildConfig
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.TilesOverlay
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.Random
 import java.util.UUID
@@ -102,7 +99,7 @@ import kotlin.math.max
 import kotlin.math.min
 import com.chibde.visualizer.LineVisualizer
 
-class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityListener {
+class MainActivity : AppCompatActivity() {
 
     /***********************************************************************************************************
      *
@@ -217,13 +214,18 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     private var currentCustomTrackIndex = 0
 
     /***********************************************************************************************************
-     * LOCAL MAP
+     * MAP (roadmap, этап 6, п.2) — бандл (map.png/map_bounds.json/map_roads.json)
+     * импортируется в Settings (см. MapBundleRepository), сам экран карты только читает то,
+     * что уже лежит на диске, никаких сетевых проверок/разрешений (INTERNET убран).
      **********************************************************************************************************/
-    private lateinit var localMapOSMDroid: MapView
-    private lateinit var localMapcolorFilter: ColorFilter
-    private lateinit var networkChangeReceiver: NetworkChangeReceiver
+    private val mapBundleRepository by lazy { MapBundleRepository(this) }
+    private var mapGeoReference: GeoReference? = null
+    private var mapLocationListener: LocationListener? = null
+    // Автоцентрирование должно сработать один раз на свежем открытии экрана карты (по
+    // первому GPS-фиксу), а не при каждом обновлении позиции — иначе кнопка "Центр" была бы
+    // бессмысленна (карту вечно тянуло бы обратно к игроку). Сбрасывается в openMapScreen().
+    private var mapHasCenteredOnUser = false
     companion object {
-        private const val REQUEST_CODE_PERMISSION_INTERNET = 1
         // Отладочная инъекция BLE-команд без реального ESP32 (roadmap, этап 7,
         // "быстрая отладка логики экранов"). См. registerDebugCommandReceiver().
         private const val ACTION_DEBUG_BLE_COMMAND = "com.malto4.pipdroid.DEBUG_BLE_COMMAND"
@@ -341,15 +343,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * Пускает строки в тот же handleBleCommand(), что и реальный ESP32 по BLE — только
      * источник команды заменён на adb broadcast с компьютера (roadmap, этап 7, "быстрая
      * отладка логики экранов" вместо программной эмуляции самой BLE-периферии). Только
-     * debug-сборки — в релизе приёмник не регистрируется и адрес недостижим. Явное
-     * FQCN, не unqualified BuildConfig — в файле уже есть import
-     * org.osmdroid.library.BuildConfig (см. Configuration чуть выше), который иначе
-     * перехватил бы разрешение простого имени.
+     * debug-сборки — в релизе приёмник не регистрируется и адрес недостижим.
      *
      * adb shell am broadcast -p com.malto4.pipdroid -a com.malto4.pipdroid.DEBUG_BLE_COMMAND --es raw "ENC:+1"
      */
     private fun registerDebugCommandReceiver() {
-        if (!com.malto4.pipdroid.BuildConfig.DEBUG) return
+        if (!BuildConfig.DEBUG) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 val raw = intent?.getStringExtra(EXTRA_DEBUG_BLE_RAW) ?: return
@@ -404,6 +403,28 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         ActivityResultContracts.StartActivityForResult()
     ) {
         setupBluetooth()
+    }
+    /**
+     * Импорт бандла карты (Settings > Map Data, roadmap, ветка app-map) — SAF-пикер папки.
+     * Требует API 21 (minSdk поднят 19->21 именно из-за этого, см. build.gradle). Само
+     * копирование — MapBundleRepository.importFromTree() на IO-потоке, результат идёт в
+     * статус/строку ошибки подпанели.
+     */
+    private val openMapBundleTreeLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri ->
+        if (treeUri == null) return@registerForActivityResult
+        val resultView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.tvMapBundleImportResult
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = mapBundleRepository.importFromTree(treeUri)
+            withContext(Dispatchers.Main) {
+                refreshMapBundleStatus()
+                resultView.text = result.fold(
+                    onSuccess = { getString(R.string.map_bundle_import_success) },
+                    onFailure = { it.message ?: getString(R.string.map_bundle_import_error_unknown) }
+                )
+            }
+        }
     }
     private fun onRequiredPermissionsGranted() {
         // Если разрешения выдавались с шага PERMISSIONS мастера — режим Телефон
@@ -637,14 +658,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 loadMp3Files()
                 playRandomTrack()
-            }
-        }
-        if (requestCode == REQUEST_CODE_PERMISSION_INTERNET) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadLocalMap()
-            } else {
-                bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.VISIBLE
-                bindingMain.incLayoutTabItemsMap.localMapView.visibility = View.GONE
             }
         }
     }
@@ -1495,7 +1508,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         // экранов"). Не трогает bluetoothMAC_SPKey и не пытается подключиться — просто
         // пропускает шаг, как будто корпус уже выбран.
         w.btnWizardPairingSkipDebug.visibility =
-            if (com.malto4.pipdroid.BuildConfig.DEBUG) View.VISIBLE else View.GONE
+            if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
         w.btnWizardPairingSkipDebug.setOnClickListener {
             playNewTabSelectAudio()
             stopPairingScan()
@@ -1670,96 +1683,145 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     }
 
     /***********************************************************************************************************
-     * LOCAL MAP
+     * MAP
      **********************************************************************************************************/
-    private fun checkINETPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED) {
-            checkInternetConnection()
-        } else {
-            // Request INTERNET permission
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.INTERNET), REQUEST_CODE_PERMISSION_INTERNET)
+    /**
+     * Открывает экран карты — читает уже импортированный бандл (Settings > Map Data),
+     * никаких сетевых проверок/разрешений больше нет (см. MapBundleRepository). Перекрашивает
+     * картинку под текущую тему тем же PorterDuff.MULTIPLY, каким раньше тонировались
+     * osmdroid-тайлы (loadLocalMap()) — только теперь поверх статичного PNG: map.png уже
+     * чёрно-белый (falloutize_map.py, colorize=False), цвет накладывает исключительно
+     * приложение, не сам бандл.
+     */
+    private fun openMapScreen() {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        if (!mapBundleRepository.hasBundle()) {
+            mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
+            mapScreen.photoViewMap.visibility = View.GONE
+            mapScreen.viewMapOverlay.visibility = View.GONE
+            mapScreen.layoutMapSidebar.visibility = View.GONE
+            return
         }
-    }
-    private fun checkInternetConnection() {
-        if (isInternetAvailable()) {
-            loadLocalMap()
-        } else {
-            showNoInternetMessage()
-        }
-    }
-    private fun isInternetAvailable(): Boolean {
-        var isConnected = false
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val network = connectivityManager.activeNetwork
-            val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
-            isConnected = networkCapabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        } else {
-            @Suppress("DEPRECATION")
-            val networkInfo: NetworkInfo? = connectivityManager.activeNetworkInfo
-            @Suppress("DEPRECATION")
-            isConnected = networkInfo?.isConnectedOrConnecting == true
-        }
-
-        return isConnected
-    }
-    override fun onNetworkChanged(isConnected: Boolean) {
-        if (isConnected) {
-            loadLocalMap()
-        } else {
-            showNoInternetMessage()
-        }
-    }
-    private fun showNoInternetMessage() {
-        bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.VISIBLE
-        bindingMain.incLayoutTabItemsMap.localMapView.visibility = View.GONE
-    }
-    private fun loadLocalMap() {
-
-        localMapOSMDroid = bindingMain.incLayoutTabItemsMap.localMapView
-        localMapOSMDroid.visibility = MapView.VISIBLE
-        localMapOSMDroid.setMultiTouchControls(true)
-        localMapOSMDroid.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
-        localMapOSMDroid.isTilesScaledToDpi = true
-        localMapOSMDroid.tileProvider.clearTileCache()
-
-        val mapController = localMapOSMDroid.controller
-        mapController.setZoom(15.0)
-        val startPoint = GeoPoint(38.8895, -77.0381) // Washington DC
-        mapController.setCenter(startPoint)
-
-        // Apply color tint to the map
-        val overlay = TilesOverlay(localMapOSMDroid.tileProvider, this)
-
-        when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
-            0 -> {
-                val color = ResourcesCompat.getColor(resources, R.color.themeGreenLocalMap, null)
-                localMapcolorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY)
-            }
-            1 -> {
-                val color = ResourcesCompat.getColor(resources, R.color.themeAmberLocalMap, null)
-                localMapcolorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY)
-            }
-            2 -> {
-                val color = ResourcesCompat.getColor(resources, R.color.themeWhiteLocalMap, null)
-                localMapcolorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY)
-            }
-            3 -> {
-                val color = ResourcesCompat.getColor(resources, R.color.themeBlueLocalMap, null)
-                localMapcolorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val bitmap = BitmapFactory.decodeFile(mapBundleRepository.bundleImageFile().absolutePath)
+            val bounds = mapBundleRepository.loadBounds()
+            withContext(Dispatchers.Main) {
+                if (bitmap == null || bounds == null) {
+                    mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
+                    mapScreen.photoViewMap.visibility = View.GONE
+                    mapScreen.viewMapOverlay.visibility = View.GONE
+                    mapScreen.layoutMapSidebar.visibility = View.GONE
+                    return@withContext
+                }
+                mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
+                mapHasCenteredOnUser = false
+                mapScreen.photoViewMap.setImageBitmap(bitmap)
+                mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(currentWizardAccentColor(), PorterDuff.Mode.MULTIPLY)
+                mapScreen.photoViewMap.visibility = View.VISIBLE
+                mapScreen.tvPermissionsCheckResult.visibility = View.GONE
+                mapScreen.viewMapOverlay.visibility = View.VISIBLE
+                mapScreen.layoutMapSidebar.visibility = View.VISIBLE
+                mapScreen.btnMapRecenter.backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor())
+                // Оверлей рисует в пространстве экрана, но хранит точки в пространстве
+                // битмапа (см. MapOverlayView) — при любом пане/зуме PhotoView пересчитываем
+                // её текущую displayMatrix и заново просим перерисоваться.
+                mapScreen.photoViewMap.setOnMatrixChangeListener {
+                    val matrix = Matrix()
+                    mapScreen.photoViewMap.getDisplayMatrix(matrix)
+                    mapScreen.viewMapOverlay.displayMatrix = matrix
+                    mapScreen.viewMapOverlay.invalidate()
+                }
+                startMapLocationUpdates()
             }
         }
-
-        overlay.setColorFilter(localMapcolorFilter)
-        localMapOSMDroid.overlays.add(overlay)
-
-        // Add MyLocation overlay
-        val locationOverlay = MyLocationNewOverlay(localMapOSMDroid)
-        locationOverlay.enableMyLocation()
-        localMapOSMDroid.overlays.add(locationOverlay)
-
-        bindingMain.incLayoutTabItemsMap.tvPermissionsCheckResult.visibility = View.GONE
+    }
+    /** Разрешение на геолокацию уже запрошено на старте приложения для всех режимов работы
+     * (см. requiredPermissionsForCurrentMode()) — здесь только защитная проверка на случай,
+     * если игрok отозвал его позже через системные настройки. */
+    @SuppressLint("MissingPermission")
+    private fun startMapLocationUpdates() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        if (mapLocationListener != null) return
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val listener = LocationListener { location -> onMapLocationUpdate(location) }
+        mapLocationListener = listener
+        try {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 3f, listener)
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Не удалось подписаться на обновления геолокации карты", e)
+        }
+        (currentLocationOrNull())?.let { onMapLocationUpdate(it) }
+    }
+    /** Останавливать при уходе с экрана карты на другую вкладку ITEMS — не жечь GPS без
+     * нужды, когда игрок смотрит Clock/Journal/Geiger. */
+    private fun stopMapLocationUpdates() {
+        val listener = mapLocationListener ?: return
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager.removeUpdates(listener)
+        mapLocationListener = null
+    }
+    @SuppressLint("MissingPermission")
+    private fun currentLocationOrNull(): Location? {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+    }
+    private fun onMapLocationUpdate(location: Location) {
+        val geoReference = mapGeoReference ?: return
+        val overlay = bindingMain.incLayoutTabItemsMap.viewMapOverlay
+        overlay.userLocationPx = geoReference.latLonToPixel(location.latitude, location.longitude)
+        if (!mapHasCenteredOnUser) {
+            mapHasCenteredOnUser = true
+            recenterMapOnUser()
+        }
+    }
+    /** Строит матрицу вручную (у PhotoView нет прямого "перейти к точке при том же зуме") —
+     * масштаб берётся текущий (не сбрасываем зум игрока), сдвиг подбирается так, чтобы
+     * GPS-точка (в пространстве битмапа) оказалась по центру экрана. */
+    private fun recenterMapOnUser() {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        val userPx = mapScreen.viewMapOverlay.userLocationPx ?: return
+        val photoView = mapScreen.photoViewMap
+        // getDisplayMatrix() отдаёт ПОЛНУЮ матрицу (базовая "вписать в экран" + supp,
+        // накопленный из жестов пользователя) — по ней корректно находим текущую позицию
+        // точки игрока на экране.
+        val fullMatrix = Matrix()
+        photoView.getDisplayMatrix(fullMatrix)
+        val screenPoint = floatArrayOf(userPx.x, userPx.y)
+        fullMatrix.mapPoints(screenPoint)
+        val dx = photoView.width / 2f - screenPoint[0]
+        val dy = photoView.height / 2f - screenPoint[1]
+        // setDisplayMatrix(), несмотря на название, пишет НЕ в полную матрицу, а напрямую в
+        // supp-матрицу (см. исходники PhotoViewAttacher.setDisplayMatrix —
+        // mSuppMatrix.set(finalMatrix)), после чего библиотека сама доклеивает базовую
+        // матрицу поверх. Передача туда уже готовой ПОЛНОЙ матрицы удваивала применение
+        // базовой — карту утаскивало в левый верхний угол. Правильно — взять ТЕКУЩУЮ
+        // supp-матрицу и просто сдвинуть её на экранную дельту (postTranslate всегда сдвигает
+        // именно в пикселях конечного экрана, вне зависимости от масштаба внутри матрицы) —
+        // ровно так же, как это делает сам жест панорамирования внутри библиотеки.
+        val suppMatrix = Matrix()
+        photoView.getSuppMatrix(suppMatrix)
+        suppMatrix.postTranslate(dx, dy)
+        photoView.setDisplayMatrix(suppMatrix)
+    }
+    /** Обновляет статус-строку в Settings > Map Data — импортирован ли бандл, когда и из
+     * какой папки. Вызывается при открытии подпанели и сразу после (не)успешного импорта. */
+    private fun refreshMapBundleStatus() {
+        val statusView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.tvMapBundleStatus
+        if (!mapBundleRepository.hasBundle()) {
+            statusView.text = getString(R.string.map_bundle_status_none)
+            return
+        }
+        val dateText = mapBundleRepository.importedAtEpochMillis()?.let {
+            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
+        } ?: "?"
+        val folderName = mapBundleRepository.importedSourceFolderName() ?: "?"
+        statusView.text = getString(R.string.map_bundle_status_imported, folderName, dateText)
     }
 
     /***********************************************************************************************************
@@ -3149,6 +3211,12 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
         sendBLEText(menu)
+        // Уход с ITEMS (в т.ч. по BLE-переключению, не только тачем) — не жечь GPS карты,
+        // пока игрок смотрит STATS/DATA/RADIO. Возврат на ITEMS>Map сам перезапустит апдейты
+        // через openMapScreen().
+        if (menu != "ITEMS") {
+            stopMapLocationUpdates()
+        }
     }
     /**
      * Система ранений/кровотечения (roadmap, "Редизайн STATS/Status — UX-спецификация").
@@ -3248,7 +3316,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             }
             else -> {
                 cnd.layoutTabStatusWoundButtons.visibility = View.VISIBLE
-                cnd.btnTabStatusWoundSkip.visibility = if (com.malto4.pipdroid.BuildConfig.DEBUG) View.VISIBLE else View.GONE
+                cnd.btnTabStatusWoundSkip.visibility = if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
             }
         }
     }
@@ -3839,9 +3907,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
      * системного языка телефона, в отличие от обычного механизма values-ru (который сам
      * по себе продолжает работать как фолбэк, пока язык явно не выбран в Settings).
      * appLanguage_SPKey не задан (-1) на свежей установке — тогда контекст не трогаем
-     * вообще, приложение ведёт себя как раньше, языком рулит система. `Configuration`
-     * здесь — android.content.res, не org.osmdroid.config.Configuration (тот уже
-     * импортирован под тем же именем выше по файлу, поэтому FQCN, а не import).
+     * вообще, приложение ведёт себя как раньше, языком рулит система.
      */
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences("PipDroid_Preferences", Context.MODE_PRIVATE)
@@ -3856,7 +3922,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         }
         val locale = Locale(languageCode)
         Locale.setDefault(locale)
-        val config = android.content.res.Configuration(newBase.resources.configuration)
+        val config = Configuration(newBase.resources.configuration)
         config.setLocale(locale)
         super.attachBaseContext(newBase.createConfigurationContext(config))
     }
@@ -3879,10 +3945,6 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             2 -> {theme.applyStyle(R.style.Theme_PipDroid_WhiteUI, true)}
             3 -> {theme.applyStyle(R.style.Theme_PipDroid_BlueUI, true)}
         }
-
-        // Configure OSMDroid to not use cache
-        val osmConfig = Configuration.getInstance()
-        osmConfig.userAgentValue = BuildConfig.APPLICATION_ID
 
         val displayMetrics = DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -4589,8 +4651,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
         val settingsAccent = currentWizardAccentColor()
         listOf(
             bindingMain.incLayoutSettingsGlobal.btnSettingsClose,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle,
             bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth,
-            bindingMain.incLayoutSettingsGlobal.btnSettingsSave
+            bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnSettingsMapBundleClose,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
         // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
         // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
@@ -4657,10 +4722,11 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
+            openMapScreen()
         }
-
-        networkChangeReceiver = NetworkChangeReceiver(this)
-        checkINETPermissions()
+        bindingMain.incLayoutTabItemsMap.btnMapRecenter.setOnClickListener {
+            recenterMapOnUser()
+        }
 
         /*
         ////////////////////////////////////////////////////////
@@ -4673,6 +4739,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
+            stopMapLocationUpdates()
         }
 
         /*
@@ -4935,6 +5002,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
+            stopMapLocationUpdates()
         }
         bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, listBottomButtons)
@@ -4942,6 +5010,7 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.VISIBLE
+            stopMapLocationUpdates()
         }
 
         /***********************************************************************************************************
@@ -5142,6 +5211,29 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
 
         /***********************************************************************************************************
          *
+         * MAP DATA (roadmap, ветка app-map) — импорт бандла карты, см. MapBundleRepository/
+         * openMapBundleTreeLauncher/refreshMapBundleStatus().
+         *
+         **********************************************************************************************************/
+
+        val mapBundlePanel = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle
+
+        bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle.setOnClickListener {
+            mapBundlePanel.root.visibility = View.VISIBLE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
+            mapBundlePanel.tvMapBundleImportResult.text = ""
+            refreshMapBundleStatus()
+        }
+        mapBundlePanel.btnSettingsMapBundleClose.setOnClickListener {
+            mapBundlePanel.root.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
+        }
+        mapBundlePanel.btnMapBundleImport.setOnClickListener {
+            openMapBundleTreeLauncher.launch(null)
+        }
+
+        /***********************************************************************************************************
+         *
          * BLUETOOTH
          *
          **********************************************************************************************************/
@@ -5312,15 +5404,21 @@ class MainActivity : AppCompatActivity(), NetworkChangeReceiver.ConnectivityList
     override fun onStop() {
         super.onStop()
         releaseAmbientPlayer()
+        stopMapLocationUpdates()
     }
     /** Возврат в приложение — как при обычном первом запуске, так и после onStop(). На
      * самом первом запуске ambientShouldBePlaying ещё false (флаг выставляется только
      * внутри startAmbientBackgroundSound(), которая к этому моменту ещё не вызывалась),
-     * поэтому лишнего старта здесь не происходит. */
+     * поэтому лишнего старта здесь не происходит. Карту аналогично не трогаем, если игрок
+     * не был на её экране — startMapLocationUpdates() внутри проверяет разрешение сама, а
+     * geoReference уже посчитан с прошлого openMapScreen(), пересчитывать не нужно. */
     override fun onStart() {
         super.onStart()
         if (ambientShouldBePlaying) {
             startAmbientBackgroundSound()
+        }
+        if (bindingMain.incLayoutTabItemsMap.root.visibility == View.VISIBLE) {
+            startMapLocationUpdates()
         }
     }
 

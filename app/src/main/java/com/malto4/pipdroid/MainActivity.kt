@@ -31,6 +31,7 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.PorterDuffXfermode
@@ -225,6 +226,15 @@ class MainActivity : AppCompatActivity() {
     // первому GPS-фиксу), а не при каждом обновлении позиции — иначе кнопка "Центр" была бы
     // бессмысленна (карту вечно тянуло бы обратно к игроку). Сбрасывается в openMapScreen().
     private var mapHasCenteredOnUser = false
+    private val markerRepository by lazy { MarkerRepository(this) }
+    private var markers: MutableList<MapMarker> = mutableListOf()
+    // Точка, тапнутая в режиме расстановки — ждёт имени во всплывающей панели
+    // (inc_layout_tab_items_map_name_popup), появляется/пропадает вместе с ней.
+    private var pendingMarkerLatLon: Pair<Double, Double>? = null
+    // Взведён кнопкой "Поставить метку" (layout_tab_items_map.xml) — следующий тап по карте
+    // ставит маркер и сам снимает взвод, а не тап-и-удержание (конфликтовало бы с
+    // собственным жестовым детектором PhotoView — двойной тап там уже зум).
+    private var markerPlacementModeArmed = false
     companion object {
         // Отладочная инъекция BLE-команд без реального ESP32 (roadmap, этап 7,
         // "быстрая отладка логики экранов"). См. registerDebugCommandReceiver().
@@ -1715,13 +1725,24 @@ class MainActivity : AppCompatActivity() {
                 }
                 mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
                 mapHasCenteredOnUser = false
+                markers = markerRepository.loadAll().toMutableList()
                 mapScreen.photoViewMap.setImageBitmap(bitmap)
                 mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(currentWizardAccentColor(), PorterDuff.Mode.MULTIPLY)
                 mapScreen.photoViewMap.visibility = View.VISIBLE
                 mapScreen.tvPermissionsCheckResult.visibility = View.GONE
                 mapScreen.viewMapOverlay.visibility = View.VISIBLE
+                mapScreen.viewMapOverlay.accentColor = currentWizardAccentColor()
                 mapScreen.layoutMapSidebar.visibility = View.VISIBLE
-                mapScreen.btnMapRecenter.backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor())
+                listOf(
+                    mapScreen.btnMapRecenter,
+                    mapScreen.btnMapPlaceMarker,
+                    mapScreen.btnMapMarkerList
+                ).forEach { it.backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor()) }
+                markerPlacementModeArmed = false
+                mapScreen.btnMapPlaceMarker.text = getString(R.string.map_place_marker_button)
+                mapScreen.incLayoutTabItemsMapMarkerList.root.visibility = View.GONE
+                mapScreen.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+                refreshMarkerPins()
                 // Оверлей рисует в пространстве экрана, но хранит точки в пространстве
                 // битмапа (см. MapOverlayView) — при любом пане/зуме PhotoView пересчитываем
                 // её текущую displayMatrix и заново просим перерисоваться.
@@ -1730,6 +1751,18 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.photoViewMap.getDisplayMatrix(matrix)
                     mapScreen.viewMapOverlay.displayMatrix = matrix
                     mapScreen.viewMapOverlay.invalidate()
+                }
+                // В режиме расстановки тап ставит маркер (см. btn_map_place_marker); вне
+                // режима — тап по карте для прокладки маршрута до точки, это Фаза F,
+                // сейчас просто ничего не делает.
+                mapScreen.photoViewMap.setOnPhotoTapListener { _, xPercent, yPercent ->
+                    if (!markerPlacementModeArmed) return@setOnPhotoTapListener
+                    val geoReference = mapGeoReference ?: return@setOnPhotoTapListener
+                    val tappedPx = PointF(xPercent * bitmap.width, yPercent * bitmap.height)
+                    val (lat, lon) = geoReference.pixelToLatLon(tappedPx.x, tappedPx.y)
+                    markerPlacementModeArmed = false
+                    mapScreen.btnMapPlaceMarker.text = getString(R.string.map_place_marker_button)
+                    showMarkerNamePopup(lat, lon)
                 }
                 startMapLocationUpdates()
             }
@@ -1784,15 +1817,20 @@ class MainActivity : AppCompatActivity() {
      * масштаб берётся текущий (не сбрасываем зум игрока), сдвиг подбирается так, чтобы
      * GPS-точка (в пространстве битмапа) оказалась по центру экрана. */
     private fun recenterMapOnUser() {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        val userPx = mapScreen.viewMapOverlay.userLocationPx ?: return
-        val photoView = mapScreen.photoViewMap
+        val userPx = bindingMain.incLayoutTabItemsMap.viewMapOverlay.userLocationPx ?: return
+        centerMapOnBitmapPoint(userPx)
+    }
+    /** Сдвигает PhotoView так, чтобы точка в пространстве битмапа (пиксели map.png) оказалась
+     * по центру экрана, сохраняя текущий зум игрока — общий хелпер и для кнопки "Центр"
+     * (GPS-точка), и для перехода к маркеру из списка. */
+    private fun centerMapOnBitmapPoint(targetPx: PointF) {
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
         // getDisplayMatrix() отдаёт ПОЛНУЮ матрицу (базовая "вписать в экран" + supp,
         // накопленный из жестов пользователя) — по ней корректно находим текущую позицию
-        // точки игрока на экране.
+        // целевой точки на экране.
         val fullMatrix = Matrix()
         photoView.getDisplayMatrix(fullMatrix)
-        val screenPoint = floatArrayOf(userPx.x, userPx.y)
+        val screenPoint = floatArrayOf(targetPx.x, targetPx.y)
         fullMatrix.mapPoints(screenPoint)
         val dx = photoView.width / 2f - screenPoint[0]
         val dy = photoView.height / 2f - screenPoint[1]
@@ -1808,6 +1846,55 @@ class MainActivity : AppCompatActivity() {
         photoView.getSuppMatrix(suppMatrix)
         suppMatrix.postTranslate(dx, dy)
         photoView.setDisplayMatrix(suppMatrix)
+    }
+    /** Пересчитывает пиксельные позиции маркеров из [markers] (лат/лон) через
+     * [mapGeoReference] и передаёт в оверлей. Вызывать после любого изменения списка
+     * (добавление/удаление) или открытия экрана карты. */
+    private fun refreshMarkerPins() {
+        val geoReference = mapGeoReference ?: return
+        bindingMain.incLayoutTabItemsMap.viewMapOverlay.markerPositionsPx =
+            markers.map { geoReference.latLonToPixel(it.lat, it.lon) }
+    }
+    private fun showMarkerNamePopup(lat: Double, lon: Double) {
+        pendingMarkerLatLon = lat to lon
+        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        popup.etMarkerNameValue.setText("")
+        popup.root.visibility = View.VISIBLE
+    }
+    private fun hideMarkerNamePopup() {
+        pendingMarkerLatLon = null
+        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+    }
+    private fun openMarkerListPanel() {
+        val panel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
+        bindMarkerListAdapter()
+        panel.root.visibility = View.VISIBLE
+    }
+    private fun closeMarkerListPanel() {
+        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList.root.visibility = View.GONE
+    }
+    private fun bindMarkerListAdapter() {
+        val panel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
+        panel.tvMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
+        panel.rvMarkerList.visibility = if (markers.isEmpty()) View.GONE else View.VISIBLE
+        panel.rvMarkerList.layoutManager = LinearLayoutManager(this)
+        panel.rvMarkerList.adapter = MarkerAdapter(
+            markers,
+            selected_button,
+            onSelect = { marker ->
+                val geoReference = mapGeoReference
+                if (geoReference != null) {
+                    centerMapOnBitmapPoint(geoReference.latLonToPixel(marker.lat, marker.lon))
+                }
+                closeMarkerListPanel()
+            },
+            onDelete = { marker ->
+                markerRepository.delete(marker.id)
+                markers.removeAll { it.id == marker.id }
+                refreshMarkerPins()
+                bindMarkerListAdapter()
+            }
+        )
     }
     /** Обновляет статус-строку в Settings > Map Data — импортирован ли бандл, когда и из
      * какой папки. Вызывается при открытии подпанели и сразу после (не)успешного импорта. */
@@ -4726,6 +4813,39 @@ class MainActivity : AppCompatActivity() {
         }
         bindingMain.incLayoutTabItemsMap.btnMapRecenter.setOnClickListener {
             recenterMapOnUser()
+        }
+        bindingMain.incLayoutTabItemsMap.btnMapPlaceMarker.setOnClickListener {
+            markerPlacementModeArmed = !markerPlacementModeArmed
+            bindingMain.incLayoutTabItemsMap.btnMapPlaceMarker.text = getString(
+                if (markerPlacementModeArmed) R.string.map_place_marker_button_armed else R.string.map_place_marker_button
+            )
+        }
+        bindingMain.incLayoutTabItemsMap.btnMapMarkerList.setOnClickListener {
+            openMarkerListPanel()
+        }
+        val markerListPanel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
+        markerListPanel.btnMarkerListClose.setOnClickListener {
+            closeMarkerListPanel()
+        }
+        markerListPanel.btnMarkerListExportAll.setOnClickListener {
+            lifecycleScope.launch(Dispatchers.IO) {
+                markerRepository.exportAllToMarkdown()
+            }
+        }
+        val markerNamePopup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
+            hideMarkerNamePopup()
+        }
+        markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
+            val (lat, lon) = pendingMarkerLatLon ?: return@setOnClickListener
+            val name = markerNamePopup.etMarkerNameValue.text.toString().ifBlank {
+                getString(R.string.marker_list_heading)
+            }
+            val marker = MapMarker(UUID.randomUUID().toString(), name, lat, lon, System.currentTimeMillis())
+            markerRepository.add(marker)
+            markers.add(marker)
+            refreshMarkerPins()
+            hideMarkerNamePopup()
         }
 
         /*

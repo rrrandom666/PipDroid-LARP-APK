@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Список маркеров карты (Фаза E) — та же GONE/VISIBLE подпанель, что везде в проекте
+     (layout_tab_settings_map_bundle.xml и т.п.), themed (pip_background_darker + код). -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_items_map_marker_list"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:background="@color/pip_background_darker">
+
+    <TextView
+        android:id="@+id/tv_marker_list_heading"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/marker_list_heading"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_bias="0.0" />
+
+    <Button
+        android:id="@+id/btn_marker_list_close"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:text=" X "
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_marker_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        app:layout_constraintTop_toBottomOf="@id/btn_marker_list_close"
+        app:layout_constraintBottom_toTopOf="@id/btn_marker_list_export_all"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_marker_list_empty"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/marker_list_empty"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/btn_marker_list_close"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btn_marker_list_export_all"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/marker_export_all_button"
+        app:layout_constraintBottom_toTopOf="@id/btn_marker_list_import_holotape"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Заглушка под импорт с голодиска (см. HolotapeMarkerSource) — реальный BLE-интерфейс
+         голодиска ещё не построен, кнопка задизейблена, чтобы не перекраивать экран позже. -->
+    <Button
+        android:id="@+id/btn_marker_list_import_holotape"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:enabled="false"
+        android:text="@string/marker_import_holotape_button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

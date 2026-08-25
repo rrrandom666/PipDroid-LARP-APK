@@ -765,6 +765,14 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="map_bundle_import_error_read">Could not read %1$s</string>
     <string name="map_bundle_import_error_parse">%1$s is invalid or corrupted</string>
     <string name="map_recenter_button">Center</string>
+    <string name="map_place_marker_button">Place Marker</string>
+    <string name="map_place_marker_button_armed">Tap Map…</string>
+    <string name="map_marker_list_button">Markers</string>
+    <string name="marker_list_heading">MARKERS</string>
+    <string name="marker_list_empty">No markers yet</string>
+    <string name="marker_export_all_button">Export All</string>
+    <string name="marker_import_holotape_button">Import from Holotape</string>
+    <string name="marker_name_popup_heading">Marker Name</string>
     <string name="filter_modification_title">Modification</string>
     <string name="filter_title">Filter</string>
     <string name="filter_select_all">Select ALL</string>

@@ -1739,6 +1739,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
                 pedestrianRouter = roadGraph?.let { PedestrianRouter(it) }
+                if (roadGraph == null) {
+                    Log.w("MainActivity", "map_roads.json не распарсился — маршрутизация недоступна")
+                } else {
+                    Log.d("MainActivity", "Граф дорог загружен: ${roadGraph.nodes.size} узлов")
+                }
                 mapHasCenteredOnUser = false
                 mapTapMode = MapTapMode.NONE
                 markers = markerRepository.loadAll().toMutableList()
@@ -1747,7 +1752,6 @@ class MainActivity : AppCompatActivity() {
                 mapScreen.photoViewMap.visibility = View.VISIBLE
                 mapScreen.tvPermissionsCheckResult.visibility = View.GONE
                 mapScreen.viewMapOverlay.visibility = View.VISIBLE
-                mapScreen.viewMapOverlay.routeColor = currentWizardAccentColor()
                 mapScreen.viewMapOverlay.routePx = emptyList()
                 mapScreen.layoutMapMenuContainer.visibility = View.VISIBLE
                 mapScreen.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
@@ -1892,6 +1896,15 @@ class MainActivity : AppCompatActivity() {
         menu.layoutMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
         menu.layoutMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
         menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
+        // Тот же приём, что и у остальных списков в проекте (см. setSelectedClockButton) —
+        // фон кнопок ставится явно кодом, не полагаемся на дефолт стиля. У этого меню нет
+        // экрана-контента на кнопку (клик почти всегда сразу переключает состояние), поэтому
+        // "выбранного" пункта нет — все получают обычный (не подсвеченный) фон.
+        listOf(
+            menu.btnMapMenuCenter, menu.btnMapMenuPlaceMarker, menu.btnMapMenuRoute, menu.btnMapMenuMarkerList,
+            menu.btnMapRouteToPoint, menu.btnMapRouteToMarker, menu.btnMapRouteSubmenuBack,
+            menu.btnMapMarkerListBack
+        ).forEach { it.setBackgroundResource(R.drawable.button_unselected) }
         if (state == MapMenuState.MARKER_LIST) {
             bindMarkerListAdapter()
         } else {
@@ -1903,8 +1916,17 @@ class MainActivity : AppCompatActivity() {
         menu.tvMapMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
         menu.rvMapMarkerList.visibility = if (markers.isEmpty()) View.GONE else View.VISIBLE
         menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
+        // "До отметки" (mapMenuListReturnState == ROUTE_SUBMENU) — выбор сразу строит
+        // маршрут, это просто выбор цели (подтверждено пользователем). "Список меток"
+        // (вход через корень) — выбор открывает карточку деталей с Редактировать/Маршрут/
+        // Удалить, это отдельный сценарий просмотра/управления, не выбор цели.
         menu.rvMapMarkerList.adapter = MarkerListAdapter(markers, selected_button) { marker ->
-            showMarkerDetail(marker)
+            if (mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU) {
+                routeTo(marker.lat, marker.lon)
+                showMapMenuState(MapMenuState.ROOT)
+            } else {
+                showMarkerDetail(marker)
+            }
         }
     }
     /** Карточка деталей выбранной отметки (имя/координаты + Редактировать/Маршрут/Удалить) —
@@ -1923,6 +1945,10 @@ class MainActivity : AppCompatActivity() {
     private fun showMapHint(text: String) {
         val hintView = bindingMain.incLayoutTabItemsMap.tvMapHint
         hintView.text = text
+        // Фон/цвет текста явно кодом (см. showMapMenuState) — ставим тут же, а не один раз в
+        // openMapScreen(), чтобы полоса точно перекрашивалась при каждом показе.
+        hintView.setBackgroundColor(ContextCompat.getColor(this, R.color.pip_background_darker))
+        hintView.setTextColor(currentWizardAccentColor())
         hintView.visibility = View.VISIBLE
     }
     private fun hideMapHint() {
@@ -1955,10 +1981,15 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showNamePopupAndFocus(popupRoot: View, editText: EditText) {
         popupRoot.visibility = View.VISIBLE
-        editText.requestFocus()
-        editText.setSelection(editText.text.length)
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        // requestFocus() сразу после снятия GONE не срабатывает надёжно — вью ещё не прошла
+        // layout-проход в этом же кадре. post{} откладывает до следующего кадра, когда
+        // EditText уже реально измерена и способна принять фокус.
+        editText.post {
+            editText.requestFocus()
+            editText.setSelection(editText.text.length)
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        }
     }
     private fun hideMarkerNamePopup() {
         pendingMarkerLatLon = null
@@ -1972,10 +2003,15 @@ class MainActivity : AppCompatActivity() {
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
      * узлов, не блокировать UI-поток. */
     private fun routeTo(destLat: Double, destLon: Double) {
-        val router = pedestrianRouter ?: return
-        val geoReference = mapGeoReference ?: return
+        val router = pedestrianRouter
+        val geoReference = mapGeoReference
+        if (router == null || geoReference == null) {
+            Log.w("MainActivity", "routeTo() без графа дорог/geoReference — бандл без map_roads.json?")
+            return
+        }
         val start = currentLocationOrNull()
         if (start == null) {
+            Log.d("MainActivity", "routeTo() — GPS ещё не дал фикс")
             showMapHint(getString(R.string.map_hint_waiting_gps))
             return
         }

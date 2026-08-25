@@ -42,14 +42,6 @@ class MapOverlayView @JvmOverloads constructor(
             field = value
             invalidate()
         }
-    // Линия маршрута красится акцентом текущей темы (тематизация) — MainActivity выставляет
-    // через currentWizardAccentColor() при каждом открытии экрана карты.
-    var routeColor: Int = Color.WHITE
-        set(value) {
-            field = value
-            routeLinePaint.color = value
-            invalidate()
-        }
 
     // GPS-точка игрока — фиксированный красный, не акцент темы: на White-теме акцент сам
     // белый и точка сливалась бы с картой. Ни одна из 4 тем (Green/Amber/White/Blue) не
@@ -83,8 +75,20 @@ class MapOverlayView @JvmOverloads constructor(
         color = Color.argb(190, 0, 0, 0)
         style = Paint.Style.FILL
     }
+    // Маршрут — тоже фиксированный цвет, не акцент темы: тем же акцентом уже красится сама
+    // карта (дороги на тайле), линия того же цвета сливалась бы с ними. Голубой не
+    // конфликтует ни с одной из 4 тем (в т.ч. с приглушённым Blue) и отличается от красной
+    // точки игрока и жёлтых отметок. Тёмный halo под линией — читаемость на светлых
+    // (Amber/White-тонированных) участках карты, тот же приём, что у точки/отметок.
+    private val routeHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(200, 0, 0, 0)
+        style = Paint.Style.STROKE
+        strokeWidth = 10f
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
     private val routeLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = Color.parseColor("#00E5FF")
         style = Paint.Style.STROKE
         strokeWidth = 6f
         strokeCap = Paint.Cap.ROUND
@@ -140,6 +144,7 @@ class MapOverlayView @JvmOverloads constructor(
                     if (index == 0) routePath.moveTo(screenPoint.x, screenPoint.y)
                     else routePath.lineTo(screenPoint.x, screenPoint.y)
                 }
+                canvas.drawPath(routePath, routeHaloPaint)
                 canvas.drawPath(routePath, routeLinePaint)
             }
         }

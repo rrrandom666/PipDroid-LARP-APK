@@ -63,15 +63,14 @@ import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.TranslateAnimation
 import android.widget.Button
-import android.view.inputmethod.InputMethodManager
 import android.widget.CheckBox
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatButton
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -1890,26 +1889,39 @@ class MainActivity : AppCompatActivity() {
      * отдельных экрана): корень, подменю "Проложить маршрут", список отметок (общий для
      * корневого "Список меток" и "До отметки" — см. mapMenuListReturnState). */
     private enum class MapMenuState { ROOT, ROUTE_SUBMENU, MARKER_LIST }
+    // Те же списки-для-подсветки, что listItemsClockButtons у Clock — setSelectedMapMenuButton()
+    // ниже работает 1-в-1 как setSelectedClockButton().
+    private val listMapMenuRootButtons by lazy {
+        val menu = bindingMain.incLayoutTabItemsMap
+        arrayListOf(menu.btnMapMenuCenter, menu.btnMapMenuPlaceMarker, menu.btnMapMenuRoute, menu.btnMapMenuMarkerList)
+    }
+    private val listMapMenuRouteSubmenuButtons by lazy {
+        val menu = bindingMain.incLayoutTabItemsMap
+        arrayListOf(menu.btnMapRouteToPoint, menu.btnMapRouteToMarker, menu.btnMapRouteSubmenuBack)
+    }
     private fun showMapMenuState(state: MapMenuState) {
         mapMenuState = state
         val menu = bindingMain.incLayoutTabItemsMap
         menu.layoutMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
         menu.layoutMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
         menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
-        // Тот же приём, что и у остальных списков в проекте (см. setSelectedClockButton) —
-        // фон кнопок ставится явно кодом, не полагаемся на дефолт стиля. У этого меню нет
-        // экрана-контента на кнопку (клик почти всегда сразу переключает состояние), поэтому
-        // "выбранного" пункта нет — все получают обычный (не подсвеченный) фон.
-        listOf(
-            menu.btnMapMenuCenter, menu.btnMapMenuPlaceMarker, menu.btnMapMenuRoute, menu.btnMapMenuMarkerList,
-            menu.btnMapRouteToPoint, menu.btnMapRouteToMarker, menu.btnMapRouteSubmenuBack,
-            menu.btnMapMarkerListBack
-        ).forEach { it.setBackgroundResource(R.drawable.button_unselected) }
+        // Не помним, каким пунктом попали в это состояние — просто сбрасываем подсветку
+        // всего видимого списка, точечная подсветка выставляется отдельно в момент клика
+        // (см. setSelectedMapMenuButton(), вызывается из каждого OnClickListener).
+        (listMapMenuRootButtons + listMapMenuRouteSubmenuButtons + listOf(menu.btnMapMarkerListBack))
+            .forEach { it.setBackgroundResource(R.drawable.button_unselected) }
         if (state == MapMenuState.MARKER_LIST) {
             bindMarkerListAdapter()
         } else {
             hideMarkerDetail()
         }
+    }
+    /** 1-в-1 setSelectedClockButton() — подсвечивает кликнутый пункт рамкой (selected_button),
+     * остальные в том же списке — обычным прозрачным фоном. */
+    private fun setSelectedMapMenuButton(button: AppCompatButton, siblingButtons: ArrayList<AppCompatButton>) {
+        button.setBackgroundResource(selected_button)
+        playCNDSelectAudio()
+        siblingButtons.forEach { if (it !== button) it.setBackgroundResource(R.drawable.button_unselected) }
     }
     private fun bindMarkerListAdapter() {
         val menu = bindingMain.incLayoutTabItemsMap
@@ -1965,39 +1977,29 @@ class MainActivity : AppCompatActivity() {
             MapTapMode.NONE -> hideMapHint()
         }
     }
+    // Ни здесь, ни в Settings/Filter (единственных других экранах с EditText в проекте) нет ни
+    // строчки кода про InputMethodManager/requestFocus — клавиатура открывается обычным тапом
+    // по полю, системным поведением. Более ранняя версия пыталась звать showSoftInput()
+    // программно сама, без тапа — Android такие вызовы вне прямого ответа на касание часто
+    // просто игнорирует, отсюда и был баг.
     private fun showMarkerNamePopupForNewMarker(lat: Double, lon: Double) {
         editingMarkerId = null
         pendingMarkerLatLon = lat to lon
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText("")
-        showNamePopupAndFocus(popup.root, popup.etMarkerNameValue)
+        popup.root.visibility = View.VISIBLE
     }
     private fun showMarkerNamePopupForEdit(marker: MapMarker) {
         editingMarkerId = marker.id
         pendingMarkerLatLon = marker.lat to marker.lon
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText(marker.name)
-        showNamePopupAndFocus(popup.root, popup.etMarkerNameValue)
-    }
-    private fun showNamePopupAndFocus(popupRoot: View, editText: EditText) {
-        popupRoot.visibility = View.VISIBLE
-        // requestFocus() сразу после снятия GONE не срабатывает надёжно — вью ещё не прошла
-        // layout-проход в этом же кадре. post{} откладывает до следующего кадра, когда
-        // EditText уже реально измерена и способна принять фокус.
-        editText.post {
-            editText.requestFocus()
-            editText.setSelection(editText.text.length)
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-        }
+        popup.root.visibility = View.VISIBLE
     }
     private fun hideMarkerNamePopup() {
         pendingMarkerLatLon = null
         editingMarkerId = null
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(popup.etMarkerNameValue.windowToken, 0)
-        popup.root.visibility = View.GONE
+        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
@@ -4945,23 +4947,29 @@ class MainActivity : AppCompatActivity() {
         }
         val mapMenu = bindingMain.incLayoutTabItemsMap
         mapMenu.btnMapMenuCenter.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapMenuCenter, listMapMenuRootButtons)
             recenterMapOnUser()
         }
         mapMenu.btnMapMenuPlaceMarker.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapMenuPlaceMarker, listMapMenuRootButtons)
             armTapMode(MapTapMode.PLACE_MARKER)
         }
         mapMenu.btnMapMenuRoute.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapMenuRoute, listMapMenuRootButtons)
             showMapMenuState(MapMenuState.ROUTE_SUBMENU)
         }
         mapMenu.btnMapMenuMarkerList.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapMenuMarkerList, listMapMenuRootButtons)
             mapMenuListReturnState = MapMenuState.ROOT
             showMapMenuState(MapMenuState.MARKER_LIST)
         }
         mapMenu.btnMapRouteToPoint.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapRouteToPoint, listMapMenuRouteSubmenuButtons)
             armTapMode(MapTapMode.ROUTE_TO_POINT)
             showMapMenuState(MapMenuState.ROOT)
         }
         mapMenu.btnMapRouteToMarker.setOnClickListener {
+            setSelectedMapMenuButton(mapMenu.btnMapRouteToMarker, listMapMenuRouteSubmenuButtons)
             mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
             showMapMenuState(MapMenuState.MARKER_LIST)
         }

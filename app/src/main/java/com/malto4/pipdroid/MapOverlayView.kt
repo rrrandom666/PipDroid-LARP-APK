@@ -44,8 +44,9 @@ class MapOverlayView @JvmOverloads constructor(
         }
 
     // GPS-точка игрока — фиксированный красный, не акцент темы: на White-теме акцент сам
-    // белый и точка сливалась бы с картой. Ни одна из 4 тем (Green/Amber/White/Blue) не
-    // красная, так что цвет не сольётся ни с одной из них.
+    // белый и точка сливалась бы с картой. Не переиспользуем этот же цвет для маршрута —
+    // игрок идёт ПО маршруту, точка и линия постоянно оказывались бы рядом/друг на друге,
+    // одинаковый цвет значил бы, что они сливаются именно тогда, когда это важнее всего.
     private val userDotFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF3B30")
         style = Paint.Style.FILL
@@ -76,10 +77,12 @@ class MapOverlayView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
     // Маршрут — тоже фиксированный цвет, не акцент темы: тем же акцентом уже красится сама
-    // карта (дороги на тайле), линия того же цвета сливалась бы с ними. Голубой не
-    // конфликтует ни с одной из 4 тем (в т.ч. с приглушённым Blue) и отличается от красной
-    // точки игрока и жёлтых отметок. Тёмный halo под линией — читаемость на светлых
-    // (Amber/White-тонированных) участках карты, тот же приём, что у точки/отметок.
+    // карта (дороги на тайле), линия того же цвета сливалась бы с ними. Не красный (точка
+    // игрока идёт ПО маршруту — сливались бы) и не жёлтый (отметки). Пурпурный/маджента не
+    // конфликтует ни с одной из 4 тем (в т.ч. с приглушённым Blue) — стандартный цвет именно
+    // для маршрутов в навигационных интерфейсах, почти нигде больше не используется. Тёмный
+    // halo под линией — читаемость на светлых (Amber/White-тонированных) участках карты, тот
+    // же приём, что у точки/отметок.
     private val routeHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(200, 0, 0, 0)
         style = Paint.Style.STROKE
@@ -88,7 +91,7 @@ class MapOverlayView @JvmOverloads constructor(
         strokeJoin = Paint.Join.ROUND
     }
     private val routeLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#00E5FF")
+        color = Color.parseColor("#FF2D95")
         style = Paint.Style.STROKE
         strokeWidth = 6f
         strokeCap = Paint.Cap.ROUND

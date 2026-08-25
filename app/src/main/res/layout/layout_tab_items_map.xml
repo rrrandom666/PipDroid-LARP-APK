@@ -262,10 +262,13 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Полоса подсказок внизу карты (не текст на кнопке!) — режимы "тапни по карте, чтобы
-         поставить отметку/построить маршрут", ошибки маршрута и т.п. -->
+         поставить отметку/построить маршрут", ошибки маршрута и т.п. Без style=
+         CNDEFFRADButtonStyle нарочно — тот со своим android:background конфликтовал с фоном,
+         который выставляется кодом (showMapHint()), фон оставался не тем, что задавался. -->
     <TextView
         android:id="@+id/tv_map_hint"
-        style="@style/CNDEFFRADButtonStyle"
+        android:fontFamily="@font/pipboy_mono"
+        android:textAllCaps="false"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:padding="6dp"

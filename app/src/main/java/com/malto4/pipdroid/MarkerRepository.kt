@@ -43,6 +43,13 @@ class MarkerRepository(private val context: Context) {
         saveAll(updated)
     }
 
+    /** Переименование существующей отметки (Редактировать на карточке деталей) — совпадение
+     * по id, остальные поля берутся из переданного marker как есть. */
+    fun update(marker: MapMarker) {
+        val updated = loadAll().map { if (it.id == marker.id) marker else it }
+        saveAll(updated)
+    }
+
     private fun saveAll(markers: List<MapMarker>) {
         markersFile.writeText(gson.toJson(MarkerListFile(markers)))
     }

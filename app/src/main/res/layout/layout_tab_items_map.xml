@@ -4,7 +4,9 @@
      импортируемый игроком в Settings (см. layout_tab_settings_map_bundle.xml) из готового
      пайплайна falloutize_map.py (полигон часто без интернета, см. CLAUDE.md). PhotoView
      показывает статичную привязанную по координатам картинку, MapOverlayView поверх неё —
-     GPS-точка игрока (Фаза D), позже маркеры и маршрут (Фазы E/F). -->
+     GPS-точка игрока, отметки, линия маршрута. Меню слева — по образцу
+     layout_tab_items_clock.xml (список фичей слева / контент справа), не отдельный
+     самодельный стиль. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -13,15 +15,172 @@
     android:layout_height="fill_parent"
     android:orientation="vertical">
 
+    <!-- Меню слева (Фазы D/E/F) — 0.3 ширины, тот же паттерн, что у ITEMS/Clock
+         (layout_tab_items_clock.xml): CNDEFFRADButtonStyle-кнопки, список фичей. Три
+         состояния переключаются видимостью (см. MapMenuState в MainActivity.kt), не три
+         отдельных экрана — ровно так же Clock переключает Time/Alarm/Timer/Stopwatch. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_map_menu_container"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:background="@color/pip_background_darker"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.3">
+
+        <!-- Состояние 1: корневое меню -->
+        <LinearLayout
+            android:id="@+id/layout_map_menu_root"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_menu_center"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_menu_center_button" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_menu_place_marker"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_menu_place_marker_button" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_menu_route"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_menu_route_button" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_menu_marker_list"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_menu_marker_list_button" />
+
+        </LinearLayout>
+
+        <!-- Состояние 2: подменю "Проложить маршрут" -->
+        <LinearLayout
+            android:id="@+id/layout_map_menu_route_submenu"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_route_to_point"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_route_to_point_button" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_route_to_marker"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/map_route_to_marker_button" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_route_submenu_back"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="0.0dip"
+                android:layout_weight="1.0"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/wizard_back" />
+
+        </LinearLayout>
+
+        <!-- Состояние 3: список отметок — общий и для корневого "Список меток", и для
+             "До отметки" в подменю маршрута (см. MapMenuState.MARKER_LIST в MainActivity.kt,
+             куда именно вернуться по "Назад" зависит от того, откуда вошли). -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_map_menu_marker_list"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:visibility="gone">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_map_marker_list"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/btn_map_marker_list_back"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_map_marker_list_empty"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/map_marker_list_empty"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_map_marker_list_back"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:minWidth="48dip"
+                android:minHeight="30dip"
+                android:gravity="center_vertical|left"
+                android:text="@string/wizard_back"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Контент справа — карта (по образцу layout_tab_items_clock_content) -->
     <com.github.chrisbanes.photoview.PhotoView
         android:id="@+id/photo_view_map"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@id/layout_map_menu_container"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/layout_map_sidebar"/>
+        app:layout_constraintEnd_toEndOf="parent"/>
 
     <com.malto4.pipdroid.MapOverlayView
         android:id="@+id/view_map_overlay"
@@ -33,57 +192,88 @@
         app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"/>
 
-    <!-- Боковая панель — кнопки поверх картинки карты терялись на глаз, на статичном фоне
-         видно. Ширина небольшая (карта на полигоне некрупная, панель не должна отъедать
-         много места), место под будущие кнопки маркеров/маршрута (Фазы E/F) заложено. -->
+    <!-- Карточка деталей выбранной отметки (из "Список меток"/"До отметки") — имя,
+         координаты, действия. Своя, не полноэкранная — только над картой, справа от меню. -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_map_sidebar"
+        android:id="@+id/layout_map_marker_detail"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
         android:background="@color/pip_background_darker"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintWidth_percent="0.16">
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map">
 
-        <Button
-            android:id="@+id/btn_map_recenter"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="0dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginTop="16dp"
-            android:text="@string/map_recenter_button"
+        <TextView
+            android:id="@+id/tv_map_marker_detail_name"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_map_marker_detail_coords"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_name"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/btn_map_marker_detail_close"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:text=" X "
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <Button
-            android:id="@+id/btn_map_place_marker"
+            android:id="@+id/btn_map_marker_detail_edit"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="0dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
+            android:layout_width="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/map_place_marker_button"
-            app:layout_constraintTop_toBottomOf="@id/btn_map_recenter"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:text="@string/map_marker_detail_edit_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <Button
-            android:id="@+id/btn_map_marker_list"
+            android:id="@+id/btn_map_marker_detail_route"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="0dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
+            android:layout_width="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/map_marker_list_button"
-            app:layout_constraintTop_toBottomOf="@id/btn_map_place_marker"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:layout_marginStart="8dp"
+            android:text="@string/map_marker_detail_route_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_edit" />
+
+        <Button
+            android:id="@+id/btn_map_marker_detail_delete"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/map_marker_detail_delete_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_route" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Полоса подсказок внизу карты (не текст на кнопке!) — режимы "тапни по карте, чтобы
+         поставить отметку/построить маршрут", ошибки маршрута и т.п. -->
+    <TextView
+        android:id="@+id/tv_map_hint"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:background="@color/pip_background_darker"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <TextView
         android:id="@+id/tv_PermissionsCheckResult"
@@ -96,24 +286,13 @@
         app:layout_constraintBottom_toBottomOf="parent"/>
 
     <include
-        android:id="@+id/inc_layout_tab_items_map_marker_list"
-        layout="@layout/inc_layout_tab_items_map_marker_list"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <include
         android:id="@+id/inc_layout_tab_items_map_name_popup"
         layout="@layout/inc_layout_tab_items_map_name_popup"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
         app:layout_constraintWidth_percent="0.6" />
 </androidx.constraintlayout.widget.ConstraintLayout>

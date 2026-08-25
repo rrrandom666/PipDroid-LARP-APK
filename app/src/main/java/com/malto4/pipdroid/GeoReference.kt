@@ -30,6 +30,12 @@ class GeoReference(
         return lat to lon
     }
 
+    /** PhotoView.OnPhotoTapListener отдаёт координаты тапа как долю [0,1] от размеров
+     * картинки, не пиксели — этот хелпер избавляет вызывающий код от знания о размере
+     * битмапа (bitmapWidthPx/bitmapHeightPx и так приватные). */
+    fun fractionToLatLon(xFraction: Float, yFraction: Float): Pair<Double, Double> =
+        pixelToLatLon(xFraction * bitmapWidthPx, yFraction * bitmapHeightPx)
+
     companion object {
         private const val EARTH_RADIUS_M = 6371000.0
 

@@ -63,7 +63,9 @@ import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.TranslateAnimation
 import android.widget.Button
+import android.view.inputmethod.InputMethodManager
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -226,15 +228,26 @@ class MainActivity : AppCompatActivity() {
     // первому GPS-фиксу), а не при каждом обновлении позиции — иначе кнопка "Центр" была бы
     // бессмысленна (карту вечно тянуло бы обратно к игроку). Сбрасывается в openMapScreen().
     private var mapHasCenteredOnUser = false
+    private var pedestrianRouter: PedestrianRouter? = null
     private val markerRepository by lazy { MarkerRepository(this) }
     private var markers: MutableList<MapMarker> = mutableListOf()
-    // Точка, тапнутая в режиме расстановки — ждёт имени во всплывающей панели
-    // (inc_layout_tab_items_map_name_popup), появляется/пропадает вместе с ней.
+    private var mapMenuState = MapMenuState.ROOT
+    // Куда ведёт "Назад" из списка отметок — корень меню (вошли через "Список меток") или
+    // подменю маршрута (вошли через "До отметки"), см. showMapMenuState().
+    private var mapMenuListReturnState = MapMenuState.ROOT
+    private var selectedMarkerForDetail: MapMarker? = null
+    // Точка, тапнутая в режиме расстановки/редактируемая отметка — ждёт имени во всплывающей
+    // панели (inc_layout_tab_items_map_name_popup), появляется/пропадает вместе с ней.
     private var pendingMarkerLatLon: Pair<Double, Double>? = null
-    // Взведён кнопкой "Поставить метку" (layout_tab_items_map.xml) — следующий тап по карте
-    // ставит маркер и сам снимает взвод, а не тап-и-удержание (конфликтовало бы с
-    // собственным жестовым детектором PhotoView — двойной тап там уже зум).
-    private var markerPlacementModeArmed = false
+    // Не null — попап работает на переименование существующей отметки (Редактировать), не на
+    // создание новой.
+    private var editingMarkerId: String? = null
+    private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
+    // Взведён кнопками "Поставить отметку"/"До точки на карте" (layout_tab_items_map.xml) —
+    // следующий тап по карте выполняет действие и сам снимает взвод, а не тап-и-удержание
+    // (конфликтовало бы с собственным жестовым детектором PhotoView — двойной тап там уже
+    // зум).
+    private var mapTapMode = MapTapMode.NONE
     companion object {
         // Отладочная инъекция BLE-команд без реального ESP32 (roadmap, этап 7,
         // "быстрая отладка логики экранов"). См. registerDebugCommandReceiver().
@@ -1709,39 +1722,49 @@ class MainActivity : AppCompatActivity() {
             mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
             mapScreen.photoViewMap.visibility = View.GONE
             mapScreen.viewMapOverlay.visibility = View.GONE
-            mapScreen.layoutMapSidebar.visibility = View.GONE
+            mapScreen.layoutMapMenuContainer.visibility = View.GONE
             return
         }
         lifecycleScope.launch(Dispatchers.IO) {
             val bitmap = BitmapFactory.decodeFile(mapBundleRepository.bundleImageFile().absolutePath)
             val bounds = mapBundleRepository.loadBounds()
+            val roadGraph = mapBundleRepository.loadRoadGraph()
             withContext(Dispatchers.Main) {
                 if (bitmap == null || bounds == null) {
                     mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
                     mapScreen.photoViewMap.visibility = View.GONE
                     mapScreen.viewMapOverlay.visibility = View.GONE
-                    mapScreen.layoutMapSidebar.visibility = View.GONE
+                    mapScreen.layoutMapMenuContainer.visibility = View.GONE
                     return@withContext
                 }
                 mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
+                pedestrianRouter = roadGraph?.let { PedestrianRouter(it) }
                 mapHasCenteredOnUser = false
+                mapTapMode = MapTapMode.NONE
                 markers = markerRepository.loadAll().toMutableList()
                 mapScreen.photoViewMap.setImageBitmap(bitmap)
                 mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(currentWizardAccentColor(), PorterDuff.Mode.MULTIPLY)
                 mapScreen.photoViewMap.visibility = View.VISIBLE
                 mapScreen.tvPermissionsCheckResult.visibility = View.GONE
                 mapScreen.viewMapOverlay.visibility = View.VISIBLE
-                mapScreen.viewMapOverlay.accentColor = currentWizardAccentColor()
-                mapScreen.layoutMapSidebar.visibility = View.VISIBLE
-                listOf(
-                    mapScreen.btnMapRecenter,
-                    mapScreen.btnMapPlaceMarker,
-                    mapScreen.btnMapMarkerList
-                ).forEach { it.backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor()) }
-                markerPlacementModeArmed = false
-                mapScreen.btnMapPlaceMarker.text = getString(R.string.map_place_marker_button)
-                mapScreen.incLayoutTabItemsMapMarkerList.root.visibility = View.GONE
+                mapScreen.viewMapOverlay.routeColor = currentWizardAccentColor()
+                mapScreen.viewMapOverlay.routePx = emptyList()
+                mapScreen.layoutMapMenuContainer.visibility = View.VISIBLE
                 mapScreen.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+                // PipWizardButtonStyle-кнопки (не CNDEFFRADButtonStyle, тот уже тематизирован
+                // через тему Activity сам) — тонируются вручную кодом, тот же приём, что у
+                // Settings (currentWizardAccentColor()).
+                val mapAccent = ColorStateList.valueOf(currentWizardAccentColor())
+                listOf(
+                    mapScreen.btnMapMarkerDetailClose,
+                    mapScreen.btnMapMarkerDetailEdit,
+                    mapScreen.btnMapMarkerDetailRoute,
+                    mapScreen.btnMapMarkerDetailDelete,
+                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupCancel,
+                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave
+                ).forEach { it.backgroundTintList = mapAccent }
+                hideMapHint()
+                showMapMenuState(MapMenuState.ROOT)
                 refreshMarkerPins()
                 // Оверлей рисует в пространстве экрана, но хранит точки в пространстве
                 // битмапа (см. MapOverlayView) — при любом пане/зуме PhotoView пересчитываем
@@ -1752,17 +1775,20 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.viewMapOverlay.displayMatrix = matrix
                     mapScreen.viewMapOverlay.invalidate()
                 }
-                // В режиме расстановки тап ставит маркер (см. btn_map_place_marker); вне
-                // режима — тап по карте для прокладки маршрута до точки, это Фаза F,
-                // сейчас просто ничего не делает.
                 mapScreen.photoViewMap.setOnPhotoTapListener { _, xPercent, yPercent ->
-                    if (!markerPlacementModeArmed) return@setOnPhotoTapListener
                     val geoReference = mapGeoReference ?: return@setOnPhotoTapListener
-                    val tappedPx = PointF(xPercent * bitmap.width, yPercent * bitmap.height)
-                    val (lat, lon) = geoReference.pixelToLatLon(tappedPx.x, tappedPx.y)
-                    markerPlacementModeArmed = false
-                    mapScreen.btnMapPlaceMarker.text = getString(R.string.map_place_marker_button)
-                    showMarkerNamePopup(lat, lon)
+                    val (lat, lon) = geoReference.fractionToLatLon(xPercent, yPercent)
+                    when (mapTapMode) {
+                        MapTapMode.PLACE_MARKER -> {
+                            armTapMode(MapTapMode.NONE)
+                            showMarkerNamePopupForNewMarker(lat, lon)
+                        }
+                        MapTapMode.ROUTE_TO_POINT -> {
+                            armTapMode(MapTapMode.NONE)
+                            routeTo(lat, lon)
+                        }
+                        MapTapMode.NONE -> {}
+                    }
                 }
                 startMapLocationUpdates()
             }
@@ -1848,53 +1874,123 @@ class MainActivity : AppCompatActivity() {
         photoView.setDisplayMatrix(suppMatrix)
     }
     /** Пересчитывает пиксельные позиции маркеров из [markers] (лат/лон) через
-     * [mapGeoReference] и передаёт в оверлей. Вызывать после любого изменения списка
-     * (добавление/удаление) или открытия экрана карты. */
+     * [mapGeoReference] и передаёт в оверлей вместе с именами (подпись рисуется прямо на
+     * карте, см. MapOverlayView.markerPins). Вызывать после любого изменения списка
+     * (добавление/удаление/переименование) или открытия экрана карты. */
     private fun refreshMarkerPins() {
         val geoReference = mapGeoReference ?: return
-        bindingMain.incLayoutTabItemsMap.viewMapOverlay.markerPositionsPx =
-            markers.map { geoReference.latLonToPixel(it.lat, it.lon) }
+        bindingMain.incLayoutTabItemsMap.viewMapOverlay.markerPins =
+            markers.map { it.name to geoReference.latLonToPixel(it.lat, it.lon) }
     }
-    private fun showMarkerNamePopup(lat: Double, lon: Double) {
+    /** Три состояния левого меню (по образцу ITEMS/Clock — переключение видимости, не три
+     * отдельных экрана): корень, подменю "Проложить маршрут", список отметок (общий для
+     * корневого "Список меток" и "До отметки" — см. mapMenuListReturnState). */
+    private enum class MapMenuState { ROOT, ROUTE_SUBMENU, MARKER_LIST }
+    private fun showMapMenuState(state: MapMenuState) {
+        mapMenuState = state
+        val menu = bindingMain.incLayoutTabItemsMap
+        menu.layoutMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
+        menu.layoutMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
+        menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
+        if (state == MapMenuState.MARKER_LIST) {
+            bindMarkerListAdapter()
+        } else {
+            hideMarkerDetail()
+        }
+    }
+    private fun bindMarkerListAdapter() {
+        val menu = bindingMain.incLayoutTabItemsMap
+        menu.tvMapMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
+        menu.rvMapMarkerList.visibility = if (markers.isEmpty()) View.GONE else View.VISIBLE
+        menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
+        menu.rvMapMarkerList.adapter = MarkerListAdapter(markers, selected_button) { marker ->
+            showMarkerDetail(marker)
+        }
+    }
+    /** Карточка деталей выбранной отметки (имя/координаты + Редактировать/Маршрут/Удалить) —
+     * не полноэкранная, только над картой справа от меню (см. layout_map_marker_detail). */
+    private fun showMarkerDetail(marker: MapMarker) {
+        selectedMarkerForDetail = marker
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        mapScreen.tvMapMarkerDetailName.text = marker.name
+        mapScreen.tvMapMarkerDetailCoords.text = String.format(Locale.getDefault(), "%.5f, %.5f", marker.lat, marker.lon)
+        mapScreen.layoutMapMarkerDetail.visibility = View.VISIBLE
+    }
+    private fun hideMarkerDetail() {
+        selectedMarkerForDetail = null
+        bindingMain.incLayoutTabItemsMap.layoutMapMarkerDetail.visibility = View.GONE
+    }
+    private fun showMapHint(text: String) {
+        val hintView = bindingMain.incLayoutTabItemsMap.tvMapHint
+        hintView.text = text
+        hintView.visibility = View.VISIBLE
+    }
+    private fun hideMapHint() {
+        bindingMain.incLayoutTabItemsMap.tvMapHint.visibility = View.GONE
+    }
+    /** Взвод режима тапа по карте — либо расстановка отметки, либо выбор точки маршрута
+     * (кнопки "Поставить отметку"/"До точки на карте"). Подсказка появляется в полосе внизу
+     * карты, не в тексте самой кнопки. */
+    private fun armTapMode(mode: MapTapMode) {
+        mapTapMode = mode
+        when (mode) {
+            MapTapMode.PLACE_MARKER -> showMapHint(getString(R.string.map_hint_place_marker))
+            MapTapMode.ROUTE_TO_POINT -> showMapHint(getString(R.string.map_hint_route_to_point))
+            MapTapMode.NONE -> hideMapHint()
+        }
+    }
+    private fun showMarkerNamePopupForNewMarker(lat: Double, lon: Double) {
+        editingMarkerId = null
         pendingMarkerLatLon = lat to lon
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText("")
-        popup.root.visibility = View.VISIBLE
+        showNamePopupAndFocus(popup.root, popup.etMarkerNameValue)
+    }
+    private fun showMarkerNamePopupForEdit(marker: MapMarker) {
+        editingMarkerId = marker.id
+        pendingMarkerLatLon = marker.lat to marker.lon
+        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        popup.etMarkerNameValue.setText(marker.name)
+        showNamePopupAndFocus(popup.root, popup.etMarkerNameValue)
+    }
+    private fun showNamePopupAndFocus(popupRoot: View, editText: EditText) {
+        popupRoot.visibility = View.VISIBLE
+        editText.requestFocus()
+        editText.setSelection(editText.text.length)
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
     private fun hideMarkerNamePopup() {
         pendingMarkerLatLon = null
-        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+        editingMarkerId = null
+        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(popup.etMarkerNameValue.windowToken, 0)
+        popup.root.visibility = View.GONE
     }
-    private fun openMarkerListPanel() {
-        val panel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
-        bindMarkerListAdapter()
-        panel.root.visibility = View.VISIBLE
-    }
-    private fun closeMarkerListPanel() {
-        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList.root.visibility = View.GONE
-    }
-    private fun bindMarkerListAdapter() {
-        val panel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
-        panel.tvMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
-        panel.rvMarkerList.visibility = if (markers.isEmpty()) View.GONE else View.VISIBLE
-        panel.rvMarkerList.layoutManager = LinearLayoutManager(this)
-        panel.rvMarkerList.adapter = MarkerAdapter(
-            markers,
-            selected_button,
-            onSelect = { marker ->
-                val geoReference = mapGeoReference
-                if (geoReference != null) {
-                    centerMapOnBitmapPoint(geoReference.latLonToPixel(marker.lat, marker.lon))
+    /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
+     * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
+     * узлов, не блокировать UI-поток. */
+    private fun routeTo(destLat: Double, destLon: Double) {
+        val router = pedestrianRouter ?: return
+        val geoReference = mapGeoReference ?: return
+        val start = currentLocationOrNull()
+        if (start == null) {
+            showMapHint(getString(R.string.map_hint_waiting_gps))
+            return
+        }
+        lifecycleScope.launch(Dispatchers.Default) {
+            val path = router.route(start.latitude, start.longitude, destLat, destLon)
+            withContext(Dispatchers.Main) {
+                if (path == null) {
+                    showMapHint(getString(R.string.map_hint_no_route))
+                    return@withContext
                 }
-                closeMarkerListPanel()
-            },
-            onDelete = { marker ->
-                markerRepository.delete(marker.id)
-                markers.removeAll { it.id == marker.id }
-                refreshMarkerPins()
-                bindMarkerListAdapter()
+                hideMapHint()
+                bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx =
+                    path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) }
             }
-        )
+        }
     }
     /** Обновляет статус-строку в Settings > Map Data — импортирован ли бандл, когда и из
      * какой папки. Вызывается при открытии подпанели и сразу после (не)успешного импорта. */
@@ -4811,39 +4907,79 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             openMapScreen()
         }
-        bindingMain.incLayoutTabItemsMap.btnMapRecenter.setOnClickListener {
+        val mapMenu = bindingMain.incLayoutTabItemsMap
+        mapMenu.btnMapMenuCenter.setOnClickListener {
             recenterMapOnUser()
         }
-        bindingMain.incLayoutTabItemsMap.btnMapPlaceMarker.setOnClickListener {
-            markerPlacementModeArmed = !markerPlacementModeArmed
-            bindingMain.incLayoutTabItemsMap.btnMapPlaceMarker.text = getString(
-                if (markerPlacementModeArmed) R.string.map_place_marker_button_armed else R.string.map_place_marker_button
-            )
+        mapMenu.btnMapMenuPlaceMarker.setOnClickListener {
+            armTapMode(MapTapMode.PLACE_MARKER)
         }
-        bindingMain.incLayoutTabItemsMap.btnMapMarkerList.setOnClickListener {
-            openMarkerListPanel()
+        mapMenu.btnMapMenuRoute.setOnClickListener {
+            showMapMenuState(MapMenuState.ROUTE_SUBMENU)
         }
-        val markerListPanel = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapMarkerList
-        markerListPanel.btnMarkerListClose.setOnClickListener {
-            closeMarkerListPanel()
+        mapMenu.btnMapMenuMarkerList.setOnClickListener {
+            mapMenuListReturnState = MapMenuState.ROOT
+            showMapMenuState(MapMenuState.MARKER_LIST)
         }
-        markerListPanel.btnMarkerListExportAll.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                markerRepository.exportAllToMarkdown()
-            }
+        mapMenu.btnMapRouteToPoint.setOnClickListener {
+            armTapMode(MapTapMode.ROUTE_TO_POINT)
+            showMapMenuState(MapMenuState.ROOT)
         }
-        val markerNamePopup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        mapMenu.btnMapRouteToMarker.setOnClickListener {
+            mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
+            showMapMenuState(MapMenuState.MARKER_LIST)
+        }
+        mapMenu.btnMapRouteSubmenuBack.setOnClickListener {
+            showMapMenuState(MapMenuState.ROOT)
+        }
+        mapMenu.btnMapMarkerListBack.setOnClickListener {
+            showMapMenuState(mapMenuListReturnState)
+        }
+        mapMenu.btnMapMarkerDetailClose.setOnClickListener {
+            hideMarkerDetail()
+        }
+        mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
+            val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            showMarkerNamePopupForEdit(marker)
+        }
+        mapMenu.btnMapMarkerDetailRoute.setOnClickListener {
+            val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            routeTo(marker.lat, marker.lon)
+            hideMarkerDetail()
+            showMapMenuState(MapMenuState.ROOT)
+        }
+        mapMenu.btnMapMarkerDetailDelete.setOnClickListener {
+            val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            markerRepository.delete(marker.id)
+            markers.removeAll { it.id == marker.id }
+            refreshMarkerPins()
+            hideMarkerDetail()
+            bindMarkerListAdapter()
+        }
+        val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
             hideMarkerNamePopup()
         }
         markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
-            val (lat, lon) = pendingMarkerLatLon ?: return@setOnClickListener
             val name = markerNamePopup.etMarkerNameValue.text.toString().ifBlank {
-                getString(R.string.marker_list_heading)
+                getString(R.string.marker_name_popup_heading)
             }
-            val marker = MapMarker(UUID.randomUUID().toString(), name, lat, lon, System.currentTimeMillis())
-            markerRepository.add(marker)
-            markers.add(marker)
+            val editingId = editingMarkerId
+            if (editingId != null) {
+                val existing = markers.find { it.id == editingId }
+                if (existing != null) {
+                    val updated = existing.copy(name = name)
+                    markers[markers.indexOf(existing)] = updated
+                    markerRepository.update(updated)
+                    showMarkerDetail(updated)
+                    bindMarkerListAdapter()
+                }
+            } else {
+                val (lat, lon) = pendingMarkerLatLon ?: return@setOnClickListener
+                val marker = MapMarker(UUID.randomUUID().toString(), name, lat, lon, System.currentTimeMillis())
+                markerRepository.add(marker)
+                markers.add(marker)
+            }
             refreshMarkerPins()
             hideMarkerNamePopup()
         }

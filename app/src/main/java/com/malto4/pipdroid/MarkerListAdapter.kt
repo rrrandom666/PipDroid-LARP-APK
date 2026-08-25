@@ -24,7 +24,9 @@ class MarkerListAdapter(
     private val onSelect: (MapMarker) -> Unit
 ) : RecyclerView.Adapter<MarkerListViewHolder>() {
 
-    private var selectedPosition = -1
+    // 0, не -1 — первая отметка в списке подсвечена рамкой сразу при открытии, не только
+    // после клика (тот же ожидаемый вид, что у меню слева и у Clock).
+    private var selectedPosition = 0
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MarkerListViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -51,7 +53,7 @@ class MarkerListAdapter(
 
     fun updateData(newMarkerList: List<MapMarker>) {
         markerList = newMarkerList
-        selectedPosition = -1
+        selectedPosition = 0
         notifyDataSetChanged()
     }
 }

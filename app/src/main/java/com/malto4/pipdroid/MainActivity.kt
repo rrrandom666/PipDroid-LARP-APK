@@ -1905,11 +1905,17 @@ class MainActivity : AppCompatActivity() {
         menu.layoutMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
         menu.layoutMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
         menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
-        // Не помним, каким пунктом попали в это состояние — просто сбрасываем подсветку
-        // всего видимого списка, точечная подсветка выставляется отдельно в момент клика
-        // (см. setSelectedMapMenuButton(), вызывается из каждого OnClickListener).
+        // Сбрасываем подсветку всего видимого списка — точечная подсветка кликнутого пункта
+        // выставляется отдельно в момент клика (см. setSelectedMapMenuButton()). Первый пункт
+        // списка, который мы сейчас показываем, сразу получает рамку по умолчанию, как на
+        // Clock — не нужно сначала кликнуть, чтобы курсор был виден.
         (listMapMenuRootButtons + listMapMenuRouteSubmenuButtons + listOf(menu.btnMapMarkerListBack))
             .forEach { it.setBackgroundResource(R.drawable.button_unselected) }
+        when (state) {
+            MapMenuState.ROOT -> listMapMenuRootButtons.firstOrNull()?.setBackgroundResource(selected_button)
+            MapMenuState.ROUTE_SUBMENU -> listMapMenuRouteSubmenuButtons.firstOrNull()?.setBackgroundResource(selected_button)
+            MapMenuState.MARKER_LIST -> {}
+        }
         if (state == MapMenuState.MARKER_LIST) {
             bindMarkerListAdapter()
         } else {
@@ -1959,6 +1965,11 @@ class MainActivity : AppCompatActivity() {
         hintView.text = text
         // Фон/цвет текста явно кодом (см. showMapMenuState) — ставим тут же, а не один раз в
         // openMapScreen(), чтобы полоса точно перекрашивалась при каждом показе.
+        // backgroundTintList = null обязателен: AppCompat сам подмешивает акцент темы поверх
+        // ЛЮБОГО выставленного фона (тот же баг, что уже был с кнопками, см. CLAUDE.md) — без
+        // сброса фон реально рендерился в themeGreen поверх моего pip_background_darker,
+        // и текст того же акцентного цвета становился на нём невидим.
+        hintView.backgroundTintList = null
         hintView.setBackgroundColor(ContextCompat.getColor(this, R.color.pip_background_darker))
         hintView.setTextColor(currentWizardAccentColor())
         hintView.visibility = View.VISIBLE

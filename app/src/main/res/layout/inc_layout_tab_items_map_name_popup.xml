@@ -27,6 +27,7 @@
         android:id="@+id/et_marker_name_value"
         style="@style/SettingsButtonStyle"
         android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:maxLines="1"
         android:singleLine="true"

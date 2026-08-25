@@ -41,10 +41,10 @@
                 android:id="@+id/btn_map_menu_center"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_menu_center_button" />
 
@@ -52,10 +52,10 @@
                 android:id="@+id/btn_map_menu_place_marker"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_menu_place_marker_button" />
 
@@ -63,10 +63,10 @@
                 android:id="@+id/btn_map_menu_route"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_menu_route_button" />
 
@@ -74,10 +74,10 @@
                 android:id="@+id/btn_map_menu_marker_list"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_menu_marker_list_button" />
 
@@ -95,10 +95,10 @@
                 android:id="@+id/btn_map_route_to_point"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_route_to_point_button" />
 
@@ -106,10 +106,10 @@
                 android:id="@+id/btn_map_route_to_marker"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/map_route_to_marker_button" />
 
@@ -117,10 +117,10 @@
                 android:id="@+id/btn_map_route_submenu_back"
                 style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:minWidth="48dip"
-                android:minHeight="30dip"
                 android:gravity="center_vertical|left"
                 android:text="@string/wizard_back" />
 

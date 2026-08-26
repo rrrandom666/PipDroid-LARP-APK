@@ -30,101 +30,26 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintWidth_percent="0.3">
 
-        <!-- Состояние 1: корневое меню -->
-        <LinearLayout
-            android:id="@+id/layout_map_menu_root"
+        <!-- Состояние 1/2: корень и подменю "Проложить маршрут" (roadmap, "Единый компонент
+             бокового меню 3 уровня") — SidebarMenuAdapter вместо кнопок-LinearLayout, тот
+             же приём, что у SPECIAL/Skills/Status/Clock. Список меток (состояние 3, ниже) —
+             отдельная задача, шаг 7 плана, там уже есть RecyclerView+MarkerListAdapter. -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_map_menu_root"
             android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:orientation="vertical">
+            android:layout_height="0.0dip"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintHeight_percent="0.925" />
 
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_menu_center"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_menu_center_button" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_menu_place_marker"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_menu_place_marker_button" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_menu_route"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_menu_route_button" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_menu_marker_list"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_menu_marker_list_button" />
-
-        </LinearLayout>
-
-        <!-- Состояние 2: подменю "Проложить маршрут" -->
-        <LinearLayout
-            android:id="@+id/layout_map_menu_route_submenu"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_map_menu_route_submenu"
             android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_route_to_point"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_route_to_point_button" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_route_to_marker"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/map_route_to_marker_button" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btn_map_route_submenu_back"
-                style="@style/CNDEFFRADButtonStyle"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:minWidth="48dip"
-                android:gravity="center_vertical|left"
-                android:text="@string/wizard_back" />
-
-        </LinearLayout>
+            android:layout_height="0.0dip"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintHeight_percent="0.925" />
 
         <!-- Состояние 3: список отметок — общий и для корневого "Список меток", и для
              "До отметки" в подменю маршрута (см. MapMenuState.MARKER_LIST в MainActivity.kt,

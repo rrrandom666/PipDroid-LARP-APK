@@ -1830,6 +1830,11 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave
                 ).forEach { it.backgroundTintList = mapAccent }
                 hideMapHint()
+                // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора на первый
+                // пункт (тот же принцип, что у STATS/ITEMS/DATA), не "продолжить с
+                // прошлого места", в отличие от возврата Back внутри самого экрана Map
+                // (см. showMapMenuState()).
+                mapRootAdapter.setSelectedPositionSilently(0)
                 showMapMenuState(MapMenuState.ROOT)
                 refreshMarkerPins()
                 // Оверлей рисует в пространстве экрана, но хранит точки в пространстве
@@ -1952,45 +1957,62 @@ class MainActivity : AppCompatActivity() {
      * отдельных экрана): корень, подменю "Проложить маршрут", список отметок (общий для
      * корневого "Список меток" и "До отметки" — см. mapMenuListReturnState). */
     private enum class MapMenuState { ROOT, ROUTE_SUBMENU, MARKER_LIST }
-    // Те же списки-для-подсветки, что listItemsClockButtons у Clock — setSelectedMapMenuButton()
-    // ниже работает 1-в-1 как setSelectedClockButton().
-    private val listMapMenuRootButtons by lazy {
-        val menu = bindingMain.incLayoutTabItemsMap
-        arrayListOf(menu.btnMapMenuCenter, menu.btnMapMenuPlaceMarker, menu.btnMapMenuRoute, menu.btnMapMenuMarkerList)
+    /** Метаданные корня и подменю "Маршрут" (roadmap, "Единый компонент бокового меню
+     * 3 уровня") — тот же приём, что у statusMeta (список отметок — отдельная задача,
+     * шаг 7 плана, там уже есть готовый RecyclerView+MarkerListAdapter). */
+    private data class MapMenuItemMeta(val key: String, val labelRes: Int, val action: () -> Unit)
+    private val mapRootMeta: List<MapMenuItemMeta> by lazy {
+        listOf(
+            MapMenuItemMeta("CENTER", R.string.map_menu_center_button) { recenterMapOnUser() },
+            MapMenuItemMeta("PLACE_MARKER", R.string.map_menu_place_marker_button) { armTapMode(MapTapMode.PLACE_MARKER) },
+            MapMenuItemMeta("ROUTE", R.string.map_menu_route_button) {
+                // Провал вглубь — курсор подменю с индекса 0 (см. showMapMenuState()).
+                mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
+                showMapMenuState(MapMenuState.ROUTE_SUBMENU)
+            },
+            MapMenuItemMeta("MARKER_LIST", R.string.map_menu_marker_list_button) {
+                mapMenuListReturnState = MapMenuState.ROOT
+                showMapMenuState(MapMenuState.MARKER_LIST)
+            },
+        )
     }
-    private val listMapMenuRouteSubmenuButtons by lazy {
-        val menu = bindingMain.incLayoutTabItemsMap
-        arrayListOf(menu.btnMapRouteToPoint, menu.btnMapRouteToMarker, menu.btnMapRouteSubmenuBack)
+    private val mapRouteSubmenuMeta: List<MapMenuItemMeta> by lazy {
+        listOf(
+            MapMenuItemMeta("TO_POINT", R.string.map_route_to_point_button) {
+                armTapMode(MapTapMode.ROUTE_TO_POINT)
+                showMapMenuState(MapMenuState.ROOT)
+            },
+            MapMenuItemMeta("TO_MARKER", R.string.map_route_to_marker_button) {
+                mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
+                showMapMenuState(MapMenuState.MARKER_LIST)
+            },
+            MapMenuItemMeta("BACK", R.string.wizard_back) { showMapMenuState(MapMenuState.ROOT) },
+        )
     }
+    private lateinit var mapRootAdapter: SidebarMenuAdapter<String>
+    private lateinit var mapRouteSubmenuAdapter: SidebarMenuAdapter<String>
     private fun showMapMenuState(state: MapMenuState) {
         mapMenuState = state
         val menu = bindingMain.incLayoutTabItemsMap
-        menu.layoutMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
-        menu.layoutMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
+        menu.recyclerMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
+        menu.recyclerMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
         menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
-        // Сбрасываем подсветку всего видимого списка — точечная подсветка кликнутого пункта
-        // выставляется отдельно в момент клика (см. setSelectedMapMenuButton()). Первый пункт
-        // списка, который мы сейчас показываем, сразу получает рамку по умолчанию, как на
-        // Clock — не нужно сначала кликнуть, чтобы курсор был виден.
-        (listMapMenuRootButtons + listMapMenuRouteSubmenuButtons + listOf(menu.btnMapMarkerListBack))
-            .forEach { it.setBackgroundResource(R.drawable.button_unselected) }
-        when (state) {
-            MapMenuState.ROOT -> listMapMenuRootButtons.firstOrNull()?.setBackgroundResource(selected_button)
-            MapMenuState.ROUTE_SUBMENU -> listMapMenuRouteSubmenuButtons.firstOrNull()?.setBackgroundResource(selected_button)
-            MapMenuState.MARKER_LIST -> {}
+        // Курсор НЕ сбрасывается тут на первый пункт — тот же принцип, что уже
+        // задокументирован для энкодера ("Модель навигации энкодером"): провалиться вглубь
+        // (Root->RouteSubmenu/MarkerList, RouteSubmenu->MarkerList) — курсор с индекса 0,
+        // это делает конкретное действие-триггер ниже (см. mapRootMeta/mapRouteSubmenuMeta).
+        // Подняться обратно (Back, "До точки на карте", завершение маршрута до отметки) —
+        // курсор родительского уровня остаётся там, где был, а не сбрасывается — фидбек по
+        // итогам тестирования: "возвращаемся не в начало, а туда, откуда пришли". Реальный
+        // свежий вход в раздел (по вкладке ITEMS) — отдельный явный сброс в openMapScreen().
+        if (state == MapMenuState.MARKER_LIST) {
+            menu.btnMapMarkerListBack.setBackgroundResource(R.drawable.button_unselected)
         }
         if (state == MapMenuState.MARKER_LIST) {
             bindMarkerListAdapter()
         } else {
             hideMarkerDetail()
         }
-    }
-    /** 1-в-1 setSelectedClockButton() — подсвечивает кликнутый пункт рамкой (selected_button),
-     * остальные в том же списке — обычным прозрачным фоном. */
-    private fun setSelectedMapMenuButton(button: AppCompatButton, siblingButtons: ArrayList<AppCompatButton>) {
-        button.setBackgroundResource(selected_button)
-        playCNDSelectAudio()
-        siblingButtons.forEach { if (it !== button) it.setBackgroundResource(R.drawable.button_unselected) }
     }
     private fun bindMarkerListAdapter() {
         val menu = bindingMain.incLayoutTabItemsMap
@@ -4876,36 +4898,22 @@ class MainActivity : AppCompatActivity() {
             openMapScreen()
         }
         val mapMenu = bindingMain.incLayoutTabItemsMap
-        mapMenu.btnMapMenuCenter.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapMenuCenter, listMapMenuRootButtons)
-            recenterMapOnUser()
-        }
-        mapMenu.btnMapMenuPlaceMarker.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapMenuPlaceMarker, listMapMenuRootButtons)
-            armTapMode(MapTapMode.PLACE_MARKER)
-        }
-        mapMenu.btnMapMenuRoute.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapMenuRoute, listMapMenuRootButtons)
-            showMapMenuState(MapMenuState.ROUTE_SUBMENU)
-        }
-        mapMenu.btnMapMenuMarkerList.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapMenuMarkerList, listMapMenuRootButtons)
-            mapMenuListReturnState = MapMenuState.ROOT
-            showMapMenuState(MapMenuState.MARKER_LIST)
-        }
-        mapMenu.btnMapRouteToPoint.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapRouteToPoint, listMapMenuRouteSubmenuButtons)
-            armTapMode(MapTapMode.ROUTE_TO_POINT)
-            showMapMenuState(MapMenuState.ROOT)
-        }
-        mapMenu.btnMapRouteToMarker.setOnClickListener {
-            setSelectedMapMenuButton(mapMenu.btnMapRouteToMarker, listMapMenuRouteSubmenuButtons)
-            mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
-            showMapMenuState(MapMenuState.MARKER_LIST)
-        }
-        mapMenu.btnMapRouteSubmenuBack.setOnClickListener {
-            showMapMenuState(MapMenuState.ROOT)
-        }
+        mapRootAdapter = SidebarMenuAdapter(
+            items = mapRootMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item -> mapRootMeta.first { it.key == item.payload }.action() },
+        )
+        mapMenu.recyclerMapMenuRoot.layoutManager = LinearLayoutManager(this)
+        mapMenu.recyclerMapMenuRoot.adapter = mapRootAdapter
+        mapRouteSubmenuAdapter = SidebarMenuAdapter(
+            items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item -> mapRouteSubmenuMeta.first { it.key == item.payload }.action() },
+        )
+        mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
+        mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
         mapMenu.btnMapMarkerListBack.setOnClickListener {
             showMapMenuState(mapMenuListReturnState)
         }

@@ -984,7 +984,8 @@ class MainActivity : AppCompatActivity() {
      * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
      */
     private var modeSelectHighlighted = PipBoyMode.PHONE
-    private lateinit var modeSelectAdapter: ModeSelectAdapter
+    private val modeSelectList = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000)
+    private lateinit var modeSelectAdapter: SidebarMenuAdapter<PipBoyMode>
 
     /**
      * Акцентный цвет текущей темы оформления (playerUIColour_SPKey — тот же ключ, что и у
@@ -1058,9 +1059,12 @@ class MainActivity : AppCompatActivity() {
             PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
             PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
         }
-        // Подсветка выбранного пункта — тем же приёмом, что у списка Perks (RecyclerView,
-        // roadmap "Косметические правки мастера").
-        modeSelectAdapter.setSelectedMode(mode)
+        // Подсветка выбранного пункта — SidebarMenuAdapter (roadmap, "Единый компонент
+        // бокового меню 3 уровня"). Молча — либо это восстановление состояния при
+        // openModeSelectScreen() (не выбор игрока), либо звук уже сыграл сам адаптер
+        // (playSelectSound) перед тем, как позвать сюда через onSelect.
+        val modeIndex = modeSelectList.indexOf(mode)
+        if (modeIndex >= 0) modeSelectAdapter.setSelectedPositionSilently(modeIndex)
         // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание. Кнопка
         // остаётся кликабельной, чтобы поймать тап и проиграть звук ошибки.
         if (mode != PipBoyMode.PIPBOY_3000) {
@@ -1106,21 +1110,15 @@ class MainActivity : AppCompatActivity() {
         // красить весь экран, не только кнопки, см. currentWizardAccentColor()).
         ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
 
-        // Список режимов — тот же паттерн, что у Perks (RecyclerView + описание справа,
-        // roadmap "Косметические правки мастера"), вместо трёх отдельных кнопок.
+        // Список режимов — единый компонент бокового меню 3 уровня (roadmap), тот же
+        // приём, что у Perks/Status/SPECIAL/Skills/Clock/Map.
         ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
-        modeSelectAdapter = ModeSelectAdapter(
-            modes = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000),
-            modeLabel = { pipBoyModeDisplayName(it) },
-            selectedButtonBackground = selected_button,
-            selectedMode = PipBoyMode.PHONE
-        ) { mode ->
-            // Пункт списка (не кнопка/таб) — тот же звук, что у выбора перка/атрибута/
-            // навыка на SPECIAL/Skills/Perks (roadmap, "Редизайн экрана фильтра —
-            // UX-спецификация"), был ошибочно звук кнопок (playNewTabSelectAudio()).
-            playItemSelectAudio()
-            showModeDescription(mode)
-        }
+        modeSelectAdapter = SidebarMenuAdapter(
+            items = modeSelectList.map { mode -> SidebarMenuItem(payload = mode, label = pipBoyModeDisplayName(mode)) },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item -> showModeDescription(item.payload) },
+        )
         ms.recyclerModeSelect.adapter = modeSelectAdapter
 
         showModeDescription(PipBoyMode.PHONE)
@@ -2008,31 +2006,43 @@ class MainActivity : AppCompatActivity() {
         // итогам тестирования: "возвращаемся не в начало, а туда, откуда пришли". Реальный
         // свежий вход в раздел (по вкладке ITEMS) — отдельный явный сброс в openMapScreen().
         if (state == MapMenuState.MARKER_LIST) {
-            menu.btnMapMarkerListBack.setBackgroundResource(R.drawable.button_unselected)
-        }
-        if (state == MapMenuState.MARKER_LIST) {
             bindMarkerListAdapter()
         } else {
             hideMarkerDetail()
         }
     }
+    /** [Назад] — обычный последний пункт списка (payload=null), roadmap "Единый компонент
+     * бокового меню 3 уровня" — чинит известный баг из Roadmap (кривой отступ кнопки, нет
+     * звука). Пересобирается заново при каждом входе в MARKER_LIST (как и было у
+     * MarkerListAdapter) — курсор поэтому всегда стартует с индекса 0, это "провал вглубь"
+     * что от корня, что от подменю маршрута. */
     private fun bindMarkerListAdapter() {
         val menu = bindingMain.incLayoutTabItemsMap
         menu.tvMapMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
-        menu.rvMapMarkerList.visibility = if (markers.isEmpty()) View.GONE else View.VISIBLE
-        menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
+        val items: List<SidebarMenuItem<MapMarker?>> = markers.map { marker -> SidebarMenuItem<MapMarker?>(payload = marker, label = marker.name) } +
+            SidebarMenuItem(payload = null, label = getString(R.string.wizard_back))
         // "До отметки" (mapMenuListReturnState == ROUTE_SUBMENU) — выбор сразу строит
         // маршрут, это просто выбор цели (подтверждено пользователем). "Список меток"
         // (вход через корень) — выбор открывает карточку деталей с Редактировать/Маршрут/
         // Удалить, это отдельный сценарий просмотра/управления, не выбор цели.
-        menu.rvMapMarkerList.adapter = MarkerListAdapter(markers, selected_button) { marker ->
-            if (mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU) {
-                routeTo(marker.lat, marker.lon)
-                showMapMenuState(MapMenuState.ROOT)
-            } else {
-                showMarkerDetail(marker)
-            }
-        }
+        val adapter = SidebarMenuAdapter(
+            items = items,
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                val marker = item.payload
+                when {
+                    marker == null -> showMapMenuState(mapMenuListReturnState)
+                    mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> {
+                        routeTo(marker.lat, marker.lon)
+                        showMapMenuState(MapMenuState.ROOT)
+                    }
+                    else -> showMarkerDetail(marker)
+                }
+            },
+        )
+        menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
+        menu.rvMapMarkerList.adapter = adapter
     }
     /** Карточка деталей выбранной отметки (имя/координаты + Редактировать/Маршрут/Удалить) —
      * не полноэкранная, только над картой справа от меню (см. layout_map_marker_detail). */
@@ -4109,36 +4119,30 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+    /** Единый компонент бокового меню 3 уровня (roadmap) — SidebarMenuAdapter вместо
+     * PerkAdapter.kt. Список уже отфильтрован (filteredPerksList) до разблокированных
+     * игроком перков — в старом PerkAdapter была ещё гейтинг-проверка "perk id in
+     * selectedPerkArray" внутри onBindViewHolder, но раз в список и так попадают только
+     * такие перки, проверка была тавтологией (мёртвый код), не переносится. */
     private fun STATSPerksSetup(recyclerView: RecyclerView){
         val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
+        val filteredPerksList = localizedPerks.filter { perk -> perk["id"] in selectedSTATSPerksArray }
 
-        // Filter the perk list based on the selected items
-        val filteredPerksList = localizedPerks.filter { perk ->
-            perk["id"] in selectedSTATSPerksArray
-        }
-
-        // Set up RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        val adapter = PerkAdapter(localizedPerks, selectedSTATSPerksArray, selected_button) { perk ->
-            playItemSelectAudio()
-            bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = (perk["desc"] ?: "No description available")
+        fun showPerkDescription(perk: Map<String, String>) {
+            bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
             bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
-            // Additional selection handling if necessary
         }
 
-        adapter.updateData(filteredPerksList)
-
+        val adapter = SidebarMenuAdapter(
+            items = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item -> showPerkDescription(item.payload) },
+        )
+        recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
-
-        // Optional: Scroll to a pre-selected item or update UI as needed
-        if (localizedPerks.isNotEmpty()) {
-            val firstPerk = localizedPerks.find { it["id"] == selectedSTATSPerksArray[0] }
-            firstPerk?.let {
-                bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = (it["desc"] ?: "No description available")
-                bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(it["icon"], "drawable", packageName))
-            }
-        }
+        filteredPerksList.firstOrNull()?.let { showPerkDescription(it) }
     }
     /***********************************************************************************************************
      * SHARED PREFERENCES
@@ -4908,9 +4912,6 @@ class MainActivity : AppCompatActivity() {
         )
         mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
         mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
-        mapMenu.btnMapMarkerListBack.setOnClickListener {
-            showMapMenuState(mapMenuListReturnState)
-        }
         mapMenu.btnMapMarkerDetailClose.setOnClickListener {
             hideMarkerDetail()
         }

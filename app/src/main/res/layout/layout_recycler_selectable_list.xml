@@ -15,55 +15,70 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layout_recycler_selectable_list_selector"
+            <!-- Левый отступ-спейсер — 3% ширины, как на SPECIAL/Skills (единый стандарт
+                 отступа для всех экранов бокового меню 3 уровня, roadmap "Единый компонент
+                 бокового меню 3 уровня"). Раньше здесь была ConstraintLayout-обёртка с
+                 невидимой ImageView-иконкой (visibility="invisible", нигде не
+                 использовалась) — убрана как мёртвый код. -->
+            <TextView
+                android:id="@+id/tv_recycler_selectable_list_left_spacer"
                 android:layout_width="0.0dip"
                 android:layout_height="0.0dip"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:visibility="visible"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintWidth_percent="0.08">
+                app:layout_constraintWidth_percent="0.03" />
 
-                <ImageView
-                    android:id="@+id/img_recycler_selectable_list_selector"
-                    style="@style/ColorTintStyle"
-                    android:layout_width="0.0dip"
-                    android:layout_height="0.0dip"
-                    android:scaleType="fitXY"
-                    android:visibility="invisible"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintDimensionRatio="1:1"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintWidth_percent="0.3"
-                    app:srcCompat="@drawable/square" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.appcompat.widget.AppCompatButton
+            <Button
                 android:id="@+id/btn_recycler_selectable_list"
-                style="@style/TextStyle"
+                style="@style/CNDEFFRADButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="fill_parent"
-                android:background="@drawable/button_unselected"
+                android:background="@android:color/transparent"
                 android:clickable="false"
                 android:gravity="center|left"
                 android:minWidth="0.0dip"
                 android:minHeight="0.0dip"
                 android:text="@string/recycler_list_header"
                 android:textAllCaps="false"
-                android:maxLines="2"
-                android:singleLine="false"
-                android:breakStrategy="balanced"
-                android:ellipsize="none"
-                android:lineSpacingExtra="4dp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="-1"
                 android:paddingRight="4dp"
-                app:layout_constraintStart_toEndOf="@+id/layout_recycler_selectable_list_selector"
-                app:layout_constraintTop_toTopOf="@+id/layout_recycler_selectable_list_selector"
-                app:layout_constraintBottom_toBottomOf="@id/layout_recycler_selectable_list_selector"/>
+                app:layout_constrainedWidth="true"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toEndOf="@id/tv_recycler_selectable_list_left_spacer"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_recycler_selectable_list_value" />
+
+            <!-- Правое значение — опционально, нужно только SPECIAL/Skills
+                 (SidebarMenuItem.rightValue); GONE по умолчанию для всех остальных
+                 экранов. -->
+            <TextView
+                android:id="@+id/tv_recycler_selectable_list_value"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:clickable="false"
+                android:gravity="center|left"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_recycler_selectable_list_right_spacer"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Правый отступ-спейсер — 6% ширины, как раньше был у SPECIAL/Skills (иначе
+                 рамка подсветки, растянутая на всю строку, вплотную упирается в значение). -->
+            <TextView
+                android:id="@+id/tv_recycler_selectable_list_right_spacer"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.06" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
 

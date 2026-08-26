@@ -534,6 +534,34 @@ class MainActivity : AppCompatActivity() {
     private var isSKILLValueIncreasing = false
     private var isSKILLValueDecreasing = false
 
+    /** Метаданные 13 навыков Skills (roadmap, "Единый компонент бокового меню 3 уровня") —
+     * раньше были размазаны по XML (13 hand-copied блоков) + 13 setOnClickListener, теперь
+     * единственный источник, из которого строится SidebarMenuAdapter. Порядок совпадает с
+     * прежним порядком XML-блоков/skillsNode — дерево энкодера ожидает тот же порядок. */
+    private data class SkillMeta(
+        val key: String,
+        val labelRes: Int,
+        val prefKey: String,
+        val imageRes: Int,
+        val descriptionRes: Int,
+    )
+    private val skillsMeta = listOf(
+        SkillMeta("BARTER", R.string.skill_barter, "SKILLS_1", R.drawable.skills_barter, R.string.skill_barter_description),
+        SkillMeta("BIGGUNS", R.string.skill_big_guns, "SKILLS_2", R.drawable.skills_big_guns, R.string.skill_big_guns_description),
+        SkillMeta("ENERGYWEAPONS", R.string.skill_energy_weapons, "SKILLS_3", R.drawable.skills_energy_weapons, R.string.skill_energy_weapons_description),
+        SkillMeta("EXPLOSIVES", R.string.skill_explosives, "SKILLS_4", R.drawable.skills_explosives, R.string.skill_explosives_description),
+        SkillMeta("LOCKPICK", R.string.skill_lockpick, "SKILLS_5", R.drawable.skills_lockpick, R.string.skill_lockpick_description),
+        SkillMeta("MEDICINE", R.string.skill_medicine, "SKILLS_6", R.drawable.skills_medicine, R.string.skill_medicine_description),
+        SkillMeta("MELEEWEAPONS", R.string.skill_melee_weapons, "SKILLS_7", R.drawable.skills_melee_weapons, R.string.skill_melee_weapons_description),
+        SkillMeta("REPAIR", R.string.skill_repair, "SKILLS_8", R.drawable.skills_repair, R.string.skill_repair_description),
+        SkillMeta("SCIENCE", R.string.skill_science, "SKILLS_9", R.drawable.skills_science, R.string.skill_science_description),
+        SkillMeta("SMALLGUNS", R.string.skill_small_guns, "SKILLS_10", R.drawable.skills_small_guns, R.string.skill_small_guns_description),
+        SkillMeta("SNEAK", R.string.skill_sneak, "SKILLS_11", R.drawable.skills_sneak, R.string.skill_sneak_description),
+        SkillMeta("SPEECH", R.string.skill_speech, "SKILLS_12", R.drawable.skills_speech, R.string.skill_speech_description),
+        SkillMeta("UNARMED", R.string.skill_unarmed, "SKILLS_13", R.drawable.skills_unarmed, R.string.skill_unarmed_description),
+    )
+    private lateinit var skillsAdapter: SidebarMenuAdapter<String>
+
     private lateinit var selectedSubMenu: Button
 
     private val handler = Handler(Looper.getMainLooper())
@@ -2557,24 +2585,14 @@ class MainActivity : AppCompatActivity() {
             ),
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.performClick() }
         )
-        val skills = bindingMain.incLayoutTabStatsSkills
+        // Skills теперь SidebarMenuAdapter, не отдельная кнопка на пункт — MenuNode.onSelect
+        // зовёт skillsAdapter.selectPosition(index) вместо View.performClick() (тот же приём,
+        // просто новая точка входа — см. SidebarMenuAdapter.kt).
         val skillsNode = MenuNode(
             id = "SKILLS",
-            children = listOf(
-                MenuNode("BARTER") { skills.layoutTabSkillsBarter.performClick() },
-                MenuNode("BIG_GUNS") { skills.layoutTabSkillsBigGuns.performClick() },
-                MenuNode("ENERGY_WEAPONS") { skills.layoutTabSkillsEnergyWeapons.performClick() },
-                MenuNode("EXPLOSIVES") { skills.layoutTabSkillsExplosives.performClick() },
-                MenuNode("LOCKPICK") { skills.layoutTabSkillsLockpick.performClick() },
-                MenuNode("MEDICINE") { skills.layoutTabSkillsMedicine.performClick() },
-                MenuNode("MELEE_WEAPONS") { skills.layoutTabSkillsMeleeWeapons.performClick() },
-                MenuNode("REPAIR") { skills.layoutTabSkillsRepair.performClick() },
-                MenuNode("SCIENCE") { skills.layoutTabSkillsScience.performClick() },
-                MenuNode("SMALL_GUNS") { skills.layoutTabSkillsSmallGuns.performClick() },
-                MenuNode("SNEAK") { skills.layoutTabSkillsSneak.performClick() },
-                MenuNode("SPEECH") { skills.layoutTabSkillsSpeech.performClick() },
-                MenuNode("UNARMED") { skills.layoutTabSkillsUnarmed.performClick() },
-            ),
+            children = skillsMeta.mapIndexed { index, meta ->
+                MenuNode(meta.key) { skillsAdapter.selectPosition(index) }
+            },
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSkills.performClick() }
         )
         val bottom = bindingMain.incLayoutTabStatsBottom
@@ -2891,31 +2909,14 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putInt(prefKey, curValue).apply()
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
     }
-    private fun skillPrefKeyAndView(name: String): Pair<String, TextView>? {
-        val skills = bindingMain.incLayoutTabStatsSkills
-        return when (name) {
-            "BARTER" -> "SKILLS_1" to skills.tvSkillsBarterValue
-            "BIGGUNS" -> "SKILLS_2" to skills.tvSkillsBigGunsValue
-            "ENERGYWEAPONS" -> "SKILLS_3" to skills.tvSkillsEnergyWeaponsValue
-            "EXPLOSIVES" -> "SKILLS_4" to skills.tvSkillsExplosivesValue
-            "LOCKPICK" -> "SKILLS_5" to skills.tvSkillsLockpickValue
-            "MEDICINE" -> "SKILLS_6" to skills.tvSkillsMedicineValue
-            "MELEEWEAPONS" -> "SKILLS_7" to skills.tvSkillsMeleeWeaponsValue
-            "REPAIR" -> "SKILLS_8" to skills.tvSkillsRepairValue
-            "SCIENCE" -> "SKILLS_9" to skills.tvSkillsScienceValue
-            "SMALLGUNS" -> "SKILLS_10" to skills.tvSkillsSmallGunsValue
-            "SNEAK" -> "SKILLS_11" to skills.tvSkillsSneakValue
-            "SPEECH" -> "SKILLS_12" to skills.tvSkillsSpeechValue
-            "UNARMED" -> "SKILLS_13" to skills.tvSkillsUnarmedValue
-            else -> null
-        }
-    }
     private fun adjustSelectedSkill(delta: Int) {
-        val (prefKey, textView) = skillPrefKeyAndView(selectedSKILL) ?: return
-        val prevValue = sharedPreferences.getInt(prefKey, 10)
+        val position = skillsMeta.indexOfFirst { it.key == selectedSKILL }
+        if (position == -1) return
+        val meta = skillsMeta[position]
+        val prevValue = sharedPreferences.getInt(meta.prefKey, 10)
         val curValue = (prevValue + delta).coerceIn(10, 100)
-        textView.text = curValue.toString()
-        sharedPreferences.edit().putInt(prefKey, curValue).apply()
+        sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
+        skillsAdapter.updateItemValue(position, curValue.toString())
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
     }
     private fun setSelectedSubMenuButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?) {
@@ -2939,7 +2940,8 @@ class MainActivity : AppCompatActivity() {
         // выделена, updateWoundButtonsUI() сама так и посчитает.
         updateWoundButtonsUI()
         findViewById<ConstraintLayout>(R.id.layout_tab_stats_special_strength).setBackgroundResource(selected_button)
-        findViewById<ConstraintLayout>(R.id.layout_tab_skills_barter).setBackgroundResource(selected_button)
+        // Skills — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
+        // initialSelectedPosition по умолчанию 0), отдельная строка тут больше не нужна.
     }
     private fun setupDATA(){
         //Set Selected buttons by default
@@ -4278,33 +4280,30 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutTabStatsSpecial.tvSpecialAgilityValue.text = sharedPreferences.getInt("SPECIAL_A", 5).toString()
         bindingMain.incLayoutTabStatsSpecial.tvSpecialLuckValue.text = sharedPreferences.getInt("SPECIAL_L", 5).toString()
 
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBarter)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsEnergyWeapons)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsLockpick)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMeleeWeapons)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsScience)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSneak)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech)
-        listStatsSkills.add(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsUnarmed)
-
-        bindingMain.incLayoutTabStatsSkills.tvSkillsBarterValue.text = sharedPreferences.getInt("SKILLS_1", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsBigGunsValue.text = sharedPreferences.getInt("SKILLS_2", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsEnergyWeaponsValue.text = sharedPreferences.getInt("SKILLS_3", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsExplosivesValue.text = sharedPreferences.getInt("SKILLS_4", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsLockpickValue.text = sharedPreferences.getInt("SKILLS_5", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsMedicineValue.text = sharedPreferences.getInt("SKILLS_6", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsMeleeWeaponsValue.text = sharedPreferences.getInt("SKILLS_7", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsRepairValue.text = sharedPreferences.getInt("SKILLS_8", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsScienceValue.text = sharedPreferences.getInt("SKILLS_9", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsSmallGunsValue.text = sharedPreferences.getInt("SKILLS_10", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsSneakValue.text = sharedPreferences.getInt("SKILLS_11", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsSpeechValue.text = sharedPreferences.getInt("SKILLS_12", 10).toString()
-        bindingMain.incLayoutTabStatsSkills.tvSkillsUnarmedValue.text = sharedPreferences.getInt("SKILLS_13", 10).toString()
+        // Skills — единый компонент бокового меню 3 уровня (roadmap, "Единый компонент
+        // бокового меню 3 уровня") вместо 13 hand-copied XML-блоков + 13 setOnClickListener.
+        // onSelect ниже — то же самое, что раньше делал каждый из 13 setOnClickListener
+        // (картинка + описание + selectedSKILL), кроме самой подсветки/звука — это теперь
+        // общая забота SidebarMenuAdapter.
+        skillsAdapter = SidebarMenuAdapter(
+            items = skillsMeta.map { meta ->
+                SidebarMenuItem(
+                    payload = meta.key,
+                    label = getString(meta.labelRes),
+                    rightValue = sharedPreferences.getInt(meta.prefKey, 10).toString(),
+                )
+            },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                val meta = skillsMeta.first { it.key == item.payload }
+                selectedSKILL = meta.key
+                bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(meta.imageRes)
+                bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(meta.descriptionRes)
+            },
+        )
+        bindingMain.incLayoutTabStatsSkills.scrollTabSkills.layoutManager = LinearLayoutManager(this)
+        bindingMain.incLayoutTabStatsSkills.scrollTabSkills.adapter = skillsAdapter
 
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
@@ -4735,83 +4734,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBarter.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBarter, listStatsSkills, "BARTER")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_barter)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_barter_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsBigGuns, listStatsSkills, "BIGGUNS")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_big_guns)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_big_guns_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsEnergyWeapons.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsEnergyWeapons, listStatsSkills, "ENERGYWEAPONS")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_energy_weapons)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_energy_weapons_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsExplosives, listStatsSkills, "EXPLOSIVES")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_explosives)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_explosives_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsLockpick.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsLockpick, listStatsSkills, "LOCKPICK")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_lockpick)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_lockpick_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMedicine, listStatsSkills, "MEDICINE")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_medicine)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_medicine_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMeleeWeapons.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsMeleeWeapons, listStatsSkills, "MELEEWEAPONS")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_melee_weapons)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_melee_weapons_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsRepair, listStatsSkills, "REPAIR")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_repair)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_repair_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsScience.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsScience, listStatsSkills, "SCIENCE")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_science)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_science_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSmallGuns, listStatsSkills, "SMALLGUNS")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_small_guns)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_small_guns_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSneak.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSneak, listStatsSkills, "SNEAK")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_sneak)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_sneak_description)
-        }
-
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsSpeech, listStatsSkills, "SPEECH")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_speech)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_speech_description)
-        }
-        
-        bindingMain.incLayoutTabStatsSkills.layoutTabSkillsUnarmed.setOnClickListener{
-            setSelectedSKILLSButton(bindingMain.incLayoutTabStatsSkills.layoutTabSkillsUnarmed, listStatsSkills, "UNARMED")
-            bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(R.drawable.skills_unarmed)
-            bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(R.string.skill_unarmed_description)
-        }
+        // Клики по пунктам Skills — теперь внутри SidebarMenuAdapter (skillsAdapter, см.
+        // выше), 13 setOnClickListener на кнопку тут больше не нужны.
 
         // Кнопки +/- (roadmap, "Финализация STATS") — тап меняет значение выбранного
         // навыка на 1 (onClick), удержание повторяет через longPressRunnable (onTouch) с

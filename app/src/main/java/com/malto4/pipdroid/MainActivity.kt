@@ -184,7 +184,6 @@ class MainActivity : AppCompatActivity() {
      * LIST DEFINITIONS
      **********************************************************************************************************/
     private var listBottomButtons = ArrayList<Button>()
-    private var listItemsClockButtons = ArrayList<Button>()
     /** Метаданные корневого меню Clock (roadmap, "Единый компонент бокового меню
      * 3 уровня") — тот же приём, что у skillsMeta/specialMeta/statusMeta. Без action —
      * поведение по клику решает единственный showClockContentPanel()/openClockMelodyScreen()
@@ -198,8 +197,6 @@ class MainActivity : AppCompatActivity() {
         ClockFeatureMeta("MELODY", R.string.clock_feature_melody),
     )
     private lateinit var clockAdapter: SidebarMenuAdapter<String>
-    private var listStatsSpecials = ArrayList<ConstraintLayout>()
-    private var listStatsSkills = ArrayList<ConstraintLayout>()
     private var listDataMisc = ArrayList<ConstraintLayout>()
     private var listDataRadios = ArrayList<ConstraintLayout>()
 
@@ -2628,17 +2625,20 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Деревья меню для энкодера (roadmap, "Модель навигации энкодером"). [onSelect] у
-     * каждого узла — `performClick()` на уже существующей touch-кнопке этого экрана, а не
-     * дублирование логики показа/скрытия — гарантирует, что энкодер ведёт себя ровно так
-     * же, как палец по экрану в режиме телефона.
+     * каждого узла — либо `performClick()` на уже существующей touch-кнопке этого экрана,
+     * либо (после roadmap "Единый компонент бокового меню 3 уровня") прямой вызов
+     * `SidebarMenuAdapter.selectPosition(index)` для экранов, у которых пункты меню — это
+     * теперь общий компонент, не отдельные кнопки — в обоих случаях гарантирует, что
+     * энкодер ведёт себя ровно так же, как палец по экрану в режиме телефона.
      *
-     * STATS — секция с реальной вложенностью: Status -> CND/RAD/EFF, SPECIAL -> 7
-     * характеристик, Skills -> 13 навыков, General -> 13 фракций — везде выбор пункта
-     * внутри листа сейчас работает только по тапу (обновляет описание/картинку, не
-     * показывает отдельный экран), у нас это тоже дети узла с тем же performClick().
+     * STATS — секция с реальной вложенностью: Status -> LIGHT/HEAVY/STUNNED, SPECIAL -> 7
+     * характеристик, Skills -> 13 навыков — везде выбор пункта внутри листа сейчас работает
+     * только по тапу (обновляет описание/картинку, не показывает отдельный экран), у нас
+     * это тоже дети узла, каждый зовёт `selectPosition(index)` своего SidebarMenuAdapter.
      *
-     * PERKS — исключение: там RecyclerView с динамическим адаптером (PerkAdapter.kt), не
-     * фиксированный набор кнопок, тот же приём "провалиться -> кликнуть по кнопке" не
+     * PERKS — исключение: там RecyclerView с динамическим адаптером (SidebarMenuAdapter,
+     * но список пересобирается заново при каждом открытии экрана — см. STATSPerksSetup()),
+     * не фиксированный набор пунктов, тот же приём "провалиться -> активировать пункт" не
      * подходит напрямую. Пока лист, без вложенности — отдельная задача.
      *
      * У ITEMS/DATA сейчас только плоский список вкладок — их структура целиком поменяется
@@ -2921,41 +2921,6 @@ class MainActivity : AppCompatActivity() {
                 next.setBackgroundResource(R.drawable.button_unselected)
             }
         }
-    }
-    private fun setSelectedClockButton(button: Button?, listArrayListButtons: ArrayList<Button>?) {
-        button?.setBackgroundResource(selected_button)
-        playCNDSelectAudio()
-        val it: Iterator<Button> = listArrayListButtons!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, button as Any)) {
-                next.setBackgroundResource(R.drawable.button_unselected)
-            }
-        }
-    }
-    private fun setSelectedSPECIALButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?, selectedItem: String) {
-        layout?.setBackgroundResource(selected_button)
-        playItemSelectAudio()
-        val it: Iterator<ConstraintLayout> = listArrayListLayout!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, layout as Any)) {
-                next.setBackgroundResource(R.drawable.button_unselected)
-            }
-        }
-        selectedSPECIAL = selectedItem
-    }
-    private fun setSelectedSKILLSButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?, selectedItem: String) {
-        layout?.setBackgroundResource(selected_button)
-        playItemSelectAudio()
-        val it: Iterator<ConstraintLayout> = listArrayListLayout!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, layout as Any)) {
-                next.setBackgroundResource(R.drawable.button_unselected)
-            }
-        }
-        selectedSKILL = selectedItem
     }
     /**
      * Кнопки +/- SPECIAL/Skills (roadmap, "Финализация STATS") — [prefKey]/[SharedPreferences]
@@ -4253,7 +4218,7 @@ class MainActivity : AppCompatActivity() {
 
         // Тема (selected_button/selectedRowButton и т.п., applyAppTheme()) должна быть
         // применена ДО setupModeSelectScreen()/setupPipBoy2000Wizard() — экран выбора
-        // режима строит ModeSelectAdapter с текущим selected_button сразу при вызове, а не
+        // режима строит SidebarMenuAdapter с текущим selected_button сразу при вызове, а не
         // лениво при показе. Раньше блок стоял ниже — selected_button ещё был на
         // компилируемом дефолте (зелёный, см. объявление private var selected_button)
         // независимо от сохранённой темы, подсветка выбранного пункта в мастере оставалась

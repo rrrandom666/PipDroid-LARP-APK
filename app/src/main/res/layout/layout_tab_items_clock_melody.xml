@@ -11,8 +11,13 @@
     android:layout_height="fill_parent"
     android:background="@color/pip_background_darker">
 
-    <ScrollView
-        android:id="@+id/scroll_clock_melody_tracks"
+    <!-- Единый компонент бокового меню 3 уровня (roadmap) — SidebarMenuAdapter вместо
+         ручного цикла TextView+addView(). [Назад] — обычный последний пункт этого же
+         списка (payload=null), не отдельная свёрстанная кнопка — так и было задумано
+         здесь изначально, этот же приём заодно чинит баг из Roadmap с кнопкой [Назад]
+         списка меток на карте (шаг 7 плана). -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_clock_melody_tracks"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:fadeScrollbars="false"
@@ -23,17 +28,10 @@
         android:scrollbars="vertical"
         android:verticalScrollbarPosition="left"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_percent="0.35">
-
-        <LinearLayout
-            android:id="@+id/layout_clock_melody_tracks"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-    </ScrollView>
+        app:layout_constraintHeight_percent="0.925"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintWidth_percent="0.35" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_clock_melody_visualizer_area"
@@ -41,7 +39,7 @@
         android:layout_height="fill_parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/scroll_clock_melody_tracks"
+        app:layout_constraintStart_toEndOf="@id/recycler_clock_melody_tracks"
         app:layout_constraintTop_toTopOf="parent">
 
         <!-- Одна строка, ширина фиксирована независимо от длины названия трека — иначе

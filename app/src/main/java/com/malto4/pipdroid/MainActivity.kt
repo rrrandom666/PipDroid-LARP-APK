@@ -174,7 +174,9 @@ class MainActivity : AppCompatActivity() {
     private var melodyFocusedIndex = 0
     private var melodyPreviewPlayer: MediaPlayer? = null
     private var melodyPreviewPlayingIndex: Int? = null
-    private val melodyTrackRowViews = ArrayList<TextView>()
+    /** payload — индекс в ringtoneTracks, null — синтетический пункт [Назад] (roadmap,
+     * "Единый компонент бокового меню 3 уровня"). */
+    private lateinit var melodyAdapter: SidebarMenuAdapter<Int?>
 
 
 
@@ -3144,15 +3146,6 @@ class MainActivity : AppCompatActivity() {
         nameView.isSelected = false
         nameView.post { nameView.isSelected = true }
     }
-    private fun highlightMelodyRow() {
-        for ((index, row) in melodyTrackRowViews.withIndex()) {
-            val isActive = index == melodyFocusedIndex
-            row.setBackgroundResource(if (isActive) selected_button else R.drawable.button_unselected)
-            // isSelected запускает marquee у активного пункта (нужно read полное название),
-            // остальные остаются статично обрезанными многоточием.
-            row.isSelected = isActive
-        }
-    }
     private fun stopMelodyPreview() {
         melodyPreviewPlayer?.stop()
         melodyPreviewPlayer?.release()
@@ -3202,7 +3195,8 @@ class MainActivity : AppCompatActivity() {
         clock.layoutTabItemsClockContent.visibility = View.GONE
         clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
         melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
-        highlightMelodyRow()
+        // Молча (без звука) — восстановление состояния экрана при входе, не выбор игрока.
+        melodyAdapter.setSelectedPositionSilently(melodyFocusedIndex)
         updateMelodySelectedLabel()
     }
     private fun closeClockMelodyScreen() {
@@ -5158,40 +5152,28 @@ class MainActivity : AppCompatActivity() {
         melody.melodyWave.setColor(currentWizardAccentColor())
         melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
 
-        melody.layoutClockMelodyTracks.removeAllViews()
-        melodyTrackRowViews.clear()
-        for ((index, track) in ringtoneTracks.withIndex()) {
-            val row = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
-                text = track.displayName
-                typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
-                setPadding(24, 16, 24, 16)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                // Длинные названия треков раздвигали строку — одна строка + marquee
-                // вместо переноса (roadmap, правка после проверки на устройстве). Скроллится
-                // только активный (выбранный) пункт — isSelected переключается в
-                // highlightMelodyRow(), остальные показывают статичное "...".
-                maxLines = 1
-                isSingleLine = true
-                ellipsize = TextUtils.TruncateAt.MARQUEE
-                marqueeRepeatLimit = -1
-                setOnClickListener {
-                    playItemSelectAudio()
+        // Список треков — единый компонент бокового меню 3 уровня (roadmap), [Назад] —
+        // обычный последний пункт того же списка (payload=null), не отдельная кнопка.
+        val melodyItems: List<SidebarMenuItem<Int?>> = ringtoneTracks.indices.map { index ->
+            SidebarMenuItem<Int?>(payload = index, label = ringtoneTracks[index].displayName)
+        } + SidebarMenuItem(payload = null, label = getString(R.string.wizard_back))
+        melodyAdapter = SidebarMenuAdapter(
+            items = melodyItems,
+            selectedBackgroundRes = selected_button,
+            initialSelectedPosition = melodyFocusedIndex,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                val index = item.payload
+                if (index == null) {
+                    closeClockMelodyScreen()
+                } else {
                     melodyFocusedIndex = index
-                    highlightMelodyRow()
                     if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
                 }
-            }
-            melody.layoutClockMelodyTracks.addView(row)
-            melodyTrackRowViews.add(row)
-        }
-        val backRow = TextView(this, null, 0, R.style.Row2ItemStyle).apply {
-            text = getString(R.string.wizard_back)
-            typeface = ResourcesCompat.getFont(this@MainActivity, R.font.pipboy_mono)
-            setPadding(24, 16, 24, 16)
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setOnClickListener { playItemSelectAudio(); closeClockMelodyScreen() }
-        }
-        melody.layoutClockMelodyTracks.addView(backRow)
+            },
+        )
+        melody.recyclerClockMelodyTracks.layoutManager = LinearLayoutManager(this)
+        melody.recyclerClockMelodyTracks.adapter = melodyAdapter
 
         melody.btnClockMelodySelect.setOnClickListener {
             playNewTabSelectAudio()

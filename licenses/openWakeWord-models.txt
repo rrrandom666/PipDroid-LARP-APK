@@ -1,0 +1,27 @@
+Файлы: app/src/main/assets/models/wakeword/melspectrogram.onnx,
+       app/src/main/assets/models/wakeword/embedding_model.onnx,
+       app/src/main/assets/models/wakeword/wakeword_classifier.onnx (заглушка hey_jarvis_v0.1)
+
+Источник: проект openWakeWord (https://github.com/dscripka/openWakeWord), автор dscripka,
+релиз v0.5.1 (https://github.com/dscripka/openWakeWord/releases/tag/v0.5.1).
+
+Сам код openWakeWord — лицензия Apache 2.0. Код в этом репозитории (WakeWordDetector.kt)
+не является производным от их кода — написан заново под их же опубликованную схему
+инференса (mel -> embedding -> classifier), но НЕ копирует их исходники.
+
+Формат — .onnx, не .tflite (изначальный экспорт того же релиза): TFLite-версии этих же
+моделей падают на Android Java API прямо в конструкторе интерпретатора ("BytesRequired
+number of elements overflowed", динамическая ось входа) — нерешённый баг апстрима,
+dscripka/openWakeWord issue #223. Сами файлы .onnx (melspectrogram.onnx, embedding_model.onnx и все готовые примеры
+классификаторов вроде hey_jarvis) распространяются автором отдельно, под лицензией
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) —
+из-за происхождения части обучающих данных с ограничительными лицензиями. Условие
+некоммерческого использования совпадает со статусом всего проекта PipDroid-LARP-APK (см.
+CLAUDE.md — некоммерческий фанатский LARP-проект).
+
+wakeword_classifier.onnx сейчас — временная заглушка (английская модель "hey jarvis" от
+автора openWakeWord, та же лицензия), нужна только чтобы прогнать конвейер на реальном
+железе. Когда появится собственная модель под "Пип-бой" (обучена вне этого репозитория,
+синтетика через Piper TTS + пайплайн openWakeWord), файл будет заменён — melspectrogram.onnx
+и embedding_model.onnx (общий фиче-экстрактор автора openWakeWord) переиспользуются
+как есть, их переобучать не нужно.

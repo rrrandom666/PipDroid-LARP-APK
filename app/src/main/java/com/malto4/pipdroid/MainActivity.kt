@@ -68,6 +68,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
@@ -208,6 +209,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var lineVisualizer: LineVisualizer
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
     private val REQUEST_CODE_PERMISSION_MEDIA = 123
+    // Голосовые команды (roadmap, этап 19) — свой код запроса RECORD_AUDIO, отдельный от
+    // REQUEST_CODE_PERMISSION_RECORD_AUDIO выше (тот — для визуализатора радио, без реального
+    // захвата микрофона, и его onRequestPermissionsResult сейчас никак не обрабатывается).
+    private val REQUEST_CODE_PERMISSION_WAKE_WORD = 24
+    private var wakeWordDetector: com.malto4.pipdroid.voice.WakeWordDetector? = null
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
@@ -769,6 +775,11 @@ class MainActivity : AppCompatActivity() {
                 playRandomTrack()
             }
         }
+        if (requestCode == REQUEST_CODE_PERMISSION_WAKE_WORD) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                wakeWordDetector?.start()
+            }
+        }
     }
     private fun loadMp3Files() {
         /*
@@ -898,6 +909,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /***********************************************************************************************************
+     * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19)
+     **********************************************************************************************************/
+    /**
+     * ЗАГЛУШКА для проверки конвейера на реальном устройстве: классификатор сейчас —
+     * английская модель-пример "hey jarvis" (см. WakeWordDetector, licenses/openWakeWord-models.txt),
+     * не своя "Пип-бой". Слушает постоянно, пока Activity жива — без сервиса/фонового режима,
+     * без привязки к режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не
+     * готовая фича, а тестовый скелет.
+     */
+    private fun initWakeWordDetector() {
+        wakeWordDetector = com.malto4.pipdroid.voice.WakeWordDetector(this) {
+            runOnUiThread {
+                Toast.makeText(this, "Wake-word (заглушка hey jarvis) сработал", Toast.LENGTH_SHORT).show()
+            }
+        }
+        startWakeWordIfPermitted()
+    }
+    private fun startWakeWordIfPermitted() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            wakeWordDetector?.start()
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_WAKE_WORD)
+        }
+    }
 
     /***********************************************************************************************************
      * BLUETOOTH
@@ -5764,6 +5800,8 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
+        initWakeWordDetector()
+
         // Восстановление после убийства процесса в фоне (roadmap, "Восстановление состояния
         // после убийства процесса — спецификация", этап 15) — savedInstanceState != null
         // гарантированно означает именно это, не холодный старт (Android сам разводит эти
@@ -5833,6 +5871,7 @@ class MainActivity : AppCompatActivity() {
         turnAllRadioOff()
         stopAmbientBackgroundSound()
         cancelBootSequence()
+        wakeWordDetector?.release()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
         // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся
         // только от локального биндинга, чтобы не утекала ссылка на Activity.

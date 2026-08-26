@@ -99,6 +99,8 @@ import kotlin.jvm.internal.Intrinsics
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import com.chibde.visualizer.LineVisualizer
 
 class MainActivity : AppCompatActivity() {
@@ -253,6 +255,20 @@ class MainActivity : AppCompatActivity() {
     // Не null — попап работает на переименование существующей отметки (Редактировать), не на
     // создание новой.
     private var editingMarkerId: String? = null
+    // Тап по пустой точке карты (не по маркеру, вне режима расстановки/маршрута, бэклог
+    // этапа 18) — ждёт выбора [Route]/[Marker] в layout_map_tap_choice, см. showMapTapChoice().
+    private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
+    private enum class MapRouteState { NONE, BUILT, ACTIVE }
+    // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
+    // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
+    // перестраивает маршрут при отклонении. См. updateRouteControlsVisibility().
+    private var mapRouteState = MapRouteState.NONE
+    // Конечная точка активного маршрута — нужна отдельно от routePx/mapRouteLatLonPath, чтобы
+    // перестраивать маршрут (rerouteActiveNavigation()) от новой позиции игрока до той же цели.
+    private var mapRouteDestination: Pair<Double, Double>? = null
+    // Путь в лат/лон (не пикселях, в отличие от MapOverlayView.routePx) — нужен для
+    // haversine-расчёта остатка дистанции и порога перестроения в onMapLocationUpdate().
+    private var mapRouteLatLonPath: List<Pair<Double, Double>> = emptyList()
     private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
     // Взведён кнопками "Поставить отметку"/"До точки на карте" (layout_tab_items_map.xml) —
     // следующий тап по карте выполняет действие и сам снимает взвод, а не тап-и-удержание
@@ -349,6 +365,17 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_CRIPPLED_LEFT_LEG = "restore_crippledLeftLeg"
         private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
         private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
+
+        // Карта — бэклог этапа 18 (зум, тап по маркеру/точке, следование по маршруту).
+        private const val MAP_ZOOM_STEP_FACTOR = 1.4f
+        // Радиус попадания тапа по маркеру — в dp, не в пикселях битмапа: сравнение идёт в
+        // экранных координатах через текущую displayMatrix PhotoView, иначе при сильном зуме
+        // радиус захвата "плавал" бы вместе с масштабом карты.
+        private const val MAP_MARKER_TAP_RADIUS_DP = 28f
+        // Порог отклонения от маршрута (метры), после которого onMapLocationUpdate()
+        // перестраивает маршрут заново от текущей позиции — не 0: граф дорог даёт узлы не
+        // чаще чем через несколько метров, точное совпадение GPS-точки с узлом нереалистично.
+        private const val MAP_ROUTE_REROUTE_THRESHOLD_M = 30.0
     }
 
     /***********************************************************************************************************
@@ -1805,6 +1832,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 mapHasCenteredOnUser = false
                 mapTapMode = MapTapMode.NONE
+                pendingTapChoiceLatLon = null
+                mapRouteState = MapRouteState.NONE
+                mapRouteDestination = null
+                mapRouteLatLonPath = emptyList()
+                mapScreen.layoutMapTapChoice.visibility = View.GONE
+                mapScreen.layoutMapRouteControls.visibility = View.GONE
                 markers = markerRepository.loadAll().toMutableList()
                 mapScreen.photoViewMap.setImageBitmap(bitmap)
                 mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(currentWizardAccentColor(), PorterDuff.Mode.MULTIPLY)
@@ -1819,12 +1852,18 @@ class MainActivity : AppCompatActivity() {
                 // Settings (currentWizardAccentColor()).
                 val mapAccent = ColorStateList.valueOf(currentWizardAccentColor())
                 listOf(
-                    mapScreen.btnMapMarkerDetailClose,
                     mapScreen.btnMapMarkerDetailEdit,
                     mapScreen.btnMapMarkerDetailRoute,
                     mapScreen.btnMapMarkerDetailDelete,
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupCancel,
-                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave
+                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave,
+                    mapScreen.btnMapZoomIn,
+                    mapScreen.btnMapZoomOut,
+                    mapScreen.btnMapTapChoiceRoute,
+                    mapScreen.btnMapTapChoiceMarker,
+                    mapScreen.btnMapRouteStart,
+                    mapScreen.btnMapRouteCancel,
+                    mapScreen.btnMapRouteStop
                 ).forEach { it.backgroundTintList = mapAccent }
                 hideMapHint()
                 // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора на первый
@@ -1855,7 +1894,18 @@ class MainActivity : AppCompatActivity() {
                             armTapMode(MapTapMode.NONE)
                             routeTo(lat, lon)
                         }
-                        MapTapMode.NONE -> {}
+                        // Бэклог этапа 18: тап вне режима расстановки/маршрута — по маркеру
+                        // сразу открывает его карточку деталей (как из списка), по пустой
+                        // точке — предлагает выбор [Route]/[Marker] вместо жёсткого действия.
+                        MapTapMode.NONE -> {
+                            val tappedPx = geoReference.latLonToPixel(lat, lon)
+                            val marker = findMarkerNearTap(tappedPx)
+                            if (marker != null) {
+                                showMarkerDetail(marker)
+                            } else {
+                                showMapTapChoice(lat, lon)
+                            }
+                        }
                     }
                 }
                 startMapLocationUpdates()
@@ -1905,6 +1955,9 @@ class MainActivity : AppCompatActivity() {
         if (!mapHasCenteredOnUser) {
             mapHasCenteredOnUser = true
             recenterMapOnUser()
+        }
+        if (mapRouteState == MapRouteState.ACTIVE) {
+            updateActiveNavigation(location)
         }
     }
     /** Строит матрицу вручную (у PhotoView нет прямого "перейти к точке при том же зуме") —
@@ -1975,9 +2028,12 @@ class MainActivity : AppCompatActivity() {
     }
     private val mapRouteSubmenuMeta: List<MapMenuItemMeta> by lazy {
         listOf(
+            // Не прыгает обратно в ROOT сразу по выбору — пользователь остаётся на этом
+            // пункте подменю, пока не тапнет по карте (фидбек: "меню не должно сбрасываться
+            // на первый уровень при выборе способа прокладки маршрута"). Сайдбар уходит в
+            // ROOT только когда маршрут реально построен, см. routeTo().
             MapMenuItemMeta("TO_POINT", R.string.map_route_to_point_button) {
                 armTapMode(MapTapMode.ROUTE_TO_POINT)
-                showMapMenuState(MapMenuState.ROOT)
             },
             MapMenuItemMeta("TO_MARKER", R.string.map_route_to_marker_button) {
                 mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
@@ -2007,6 +2063,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             hideMarkerDetail()
         }
+        // Навигация по сайдбар-меню отменяет незавершённый выбор [Route]/[Marker] по тапу на
+        // пустую точку (бэклог этапа 18) — тот же принцип, что и у карточки деталей отметки.
+        hideMapTapChoice()
     }
     /** [Назад] — обычный последний пункт списка (payload=null), roadmap "Единый компонент
      * бокового меню 3 уровня" — чинит известный баг из Roadmap (кривой отступ кнопки, нет
@@ -2030,10 +2089,9 @@ class MainActivity : AppCompatActivity() {
                 val marker = item.payload
                 when {
                     marker == null -> showMapMenuState(mapMenuListReturnState)
-                    mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> {
-                        routeTo(marker.lat, marker.lon)
-                        showMapMenuState(MapMenuState.ROOT)
-                    }
+                    // Сайдбар в ROOT переводит сама routeTo() по факту построения маршрута
+                    // (не сразу по выбору цели) — тот же принцип, что и у "До точки на карте".
+                    mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> routeTo(marker.lat, marker.lon)
                     else -> showMarkerDetail(marker)
                 }
             },
@@ -2042,20 +2100,94 @@ class MainActivity : AppCompatActivity() {
         menu.rvMapMarkerList.adapter = adapter
     }
     /** Карточка деталей выбранной отметки (имя/координаты + Редактировать/Маршрут/Удалить) —
-     * не полноэкранная, только над картой справа от меню (см. layout_map_marker_detail). */
+     * не полноэкранная, только над картой справа от меню (см. layout_map_marker_detail).
+     * Открывается и из списка отметок, и прямым тапом по маркеру на карте (бэклог этапа 18,
+     * см. findMarkerNearTap()) — делит нижний слот карты с попапом выбора [Route]/[Marker] и
+     * панелью управления маршрутом, поэтому прячет обе при показе. */
     private fun showMarkerDetail(marker: MapMarker) {
         selectedMarkerForDetail = marker
         val mapScreen = bindingMain.incLayoutTabItemsMap
         mapScreen.tvMapMarkerDetailName.text = marker.name
         mapScreen.tvMapMarkerDetailCoords.text = String.format(Locale.getDefault(), "%.5f, %.5f", marker.lat, marker.lon)
+        pendingTapChoiceLatLon = null
+        mapScreen.layoutMapTapChoice.visibility = View.GONE
+        mapScreen.layoutMapRouteControls.visibility = View.GONE
         mapScreen.layoutMapMarkerDetail.visibility = View.VISIBLE
     }
     private fun hideMarkerDetail() {
         selectedMarkerForDetail = null
         bindingMain.incLayoutTabItemsMap.layoutMapMarkerDetail.visibility = View.GONE
+        // Панель управления маршрутом была спрятана визуально (не сброшена по состоянию),
+        // пока была видна карточка деталей — восстановить, если маршрут всё ещё есть.
+        updateRouteControlsVisibility()
+    }
+    /** Тап по пустой точке карты вне режима расстановки/маршрута (бэклог этапа 18) — вместо
+     * жёстко предопределённого действия предлагает выбор [Route]/[Marker], см.
+     * layout_map_tap_choice. Делит нижний слот с карточкой деталей отметки и панелью
+     * маршрута. */
+    private fun showMapTapChoice(lat: Double, lon: Double) {
+        pendingTapChoiceLatLon = lat to lon
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        mapScreen.tvMapTapChoiceCoords.text = String.format(Locale.getDefault(), "%.5f, %.5f", lat, lon)
+        selectedMarkerForDetail = null
+        mapScreen.layoutMapMarkerDetail.visibility = View.GONE
+        mapScreen.layoutMapRouteControls.visibility = View.GONE
+        mapScreen.layoutMapTapChoice.visibility = View.VISIBLE
+    }
+    private fun hideMapTapChoice() {
+        pendingTapChoiceLatLon = null
+        bindingMain.incLayoutTabItemsMap.layoutMapTapChoice.visibility = View.GONE
+        updateRouteControlsVisibility()
+    }
+    /** Ближайший к тапу маркер в ЭКРАННЫХ координатах (не в пикселях битмапа — иначе радиус
+     * захвата "плавал" бы с зумом), см. MAP_MARKER_TAP_RADIUS_DP. null — тап дальше порога от
+     * любого маркера, вызывающий код (onPhotoTapListener) трактует это как тап по пустой
+     * точке. */
+    private fun findMarkerNearTap(tapBitmapPx: PointF): MapMarker? {
+        if (markers.isEmpty()) return null
+        val geoReference = mapGeoReference ?: return null
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
+        val matrix = Matrix()
+        photoView.getDisplayMatrix(matrix)
+        val tapScreen = floatArrayOf(tapBitmapPx.x, tapBitmapPx.y)
+        matrix.mapPoints(tapScreen)
+        val thresholdPx = resources.displayMetrics.density * MAP_MARKER_TAP_RADIUS_DP
+        var nearestMarker: MapMarker? = null
+        var nearestDist = Double.MAX_VALUE
+        for (marker in markers) {
+            val markerPx = geoReference.latLonToPixel(marker.lat, marker.lon)
+            val screen = floatArrayOf(markerPx.x, markerPx.y)
+            matrix.mapPoints(screen)
+            val dx = (screen[0] - tapScreen[0]).toDouble()
+            val dy = (screen[1] - tapScreen[1]).toDouble()
+            val dist = sqrt(dx * dx + dy * dy)
+            if (dist < nearestDist) {
+                nearestDist = dist
+                nearestMarker = marker
+            }
+        }
+        return nearestMarker?.takeIf { nearestDist <= thresholdPx }
+    }
+    /** +/- зум карты (бэклог этапа 18) — раньше только pinch. PhotoView.setScale() кидает
+     * IllegalArgumentException за пределами [minimumScale, maximumScale], поэтому клэмпим
+     * вручную перед вызовом, а не полагаемся на исключение. */
+    private fun zoomMapBy(factor: Float) {
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
+        val target = (photoView.scale * factor).coerceIn(photoView.minimumScale, photoView.maximumScale)
+        photoView.setScale(target, true)
     }
     private fun showMapHint(text: String) {
-        val hintView = bindingMain.incLayoutTabItemsMap.tvMapHint
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        // Делит нижний слот карты с карточкой деталей отметки/попапом [Route]/[Marker]/
+        // панелью маршрута (бэклог этапа 18) — те же координаты в layout_tab_items_map.xml,
+        // поэтому взаимоисключающе прячет их (панель маршрута — только визуально, её
+        // состояние переживёт следующий hideMapHint(), см. updateRouteControlsVisibility()).
+        selectedMarkerForDetail = null
+        pendingTapChoiceLatLon = null
+        mapScreen.layoutMapMarkerDetail.visibility = View.GONE
+        mapScreen.layoutMapTapChoice.visibility = View.GONE
+        mapScreen.layoutMapRouteControls.visibility = View.GONE
+        val hintView = mapScreen.tvMapHint
         hintView.text = text
         // Фон/цвет текста явно кодом (см. showMapMenuState) — ставим тут же, а не один раз в
         // openMapScreen(), чтобы полоса точно перекрашивалась при каждом показе.
@@ -2070,6 +2202,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun hideMapHint() {
         bindingMain.incLayoutTabItemsMap.tvMapHint.visibility = View.GONE
+        updateRouteControlsVisibility()
     }
     /** Взвод режима тапа по карте — либо расстановка отметки, либо выбор точки маршрута
      * (кнопки "Поставить отметку"/"До точки на карте"). Подсказка появляется в полосе внизу
@@ -2108,7 +2241,8 @@ class MainActivity : AppCompatActivity() {
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
-     * узлов, не блокировать UI-поток. */
+     * узлов, не блокировать UI-поток. Успешный расчёт переводит панель управления маршрутом
+     * (бэклог этапа 18) в состояние BUILT — ждёт [Start]/[Cancel]. */
     private fun routeTo(destLat: Double, destLon: Double) {
         val router = pedestrianRouter
         val geoReference = mapGeoReference
@@ -2130,10 +2264,101 @@ class MainActivity : AppCompatActivity() {
                     return@withContext
                 }
                 hideMapHint()
-                bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx =
-                    path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) }
+                mapRouteDestination = destLat to destLon
+                applyRoutePath(geoReference, path)
+                mapRouteState = MapRouteState.BUILT
+                // Сайдбар уходит в ROOT по факту построения маршрута (не сразу по выбору
+                // способа/цели, см. mapRouteSubmenuMeta/bindMarkerListAdapter) — единая точка,
+                // откуда бы ни был вызван routeTo().
+                showMapMenuState(MapMenuState.ROOT)
+                updateRouteControlsVisibility()
             }
         }
+    }
+    /** Записывает построенный/перестроенный путь и в лат/лон (для haversine-расчётов), и в
+     * пиксели битмапа (для отрисовки, см. MapOverlayView.routePx). */
+    private fun applyRoutePath(geoReference: GeoReference, path: List<Pair<Double, Double>>) {
+        mapRouteLatLonPath = path
+        bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx =
+            path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) }
+    }
+    /** [Cancel] на построенном маршруте и [Stop] на активном следовании — оба полностью
+     * сбрасывают маршрут (бэклог этапа 18: "тоже сбрасывает"), а не просто ставят на паузу. */
+    private fun cancelActiveRoute() {
+        mapRouteState = MapRouteState.NONE
+        mapRouteDestination = null
+        mapRouteLatLonPath = emptyList()
+        bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx = emptyList()
+        updateRouteControlsVisibility()
+    }
+    /** Единая точка правды для панели управления маршрутом (layout_map_route_controls) —
+     * вызывается и после построения/сброса маршрута, и при закрытии карточки деталей
+     * отметки/попапа выбора [Route]/[Marker], которые временно перекрывают тот же нижний
+     * слот карты. Если один из них всё ещё открыт — ничего не делает, тот сам восстановит
+     * панель маршрута при закрытии. */
+    private fun updateRouteControlsVisibility() {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        if (selectedMarkerForDetail != null || pendingTapChoiceLatLon != null) return
+        if (mapRouteState == MapRouteState.NONE) {
+            mapScreen.layoutMapRouteControls.visibility = View.GONE
+            return
+        }
+        val isActive = mapRouteState == MapRouteState.ACTIVE
+        mapScreen.btnMapRouteStart.visibility = if (isActive) View.GONE else View.VISIBLE
+        mapScreen.btnMapRouteCancel.visibility = if (isActive) View.GONE else View.VISIBLE
+        mapScreen.btnMapRouteStop.visibility = if (isActive) View.VISIBLE else View.GONE
+        mapScreen.tvMapRouteStatus.visibility = if (isActive) View.VISIBLE else View.GONE
+        mapScreen.layoutMapRouteControls.visibility = View.VISIBLE
+    }
+    /** Режим следования по маршруту (бэклог этапа 18, [Start]) — вызывается из
+     * onMapLocationUpdate() на каждый GPS-фикс, пока mapRouteState == ACTIVE: обновляет
+     * остаток дистанции текстом в панели маршрута и перестраивает маршрут при отклонении от
+     * него дальше MAP_ROUTE_REROUTE_THRESHOLD_M. Голосовые подсказки по поворотам не нужны
+     * (roadmap, бэклог этапа 18). */
+    private fun updateActiveNavigation(location: Location) {
+        val destination = mapRouteDestination ?: return
+        val path = mapRouteLatLonPath
+        if (path.isEmpty()) return
+        // Ближайшая вершина графа дорог к игроку — не полноценная проекция на отрезок, но
+        // достаточное приближение для масштаба полигона (roadmap, "Реальная карта —
+        // находки"), используется и для остатка дистанции, и для порога перестроения.
+        var nearestIndex = 0
+        var nearestDist = Double.MAX_VALUE
+        path.forEachIndexed { index, (lat, lon) ->
+            val dist = GeoReference.haversineMeters(location.latitude, location.longitude, lat, lon)
+            if (dist < nearestDist) {
+                nearestDist = dist
+                nearestIndex = index
+            }
+        }
+        if (nearestDist > MAP_ROUTE_REROUTE_THRESHOLD_M) {
+            rerouteActiveNavigation(location, destination)
+            return
+        }
+        var remainingMeters = nearestDist
+        for (i in nearestIndex until path.size - 1) {
+            val (lat1, lon1) = path[i]
+            val (lat2, lon2) = path[i + 1]
+            remainingMeters += GeoReference.haversineMeters(lat1, lon1, lat2, lon2)
+        }
+        bindingMain.incLayoutTabItemsMap.tvMapRouteStatus.text = formatRouteDistance(remainingMeters)
+    }
+    private fun rerouteActiveNavigation(location: Location, destination: Pair<Double, Double>) {
+        val router = pedestrianRouter ?: return
+        val geoReference = mapGeoReference ?: return
+        lifecycleScope.launch(Dispatchers.Default) {
+            val path = router.route(location.latitude, location.longitude, destination.first, destination.second)
+            withContext(Dispatchers.Main) {
+                // Следование могло быть остановлено, пока считался маршрут — не оживлять его.
+                if (path == null || mapRouteState != MapRouteState.ACTIVE) return@withContext
+                applyRoutePath(geoReference, path)
+            }
+        }
+    }
+    private fun formatRouteDistance(meters: Double): String {
+        val unit = if (meters >= 1000) getString(R.string.map_route_unit_km, meters / 1000.0)
+        else getString(R.string.map_route_unit_meters, meters.roundToInt())
+        return getString(R.string.map_route_status_remaining, unit)
     }
     /** Обновляет статус-строку в Settings > Map Data — импортирован ли бандл, когда и из
      * какой папки. Вызывается при открытии подпанели и сразу после (не)успешного импорта. */
@@ -4877,9 +5102,6 @@ class MainActivity : AppCompatActivity() {
         )
         mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
         mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
-        mapMenu.btnMapMarkerDetailClose.setOnClickListener {
-            hideMarkerDetail()
-        }
         mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             showMarkerNamePopupForEdit(marker)
@@ -4888,7 +5110,6 @@ class MainActivity : AppCompatActivity() {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             routeTo(marker.lat, marker.lon)
             hideMarkerDetail()
-            showMapMenuState(MapMenuState.ROOT)
         }
         mapMenu.btnMapMarkerDetailDelete.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
@@ -4898,6 +5119,26 @@ class MainActivity : AppCompatActivity() {
             hideMarkerDetail()
             bindMarkerListAdapter()
         }
+        // Бэклог этапа 18: зум +/-, выбор [Route]/[Marker] по тапу на пустую точку карты,
+        // управление построенным/активным маршрутом ([Start]/[Cancel]/[Stop]).
+        mapMenu.btnMapZoomIn.setOnClickListener { zoomMapBy(MAP_ZOOM_STEP_FACTOR) }
+        mapMenu.btnMapZoomOut.setOnClickListener { zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR) }
+        mapMenu.btnMapTapChoiceRoute.setOnClickListener {
+            val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
+            hideMapTapChoice()
+            routeTo(lat, lon)
+        }
+        mapMenu.btnMapTapChoiceMarker.setOnClickListener {
+            val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
+            hideMapTapChoice()
+            showMarkerNamePopupForNewMarker(lat, lon)
+        }
+        mapMenu.btnMapRouteStart.setOnClickListener {
+            mapRouteState = MapRouteState.ACTIVE
+            updateRouteControlsVisibility()
+        }
+        mapMenu.btnMapRouteCancel.setOnClickListener { cancelActiveRoute() }
+        mapMenu.btnMapRouteStop.setOnClickListener { cancelActiveRoute() }
         val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
             hideMarkerNamePopup()

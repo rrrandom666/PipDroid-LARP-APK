@@ -14,24 +14,15 @@
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintWidth_percent="0.6">
 
-    <TextView
-        android:id="@+id/tv_marker_name_popup_heading"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/marker_name_popup_heading"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <EditText
         android:id="@+id/et_marker_name_value"
         style="@style/SettingsButtonStyle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:hint="@string/marker_name_popup_heading"
         android:maxLines="1"
         android:singleLine="true"
-        app:layout_constraintTop_toBottomOf="@id/tv_marker_name_popup_heading"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

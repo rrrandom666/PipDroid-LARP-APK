@@ -116,6 +116,12 @@
     <string name="map_hint_route_to_point">Тапни по карте, чтобы построить маршрут</string>
     <string name="map_hint_waiting_gps">Ждём GPS-фикс…</string>
     <string name="map_hint_no_route">Маршрут не найден</string>
+    <string name="map_route_start_button">Старт</string>
+    <string name="map_route_cancel_button">Отмена</string>
+    <string name="map_route_stop_button">Стоп</string>
+    <string name="map_route_status_remaining">Осталось: %1$s</string>
+    <string name="map_route_unit_meters">%1$d м</string>
+    <string name="map_route_unit_km">%1$.1f км</string>
     <string name="marker_name_popup_heading">Название отметки</string>
     <string name="max">МАКС</string>
     <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>

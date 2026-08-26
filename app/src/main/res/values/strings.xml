@@ -778,6 +778,12 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="map_hint_route_to_point">Tap the map to build a route</string>
     <string name="map_hint_waiting_gps">Waiting for GPS…</string>
     <string name="map_hint_no_route">No route found</string>
+    <string name="map_route_start_button">Start</string>
+    <string name="map_route_cancel_button">Cancel</string>
+    <string name="map_route_stop_button">Stop</string>
+    <string name="map_route_status_remaining">Remaining: %1$s</string>
+    <string name="map_route_unit_meters">%1$d m</string>
+    <string name="map_route_unit_km">%1$.1f km</string>
     <string name="marker_name_popup_heading">Marker Name</string>
     <string name="filter_modification_title">Modification</string>
     <string name="filter_title">Filter</string>

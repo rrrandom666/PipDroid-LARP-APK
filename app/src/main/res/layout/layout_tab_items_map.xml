@@ -111,6 +111,137 @@
         app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"/>
 
+    <!-- Зум +/- (бэклог этапа 18) — раньше только pinch. Плавающие кнопки поверх карты в
+         правом верхнем углу, тот же приём (PipWizardButtonStyle, фиксированный dp-размер), что
+         у +/- на SPECIAL/Skills. -->
+    <Button
+        android:id="@+id/btn_map_zoom_in"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:text="+"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map" />
+
+    <Button
+        android:id="@+id/btn_map_zoom_out"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="4dp"
+        android:text="−"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_in"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in" />
+
+    <!-- Тап по произвольной пустой точке карты (бэклог этапа 18) — вместо жёстко
+         предопределённого действия предлагает выбор: построить маршрут до точки или
+         поставить здесь отметку. Тот же приём позиционирования, что и у карточки деталей
+         отметки ниже (плавающая панель внизу карты) — выбор пользователя, см. обсуждение. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_map_tap_choice"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:background="@color/pip_background_darker"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map">
+
+        <TextView
+            android:id="@+id/tv_map_tap_choice_coords"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/btn_map_tap_choice_route"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/map_marker_detail_route_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/btn_map_tap_choice_marker"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/map_menu_place_marker_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Управление построенным маршрутом (бэклог этапа 18) — Start/Cancel сразу после
+         построения, после Start — один Stop вместо них (оба сбрасывают маршрут). Строка
+         статуса (tv_map_route_status) пустует, пока маршрут не запущен, во время следования
+         (Фаза "режим следования") в неё пишется остаток дистанции — тот же слот, что и у
+         подсказок/деталей отметки, см. updateRouteControlsVisibility() в MainActivity.kt. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_map_route_controls"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:background="@color/pip_background_darker"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map">
+
+        <TextView
+            android:id="@+id/tv_map_route_status"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/btn_map_route_start"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/map_route_start_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/btn_map_route_cancel"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/map_route_cancel_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
+            app:layout_constraintStart_toEndOf="@id/btn_map_route_start" />
+
+        <Button
+            android:id="@+id/btn_map_route_stop"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/map_route_stop_button"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
+            app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
     <!-- Карточка деталей выбранной отметки (из "Список меток"/"До отметки") — имя,
          координаты, действия. Своя, не полноэкранная — только над картой, справа от меню. -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -140,14 +271,6 @@
             android:layout_marginTop="4dp"
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_name"
             app:layout_constraintStart_toStartOf="parent" />
-
-        <Button
-            android:id="@+id/btn_map_marker_detail_close"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:text=" X "
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
 
         <Button
             android:id="@+id/btn_map_marker_detail_edit"

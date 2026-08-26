@@ -9,8 +9,11 @@ import androidx.recyclerview.widget.RecyclerView
 
 /**
  * Один пункт бокового меню 3 уровня (Roadmap, "Единый компонент бокового меню 3 уровня").
- * [rightValue] — только у SPECIAL/Skills (справа от названия), [enabled] — затенение
- * недоступного пункта (Status).
+ * [rightValue] — только у SPECIAL/Skills (справа от названия). [enabled] — только
+ * затенение (Status, alpha), НЕ блокирует тап/`selectPosition()` — курсор обязан
+ * переезжать на пункт независимо от исхода (Status: тап по недоступной сейчас кнопке
+ * ранения всё равно двигает рамку, просто вместо действия играет звук ошибки — это решает
+ * колбэк [SidebarMenuAdapter.onSelect] у конкретного экрана, не сам адаптер).
  */
 data class SidebarMenuItem<T>(
     val payload: T,
@@ -66,7 +69,10 @@ class SidebarMenuAdapter<T>(
     override fun onBindViewHolder(holder: SidebarMenuViewHolder, position: Int) {
         val item = items[position]
         holder.label.text = item.label
-        holder.label.alpha = if (item.enabled) 1.0f else 0.4f
+        // На всей строке (рамку красит именно itemView, см. selectedBackgroundRes ниже),
+        // не только на тексте — иначе рамка недоступного пункта остаётся яркой, гаснет
+        // только текст (Status, фидбек по итогам тестирования).
+        holder.itemView.alpha = if (item.enabled) 1.0f else 0.4f
 
         if (item.rightValue != null) {
             holder.value.text = item.rightValue
@@ -109,13 +115,24 @@ class SidebarMenuAdapter<T>(
     fun selectPosition(position: Int) {
         if (position !in items.indices) return
         val item = items[position]
-        if (!item.enabled) return
         val previous = selectedPosition
         selectedPosition = position
         if (previous != position) notifyItemChanged(previous)
         notifyItemChanged(selectedPosition)
         playSelectSound()
         onSelect(position, item)
+    }
+
+    /** Молча переставить рамку курсора — без звука, без [onSelect]. Нужно там, где позицию
+     * меняет не тап игрока, а что-то другое: восстановление состояния после убийства
+     * процесса, автоматическая эскалация таймера ранения на Status (Light -> Heavy сама
+     * двигает рамку, это не выбор игрока). */
+    fun setSelectedPositionSilently(position: Int) {
+        if (position !in items.indices) return
+        val previous = selectedPosition
+        selectedPosition = position
+        if (previous != position) notifyItemChanged(previous)
+        notifyItemChanged(selectedPosition)
     }
 
     fun selectedPosition(): Int = selectedPosition

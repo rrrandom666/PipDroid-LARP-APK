@@ -530,6 +530,26 @@ class MainActivity : AppCompatActivity() {
     private var isSPECIALValueIncreasing = false
     private var isSPECIALValueDecreasing = false
 
+    /** Метаданные 7 характеристик SPECIAL — тот же приём, что у skillsMeta (см. выше),
+     * единственный источник, из которого строится SidebarMenuAdapter. */
+    private data class SpecialMeta(
+        val key: String,
+        val labelRes: Int,
+        val prefKey: String,
+        val imageRes: Int,
+        val descriptionRes: Int,
+    )
+    private val specialMeta = listOf(
+        SpecialMeta("STRENGTH", R.string.stats_special_strength, "SPECIAL_S", R.drawable.special_strength, R.string.special_strength_description),
+        SpecialMeta("PERCEPTION", R.string.special_perception, "SPECIAL_P", R.drawable.special_perception, R.string.special_perception_description),
+        SpecialMeta("ENDURANCE", R.string.special_endurance, "SPECIAL_E", R.drawable.special_endurance, R.string.special_endurance_description),
+        SpecialMeta("CHARISMA", R.string.special_charisma, "SPECIAL_C", R.drawable.special_charisma, R.string.special_charisma_description),
+        SpecialMeta("INTELLIGENCE", R.string.special_intelligence, "SPECIAL_I", R.drawable.special_intelligence, R.string.special_intelligence_description),
+        SpecialMeta("AGILITY", R.string.special_agility, "SPECIAL_A", R.drawable.special_agility, R.string.special_agility_description),
+        SpecialMeta("LUCK", R.string.special_luck, "SPECIAL_L", R.drawable.special_luck, R.string.special_luck_description),
+    )
+    private lateinit var specialAdapter: SidebarMenuAdapter<String>
+
     private var selectedSKILL = "BARTER"
     private var isSKILLValueIncreasing = false
     private var isSKILLValueDecreasing = false
@@ -1241,7 +1261,7 @@ class MainActivity : AppCompatActivity() {
         crippledRightArm = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_ARM)
         crippledLeftLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_LEG)
         crippledRightLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_LEG)
-        statusCursorRow = statusCursorRowFromIndex(savedInstanceState.getInt(KEY_STATUS_CURSOR_ROW))
+        statusAdapter.setSelectedPositionSilently(savedInstanceState.getInt(KEY_STATUS_CURSOR_ROW))
         timerState = try {
             TimerState.valueOf(savedInstanceState.getString(KEY_TIMER_STATE, TimerState.IDLE.name))
         } catch (e: IllegalArgumentException) { TimerState.IDLE }
@@ -2579,28 +2599,23 @@ class MainActivity : AppCompatActivity() {
      * сейчас смысла нет.
      */
     private fun statsMenuRoot(): List<MenuNode> {
-        val statusButtons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
+        // Status — SidebarMenuAdapter, тот же приём, что у SPECIAL/Skills выше. Известный
+        // баг энкодера (перемещение курсора сразу запускает таймер, roadmap этап 26) здесь
+        // намеренно не трогается — просто перенесён на новую точку входа как есть, чинить
+        // будем отдельным проходом по энкодер-эргономике всех экранов.
         val statusNode = MenuNode(
             id = "STATUS",
-            children = listOf(
-                MenuNode("LIGHT") { statusButtons.btnWoundLight.performClick() },
-                MenuNode("HEAVY") { statusButtons.btnWoundHeavy.performClick() },
-                MenuNode("STUNNED") { statusButtons.btnStunned.performClick() },
-            ),
+            children = statusMeta.mapIndexed { index, meta ->
+                MenuNode(meta.key) { statusAdapter.selectPosition(index) }
+            },
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsStatus.performClick() }
         )
-        val special = bindingMain.incLayoutTabStatsSpecial
+        // SPECIAL теперь SidebarMenuAdapter — тот же приём, что у skillsNode выше.
         val specialNode = MenuNode(
             id = "SPECIAL",
-            children = listOf(
-                MenuNode("STRENGTH") { special.layoutTabStatsSpecialStrength.performClick() },
-                MenuNode("PERCEPTION") { special.layoutTabSpecialPerception.performClick() },
-                MenuNode("ENDURANCE") { special.layoutTabSpecialEndurance.performClick() },
-                MenuNode("CHARISMA") { special.layoutTabSpecialCharisma.performClick() },
-                MenuNode("INTELLIGENCE") { special.layoutTabSpecialIntelligence.performClick() },
-                MenuNode("AGILITY") { special.layoutTabSpecialAgility.performClick() },
-                MenuNode("LUCK") { special.layoutTabSpecialLuck.performClick() },
-            ),
+            children = specialMeta.mapIndexed { index, meta ->
+                MenuNode(meta.key) { specialAdapter.selectPosition(index) }
+            },
             onSelect = { bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.performClick() }
         )
         // Skills теперь SidebarMenuAdapter, не отдельная кнопка на пункт — MenuNode.onSelect
@@ -2906,25 +2921,14 @@ class MainActivity : AppCompatActivity() {
      * но теперь клампятся на границе, а не зацикливаются — с отдельными кнопками +/-
      * зацикливание было осмысленно только при "можно было исключительно прибавлять".
      */
-    private fun specialPrefKeyAndView(name: String): Pair<String, TextView>? {
-        val special = bindingMain.incLayoutTabStatsSpecial
-        return when (name) {
-            "STRENGTH" -> "SPECIAL_S" to special.tvSpecialStrengthValue
-            "PERCEPTION" -> "SPECIAL_P" to special.tvSpecialPerceptionValue
-            "ENDURANCE" -> "SPECIAL_E" to special.tvSpecialEnduranceValue
-            "CHARISMA" -> "SPECIAL_C" to special.tvSpecialCharismaValue
-            "INTELLIGENCE" -> "SPECIAL_I" to special.tvSpecialIntelligenceValue
-            "AGILITY" -> "SPECIAL_A" to special.tvSpecialAgilityValue
-            "LUCK" -> "SPECIAL_L" to special.tvSpecialLuckValue
-            else -> null
-        }
-    }
     private fun adjustSelectedSpecial(delta: Int) {
-        val (prefKey, textView) = specialPrefKeyAndView(selectedSPECIAL) ?: return
-        val prevValue = sharedPreferences.getInt(prefKey, 5)
+        val position = specialMeta.indexOfFirst { it.key == selectedSPECIAL }
+        if (position == -1) return
+        val meta = specialMeta[position]
+        val prevValue = sharedPreferences.getInt(meta.prefKey, 5)
         val curValue = (prevValue + delta).coerceIn(1, 10)
-        textView.text = curValue.toString()
-        sharedPreferences.edit().putInt(prefKey, curValue).apply()
+        sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
+        specialAdapter.updateItemValue(position, curValue.toString())
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
     }
     private fun adjustSelectedSkill(delta: Int) {
@@ -2957,8 +2961,7 @@ class MainActivity : AppCompatActivity() {
         // Здоров по умолчанию (woundPhase == NONE) — ни одна из трёх кнопок статуса не
         // выделена, updateWoundButtonsUI() сама так и посчитает.
         updateWoundButtonsUI()
-        findViewById<ConstraintLayout>(R.id.layout_tab_stats_special_strength).setBackgroundResource(selected_button)
-        // Skills — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
+        // SPECIAL/Skills — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
         // initialSelectedPosition по умолчанию 0), отдельная строка тут больше не нужна.
     }
     private fun setupDATA(){
@@ -3485,55 +3488,40 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(woundFaceDrawable())
     }
     /**
-     * Рамка-курсор вокруг одной из трёх строк статуса (по образцу /SPECIAL, где рамка
-     * двигается энкодером между Strength/Perception/и т.д. — тот же смысл: "сюда попадёт
-     * нажатие", а не "это сейчас активный статус"). Пока энкодер не подключён к этому
-     * экрану — курсор двигает тач (см. onWoundActionTapped()), по умолчанию стоит на
-     * "Лёгкое ранение". Полностью независим от disabled/alpha ниже — фидбек по итогам
+     * Единый компонент бокового меню 3 уровня (roadmap) — курсор/подсветка/звук теперь
+     * SidebarMenuAdapter, не отдельная рамка-View. Курсор двигается тапом/энкодером
+     * независимо от disabled/alpha (см. updateWoundButtonsUI()) — фидбек по итогам
      * тестирования: раньше подсвеченная кнопка при этом ещё и не гасла вместе с
      * остальными, что читалось как "эта кнопка работает", хотя клик по ней тоже давал
-     * ошибку. Рамка/фон — на строке-контейнере (fill_parent), не на самом Button
-     * (wrap_content) — иначе ширина рамки скачет от длины текста пункта (тот же фидбек).
+     * ошибку. [SidebarMenuItem.enabled] в адаптере теперь только затенение, не блокировка
+     * тапа — см. SidebarMenuAdapter.kt.
      */
-    private var statusCursorRow: View? = null
-    /** Индекс 0/1/2 (Light/Heavy/Stunned) — [statusCursorRow] сам View, его нельзя
-     * положить в Bundle (roadmap, "Восстановление состояния после убийства процесса —
-     * спецификация"), поэтому для onSaveInstanceState()/restore нужна пара конверсий. */
-    private fun statusCursorRowIndex(): Int {
-        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
-        return when (statusCursorRow) {
-            buttons.layoutTabStatusWoundHeavyRow -> 1
-            buttons.layoutTabStatusStunnedRow -> 2
-            else -> 0
-        }
-    }
-    private fun statusCursorRowFromIndex(index: Int): View {
-        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
-        return when (index) {
-            1 -> buttons.layoutTabStatusWoundHeavyRow
-            2 -> buttons.layoutTabStatusStunnedRow
-            else -> buttons.layoutTabStatusWoundLightRow
-        }
-    }
+    private data class StatusWoundMeta(val key: String, val labelRes: Int, val action: () -> Unit)
+    private val statusMeta = listOf(
+        StatusWoundMeta("LIGHT", R.string.title_stats_wound_light) {
+            startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+        },
+        StatusWoundMeta("HEAVY", R.string.title_stats_wound_heavy) {
+            startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+        },
+        StatusWoundMeta("STUNNED", R.string.title_stats_stunned) {
+            startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
+        },
+    )
+    private lateinit var statusAdapter: SidebarMenuAdapter<String>
     private fun updateWoundButtonsUI() {
-        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
-        val rows = listOf(buttons.layoutTabStatusWoundLightRow, buttons.layoutTabStatusWoundHeavyRow, buttons.layoutTabStatusStunnedRow)
-        val cursor = statusCursorRow ?: buttons.layoutTabStatusWoundLightRow
-        statusCursorRow = cursor
-        for (row in rows) {
-            row.setBackgroundResource(if (row === cursor) selectedRowButton else R.drawable.button_unselected)
-        }
-        // isEnabled остаётся true всегда — иначе Android вообще не даст клику дойти до
-        // обработчика, а по нажатию на недоступную сейчас кнопку нужен звук ошибки (см.
-        // onWoundActionTapped()), не молчаливое игнорирование. "Задизейбленность" здесь
-        // только визуальная (alpha, на строке — гасит и рамку, и текст разом) — и
-        // одинаковая для всех трёх строк, включая ту, что под курсором: раз клик по ней
-        // тоже ничего не делает, кроме звука ошибки, она не должна визуально выделяться
-        // как "рабочая".
-        val enabled = woundPhase == WoundPhase.NONE
-        val dimAlpha = if (enabled) 1.0f else 0.4f
-        for (row in rows) {
-            row.alpha = dimAlpha
+        // Затенение — одинаковое у всех трёх пунктов, следует за woundPhase (не блокирует
+        // тап через SidebarMenuItem.enabled — см. SidebarMenuAdapter.kt: клик по недоступной
+        // сейчас кнопке всё равно должен доехать до onSelect и дать звук ошибки, не молча
+        // игнорироваться). Курсор (resetSelection=false) не трогаем — сюда попадают и после
+        // тапа/энкодера (курсор уже там, где нужно), и после смены woundPhase без участия
+        // игрока (эскалация — та явно двигает курсор сама, см. startWoundTimer()).
+        if (::statusAdapter.isInitialized) {
+            val enabled = woundPhase == WoundPhase.NONE
+            statusAdapter.setItems(
+                statusMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes), enabled = enabled) },
+                resetSelection = false,
+            )
         }
         // Таймер ранения нельзя ставить на паузу — ни отсюда, ни с экрана ITEMS/Таймер
         // (roadmap, "Редизайн STATS/Status — UX-спецификация"). DEAD — таймера уже нет,
@@ -3596,12 +3584,12 @@ class MainActivity : AppCompatActivity() {
         // унаследованного таймера), не только за тапом игрока — фидбек по итогам
         // тестирования: после эскалации Light -> Heavy рамка должна сама переехать на
         // "Тяжело ранен", а не оставаться на прежнем пункте.
-        val buttons = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
-        statusCursorRow = when {
-            phase == WoundPhase.STUNNED -> buttons.layoutTabStatusStunnedRow
-            woundSeverity == WoundSeverity.LIGHT -> buttons.layoutTabStatusWoundLightRow
-            else -> buttons.layoutTabStatusWoundHeavyRow
+        val cursorIndex = when {
+            phase == WoundPhase.STUNNED -> 2
+            woundSeverity == WoundSeverity.LIGHT -> 0
+            else -> 1
         }
+        statusAdapter.setSelectedPositionSilently(cursorIndex)
         applyWoundFace()
         updateWoundButtonsUI()
         timerState = TimerState.RUNNING
@@ -3610,20 +3598,6 @@ class MainActivity : AppCompatActivity() {
         updateWoundStatusLine()
         updateWoundCountdownText(durationSeconds)
         updateClockTimerLabel()
-    }
-    /** Общий обработчик тапа по любой из трёх кнопок статуса — двигает курсор туда
-     * независимо от исхода, и только потом либо выполняет действие (woundPhase == NONE),
-     * либо играет звук ошибки (кнопка "задизейблена" только по alpha/звуку, не по
-     * isEnabled — см. updateWoundButtonsUI()). */
-    private fun onWoundActionTapped(row: View, action: () -> Unit) {
-        statusCursorRow = row
-        updateWoundButtonsUI()
-        if (woundPhase != WoundPhase.NONE) {
-            playErrorAudio()
-        } else {
-            playNewTabSelectAudio()
-            action()
-        }
     }
     /** Вылечен — общий финал и для BANDAGE (успели), и для STUNNED (прошло/остановлено):
      * возврат к man_face, таймер снят. CRIPPLED-тоггл по конечностям не трогается — это
@@ -4282,21 +4256,26 @@ class MainActivity : AppCompatActivity() {
         bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
 
 
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialEndurance)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialIntelligence)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility)
-        listStatsSpecials.add(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialLuck)
-
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialStrengthValue.text = sharedPreferences.getInt("SPECIAL_S", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialPerceptionValue.text = sharedPreferences.getInt("SPECIAL_P", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialEnduranceValue.text = sharedPreferences.getInt("SPECIAL_E", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialCharismaValue.text = sharedPreferences.getInt("SPECIAL_C", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialIntelligenceValue.text = sharedPreferences.getInt("SPECIAL_I", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialAgilityValue.text = sharedPreferences.getInt("SPECIAL_A", 5).toString()
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialLuckValue.text = sharedPreferences.getInt("SPECIAL_L", 5).toString()
+        // SPECIAL — единый компонент бокового меню 3 уровня (см. Skills выше, тот же приём).
+        specialAdapter = SidebarMenuAdapter(
+            items = specialMeta.map { meta ->
+                SidebarMenuItem(
+                    payload = meta.key,
+                    label = getString(meta.labelRes),
+                    rightValue = sharedPreferences.getInt(meta.prefKey, 5).toString(),
+                )
+            },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                val meta = specialMeta.first { it.key == item.payload }
+                selectedSPECIAL = meta.key
+                bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(meta.imageRes)
+                bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(meta.descriptionRes)
+            },
+        )
+        bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial.layoutManager = LinearLayoutManager(this)
+        bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial.adapter = specialAdapter
 
         // Skills — единый компонент бокового меню 3 уровня (roadmap, "Единый компонент
         // бокового меню 3 уровня") вместо 13 hand-copied XML-блоков + 13 setOnClickListener.
@@ -4322,6 +4301,34 @@ class MainActivity : AppCompatActivity() {
         )
         bindingMain.incLayoutTabStatsSkills.scrollTabSkills.layoutManager = LinearLayoutManager(this)
         bindingMain.incLayoutTabStatsSkills.scrollTabSkills.adapter = skillsAdapter
+
+        // Status — единый компонент бокового меню 3 уровня. playSelectSound молчит
+        // (no-op) — звук решает сам onSelect (item_select на успешном тапе, звук ошибки на
+        // недоступном сейчас действии, см. StatusWoundMeta/WoundPhase выше). enabled у всех
+        // трёх пунктов одинаковый и следует за woundPhase — обновляется в
+        // updateWoundButtonsUI(), не тут: тут только начальное состояние при первом показе.
+        statusAdapter = SidebarMenuAdapter(
+            items = statusMeta.map { meta ->
+                SidebarMenuItem(
+                    payload = meta.key,
+                    label = getString(meta.labelRes),
+                    enabled = woundPhase == WoundPhase.NONE,
+                )
+            },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = {},
+            onSelect = { _, item ->
+                val meta = statusMeta.first { it.key == item.payload }
+                if (woundPhase != WoundPhase.NONE) {
+                    playErrorAudio()
+                } else {
+                    playItemSelectAudio()
+                    meta.action()
+                }
+            },
+        )
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.layoutManager = LinearLayoutManager(this)
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.adapter = statusAdapter
 
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
@@ -4594,22 +4601,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
         }
 
-        val statusButtonsSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons
-        statusButtonsSetup.btnWoundLight.setOnClickListener {
-            onWoundActionTapped(statusButtonsSetup.layoutTabStatusWoundLightRow) {
-                startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-            }
-        }
-        statusButtonsSetup.btnWoundHeavy.setOnClickListener {
-            onWoundActionTapped(statusButtonsSetup.layoutTabStatusWoundHeavyRow) {
-                startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-            }
-        }
-        statusButtonsSetup.btnStunned.setOnClickListener {
-            onWoundActionTapped(statusButtonsSetup.layoutTabStatusStunnedRow) {
-                startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
-            }
-        }
+        // Клики по LIGHT/HEAVY/STUNNED — теперь внутри SidebarMenuAdapter (statusAdapter,
+        // см. выше), 3 setOnClickListener на кнопку тут больше не нужны.
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop.setOnClickListener {
             playNewTabSelectAudio()
             stopWoundTimerEarly()
@@ -4656,47 +4649,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabStatsSpecialStrength, listStatsSpecials, "STRENGTH")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_strength)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_strength_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialPerception, listStatsSpecials, "PERCEPTION")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_perception)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_perception_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialEndurance.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialEndurance, listStatsSpecials, "ENDURANCE")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_endurance)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_endurance_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialCharisma, listStatsSpecials, "CHARISMA")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_charisma)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_charisma_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialIntelligence.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialIntelligence, listStatsSpecials, "INTELLIGENCE")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_intelligence)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_intelligence_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialAgility, listStatsSpecials, "AGILITY")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_agility)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_agility_description)
-        }
-
-        bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialLuck.setOnClickListener{
-            setSelectedSPECIALButton(bindingMain.incLayoutTabStatsSpecial.layoutTabSpecialLuck, listStatsSpecials, "LUCK")
-            bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(R.drawable.special_luck)
-            bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(R.string.special_luck_description)
-        }
+        // Клики по пунктам SPECIAL — теперь внутри SidebarMenuAdapter (specialAdapter, см.
+        // выше), 7 setOnClickListener на кнопку тут больше не нужны.
 
         // Кнопки +/- (roadmap, "Финализация STATS") — тап меняет значение выбранной
         // характеристики на 1 (onClick), удержание повторяет через longPressRunnable
@@ -5645,7 +5599,7 @@ class MainActivity : AppCompatActivity() {
         outState.putBoolean(KEY_CRIPPLED_RIGHT_ARM, crippledRightArm)
         outState.putBoolean(KEY_CRIPPLED_LEFT_LEG, crippledLeftLeg)
         outState.putBoolean(KEY_CRIPPLED_RIGHT_LEG, crippledRightLeg)
-        outState.putInt(KEY_STATUS_CURSOR_ROW, statusCursorRowIndex())
+        outState.putInt(KEY_STATUS_CURSOR_ROW, statusAdapter.selectedPosition())
     }
 
     /** Сворачивание приложения или блокировка экрана — Activity перестаёт быть видимой

@@ -236,15 +236,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@drawable/scanline_xml" />
 
-    <ImageView
-        android:id="@+id/img_screenglare"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:background="@drawable/screenglare_alpha"
-        android:scaleType="fitXY"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <FrameLayout
         android:id="@+id/fl_flashlight"
         android:layout_width="fill_parent"
@@ -332,6 +323,28 @@
             android:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Блик экрана (roadmap, "Единый компонент бокового меню 3 уровня" — побочная находка
+         при тестировании) — раньше стоял рано в иерархии и перекрывался фоном буквально
+         любого экрана поверх него (mode-select, Settings, фильтр, мастер и т.д.), реально
+         был виден только у Tutorial (там своя отдельная копия в layout_tab_tutorial_base.xml,
+         эта — не она). Перенесён почти в самый конец, чтобы рисоваться поверх всех обычных
+         экранов. По умолчанию виден — самый первый экран приложения (выбор режима) стоит
+         ДО того, как срабатывает любая из функций состояния OFF/ON, значит и до первого
+         вызова updateScreenGlareVisibility(); та выключает его явно только в реальных
+         OFF-моментах (setPowerOffInstant()/шаг POWER_HINT/fadeToShutdownTerminal()) и
+         включает обратно в ON-моментах (finishPhoneModeSetup()/playBootSequence()), см.
+         MainActivity.updateScreenGlareVisibility(). Не должен перехватывать тапы:
+         обычный ImageView без клика/фокуса, тач проходит сквозь него на элементы под ним
+         (тот же приём, что уже работал у img_scanline выше). -->
+    <ImageView
+        android:id="@+id/img_screenglare"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="@drawable/screenglare_alpha"
+        android:scaleType="fitXY"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Оверлей глитч-эффекта (roadmap, "Видение приложения", п.11 — довесок к анимации
          включения) — последний ребёнок root, перекрывает вообще всё (заставку и основной

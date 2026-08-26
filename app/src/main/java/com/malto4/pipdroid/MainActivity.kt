@@ -1160,6 +1160,7 @@ class MainActivity : AppCompatActivity() {
         resetToFullScreen()
         bindingMain.viewPowerOff.animate().cancel()
         bindingMain.viewPowerOff.visibility = View.GONE
+        updateScreenGlareVisibility()
         stopBleService()
         menuChangeBLE("STATS")
         menuNavigator.resetToRoot(statsMenuRoot())
@@ -1289,6 +1290,7 @@ class MainActivity : AppCompatActivity() {
         w.layoutWizardPowerHint.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.VISIBLE else View.GONE
         w.tvWizardPowerHint.visibility = View.VISIBLE
         w.btnWizardHideHint.visibility = View.VISIBLE
+        updateScreenGlareVisibility()
 
         // Скан идёт только пока реально показан шаг PAIRING — начинаем/останавливаем
         // строго по факту показа шага, не полагаясь на то, что игрок сам нажмёт кнопку.
@@ -2088,6 +2090,19 @@ class MainActivity : AppCompatActivity() {
      * INTERFACE CHANGES
      **********************************************************************************************************/
     /**
+     * Блик (img_screenglare) должен быть скрыт на "выключенных" состояниях — обычном
+     * чёрном OFF (view_power_off) и на шаге мастера POWER_HINT (тоже концептуально
+     * выключенный экран, просто с подсказкой нажать POWER) — иначе бледный оверлей
+     * просвечивает поверх сплошного чёрного. Вызывается в каждом месте, которое переключает
+     * эти состояния, а не через один общий слушатель — так же, как остальная логика этих
+     * состояний в этом файле устроена явными вызовами, а не наблюдателями.
+     */
+    private fun updateScreenGlareVisibility() {
+        val isOff = bindingMain.viewPowerOff.visibility == View.VISIBLE ||
+            bindingMain.incLayoutPipboy2000Wizard.layoutWizardPowerHint.visibility == View.VISIBLE
+        bindingMain.imgScreenglare.visibility = if (isOff) View.GONE else View.VISIBLE
+    }
+    /**
      * Мгновенный "выключенный" вид без звука/анимации — безопасный дефолт при входе в
      * мастер PipBoy 2000/3000 (selectPipBoyMode()), до того как реально пришёл первый
      * POWER. Не то же самое, что applyPowerState(false) ниже — та воспроизводит полную
@@ -2102,6 +2117,7 @@ class MainActivity : AppCompatActivity() {
         overlay.animate().cancel()
         overlay.alpha = 1f
         overlay.visibility = View.VISIBLE
+        updateScreenGlareVisibility()
     }
 
     /**
@@ -2205,6 +2221,7 @@ class MainActivity : AppCompatActivity() {
         boot.tvBootTerminal.setTextColor(accent)
 
         bindingMain.viewPowerOff.visibility = View.GONE
+        updateScreenGlareVisibility()
         boot.root.visibility = View.VISIBLE
         boot.layoutBootFrameLogo.visibility = View.VISIBLE
         boot.layoutBootFrameCodewall.visibility = View.GONE
@@ -2380,6 +2397,7 @@ class MainActivity : AppCompatActivity() {
         overlay.animate().cancel()
         overlay.alpha = 0f
         overlay.visibility = View.VISIBLE
+        updateScreenGlareVisibility()
         overlay.animate()
             .alpha(1f)
             .setDuration(SHUTDOWN_FADE_TO_BLACK_MS)

@@ -183,6 +183,19 @@ class MainActivity : AppCompatActivity() {
      **********************************************************************************************************/
     private var listBottomButtons = ArrayList<Button>()
     private var listItemsClockButtons = ArrayList<Button>()
+    /** Метаданные корневого меню Clock (roadmap, "Единый компонент бокового меню
+     * 3 уровня") — тот же приём, что у skillsMeta/specialMeta/statusMeta. Без action —
+     * поведение по клику решает единственный showClockContentPanel()/openClockMelodyScreen()
+     * в onSelect адаптера (см. ниже), а не отдельный лямбда-экшн на пункт. */
+    private data class ClockFeatureMeta(val key: String, val labelRes: Int)
+    private val clockMeta = listOf(
+        ClockFeatureMeta("TIME", R.string.clock_feature_time),
+        ClockFeatureMeta("ALARM", R.string.clock_feature_alarm),
+        ClockFeatureMeta("TIMER", R.string.clock_feature_timer),
+        ClockFeatureMeta("STOPWATCH", R.string.clock_feature_stopwatch),
+        ClockFeatureMeta("MELODY", R.string.clock_feature_melody),
+    )
+    private lateinit var clockAdapter: SidebarMenuAdapter<String>
     private var listStatsSpecials = ArrayList<ConstraintLayout>()
     private var listStatsSkills = ArrayList<ConstraintLayout>()
     private var listDataMisc = ArrayList<ConstraintLayout>()
@@ -2644,16 +2657,12 @@ class MainActivity : AppCompatActivity() {
      */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
-        val clockButtons = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons
+        // Clock — SidebarMenuAdapter, тот же приём, что у SPECIAL/Skills/Status выше.
         val clockNode = MenuNode(
             id = "CLOCK",
-            children = listOf(
-                MenuNode("TIME") { clockButtons.btnClockTime.performClick() },
-                MenuNode("ALARM") { clockButtons.btnClockAlarm.performClick() },
-                MenuNode("TIMER") { clockButtons.btnClockTimer.performClick() },
-                MenuNode("STOPWATCH") { clockButtons.btnClockStopwatch.performClick() },
-                MenuNode("MELODY") { clockButtons.btnClockMelody.performClick() },
-            ),
+            children = clockMeta.mapIndexed { index, meta ->
+                MenuNode(meta.key) { clockAdapter.selectPosition(index) }
+            },
             onSelect = { bottom.btnItemsClock.performClick() }
         )
         return listOf(
@@ -2969,8 +2978,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
     }
     private fun setupITEMSClock(){
-        //Set Selected buttons by default
-        findViewById<Button>(R.id.btn_clock_time).setBackgroundResource(selected_button)
+        // Clock — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
+        // initialSelectedPosition по умолчанию 0), отдельная строка тут больше не нужна.
     }
     /**
      * Проверка срабатывания будильника (roadmap, "Часы — UX-спецификация") — вызывается
@@ -3144,6 +3153,26 @@ class MainActivity : AppCompatActivity() {
         } else if (!checkAudioPermission()) {
             requestAudioPermission()
         }
+    }
+    /** TIME/ALARM/TIMER/STOPWATCH — переключение видимой панели справа (roadmap, "Единый
+     * компонент бокового меню 3 уровня"). MELODY сюда не входит — отдельный полноэкранный
+     * переход, см. openClockMelodyScreen(). Баг, найденный на энкодере: openClockMelodyScreen()
+     * прячет ВЕСЬ сайдбар (layoutTabItemsClockButtonsContainer) и панель контента
+     * (layoutTabItemsClockContent), не только саму Мелодию — раньше выйти можно было только
+     * её собственной кнопкой [Назад] (closeClockMelodyScreen(), которая их и возвращает).
+     * View.performClick(), на котором работает энкодер, не проверяет видимость — с
+     * энкодера можно уйти с Мелодии на любой другой пункт напрямую, минуя [Назад], и без
+     * восстановления этих двух контейнеров здесь весь экран Clock визуально пустеет. */
+    private fun showClockContentPanel(key: String) {
+        stopMelodyPreview()
+        val clock = bindingMain.incLayoutTabItemsClock
+        clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
+        clock.layoutTabItemsClockContent.visibility = View.VISIBLE
+        clock.incLayoutTabItemsClockTime.root.visibility = if (key == "TIME") View.VISIBLE else View.GONE
+        clock.incLayoutTabItemsClockAlarm.root.visibility = if (key == "ALARM") View.VISIBLE else View.GONE
+        clock.incLayoutTabItemsClockTimer.root.visibility = if (key == "TIMER") View.VISIBLE else View.GONE
+        clock.incLayoutTabItemsClockStopwatch.root.visibility = if (key == "STOPWATCH") View.VISIBLE else View.GONE
+        clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
     }
     private fun openClockMelodyScreen() {
         val clock = bindingMain.incLayoutTabItemsClock
@@ -4338,12 +4367,6 @@ class MainActivity : AppCompatActivity() {
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave)
         listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom)
 
-        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockTime)
-        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockAlarm)
-        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockTimer)
-        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockStopwatch)
-        listItemsClockButtons.add(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockButtons.btnClockMelody)
-
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
         translateAnimation.duration = 9000
@@ -4955,42 +4978,20 @@ class MainActivity : AppCompatActivity() {
         Часы/Будильник/Таймер/Секундомер/Мелодия звонка, справа содержимое выбранной.
         */
         val clock = bindingMain.incLayoutTabItemsClock
-        clock.incLayoutTabItemsClockButtons.btnClockTime.setOnClickListener {
-            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockTime, listItemsClockButtons)
-            clock.incLayoutTabItemsClockTime.root.visibility = View.VISIBLE
-            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-        }
-        clock.incLayoutTabItemsClockButtons.btnClockAlarm.setOnClickListener {
-            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockAlarm, listItemsClockButtons)
-            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockAlarm.root.visibility = View.VISIBLE
-            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-        }
-        clock.incLayoutTabItemsClockButtons.btnClockTimer.setOnClickListener {
-            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockTimer, listItemsClockButtons)
-            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockTimer.root.visibility = View.VISIBLE
-            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-        }
-        clock.incLayoutTabItemsClockButtons.btnClockStopwatch.setOnClickListener {
-            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockStopwatch, listItemsClockButtons)
-            clock.incLayoutTabItemsClockTime.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockAlarm.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockTimer.root.visibility = View.GONE
-            clock.incLayoutTabItemsClockStopwatch.root.visibility = View.VISIBLE
-            clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-        }
-        clock.incLayoutTabItemsClockButtons.btnClockMelody.setOnClickListener {
-            setSelectedClockButton(clock.incLayoutTabItemsClockButtons.btnClockMelody, listItemsClockButtons)
-            openClockMelodyScreen()
-        }
+        clockAdapter = SidebarMenuAdapter(
+            items = clockMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                if (item.payload == "MELODY") {
+                    openClockMelodyScreen()
+                } else {
+                    showClockContentPanel(item.payload)
+                }
+            },
+        )
+        clock.incLayoutTabItemsClockButtons.recyclerTabItemsClockButtons.layoutManager = LinearLayoutManager(this)
+        clock.incLayoutTabItemsClockButtons.recyclerTabItemsClockButtons.adapter = clockAdapter
 
         /*
         ////////////////////////////////////////////////////////

@@ -1,70 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ITEMS/Clock — список фичей слева (roadmap, "Часы — UX-спецификация"), по образцу
-     layout_tab_stats_status_buttons.xml (STATUS -> CND/RAD/EFF). Ровно 5 известных
-     заранее пунктов, не динамический список — обычные кнопки, не RecyclerView, поэтому
-     подключаются к дереву MenuNode так же просто, как STATUS/SPECIAL/SKILLS/GENERAL
-     (в отличие от настоящего Perks, см. комментарий у statsMenuRoot() в MainActivity.kt). -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/linearlayout_tab_items_clock_buttons"
+<!-- ITEMS/Clock — список фичей слева (roadmap, "Единый компонент бокового меню
+     3 уровня") — SidebarMenuAdapter вместо 5 кнопок с layout_weight (растягивались на всю
+     колонку) — тот же приём, что у SPECIAL/Skills/Status. -->
+<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recycler_tab_items_clock_buttons"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:layout_gravity="center"
-    android:orientation="vertical">
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_clock_time"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:gravity="center_vertical|left"
-        android:text="@string/clock_feature_time" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_clock_alarm"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:gravity="center_vertical|left"
-        android:text="@string/clock_feature_alarm" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_clock_timer"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:gravity="center_vertical|left"
-        android:text="@string/clock_feature_timer" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_clock_stopwatch"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:gravity="center_vertical|left"
-        android:text="@string/clock_feature_stopwatch" />
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btn_clock_melody"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="fill_parent"
-        android:layout_height="0.0dip"
-        android:layout_weight="1.0"
-        android:minWidth="48dip"
-        android:minHeight="30dip"
-        android:gravity="center_vertical|left"
-        android:text="@string/clock_feature_melody" />
-
-</LinearLayout>
+    android:layout_height="fill_parent" />

@@ -1886,8 +1886,50 @@ assets APK, а тем же паттерном, что офлайн-бандл к
 4. Генерация английских клипов — не забыть `PYTHONPATH=/content/openwakeword` перед каждым
    прямым вызовом `train.py` (повторяется в нескольких ячейках)
 5. **Новая ячейка с русскими голосами Piper** (`ru_RU-irina`/`denis`/`dmitri`/`ruslan`, через
-   `piper-tts`/`PiperVoice`, не `piper-sample-generator` — см. находки выше) — код уже готов,
-   просто не успел отработать до конца из-за сброса лимита
+   `piper-tts`/`PiperVoice`, не `piper-sample-generator` — см. находки выше), вставить между
+   генерацией английских клипов (ячейка 11) и ячейкой 12. Код (не успел отработать до конца
+   из-за сброса лимита, готов к повторному запуску как есть):
+   ```python
+   import os, random, wave, urllib.request
+   from piper import PiperVoice, SynthesisConfig
+
+   RU_VOICES = ['irina', 'denis', 'dmitri', 'ruslan']
+   RU_VOICE_DIR = '/content/piper_ru_voices'
+   os.makedirs(RU_VOICE_DIR, exist_ok=True)
+
+   for name in RU_VOICES:
+       base = f'https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/{name}/medium/ru_RU-{name}-medium.onnx'
+       for suffix in ['', '.json']:
+           dest = f'{RU_VOICE_DIR}/ru_RU-{name}-medium.onnx{suffix}'
+           if not os.path.exists(dest):
+               urllib.request.urlretrieve(base + suffix, dest)
+               print(f'  downloaded {os.path.basename(dest)}')
+
+   PHRASE = 'Пип-бой'
+   CLIPS_PER_VOICE = 250   # старт, проверить гипотезу; если поможет — увеличить
+   TRAIN_FRACTION = 0.67   # тот же делёж train/test, что у английских клипов
+
+   pos_train_dir = cfg['positive_clips_train_dir']
+   pos_test_dir  = cfg['positive_clips_test_dir']
+   length_scales = [0.85, 1.0, 1.15, 1.3]
+   noise_scales  = [0.5, 0.667, 0.8]
+
+   for name in RU_VOICES:
+       voice = PiperVoice.load(f'{RU_VOICE_DIR}/ru_RU-{name}-medium.onnx')
+       n_train = int(CLIPS_PER_VOICE * TRAIN_FRACTION)
+       for i in range(CLIPS_PER_VOICE):
+           syn_config = SynthesisConfig(
+               length_scale=random.choice(length_scales),
+               noise_scale=random.choice(noise_scales),
+           )
+           target_dir = pos_train_dir if i < n_train else pos_test_dir
+           with wave.open(f'{target_dir}/ru_{name}_{i}.wav', 'wb') as wav_file:
+               voice.synthesize_wav(PHRASE, wav_file, syn_config=syn_config)
+       print(f'  {name}: {CLIPS_PER_VOICE} clips ({n_train} train / {CLIPS_PER_VOICE-n_train} test)')
+   ```
+   1000 клипов (4×250, ~670 train/330 test) поверх 12000/6000 английских — заметная, но не
+   подавляющая добавка (~5-8% датасета), чтобы проверить гипотезу, не хороня уже неплохую
+   английскую часть. Если поможет — увеличить `CLIPS_PER_VOICE`.
 6. Пересчёт фич (не забыть — их кэш проверяется только по существованию файлов, не по
    актуальности; если генерация клипов уже отрабатывала раньше в этой же сессии — удалить
    старые `.npy` перед пересчётом, либо использовать ячейку 12, она это уже делает сама)

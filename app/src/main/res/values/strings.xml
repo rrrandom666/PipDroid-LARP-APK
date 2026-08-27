@@ -785,6 +785,10 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="map_route_unit_meters">%1$d m</string>
     <string name="map_route_unit_km">%1$.1f km</string>
     <string name="marker_name_popup_heading">Marker Name</string>
+    <string name="journal_new_entry_button">New Entry</string>
+    <string name="journal_entry_list_empty">No entries yet</string>
+    <string name="journal_hint">Select an entry to view it</string>
+    <string name="journal_entry_popup_hint">Write your entry…</string>
     <string name="filter_modification_title">Modification</string>
     <string name="filter_title">Filter</string>
     <string name="filter_select_all">Select ALL</string>

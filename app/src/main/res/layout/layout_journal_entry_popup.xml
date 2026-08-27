@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ввод текста записи Журнала (этап 20) — тот же приём, что у попапа имени метки на карте
+     (inc_layout_tab_items_map_name_popup.xml): небольшая GONE/VISIBLE подпанель, не
+     AlertDialog. Кнопка микрофона — заглушка под будущее подключение Vosk (голосовой ввод,
+     следующий отдельный шаг), сейчас задизейблена. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_journal_entry_popup"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:padding="12dp"
+    android:background="@color/pip_background_darker"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent">
+
+    <EditText
+        android:id="@+id/et_journal_entry_value"
+        style="@style/SettingsButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minLines="4"
+        android:gravity="top|start"
+        android:inputType="textMultiLine"
+        android:hint="@string/journal_entry_popup_hint"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Заглушка под голосовой ввод (Vosk, следующий отдельный шаг) — визуально
+         задизейблена (alpha), но не через android:enabled="false": тому пришлось бы
+         блокировать тап целиком, а по нему нужно играть звук недоступного действия
+         (playErrorAudio(), MainActivity.kt) — тот же приём, что у "недоступна сейчас"
+         кнопки на Status (SidebarMenuAdapter.enabled). Одноцветная плоская иконка (ic_mic,
+         тот же тёмный цвет, что текст на кнопках), не эмодзи. -->
+    <ImageButton
+        android:id="@+id/btn_journal_entry_mic"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginTop="12dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_mic"
+        android:tint="@null"
+        android:contentDescription="@null"
+        android:alpha="0.4"
+        app:layout_constraintTop_toBottomOf="@id/et_journal_entry_value"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Cancel/Save — равной ширины по самой широкой кнопке (measureWithLargestChild, не
+         layout_weight — вес растягивает обе на всю оставшуюся ширину ряда, а не просто
+         уравнивает их между собой). Прижаты к правому краю, как и было изначально у Save. -->
+    <LinearLayout
+        android:id="@+id/layout_journal_entry_popup_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:measureWithLargestChild="true"
+        app:layout_constraintTop_toBottomOf="@id/et_journal_entry_value"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <Button
+            android:id="@+id/btn_journal_entry_popup_cancel"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="@string/filter_cancel_button" />
+
+        <Button
+            android:id="@+id/btn_journal_entry_popup_save"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/filter_save_button" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

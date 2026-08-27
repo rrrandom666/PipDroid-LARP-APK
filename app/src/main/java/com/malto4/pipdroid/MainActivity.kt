@@ -78,6 +78,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
+import androidx.core.widget.ImageViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.CompoundButtonCompat
 import androidx.lifecycle.lifecycleScope
@@ -264,6 +265,13 @@ class MainActivity : AppCompatActivity() {
     // Тап по пустой точке карты (не по маркеру, вне режима расстановки/маршрута, бэклог
     // этапа 18) — ждёт выбора [Route]/[Marker] в layout_map_tap_choice, см. showMapTapChoice().
     private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
+    // Журнал (этап 20) — личные записи игрока, тот же паттерн хранения/UI, что у отметок
+    // карты выше. Голосовой ввод (Vosk) — отдельный, более поздний шаг.
+    private val journalRepository by lazy { JournalRepository(this) }
+    private var journalEntries: MutableList<JournalEntry> = mutableListOf()
+    private var selectedJournalEntryForDetail: JournalEntry? = null
+    // Не null — попап работает на редактирование существующей записи, не на создание новой.
+    private var editingJournalEntryId: String? = null
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
     // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
@@ -2274,6 +2282,85 @@ class MainActivity : AppCompatActivity() {
         pendingMarkerLatLon = null
         editingMarkerId = null
         bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+    }
+    /***********************************************************************************************************
+     * ITEMS - JOURNAL (roadmap, этап 20) — личные записи игрока, текстовый ввод. Тот же
+     * паттерн "список слева / контент справа", что у Map/Clock, тот же repository-подход,
+     * что у отметок карты выше. Голосовой ввод (Vosk) — отдельный, более поздний шаг.
+     **********************************************************************************************************/
+    private fun openJournalScreen() {
+        journalEntries = journalRepository.loadAll().toMutableList()
+        bindJournalListAdapter()
+        hideJournalEntryDetail()
+    }
+    private lateinit var journalListAdapter: SidebarMenuAdapter<JournalEntry?>
+    /** Первый пункт списка — всегда "Новая запись" (payload=null), дальше все существующие
+     * записи, новые сверху. Тот же приём, что "[Назад]" (payload=null) в списке меток карты,
+     * только в начале списка, а не в конце. */
+    private fun bindJournalListAdapter() {
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        val items: List<SidebarMenuItem<JournalEntry?>> =
+            listOf(SidebarMenuItem<JournalEntry?>(payload = null, label = getString(R.string.journal_new_entry_button))) +
+                journalEntries.sortedByDescending { it.createdAtEpochMillis }
+                    .map { entry -> SidebarMenuItem<JournalEntry?>(payload = entry, label = formatJournalDate(entry.createdAtEpochMillis)) }
+        val adapter = SidebarMenuAdapter(
+            items = items,
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                val entry = item.payload
+                if (entry == null) showJournalEntryPopupForNew() else showJournalEntryDetail(entry)
+            },
+        )
+        journalListAdapter = adapter
+        journalScreen.rvJournalEntryList.layoutManager = LinearLayoutManager(this)
+        journalScreen.rvJournalEntryList.adapter = adapter
+    }
+    // Игровой год (тот же приём, что в tickThread для шапки/часов) — реальные месяц/день/
+    // время записи остаются как есть, подменяется только YEAR перед форматированием.
+    private fun formatJournalDate(epochMillis: Long): String {
+        val gameCalendar = Calendar.getInstance()
+        gameCalendar.timeInMillis = epochMillis
+        gameCalendar.set(Calendar.YEAR, sharedPreferences.getInt(gameYear_SPKey, 2276))
+        return SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(gameCalendar.time)
+    }
+    private fun showJournalEntryDetail(entry: JournalEntry) {
+        selectedJournalEntryForDetail = entry
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        journalScreen.tvJournalEntryDetailDate.text = formatJournalDate(entry.createdAtEpochMillis)
+        journalScreen.tvJournalEntryDetailText.text = entry.text
+        journalScreen.tvJournalHint.visibility = View.GONE
+        journalScreen.layoutJournalEntryDetail.visibility = View.VISIBLE
+    }
+    /** Подсказка справа зависит от того, есть ли вообще записи — "нет записей" (список
+     * никогда не пуст сам по себе, там всегда есть "Новая запись", поэтому это отдельная
+     * проверка не по списку, а по journalEntries) или обычное "выбери запись". */
+    private fun hideJournalEntryDetail() {
+        selectedJournalEntryForDetail = null
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
+        journalScreen.tvJournalHint.text = getString(
+            if (journalEntries.isEmpty()) R.string.journal_entry_list_empty else R.string.journal_hint
+        )
+        journalScreen.tvJournalHint.visibility = View.VISIBLE
+    }
+    // Клавиатура открывается обычным тапом по EditText, никакого showSoftInput()/
+    // requestFocus() в коде (см. CLAUDE.md — уже наступали на эти грабли на Map/Filter).
+    private fun showJournalEntryPopupForNew() {
+        editingJournalEntryId = null
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        popup.etJournalEntryValue.setText("")
+        popup.root.visibility = View.VISIBLE
+    }
+    private fun showJournalEntryPopupForEdit(entry: JournalEntry) {
+        editingJournalEntryId = entry.id
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        popup.etJournalEntryValue.setText(entry.text)
+        popup.root.visibility = View.VISIBLE
+    }
+    private fun hideJournalEntryPopup() {
+        editingJournalEntryId = null
+        bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
@@ -5444,6 +5531,60 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             stopMapLocationUpdates()
+            openJournalScreen()
+        }
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        val journalAccentColor = ColorStateList.valueOf(currentWizardAccentColor())
+        journalScreen.tvJournalHint.setTextColor(currentWizardAccentColor())
+        journalScreen.tvJournalEntryDetailDate.setTextColor(currentWizardAccentColor())
+        journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
+        journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
+        journalScreen.btnJournalEntryDetailEdit.setOnClickListener {
+            showJournalEntryPopupForEdit(selectedJournalEntryForDetail ?: return@setOnClickListener)
+        }
+        journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
+            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
+            journalRepository.delete(entry.id)
+            journalEntries.removeAll { it.id == entry.id }
+            hideJournalEntryDetail()
+            bindJournalListAdapter()
+        }
+        val journalEntryPopup = journalScreen.incLayoutTabItemsJournalEntryPopup
+        journalEntryPopup.btnJournalEntryMic.backgroundTintList = journalAccentColor
+        // Без этого сам глиф иконки красится темой в тот же акцентный цвет, что и фон кнопки
+        // (тот же класс бага, что и backgroundTint на обычных кнопках, см. CLAUDE.md) —
+        // иконка и фон сливаются в сплошной цветной квадрат, глиф не виден.
+        ImageViewCompat.setImageTintList(journalEntryPopup.btnJournalEntryMic, null)
+        // Голосовой ввод (Vosk) ещё не подключён — тап по заглушке ничего не делает, кроме
+        // звука недоступного действия (тот же playErrorAudio(), что у прочих "пока нельзя"
+        // мест в приложении).
+        journalEntryPopup.btnJournalEntryMic.setOnClickListener {
+            playErrorAudio()
+        }
+        journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
+        journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
+        journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
+            hideJournalEntryPopup()
+        }
+        journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
+            val text = journalEntryPopup.etJournalEntryValue.text.toString()
+            if (text.isBlank()) return@setOnClickListener
+            val editingId = editingJournalEntryId
+            if (editingId != null) {
+                val existing = journalEntries.find { it.id == editingId }
+                if (existing != null) {
+                    val updated = existing.copy(text = text, updatedAtEpochMillis = System.currentTimeMillis())
+                    journalEntries[journalEntries.indexOf(existing)] = updated
+                    journalRepository.update(updated)
+                    showJournalEntryDetail(updated)
+                }
+            } else {
+                val entry = JournalEntry(UUID.randomUUID().toString(), text, System.currentTimeMillis())
+                journalRepository.add(entry)
+                journalEntries.add(entry)
+            }
+            bindJournalListAdapter()
+            hideJournalEntryPopup()
         }
         bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, listBottomButtons)

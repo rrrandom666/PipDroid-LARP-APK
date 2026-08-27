@@ -109,7 +109,7 @@
     <string name="map_route_to_point_button">До точки на карте</string>
     <string name="map_route_to_marker_button">До отметки</string>
     <string name="map_marker_list_empty">Отметок пока нет</string>
-    <string name="map_marker_detail_edit_button">Редактировать</string>
+    <string name="map_marker_detail_edit_button">Изменить</string>
     <string name="map_marker_detail_route_button">Маршрут</string>
     <string name="map_marker_detail_delete_button">Удалить</string>
     <string name="map_hint_place_marker">Тапни по карте, чтобы поставить отметку</string>
@@ -123,6 +123,10 @@
     <string name="map_route_unit_meters">%1$d м</string>
     <string name="map_route_unit_km">%1$.1f км</string>
     <string name="marker_name_popup_heading">Название отметки</string>
+    <string name="journal_new_entry_button">Новая запись</string>
+    <string name="journal_entry_list_empty">Записей пока нет</string>
+    <string name="journal_hint">Выберите запись из списка</string>
+    <string name="journal_entry_popup_hint">Введите текст записи…</string>
     <string name="max">МАКС</string>
     <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
     <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>

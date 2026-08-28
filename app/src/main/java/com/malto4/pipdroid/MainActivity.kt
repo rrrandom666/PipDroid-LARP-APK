@@ -26,6 +26,7 @@ import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -242,6 +243,9 @@ class MainActivity : AppCompatActivity() {
      * что уже лежит на диске, никаких сетевых проверок/разрешений (INTERNET убран).
      **********************************************************************************************************/
     private val mapBundleRepository by lazy { MapBundleRepository(this) }
+    // Голосовые команды, ч.2 (roadmap, этап 21) — модель Vosk импортируется тем же
+    // SAF-принципом, что бандл карты выше, см. VoiceModelRepository.
+    private val voiceModelRepository by lazy { com.malto4.pipdroid.voice.VoiceModelRepository(this) }
     private var mapGeoReference: GeoReference? = null
     private var mapLocationListener: LocationListener? = null
     // Автоцентрирование должно сработать один раз на свежем открытии экрана карты (по
@@ -266,12 +270,20 @@ class MainActivity : AppCompatActivity() {
     // этапа 18) — ждёт выбора [Route]/[Marker] в layout_map_tap_choice, см. showMapTapChoice().
     private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
     // Журнал (этап 20) — личные записи игрока, тот же паттерн хранения/UI, что у отметок
-    // карты выше. Голосовой ввод (Vosk) — отдельный, более поздний шаг.
+    // карты выше.
     private val journalRepository by lazy { JournalRepository(this) }
     private var journalEntries: MutableList<JournalEntry> = mutableListOf()
     private var selectedJournalEntryForDetail: JournalEntry? = null
     // Не null — попап работает на редактирование существующей записи, не на создание новой.
     private var editingJournalEntryId: String? = null
+    // Голосовой ввод записей (этап 21 п.2) — Model держится в voiceDictationService дольше
+    // одной сессии диктовки (тяжёлый объект, см. VoiceDictationService), пересоздаётся только
+    // при первом использовании после старта приложения. journalDictationState — тап 1/тап 2
+    // (старт/стоп), не push-to-talk.
+    private val voiceDictationService by lazy { com.malto4.pipdroid.voice.VoiceDictationService() }
+    private enum class JournalDictationState { IDLE, LOADING, LISTENING }
+    private var journalDictationState = JournalDictationState.IDLE
+    private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
     // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
@@ -497,6 +509,29 @@ class MainActivity : AppCompatActivity() {
                 resultView.text = result.fold(
                     onSuccess = { getString(R.string.map_bundle_import_success) },
                     onFailure = { it.message ?: getString(R.string.map_bundle_import_error_unknown) }
+                )
+            }
+        }
+    }
+    /**
+     * Импорт офлайн-модели Vosk (Settings > Voice Model, roadmap, этап 21) — SAF-пикер
+     * одного .zip-файла (не папки, в отличие от бандла карты — модель Vosk обычно
+     * распространяется уже упакованной). Само копирование/распаковка —
+     * VoiceModelRepository.importFromZip() на IO-потоке, результат идёт в статус/строку
+     * ошибки подпанели.
+     */
+    private val openVoiceModelZipLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { zipUri ->
+        if (zipUri == null) return@registerForActivityResult
+        val resultView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelImportResult
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = voiceModelRepository.importFromZip(zipUri)
+            withContext(Dispatchers.Main) {
+                refreshVoiceModelStatus()
+                resultView.text = result.fold(
+                    onSuccess = { getString(R.string.voice_model_import_success) },
+                    onFailure = { it.message ?: getString(R.string.voice_model_import_error_unknown) }
                 )
             }
         }
@@ -786,6 +821,14 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSION_WAKE_WORD) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 wakeWordDetector?.start()
+            }
+        }
+        if (requestCode == REQUEST_CODE_PERMISSION_JOURNAL_DICTATION) {
+            val popupVisible = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility == View.VISIBLE
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (popupVisible) startJournalDictation()
+            } else {
+                playErrorAudio()
             }
         }
     }
@@ -2351,16 +2394,109 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText("")
         popup.root.visibility = View.VISIBLE
+        refreshJournalMicAvailability()
     }
     private fun showJournalEntryPopupForEdit(entry: JournalEntry) {
         editingJournalEntryId = entry.id
         val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText(entry.text)
         popup.root.visibility = View.VISIBLE
+        refreshJournalMicAvailability()
     }
     private fun hideJournalEntryPopup() {
         editingJournalEntryId = null
+        stopJournalDictation()
         bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
+    }
+    /** Сбрасывает кнопку-микрофон и статус-строку к состоянию покоя при каждом открытии
+     * попапа (в т.ч. на случай, если предыдущая сессия попапа была закрыта не через
+     * hideJournalEntryPopup) — alpha сразу отражает, импортирована ли модель. */
+    private fun refreshJournalMicAvailability() {
+        journalDictationState = JournalDictationState.IDLE
+        setJournalMicStatus("")
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        popup.btnJournalEntryMic.alpha = if (voiceModelRepository.hasModel()) 1f else 0.4f
+        updateJournalMicVisual(recording = false)
+    }
+    private fun setJournalMicStatus(text: String) {
+        bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.tvJournalEntryMicStatus.text = text
+    }
+    /** Слушающее состояние красится чуть светлее акцента темы (blend с белым) — не жёстко
+     * зашитым цветом (CLAUDE.md, "Архитектурный принцип: тематизация интерфейса"), просто
+     * производным от того же currentWizardAccentColor(), что и обычный фон кнопки. Иконка
+     * меняется на квадрат "стоп", пока идёт запись — иначе тап 1/тап 2 неотличимы на вид. */
+    private fun updateJournalMicVisual(recording: Boolean) {
+        val accent = currentWizardAccentColor()
+        val tint = if (recording) ColorUtils.blendARGB(accent, Color.WHITE, 0.4f) else accent
+        val micButton = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.btnJournalEntryMic
+        micButton.backgroundTintList = ColorStateList.valueOf(tint)
+        micButton.setImageResource(if (recording) R.drawable.ic_stop else R.drawable.ic_mic)
+        ImageViewCompat.setImageTintList(micButton, null)
+    }
+    private fun appendJournalDictatedText(text: String) {
+        if (text.isBlank()) return
+        val editText = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.etJournalEntryValue
+        val current = editText.text?.toString().orEmpty()
+        val separator = if (current.isNotEmpty() && !current.endsWith(" ") && !current.endsWith("\n")) " " else ""
+        editText.append(separator + text)
+    }
+    /** Тап 1 по микрофону. Модель Vosk грузится лениво при первом использовании за сессию
+     * приложения (voiceDictationService переживает открытие/закрытие попапа) — если уже
+     * загружена, слушать начинает сразу, иначе показывает "Загрузка модели…" и стартует
+     * после. journalDictationState — не только UI-индикатор, но и защита от гонки: если
+     * попап закрыли посреди загрузки (hideJournalEntryPopup -> stopJournalDictation -> IDLE),
+     * повторный тап на LOADING просто игнорируется, а колбэк загрузки, увидев, что состояние
+     * уже не LOADING, не запускает прослушивание вдогонку. */
+    private fun startJournalDictation() {
+        if (voiceDictationService.isModelLoaded()) {
+            beginJournalListening()
+            return
+        }
+        journalDictationState = JournalDictationState.LOADING
+        setJournalMicStatus(getString(R.string.journal_mic_status_loading))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
+            withContext(Dispatchers.Main) {
+                if (journalDictationState != JournalDictationState.LOADING) return@withContext
+                if (result.isFailure) {
+                    journalDictationState = JournalDictationState.IDLE
+                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
+                    return@withContext
+                }
+                beginJournalListening()
+            }
+        }
+    }
+    private fun beginJournalListening() {
+        journalDictationState = JournalDictationState.LISTENING
+        setJournalMicStatus(getString(R.string.journal_mic_status_listening))
+        updateJournalMicVisual(recording = true)
+        voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
+            override fun onPartialText(text: String) {
+                runOnUiThread {
+                    setJournalMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
+                }
+            }
+            override fun onFinalText(text: String) {
+                runOnUiThread { appendJournalDictatedText(text) }
+            }
+            override fun onError(message: String) {
+                runOnUiThread {
+                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
+                    stopJournalDictation()
+                }
+            }
+        })
+    }
+    /** Тап 2 по микрофону (и штатное закрытие попапа) — SpeechService.stop() сам отдаёт
+     * "хвост" фразы через onFinalResult до того, как метод здесь вернёт управление. */
+    private fun stopJournalDictation() {
+        if (journalDictationState == JournalDictationState.LISTENING) {
+            voiceDictationService.stopListening()
+        }
+        journalDictationState = JournalDictationState.IDLE
+        setJournalMicStatus("")
+        updateJournalMicVisual(recording = false)
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
@@ -2496,6 +2632,22 @@ class MainActivity : AppCompatActivity() {
         } ?: "?"
         val folderName = mapBundleRepository.importedSourceFolderName() ?: "?"
         statusView.text = getString(R.string.map_bundle_status_imported, folderName, dateText)
+    }
+
+    /** Обновляет статус-строку в Settings > Voice Model — импортирована ли модель Vosk,
+     * когда и из какого файла. Вызывается при открытии подпанели и сразу после
+     * (не)успешного импорта. */
+    private fun refreshVoiceModelStatus() {
+        val statusView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelStatus
+        if (!voiceModelRepository.hasModel()) {
+            statusView.text = getString(R.string.voice_model_status_none)
+            return
+        }
+        val dateText = voiceModelRepository.importedAtEpochMillis()?.let {
+            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
+        } ?: "?"
+        val fileName = voiceModelRepository.importedSourceFileName() ?: "?"
+        statusView.text = getString(R.string.voice_model_status_imported, fileName, dateText)
     }
 
     /***********************************************************************************************************
@@ -5135,11 +5287,14 @@ class MainActivity : AppCompatActivity() {
         val settingsAccent = currentWizardAccentColor()
         listOf(
             bindingMain.incLayoutSettingsGlobal.btnSettingsClose,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle,
             bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnSettingsMapBundleClose,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnSettingsVoiceModelClose,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnVoiceModelImport
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
         // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
         // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
@@ -5555,11 +5710,31 @@ class MainActivity : AppCompatActivity() {
         // (тот же класс бага, что и backgroundTint на обычных кнопках, см. CLAUDE.md) —
         // иконка и фон сливаются в сплошной цветной квадрат, глиф не виден.
         ImageViewCompat.setImageTintList(journalEntryPopup.btnJournalEntryMic, null)
-        // Голосовой ввод (Vosk) ещё не подключён — тап по заглушке ничего не делает, кроме
-        // звука недоступного действия (тот же playErrorAudio(), что у прочих "пока нельзя"
-        // мест в приложении).
+        // Голосовой ввод (Vosk, этап 21 п.2) — тап 1 старт/тап 2 стоп, см.
+        // startJournalDictation()/stopJournalDictation(). Без импортированной модели —
+        // тот же playErrorAudio(), что и у прочих "пока нельзя" мест в приложении, плюс
+        // подсказка текстом в статус-строке (не молча).
         journalEntryPopup.btnJournalEntryMic.setOnClickListener {
-            playErrorAudio()
+            when (journalDictationState) {
+                JournalDictationState.IDLE -> {
+                    if (!voiceModelRepository.hasModel()) {
+                        playErrorAudio()
+                        setJournalMicStatus(getString(R.string.journal_mic_status_no_model))
+                        return@setOnClickListener
+                    }
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                        != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        ActivityCompat.requestPermissions(
+                            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_JOURNAL_DICTATION
+                        )
+                        return@setOnClickListener
+                    }
+                    startJournalDictation()
+                }
+                JournalDictationState.LOADING -> { /* повторный тап во время загрузки модели игнорируется */ }
+                JournalDictationState.LISTENING -> stopJournalDictation()
+            }
         }
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
@@ -5816,6 +5991,29 @@ class MainActivity : AppCompatActivity() {
 
         /***********************************************************************************************************
          *
+         * VOICE MODEL (roadmap, ветка app-voice-commands, этап 21) — импорт .zip с офлайн-моделью
+         * Vosk, см. VoiceModelRepository/openVoiceModelZipLauncher/refreshVoiceModelStatus().
+         *
+         **********************************************************************************************************/
+
+        val voiceModelPanel = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel
+
+        bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel.setOnClickListener {
+            voiceModelPanel.root.visibility = View.VISIBLE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
+            voiceModelPanel.tvVoiceModelImportResult.text = ""
+            refreshVoiceModelStatus()
+        }
+        voiceModelPanel.btnSettingsVoiceModelClose.setOnClickListener {
+            voiceModelPanel.root.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
+        }
+        voiceModelPanel.btnVoiceModelImport.setOnClickListener {
+            openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+        }
+
+        /***********************************************************************************************************
+         *
          * BLUETOOTH
          *
          **********************************************************************************************************/
@@ -6013,6 +6211,7 @@ class MainActivity : AppCompatActivity() {
         stopAmbientBackgroundSound()
         cancelBootSequence()
         wakeWordDetector?.release()
+        voiceDictationService.release()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
         // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся
         // только от локального биндинга, чтобы не утекала ссылка на Activity.

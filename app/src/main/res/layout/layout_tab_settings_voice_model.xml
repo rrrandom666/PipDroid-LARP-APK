@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Подпанель Settings > Voice Model — импорт офлайн-модели Vosk (.zip, например
+     vosk-model-small-ru) для STT-слоя голосовых команд (roadmap, этап 21). Та же
+     GONE/VISIBLE-подпанель и тематизация через currentWizardAccentColor(), что у Map Data
+     (layout_tab_settings_map_bundle.xml) — см. VoiceModelRepository. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_tab_settings_voice_model"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:background="@color/pip_background_darker">
+
+    <TextView
+        android:id="@+id/tv_voice_model"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/voice_model_heading"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHorizontal_bias="0.0" />
+
+    <Button
+        android:id="@+id/btn_settings_voice_model_close"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:text=" X "
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_tab_settings_voice_model_body"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_settings_voice_model_close"
+        app:layout_constraintWidth_percent="0.975">
+
+        <TextView
+            android:id="@+id/tv_voice_model_status"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/voice_model_status_none"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_voice_model_import_result"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text=""
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_voice_model_status" />
+
+        <Button
+            android:id="@+id/btn_voice_model_import"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:text="@string/voice_model_import_button"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

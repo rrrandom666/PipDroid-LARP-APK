@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Индикатор "идёт запись" на кнопке-микрофоне попапа Журнала (Vosk, этап 21 п.2) — заменяет
+     ic_mic, пока journalDictationState == LISTENING (MainActivity.kt, updateJournalMicIcon()).
+     Тот же стиль, что ic_mic: плоская одноцветная иконка, тот же тёмный цвет
+     (pip_button_text_dark), не тонируется акцентом темы в коде. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#0a160d"
+        android:pathData="M6,6h12v12H6z" />
+</vector>

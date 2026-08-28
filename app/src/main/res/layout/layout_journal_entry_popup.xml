@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Ввод текста записи Журнала (этап 20) — тот же приём, что у попапа имени метки на карте
      (inc_layout_tab_items_map_name_popup.xml): небольшая GONE/VISIBLE подпанель, не
-     AlertDialog. Кнопка микрофона — заглушка под будущее подключение Vosk (голосовой ввод,
-     следующий отдельный шаг), сейчас задизейблена. -->
+     AlertDialog. Кнопка микрофона — голосовой ввод (диктовка) через Vosk, этап 21 п.2, см.
+     VoiceDictationService.kt и статус-строку tv_journal_entry_mic_status ниже. Alpha 0.4
+     остаётся визуальным "недоступно", пока в Settings > Voice Model не импортирована модель. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_journal_entry_popup"
@@ -27,12 +28,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Заглушка под голосовой ввод (Vosk, следующий отдельный шаг) — визуально
-         задизейблена (alpha), но не через android:enabled="false": тому пришлось бы
-         блокировать тап целиком, а по нему нужно играть звук недоступного действия
-         (playErrorAudio(), MainActivity.kt) — тот же приём, что у "недоступна сейчас"
-         кнопки на Status (SidebarMenuAdapter.enabled). Одноцветная плоская иконка (ic_mic,
-         тот же тёмный цвет, что текст на кнопках), не эмодзи. -->
+    <!-- Голосовой ввод (Vosk). Пока модель не импортирована — визуально задизейблена
+         (alpha), но не через android:enabled="false": тому пришлось бы блокировать тап
+         целиком, а по нему нужно играть звук недоступного действия (playErrorAudio(),
+         MainActivity.kt) — тот же приём, что у "недоступна сейчас" кнопки на Status
+         (SidebarMenuAdapter.enabled). Одноцветная плоская иконка (ic_mic, тот же тёмный
+         цвет, что текст на кнопках), не эмодзи. Тап 1 — старт записи, тап 2 — стоп
+         (MainActivity.kt, journalDictationState). -->
     <ImageButton
         android:id="@+id/btn_journal_entry_mic"
         style="@style/PipWizardButtonStyle"
@@ -77,5 +79,28 @@
             android:text="@string/filter_save_button" />
 
     </LinearLayout>
+
+    <!-- Барьер под более длинным из mic-кнопки/ряда Cancel-Save — статус-строка голосового
+         ввода (roadmap, этап 21, п.2) встаёт под них обоими, не под каким-то одним из двух
+         произвольно выбранным. -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrier_journal_entry_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="btn_journal_entry_mic,layout_journal_entry_popup_actions" />
+
+    <!-- Статус диктовки (нет модели / загрузка / слушаю / текущий частичный результат /
+         ошибка) — пусто, когда голосовой ввод не используется. -->
+    <TextView
+        android:id="@+id/tv_journal_entry_mic_status"
+        style="@style/CNDEFFRADButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text=""
+        app:layout_constraintTop_toBottomOf="@id/barrier_journal_entry_row"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

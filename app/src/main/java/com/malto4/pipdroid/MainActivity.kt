@@ -1005,7 +1005,9 @@ class MainActivity : AppCompatActivity() {
         // Дожимаем то, что накопилось без естественной паузы в речи, прежде чем сдаваться —
         // короткая команда может уложиться в таймаут раньше, чем Vosk сам решит, что фраза
         // закончилась.
-        handleVoiceCommandText(voiceDictationService.flushCommandFinalText())
+        val flushed = voiceDictationService.flushCommandFinalText()
+        Log.d("VoiceCommand", "final (timeout flush): \"$flushed\"")
+        handleVoiceCommandText(flushed)
         if (awaitingVoiceCommand) cancelVoiceCommandListening(matched = false)
     }
     private val VOICE_COMMAND_TIMEOUT_MS = 6000L
@@ -1036,12 +1038,18 @@ class MainActivity : AppCompatActivity() {
     }
     private fun beginVoiceCommandListening() {
         voiceDictationService.startCommandRecognition()
+        // Дедупликация partial-лога по значению — та же строка иначе печатается на каждый
+        // чанк (каждые 80мс), пока Vosk не поменяет гипотезу, лишняя нагрузка ровно на том
+        // потоке (WakeWordCapture), который и так стараемся не перегружать (см. captureLoop()
+        // в WakeWordDetector — классификатор на время команды отключён по той же причине).
+        var lastLoggedPartial = ""
         wakeWordDetector?.armCommandSink { chunk, len ->
             val chunkResult = voiceDictationService.feedCommandAudio(chunk, len)
             if (chunkResult.isFinal) {
                 Log.d("VoiceCommand", "final: \"${chunkResult.text}\"")
                 if (chunkResult.text.isNotBlank()) runOnUiThread { handleVoiceCommandText(chunkResult.text) }
-            } else if (chunkResult.text.isNotBlank()) {
+            } else if (chunkResult.text.isNotBlank() && chunkResult.text != lastLoggedPartial) {
+                lastLoggedPartial = chunkResult.text
                 Log.d("VoiceCommand", "partial: \"${chunkResult.text}\"")
             }
         }

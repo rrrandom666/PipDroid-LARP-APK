@@ -104,12 +104,23 @@ class VoiceDictationService {
      * команды при слитной речи ("лёгкое ранение" -> "я ранения") — второе слово доезжало
      * нормально. Не переключать микрофон вообще — единственный надёжный способ убрать это, не
      * полумеры вида увеличения буфера/уменьшения задержки пересоздания.
+     *
+     * НЕ пересоздаёт commandRecognizer между попытками (см. отсутствие close() ниже) — тот же
+     * симптом (систематически калечится именно ПЕРВОЕ слово, второе почти всегда доезжает)
+     * совпадает с задокументированным поведением Kaldi/Vosk: online CMVN-нормализация ещё не
+     * стабилизировалась на первых кадрах свежесозданного Recognizer, а chain-модели физически
+     * недополучают future-context на самом краю потока (см. Kaldi docs, OnlineCmvn/nnet3
+     * context). Раньше объект пересоздавался на КАЖДОЕ срабатывание — то есть этот эффект бил
+     * по каждой попытке заново, а не только по первой в сессии приложения. Один и тот же
+     * Recognizer теперь живёт между попытками, "прогреваясь" после первого использования —
+     * полное закрытие только в release() (конец жизни Activity).
      */
     fun startCommandRecognition() {
         synchronized(commandLock) {
-            val loadedModel = model ?: return
-            commandRecognizer?.close()
-            commandRecognizer = Recognizer(loadedModel, SAMPLE_RATE)
+            if (commandRecognizer == null) {
+                val loadedModel = model ?: return
+                commandRecognizer = Recognizer(loadedModel, SAMPLE_RATE)
+            }
         }
     }
 
@@ -133,7 +144,13 @@ class VoiceDictationService {
         }
     }
 
-    fun stopCommandRecognition() {
+    /** Между попытками команды Recognizer НЕ закрывается — см. startCommandRecognition()
+     * (гипотеза "холодный старт" Kaldi/Vosk). Оставлен как явная точка "сессия команды
+     * закончилась" на будущее (например сброс partial-состояния), сейчас no-op. Полное
+     * закрытие объекта — closeCommandRecognition(), только из release(). */
+    fun stopCommandRecognition() {}
+
+    private fun closeCommandRecognition() {
         synchronized(commandLock) {
             commandRecognizer?.close()
             commandRecognizer = null
@@ -144,7 +161,7 @@ class VoiceDictationService {
      * отдельными сессиями диктовки (см. класс-doc — Model держится дольше одной сессии). */
     fun release() {
         stopListening()
-        stopCommandRecognition()
+        closeCommandRecognition()
         model?.close()
         model = null
     }

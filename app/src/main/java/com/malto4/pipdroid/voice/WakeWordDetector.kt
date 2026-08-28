@@ -187,7 +187,21 @@ class WakeWordDetector(
         rawAudioSink = sink
     }
 
+    /** Обрабатывается на WakeWordCapture-потоке (см. captureLoop) — melBuffer/embedBuffer не
+     * потокобезопасны, чистить их напрямую отсюда (главный поток) нельзя. */
+    @Volatile private var pendingClassifierReset = false
+
     fun disarmCommandSink() {
+        // Пока классификатор не гонялся (см. captureLoop — во время команды он полностью
+        // выключен, не только игнорируется), его melBuffer/embedBuffer простояли
+        // замороженными с содержимым от самого "Пип-бой". Без сброса классификатор при
+        // возобновлении смотрит на этот огрызок как на скользящее окно и может ложно
+        // перевзвестись на старых данных сразу же — задокументированное поведение апстрима
+        // (dscripka/openWakeWord, issue #141: пауза в подаче аудио + возобновление = re-detect
+        // старого будческого слова из хвоста буфера; автор рекомендует сброс состояния при
+        // возобновлении). Найдено на реальном устройстве как "после успешной команды тут же
+        // снова слушает команду и ругается, что не распознал".
+        pendingClassifierReset = true
         rawAudioSink = null
     }
 
@@ -202,7 +216,25 @@ class WakeWordDetector(
                 preRollBuffer.addLast(chunkCopy)
                 if (preRollBuffer.size > PREROLL_CHUNKS) preRollBuffer.removeFirst()
             }
-            rawAudioSink?.invoke(chunk, read)
+            val sink = rawAudioSink
+            if (sink != null) {
+                // Пока слушаем команду — классификатор будческого слова на этот же чанк не
+                // гоняем вообще, не только не реагируем на его результат. Находка на реальном
+                // устройстве: тройная ONNX-инференция (mel+embed+classify) вперемешку с
+                // decode-шагом Vosk на одном потоке не укладывалась в 80мс на слитной быстрой
+                // речи — поток отставал от живого звука, и слова, идущие без пауз, теряли
+                // куски (симптом был "команду нужно проговаривать медленно с паузами между
+                // словами", не только после будческого слова). Классификатор всё равно
+                // бесполезен в этот момент — повторное срабатывание игнорируется
+                // (MainActivity.awaitingVoiceCommand), тратить на него такт незачем.
+                sink(chunk, read)
+                continue
+            }
+            if (pendingClassifierReset) {
+                pendingClassifierReset = false
+                melBuffer.clear()
+                embedBuffer.clear()
+            }
             // Сырые int16-значения приведены к float32 БЕЗ нормализации на 32768 — так же,
             // как это делает openWakeWord (x.astype(np.float32) без деления), меняли бы
             // масштаб — модель бы перестала узнавать звук.

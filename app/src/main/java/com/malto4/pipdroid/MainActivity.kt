@@ -961,20 +961,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /***********************************************************************************************************
-     * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19)
+     * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19/21)
      **********************************************************************************************************/
     /**
-     * ЗАГЛУШКА для проверки конвейера на реальном устройстве: классификатор сейчас —
-     * английская модель-пример "hey jarvis" (см. WakeWordDetector, licenses/openWakeWord-models.txt),
-     * не своя "Пип-бой". Слушает постоянно, пока Activity жива — без сервиса/фонового режима,
-     * без привязки к режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не
-     * готовая фича, а тестовый скелет.
+     * Слушает постоянно, пока Activity жива — без сервиса/фонового режима, без привязки к
+     * режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не готовая фича,
+     * а тестовый конвейер (roadmap, этап 21 п.4 — первая тестовая команда "лёгкое ранение").
      */
     private fun initWakeWordDetector() {
         wakeWordDetector = com.malto4.pipdroid.voice.WakeWordDetector(this) {
-            runOnUiThread {
-                Toast.makeText(this, "Wake-word (заглушка hey jarvis) сработал", Toast.LENGTH_SHORT).show()
-            }
+            runOnUiThread { onWakeWordTriggered() }
         }
         startWakeWordIfPermitted()
     }
@@ -984,6 +980,99 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_WAKE_WORD)
         }
+    }
+    // Тестовая реализация одной команды (roadmap, этап 21 п.4) — "Пип-бой, лёгкое ранение".
+    // Список команд (п.3 плана) и разбор по словарю — следующий, более общий шаг; сейчас
+    // сознательно один захардкоженный матч, чтобы проверить весь конвейер будческое слово ->
+    // Vosk -> действие на реальном устройстве, прежде чем обобщать на несколько команд.
+    //
+    // НЕ пересоздаёт AudioRecord (см. VoiceDictationService.startCommandRecognition()) —
+    // WakeWordDetector никогда не останавливается, чанки после срабатывания идут туда же,
+    // откуда их и так читает будческое слово (armCommandSink/disarmCommandSink). Находка 1:
+    // старая версия (через startListening()/SpeechService, отдельный AudioRecord)
+    // систематически обрезала/искажала первое слово команды при слитной речи сразу после
+    // "Пип-бой" — на стыке остановки одного AudioRecord и старта другого реальное железо не
+    // успевало переключиться мгновенно. Находка 2 (уже после фикса №1, тот же симптом никуда
+    // не делся): armCommandSink() сам прогоняет pre-roll буфер WakeWordDetector (~2с) перед
+    // живым потоком — проблема была не в переключении микрофона, а в задержке самого
+    // детектора (пока классификатор наберёт контекст для уверенного срабатывания, игрок уже
+    // договаривает будческое слово и начинает следующее — эта часть звука без pre-roll
+    // никуда не попадала).
+    private var awaitingVoiceCommand = false
+    private val voiceCommandTimeoutHandler = Handler(Looper.getMainLooper())
+    private val voiceCommandTimeoutRunnable = Runnable {
+        if (!awaitingVoiceCommand) return@Runnable
+        // Дожимаем то, что накопилось без естественной паузы в речи, прежде чем сдаваться —
+        // короткая команда может уложиться в таймаут раньше, чем Vosk сам решит, что фраза
+        // закончилась.
+        handleVoiceCommandText(voiceDictationService.flushCommandFinalText())
+        if (awaitingVoiceCommand) cancelVoiceCommandListening(matched = false)
+    }
+    private val VOICE_COMMAND_TIMEOUT_MS = 6000L
+    /** Срабатывает на WakeWordCapture-потоке через runOnUiThread (initWakeWordDetector).
+     * Уступает микрофон диктовке Журнала, если та уже идёт (VoiceDictationService — общий
+     * на оба сценария, отдавать его на середине записи в Журнал нельзя). */
+    private fun onWakeWordTriggered() {
+        if (awaitingVoiceCommand || journalDictationState != JournalDictationState.IDLE) return
+        if (!voiceModelRepository.hasModel()) return
+        awaitingVoiceCommand = true
+        Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()
+        voiceCommandTimeoutHandler.postDelayed(voiceCommandTimeoutRunnable, VOICE_COMMAND_TIMEOUT_MS)
+        if (voiceDictationService.isModelLoaded()) {
+            beginVoiceCommandListening()
+        } else {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
+                withContext(Dispatchers.Main) {
+                    if (!awaitingVoiceCommand) return@withContext
+                    if (result.isFailure) {
+                        cancelVoiceCommandListening(matched = false)
+                        return@withContext
+                    }
+                    beginVoiceCommandListening()
+                }
+            }
+        }
+    }
+    private fun beginVoiceCommandListening() {
+        voiceDictationService.startCommandRecognition()
+        wakeWordDetector?.armCommandSink { chunk, len ->
+            val chunkResult = voiceDictationService.feedCommandAudio(chunk, len)
+            if (chunkResult.isFinal) {
+                Log.d("VoiceCommand", "final: \"${chunkResult.text}\"")
+                if (chunkResult.text.isNotBlank()) runOnUiThread { handleVoiceCommandText(chunkResult.text) }
+            } else if (chunkResult.text.isNotBlank()) {
+                Log.d("VoiceCommand", "partial: \"${chunkResult.text}\"")
+            }
+        }
+    }
+    /** Нормализация — нижний регистр + ё->е (STT нередко теряет ё). Матч по вхождению, не
+     * точному равенству — реплика может прийти с лишними словами вокруг. Раздельно по
+     * "легк"/"ранен" (не по фразе целиком) — устойчивее к падежным окончаниям
+     * ("лёгкое"/"лёгкого", "ранение"/"ранения"), см. находку про редукцию в roadmap. */
+    private fun handleVoiceCommandText(text: String) {
+        if (!awaitingVoiceCommand) return
+        val normalized = text.lowercase().replace('ё', 'е')
+        if (!(normalized.contains("легк") && normalized.contains("ранен"))) return
+        if (woundPhase != WoundPhase.NONE) {
+            playErrorAudio()
+        } else {
+            playItemSelectAudio()
+            startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+        }
+        Toast.makeText(this, getString(R.string.voice_command_recognized, text), Toast.LENGTH_SHORT).show()
+        cancelVoiceCommandListening(matched = true)
+    }
+    private fun cancelVoiceCommandListening(matched: Boolean) {
+        voiceCommandTimeoutHandler.removeCallbacks(voiceCommandTimeoutRunnable)
+        wakeWordDetector?.disarmCommandSink()
+        voiceDictationService.stopCommandRecognition()
+        awaitingVoiceCommand = false
+        if (!matched) {
+            Toast.makeText(this, getString(R.string.voice_command_not_recognized), Toast.LENGTH_SHORT).show()
+        }
+        // WakeWordDetector никогда не останавливался (см. класс-doc выше) — заново
+        // запускать/запрашивать разрешение здесь не нужно.
     }
 
     /***********************************************************************************************************
@@ -2473,14 +2562,17 @@ class MainActivity : AppCompatActivity() {
         updateJournalMicVisual(recording = true)
         voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
             override fun onPartialText(text: String) {
+                Log.d("VoiceJournal", "partial: \"$text\"")
                 runOnUiThread {
                     setJournalMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
                 }
             }
             override fun onFinalText(text: String) {
+                Log.d("VoiceJournal", "final: \"$text\"")
                 runOnUiThread { appendJournalDictatedText(text) }
             }
             override fun onError(message: String) {
+                Log.d("VoiceJournal", "error: $message")
                 runOnUiThread {
                     setJournalMicStatus(getString(R.string.journal_mic_status_error))
                     stopJournalDictation()
@@ -5717,6 +5809,12 @@ class MainActivity : AppCompatActivity() {
         journalEntryPopup.btnJournalEntryMic.setOnClickListener {
             when (journalDictationState) {
                 JournalDictationState.IDLE -> {
+                    if (awaitingVoiceCommand) {
+                        // VoiceDictationService уже занят распознаванием голосовой команды
+                        // после будческого слова (onWakeWordTriggered) — не отбирать его.
+                        playErrorAudio()
+                        return@setOnClickListener
+                    }
                     if (!voiceModelRepository.hasModel()) {
                         playErrorAudio()
                         setJournalMicStatus(getString(R.string.journal_mic_status_no_model))

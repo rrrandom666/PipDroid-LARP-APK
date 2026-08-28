@@ -802,6 +802,9 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="journal_mic_status_loading">Loading model…</string>
     <string name="journal_mic_status_listening">Listening…</string>
     <string name="journal_mic_status_error">Recognition error</string>
+    <string name="voice_command_listening">Listening for command…</string>
+    <string name="voice_command_recognized">Command: %1$s</string>
+    <string name="voice_command_not_recognized">Command not recognized</string>
     <string name="filter_modification_title">Modification</string>
     <string name="filter_title">Filter</string>
     <string name="filter_select_all">Select ALL</string>

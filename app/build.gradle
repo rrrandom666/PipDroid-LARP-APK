@@ -22,6 +22,16 @@ android {
         viewBinding {
             enabled = true
         }
+
+        // Голосовые команды, ч.2 (roadmap, этап 21) — с добавлением vosk-android/jna APK
+        // без фильтра ABI тащил все архитектуры сразу (~109 МБ .so, включая x86/x86_64/
+        // mips/mips64 — ни одна из них не встречается на реальных телефонах, только в
+        // эмуляторах или совсем древнем железе). BYOD (roadmap, "Ключевое архитектурное
+        // решение") — целевые устройства это личные телефоны игроков, не девелоперский
+        // эмулятор, поэтому ограничиваем реальными мобильными ABI.
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {
@@ -76,6 +86,19 @@ dependencies {
     // нерешённый баг апстрима, dscripka/openWakeWord issue #223), .onnx-версии тех же файлов
     // от того же релиза этой проблемы не имеют.
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.2'
+    // STT-слой команды после будческого слова (roadmap, этап 21) — Vosk, офлайн-распознавание.
+    // Модель (vosk-model-small-ru, ~50 МБ) НЕ кладём в assets — доставляется SAF-импортом
+    // .zip в Settings, см. VoiceModelRepository. И vosk-android, и jna (нужен Vosk для JNI)
+    // публикуются на Maven Central напрямую (проверено перед добавлением — не JitPack/JCenter,
+    // тот путь уже подвёл однажды с audio-visualizer, см. CLAUDE.md), отдельный maven-репозиторий
+    // не нужен, mavenCentral() в settings.gradle уже есть.
+    // jna — НЕ последняя версия (официальный пример alphacep/vosk-android-demo использует
+    // 5.18.1): у этого проекта старый D8 (AGP 7.2.1), а jna-5.18.1-runtime.jar валит его
+    // NullPointerException'ом при дексации ("Cannot invoke String.length() ... is null",
+    // mergeExtDexDebug) — известный класс проблем со свежими jar на старом D8/R8. 5.13.0
+    // дексится нормально на этом тулчейне, дальше не проверялось, апгрейдить осторожно.
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
+    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
     implementation 'com.google.code.gson:gson:2.8.8'
     testImplementation 'junit:junit:4.13.2'

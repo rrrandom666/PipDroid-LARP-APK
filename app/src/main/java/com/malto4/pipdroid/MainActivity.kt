@@ -26,6 +26,7 @@ import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -242,6 +243,9 @@ class MainActivity : AppCompatActivity() {
      * что уже лежит на диске, никаких сетевых проверок/разрешений (INTERNET убран).
      **********************************************************************************************************/
     private val mapBundleRepository by lazy { MapBundleRepository(this) }
+    // Голосовые команды, ч.2 (roadmap, этап 21) — модель Vosk импортируется тем же
+    // SAF-принципом, что бандл карты выше, см. VoiceModelRepository.
+    private val voiceModelRepository by lazy { com.malto4.pipdroid.voice.VoiceModelRepository(this) }
     private var mapGeoReference: GeoReference? = null
     private var mapLocationListener: LocationListener? = null
     // Автоцентрирование должно сработать один раз на свежем открытии экрана карты (по
@@ -266,12 +270,20 @@ class MainActivity : AppCompatActivity() {
     // этапа 18) — ждёт выбора [Route]/[Marker] в layout_map_tap_choice, см. showMapTapChoice().
     private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
     // Журнал (этап 20) — личные записи игрока, тот же паттерн хранения/UI, что у отметок
-    // карты выше. Голосовой ввод (Vosk) — отдельный, более поздний шаг.
+    // карты выше.
     private val journalRepository by lazy { JournalRepository(this) }
     private var journalEntries: MutableList<JournalEntry> = mutableListOf()
     private var selectedJournalEntryForDetail: JournalEntry? = null
     // Не null — попап работает на редактирование существующей записи, не на создание новой.
     private var editingJournalEntryId: String? = null
+    // Голосовой ввод записей (этап 21 п.2) — Model держится в voiceDictationService дольше
+    // одной сессии диктовки (тяжёлый объект, см. VoiceDictationService), пересоздаётся только
+    // при первом использовании после старта приложения. journalDictationState — тап 1/тап 2
+    // (старт/стоп), не push-to-talk.
+    private val voiceDictationService by lazy { com.malto4.pipdroid.voice.VoiceDictationService() }
+    private enum class JournalDictationState { IDLE, LOADING, LISTENING }
+    private var journalDictationState = JournalDictationState.IDLE
+    private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
     // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
@@ -283,6 +295,15 @@ class MainActivity : AppCompatActivity() {
     // Путь в лат/лон (не пикселях, в отличие от MapOverlayView.routePx) — нужен для
     // haversine-расчёта остатка дистанции и порога перестроения в onMapLocationUpdate().
     private var mapRouteLatLonPath: List<Pair<Double, Double>> = emptyList()
+    // Голосовая команда "маршрут до <имя>" (roadmap, этап 21 ч.2) переключает на карту и
+    // сразу строит маршрут — но openMapScreen() асинхронно (Dispatchers.IO — декодирует
+    // битмап/граф дорог заново при КАЖДОМ входе на экран) сбрасывает mapRouteState/
+    // mapRouteLatLonPath в NONE/пусто, и эта загрузка может закончиться ПОСЛЕ того, как
+    // routeTo() уже построил и отрисовал маршрут (route.build() быстрее, если GPS/граф уже
+    // были в памяти с прошлого визита) — маршрут на экране мелькает и тут же стирается
+    // свежим сбросом. pendingMapReadyAction откладывает routeTo() до конца именно ЭТОГО
+    // захода в openMapScreen(), а не гоняет их наперегонки.
+    private var pendingMapReadyAction: (() -> Unit)? = null
     private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
     // Взведён кнопками "Поставить отметку"/"До точки на карте" (layout_tab_items_map.xml) —
     // следующий тап по карте выполняет действие и сам снимает взвод, а не тап-и-удержание
@@ -497,6 +518,29 @@ class MainActivity : AppCompatActivity() {
                 resultView.text = result.fold(
                     onSuccess = { getString(R.string.map_bundle_import_success) },
                     onFailure = { it.message ?: getString(R.string.map_bundle_import_error_unknown) }
+                )
+            }
+        }
+    }
+    /**
+     * Импорт офлайн-модели Vosk (Settings > Voice Model, roadmap, этап 21) — SAF-пикер
+     * одного .zip-файла (не папки, в отличие от бандла карты — модель Vosk обычно
+     * распространяется уже упакованной). Само копирование/распаковка —
+     * VoiceModelRepository.importFromZip() на IO-потоке, результат идёт в статус/строку
+     * ошибки подпанели.
+     */
+    private val openVoiceModelZipLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { zipUri ->
+        if (zipUri == null) return@registerForActivityResult
+        val resultView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelImportResult
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = voiceModelRepository.importFromZip(zipUri)
+            withContext(Dispatchers.Main) {
+                refreshVoiceModelStatus()
+                resultView.text = result.fold(
+                    onSuccess = { getString(R.string.voice_model_import_success) },
+                    onFailure = { it.message ?: getString(R.string.voice_model_import_error_unknown) }
                 )
             }
         }
@@ -788,6 +832,14 @@ class MainActivity : AppCompatActivity() {
                 wakeWordDetector?.start()
             }
         }
+        if (requestCode == REQUEST_CODE_PERMISSION_JOURNAL_DICTATION) {
+            val popupVisible = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility == View.VISIBLE
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (popupVisible) startJournalDictation()
+            } else {
+                playErrorAudio()
+            }
+        }
     }
     private fun loadMp3Files() {
         /*
@@ -918,20 +970,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /***********************************************************************************************************
-     * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19)
+     * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19/21)
      **********************************************************************************************************/
     /**
-     * ЗАГЛУШКА для проверки конвейера на реальном устройстве: классификатор сейчас —
-     * английская модель-пример "hey jarvis" (см. WakeWordDetector, licenses/openWakeWord-models.txt),
-     * не своя "Пип-бой". Слушает постоянно, пока Activity жива — без сервиса/фонового режима,
-     * без привязки к режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не
-     * готовая фича, а тестовый скелет.
+     * Слушает постоянно, пока Activity жива — без сервиса/фонового режима, без привязки к
+     * режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не готовая фича,
+     * а тестовый конвейер (roadmap, этап 21 п.4 — первая тестовая команда "лёгкое ранение").
      */
     private fun initWakeWordDetector() {
         wakeWordDetector = com.malto4.pipdroid.voice.WakeWordDetector(this) {
-            runOnUiThread {
-                Toast.makeText(this, "Wake-word (заглушка hey jarvis) сработал", Toast.LENGTH_SHORT).show()
-            }
+            runOnUiThread { onWakeWordTriggered() }
         }
         startWakeWordIfPermitted()
     }
@@ -941,6 +989,348 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_WAKE_WORD)
         }
+    }
+    // Тестовая реализация одной команды (roadmap, этап 21 п.4) — "Пип-бой, лёгкое ранение".
+    // Список команд (п.3 плана) и разбор по словарю — следующий, более общий шаг; сейчас
+    // сознательно один захардкоженный матч, чтобы проверить весь конвейер будческое слово ->
+    // Vosk -> действие на реальном устройстве, прежде чем обобщать на несколько команд.
+    //
+    // НЕ пересоздаёт AudioRecord (см. VoiceDictationService.startCommandRecognition()) —
+    // WakeWordDetector никогда не останавливается, чанки после срабатывания идут туда же,
+    // откуда их и так читает будческое слово (armCommandSink/disarmCommandSink). Находка 1:
+    // старая версия (через startListening()/SpeechService, отдельный AudioRecord)
+    // систематически обрезала/искажала первое слово команды при слитной речи сразу после
+    // "Пип-бой" — на стыке остановки одного AudioRecord и старта другого реальное железо не
+    // успевало переключиться мгновенно. Находка 2 (уже после фикса №1, тот же симптом никуда
+    // не делся): armCommandSink() сам прогоняет pre-roll буфер WakeWordDetector (~2с) перед
+    // живым потоком — проблема была не в переключении микрофона, а в задержке самого
+    // детектора (пока классификатор наберёт контекст для уверенного срабатывания, игрок уже
+    // договаривает будческое слово и начинает следующее — эта часть звука без pre-roll
+    // никуда не попадала).
+    private var awaitingVoiceCommand = false
+    private val voiceCommandTimeoutHandler = Handler(Looper.getMainLooper())
+    private val voiceCommandTimeoutRunnable = Runnable {
+        if (!awaitingVoiceCommand) return@Runnable
+        // Дожимаем то, что накопилось без естественной паузы в речи, прежде чем сдаваться —
+        // короткая команда может уложиться в таймаут раньше, чем Vosk сам решит, что фраза
+        // закончилась.
+        val flushed = voiceDictationService.flushCommandFinalText()
+        Log.d("VoiceCommand", "final (timeout flush): \"$flushed\"")
+        handleVoiceCommandText(flushed)
+        if (awaitingVoiceCommand) cancelVoiceCommandListening(matched = false)
+    }
+    private val VOICE_COMMAND_TIMEOUT_MS = 6000L
+    /** Срабатывает на WakeWordCapture-потоке через runOnUiThread (initWakeWordDetector).
+     * Уступает микрофон диктовке Журнала, если та уже идёт (VoiceDictationService — общий
+     * на оба сценария, отдавать его на середине записи в Журнал нельзя). */
+    private fun onWakeWordTriggered() {
+        if (awaitingVoiceCommand || journalDictationState != JournalDictationState.IDLE) return
+        if (!voiceModelRepository.hasModel()) return
+        awaitingVoiceCommand = true
+        Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()
+        voiceCommandTimeoutHandler.postDelayed(voiceCommandTimeoutRunnable, VOICE_COMMAND_TIMEOUT_MS)
+        if (voiceDictationService.isModelLoaded()) {
+            beginVoiceCommandListening()
+        } else {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
+                withContext(Dispatchers.Main) {
+                    if (!awaitingVoiceCommand) return@withContext
+                    if (result.isFailure) {
+                        cancelVoiceCommandListening(matched = false)
+                        return@withContext
+                    }
+                    beginVoiceCommandListening()
+                }
+            }
+        }
+    }
+    private fun beginVoiceCommandListening() {
+        voiceDictationService.startCommandRecognition()
+        // Дедупликация partial-лога по значению — та же строка иначе печатается на каждый
+        // чанк (каждые 80мс), пока Vosk не поменяет гипотезу, лишняя нагрузка ровно на том
+        // потоке (WakeWordCapture), который и так стараемся не перегружать (см. captureLoop()
+        // в WakeWordDetector — классификатор на время команды отключён по той же причине).
+        var lastLoggedPartial = ""
+        wakeWordDetector?.armCommandSink { chunk, len ->
+            val chunkResult = voiceDictationService.feedCommandAudio(chunk, len)
+            if (chunkResult.isFinal) {
+                Log.d("VoiceCommand", "final: \"${chunkResult.text}\"")
+                if (chunkResult.text.isNotBlank()) runOnUiThread { handleVoiceCommandText(chunkResult.text) }
+            } else if (chunkResult.text.isNotBlank() && chunkResult.text != lastLoggedPartial) {
+                lastLoggedPartial = chunkResult.text
+                Log.d("VoiceCommand", "partial: \"${chunkResult.text}\"")
+            }
+        }
+    }
+    /** Полный словарь голосовых команд (roadmap, этап 21 ч.2). Нормализация — нижний
+     * регистр + ё->е (STT нередко теряет ё). Матч по вхождению, не точному равенству —
+     * реплика может прийти с лишними словами вокруг, раздельно по стеблям (не по фразе
+     * целиком) — устойчивее к падежным окончаниям ("лёгкое"/"лёгкого", "ранение"/
+     * "ранения"), см. находку про редукцию в roadmap. Последовательные проверки, первое
+     * совпадение выигрывает — порядок важен там, где один стебель — подстрока фразы
+     * другой команды ("маршрут" внутри "отменить маршрут", "таймер" в двух разных
+     * командах).
+     */
+    private fun handleVoiceCommandText(text: String) {
+        if (!awaitingVoiceCommand) return
+        val normalized = text.lowercase().replace('ё', 'е')
+
+        // Ранение (лёгкое/тяжёлое), опционально с частью тела — общий таймер плюс,
+        // если названа часть тела, ещё и CRIPPLED-отметка этой части (независимая
+        // механика, см. setCrippled*() выше).
+        val woundSeverity = when {
+            !normalized.contains("ранен") -> null
+            normalized.contains("тяжел") -> WoundSeverity.HEAVY
+            normalized.contains("легк") -> WoundSeverity.LIGHT
+            else -> null
+        }
+        if (woundSeverity != null) {
+            if (woundPhase != WoundPhase.NONE) {
+                playErrorAudio()
+            } else {
+                playItemSelectAudio()
+                startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+                matchBodyPartSetter(normalized)?.invoke(true)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Оглушение/контузия — та же общая система, третья фаза ранения.
+        if (normalized.contains("оглуш") || normalized.contains("контуз")) {
+            if (woundPhase != WoundPhase.NONE) {
+                playErrorAudio()
+            } else {
+                playItemSelectAudio()
+                startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Возвращение в строй — только пока персонаж мёртв (тот же гвард, что у тач-жеста
+        // по фигуре, см. setupFigureTouchTarget()).
+        if (normalized.contains("очнул") || normalized.contains("ожил")) {
+            if (woundPhase == WoundPhase.DEAD) {
+                playItemSelectAudio()
+                reviveCharacter()
+            } else {
+                playErrorAudio()
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Таймер ранения ничем не отличается от обычного (roadmap, этап 21 ч.2) — общий
+        // "стоп"/"пауза" на общем timerState/resetTimer()/pauseResumeTimer(), без отдельной
+        // voice-команды на именно таймер ранения. "Стоп"/"пауза" проверяются раньше "таймер
+        // N минут" — обе фразы содержат слово "таймер".
+        if (normalized.contains("таймер") && (normalized.contains("стоп") || normalized.contains("останов"))) {
+            playNewTabSelectAudio()
+            resetTimer()
+            finishVoiceCommand(text)
+            return
+        }
+        if (normalized.contains("пауз") || normalized.contains("продолж") || normalized.contains("возобнов")) {
+            val allowed = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
+            if (!allowed || timerState == TimerState.IDLE) {
+                playErrorAudio()
+            } else {
+                playNewTabSelectAudio()
+                pauseResumeTimer()
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Таймер с произвольным числом минут — разбор чисел из речи Vosk (parseRussianNumber(),
+        // самая сложная часть словаря). Отказ, если уже что-то тикает (в т.ч. таймер
+        // ранения) — так же, как кнопка [Старт] физически недоступна, пока видна
+        // Running-панель.
+        if (normalized.contains("таймер") && normalized.contains("минут")) {
+            val minutes = parseRussianNumber(normalized)
+            if (minutes == null || minutes <= 0 || timerState != TimerState.IDLE) {
+                playErrorAudio()
+            } else {
+                playNewTabSelectAudio()
+                startPlainTimer(minutes * 60)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Карта — маршрут: отмена проверяется раньше построения (обе фразы содержат
+        // "маршрут"). Имя отметки сверяется по стеблю (russianStem()), не по буквальному
+        // вхождению — имя ставит игрок в именительном падеже ("Убежище"), а называет его
+        // потом в любом другом ("до убежища") — неоднозначность (0 или больше 1
+        // совпадения) трактуется как нераспознанная команда, а не угадывается.
+        if (normalized.contains("маршрут")) {
+            if (normalized.contains("отмен")) {
+                playNewTabSelectAudio()
+                cancelActiveRoute()
+            } else {
+                val queryTokens = normalized.substringAfter("маршрут").trim()
+                    .split(Regex("\\s+"))
+                    .filterNot { it.isBlank() || it in ROUTE_FILLER_WORDS }
+                val candidates = markerRepository.loadAll().filter { matchesMarkerQuery(queryTokens, it.name) }
+                if (candidates.size != 1) {
+                    playErrorAudio()
+                } else {
+                    playItemSelectAudio()
+                    val destination = candidates[0]
+                    // Отложено до конца ИМЕННО этого захода на экран карты — см.
+                    // pendingMapReadyAction, иначе асинхронный сброс внутри openMapScreen()
+                    // стирает только что построенный маршрут (найдено на реальном
+                    // устройстве — маршрут мелькал и тут же исчезал).
+                    pendingMapReadyAction = { routeTo(destination.lat, destination.lon) }
+                    navigateToItemsSection("MAP")
+                }
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Журнал — новая запись (проверяется раньше голой навигации на "журнал" ниже).
+        if (normalized.contains("нов") && normalized.contains("запис")) {
+            playItemSelectAudio()
+            navigateToItemsSection("JOURNAL")
+            showJournalEntryPopupForNew()
+            finishVoiceCommand(text)
+            return
+        }
+        // Навигация по разделам/экранам — звук уже играет сама цепочка performClick()/
+        // menuOptionClickedBLE(), отдельно вызывать не нужно (см. navigateToItemsSection()).
+        if (normalized.contains("статус")) {
+            menuChangeBLE("STATS"); menuNavigator.resetToRoot(statsMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("модул")) {
+            menuChangeBLE("ITEMS"); menuNavigator.resetToRoot(itemsMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("данн")) {
+            menuChangeBLE("DATA"); menuNavigator.resetToRoot(dataMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("журнал")) {
+            navigateToItemsSection("JOURNAL")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("карт")) {
+            navigateToItemsSection("MAP")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("гейгер")) {
+            navigateToItemsSection("GEIGER")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("секундомер")) {
+            navigateToItemsSection("CLOCK")
+            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "STOPWATCH" })
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("час")) {
+            navigateToItemsSection("CLOCK")
+            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "TIME" })
+            finishVoiceCommand(text); return
+        }
+    }
+    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>" — текстовых меток на
+     * самой фигуре нет (только картинка), стебли придуманы с нуля под голосовую команду.
+     * Принцип зеркала (фидбек по итогам тестирования на реальном устройстве) — фигура на
+     * STATUS смотрит на игрока, поэтому "своя" правая рука игрока — это `setCrippledLeftArm`
+     * (левая часть экрана, `img_..._left_arm`, bias 0.08 в разметке) и наоборот: код-имя
+     * `Left`/`Right` — это сторона экрана, а не сторона тела, которую называет игрок. */
+    private fun matchBodyPartSetter(normalized: String): ((Boolean) -> Unit)? = when {
+        normalized.contains("голов") -> ::setCrippledHead
+        normalized.contains("торс") || normalized.contains("груд") || normalized.contains("тулов") -> ::setCrippledTorso
+        normalized.contains("рук") && normalized.contains("лев") -> ::setCrippledRightArm
+        normalized.contains("рук") && normalized.contains("прав") -> ::setCrippledLeftArm
+        normalized.contains("ног") && normalized.contains("лев") -> ::setCrippledRightLeg
+        normalized.contains("ног") && normalized.contains("прав") -> ::setCrippledLeftLeg
+        else -> null
+    }
+    /** Разбор произвольного числа минут из речи (roadmap, этап 21 ч.2, "самое сложное") —
+     * маленькая модель Vosk не делает inverse text normalization, числа приходят словами,
+     * не цифрами. Покрывает 1-59 (реальный диапазон значений таймера) — этого достаточно.
+     * Цифры (`\d+`) проверяются первыми на случай, если конкретная сборка модели их всё же
+     * возвращает. */
+    private fun parseRussianNumber(text: String): Int? {
+        Regex("\\d+").find(text)?.value?.toIntOrNull()?.let { return it }
+        val units = mapOf(
+            "один" to 1, "одна" to 1, "два" to 2, "две" to 2, "три" to 3, "четыре" to 4,
+            "пять" to 5, "шесть" to 6, "семь" to 7, "восемь" to 8, "девять" to 9,
+        )
+        val teens = mapOf(
+            "десять" to 10, "одиннадцать" to 11, "двенадцать" to 12, "тринадцать" to 13,
+            "четырнадцать" to 14, "пятнадцать" to 15, "шестнадцать" to 16, "семнадцать" to 17,
+            "восемнадцать" to 18, "девятнадцать" to 19,
+        )
+        val tens = mapOf("двадцать" to 20, "тридцать" to 30, "сорок" to 40, "пятьдесят" to 50)
+        val tokens = text.split(Regex("\\s+"))
+        for (i in tokens.indices) {
+            tens[tokens[i]]?.let { tensValue -> return tensValue + (units[tokens.getOrNull(i + 1)] ?: 0) }
+            teens[tokens[i]]?.let { return it }
+            units[tokens[i]]?.let { return it }
+        }
+        return null
+    }
+    /** Переключение на один из top-level узлов ITEMS/МОДУЛИ по символическому id узла
+     * ([MenuNode.id] в [itemsMenuRoot]) — тот же путь, что и BLE-команды/восстановление
+     * состояния ([MenuNavigator.resetToRootAtIndex]), а не отдельный набор performClick()
+     * в обход дерева навигации (курсор энкодера иначе рассинхронизировался бы). */
+    private fun navigateToItemsSection(nodeId: String) {
+        val roots = itemsMenuRoot()
+        val index = roots.indexOfFirst { it.id == nodeId }
+        if (index < 0) return
+        menuChangeBLE("ITEMS")
+        menuNavigator.resetToRootAtIndex(roots, index)
+    }
+    private val ROUTE_FILLER_WORDS = setOf("до", "к", "на", "в")
+    /** Сопоставление имени отметки с запросом голосовой команды "маршрут до <имя>" — по
+     * стеблю ([russianStem]), не по буквальному вхождению целиком: игрок ставит имя
+     * отметки в именительном падеже ("Убежище"), а называет его потом в любом другом
+     * ("маршрут до убежищ*а*") — точное совпадение регулярно ломалось на падежных
+     * окончаниях (найдено на реальном устройстве). Каждое слово запроса должно найтись
+     * (по стеблю, в любую сторону) среди слов имени отметки — так работает и частичный
+     * запрос (одно слово из многословного имени), и запрос длиннее имени отметки.
+     */
+    private fun matchesMarkerQuery(queryTokens: List<String>, markerName: String): Boolean {
+        if (queryTokens.isEmpty()) return false
+        val markerStems = markerName.lowercase().replace('ё', 'е')
+            .split(Regex("\\s+")).filter { it.isNotBlank() }.map { russianStem(it) }
+        if (markerStems.isEmpty()) return false
+        return queryTokens.map { russianStem(it) }.all { queryStem ->
+            markerStems.any { markerStem -> markerStem.contains(queryStem) || queryStem.contains(markerStem) }
+        }
+    }
+    /** Лёгкий стеммер под конкретную задачу (не полноценная морфология) — срезает самое
+     * частое падежное окончание существительного/прилагательного, если после среза
+     * остаётся не меньше 3 букв (иначе короткие слова теряют смысл, "дом"/"дым" не
+     * должны схлопнуться в одно и то же). Длинные окончания проверяются раньше коротких,
+     * чтобы не срезать только последнюю букву там, где есть более точное совпадение. */
+    private fun russianStem(word: String): String {
+        val suffixes = listOf(
+            "иями", "иях", "ями", "ами", "его", "ого", "ему", "ому", "ыми", "ими",
+            "ия", "ие", "ых", "их", "ев", "ов", "ей", "ой", "ый", "ая", "яя", "ую", "юю",
+            "а", "я", "о", "е", "и", "ы", "у", "ю", "й", "ь",
+        )
+        for (suffix in suffixes) {
+            if (word.length - suffix.length >= 3 && word.endsWith(suffix)) return word.dropLast(suffix.length)
+        }
+        return word
+    }
+    /** Общий хвост распознанной (не обязательно успешно исполненной — см. playErrorAudio()
+     * по месту вызова) команды — тост + остановка прослушивания. */
+    private fun finishVoiceCommand(recognizedText: String) {
+        Toast.makeText(this, getString(R.string.voice_command_recognized, recognizedText), Toast.LENGTH_SHORT).show()
+        cancelVoiceCommandListening(matched = true)
+    }
+    private fun cancelVoiceCommandListening(matched: Boolean) {
+        voiceCommandTimeoutHandler.removeCallbacks(voiceCommandTimeoutRunnable)
+        wakeWordDetector?.disarmCommandSink()
+        voiceDictationService.stopCommandRecognition()
+        awaitingVoiceCommand = false
+        if (!matched) {
+            Toast.makeText(this, getString(R.string.voice_command_not_recognized), Toast.LENGTH_SHORT).show()
+        }
+        // WakeWordDetector никогда не останавливался (см. класс-doc выше) — заново
+        // запускать/запрашивать разрешение здесь не нужно.
     }
 
     /***********************************************************************************************************
@@ -1853,6 +2243,7 @@ class MainActivity : AppCompatActivity() {
             mapScreen.photoViewMap.visibility = View.GONE
             mapScreen.viewMapOverlay.visibility = View.GONE
             mapScreen.layoutMapMenuContainer.visibility = View.GONE
+            pendingMapReadyAction = null
             return
         }
         lifecycleScope.launch(Dispatchers.IO) {
@@ -1865,6 +2256,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.photoViewMap.visibility = View.GONE
                     mapScreen.viewMapOverlay.visibility = View.GONE
                     mapScreen.layoutMapMenuContainer.visibility = View.GONE
+                    pendingMapReadyAction = null
                     return@withContext
                 }
                 mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
@@ -1953,6 +2345,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 startMapLocationUpdates()
+                // Голосовая команда "маршрут до <имя>" (см. pendingMapReadyAction) — только
+                // сейчас, после того как этот заход в openMapScreen() полностью отработал
+                // (иначе именно этот сброс несколькими строками выше стирает уже
+                // построенный маршрут, см. комментарий у объявления поля).
+                pendingMapReadyAction?.invoke()
+                pendingMapReadyAction = null
             }
         }
     }
@@ -2351,16 +2749,112 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText("")
         popup.root.visibility = View.VISIBLE
+        refreshJournalMicAvailability()
     }
     private fun showJournalEntryPopupForEdit(entry: JournalEntry) {
         editingJournalEntryId = entry.id
         val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText(entry.text)
         popup.root.visibility = View.VISIBLE
+        refreshJournalMicAvailability()
     }
     private fun hideJournalEntryPopup() {
         editingJournalEntryId = null
+        stopJournalDictation()
         bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
+    }
+    /** Сбрасывает кнопку-микрофон и статус-строку к состоянию покоя при каждом открытии
+     * попапа (в т.ч. на случай, если предыдущая сессия попапа была закрыта не через
+     * hideJournalEntryPopup) — alpha сразу отражает, импортирована ли модель. */
+    private fun refreshJournalMicAvailability() {
+        journalDictationState = JournalDictationState.IDLE
+        setJournalMicStatus("")
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        popup.btnJournalEntryMic.alpha = if (voiceModelRepository.hasModel()) 1f else 0.4f
+        updateJournalMicVisual(recording = false)
+    }
+    private fun setJournalMicStatus(text: String) {
+        bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.tvJournalEntryMicStatus.text = text
+    }
+    /** Слушающее состояние красится чуть светлее акцента темы (blend с белым) — не жёстко
+     * зашитым цветом (CLAUDE.md, "Архитектурный принцип: тематизация интерфейса"), просто
+     * производным от того же currentWizardAccentColor(), что и обычный фон кнопки. Иконка
+     * меняется на квадрат "стоп", пока идёт запись — иначе тап 1/тап 2 неотличимы на вид. */
+    private fun updateJournalMicVisual(recording: Boolean) {
+        val accent = currentWizardAccentColor()
+        val tint = if (recording) ColorUtils.blendARGB(accent, Color.WHITE, 0.4f) else accent
+        val micButton = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.btnJournalEntryMic
+        micButton.backgroundTintList = ColorStateList.valueOf(tint)
+        micButton.setImageResource(if (recording) R.drawable.ic_stop else R.drawable.ic_mic)
+        ImageViewCompat.setImageTintList(micButton, null)
+    }
+    private fun appendJournalDictatedText(text: String) {
+        if (text.isBlank()) return
+        val editText = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.etJournalEntryValue
+        val current = editText.text?.toString().orEmpty()
+        val separator = if (current.isNotEmpty() && !current.endsWith(" ") && !current.endsWith("\n")) " " else ""
+        editText.append(separator + text)
+    }
+    /** Тап 1 по микрофону. Модель Vosk грузится лениво при первом использовании за сессию
+     * приложения (voiceDictationService переживает открытие/закрытие попапа) — если уже
+     * загружена, слушать начинает сразу, иначе показывает "Загрузка модели…" и стартует
+     * после. journalDictationState — не только UI-индикатор, но и защита от гонки: если
+     * попап закрыли посреди загрузки (hideJournalEntryPopup -> stopJournalDictation -> IDLE),
+     * повторный тап на LOADING просто игнорируется, а колбэк загрузки, увидев, что состояние
+     * уже не LOADING, не запускает прослушивание вдогонку. */
+    private fun startJournalDictation() {
+        if (voiceDictationService.isModelLoaded()) {
+            beginJournalListening()
+            return
+        }
+        journalDictationState = JournalDictationState.LOADING
+        setJournalMicStatus(getString(R.string.journal_mic_status_loading))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
+            withContext(Dispatchers.Main) {
+                if (journalDictationState != JournalDictationState.LOADING) return@withContext
+                if (result.isFailure) {
+                    journalDictationState = JournalDictationState.IDLE
+                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
+                    return@withContext
+                }
+                beginJournalListening()
+            }
+        }
+    }
+    private fun beginJournalListening() {
+        journalDictationState = JournalDictationState.LISTENING
+        setJournalMicStatus(getString(R.string.journal_mic_status_listening))
+        updateJournalMicVisual(recording = true)
+        voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
+            override fun onPartialText(text: String) {
+                Log.d("VoiceJournal", "partial: \"$text\"")
+                runOnUiThread {
+                    setJournalMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
+                }
+            }
+            override fun onFinalText(text: String) {
+                Log.d("VoiceJournal", "final: \"$text\"")
+                runOnUiThread { appendJournalDictatedText(text) }
+            }
+            override fun onError(message: String) {
+                Log.d("VoiceJournal", "error: $message")
+                runOnUiThread {
+                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
+                    stopJournalDictation()
+                }
+            }
+        })
+    }
+    /** Тап 2 по микрофону (и штатное закрытие попапа) — SpeechService.stop() сам отдаёт
+     * "хвост" фразы через onFinalResult до того, как метод здесь вернёт управление. */
+    private fun stopJournalDictation() {
+        if (journalDictationState == JournalDictationState.LISTENING) {
+            voiceDictationService.stopListening()
+        }
+        journalDictationState = JournalDictationState.IDLE
+        setJournalMicStatus("")
+        updateJournalMicVisual(recording = false)
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
@@ -2496,6 +2990,22 @@ class MainActivity : AppCompatActivity() {
         } ?: "?"
         val folderName = mapBundleRepository.importedSourceFolderName() ?: "?"
         statusView.text = getString(R.string.map_bundle_status_imported, folderName, dateText)
+    }
+
+    /** Обновляет статус-строку в Settings > Voice Model — импортирована ли модель Vosk,
+     * когда и из какого файла. Вызывается при открытии подпанели и сразу после
+     * (не)успешного импорта. */
+    private fun refreshVoiceModelStatus() {
+        val statusView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelStatus
+        if (!voiceModelRepository.hasModel()) {
+            statusView.text = getString(R.string.voice_model_status_none)
+            return
+        }
+        val dateText = voiceModelRepository.importedAtEpochMillis()?.let {
+            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
+        } ?: "?"
+        val fileName = voiceModelRepository.importedSourceFileName() ?: "?"
+        statusView.text = getString(R.string.voice_model_status_imported, fileName, dateText)
     }
 
     /***********************************************************************************************************
@@ -3445,6 +3955,50 @@ class MainActivity : AppCompatActivity() {
         timer.layoutClockTimerRunning.visibility = if (running) View.VISIBLE else View.GONE
         timer.layoutClockTimerSetup.visibility = if (running) View.GONE else View.VISIBLE
     }
+    /** Общий старт — кнопка [Старт] (значения колёс ЧЧ:ММ:СС) и голосовая команда "таймер
+     * N минут" (roadmap, этап 21 ч.2) переиспользуют один и тот же путь, а не дублируют
+     * присвоение timerState/timerTargetEpochMillis по отдельности. No-op на 0 секунд —
+     * ровно как раньше вело себя условие в самом обработчике кнопки. */
+    private fun startPlainTimer(totalSeconds: Int) {
+        if (totalSeconds <= 0) return
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
+        timerState = TimerState.RUNNING
+        timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+        timer.layoutClockTimerSetup.visibility = View.GONE
+        timer.layoutClockTimerRunning.visibility = View.VISIBLE
+        updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
+    }
+    /** Общая пауза/возобновление — кнопка [Пауза] и голосовая команда "пауза"/"продолжи". */
+    private fun pauseResumeTimer() {
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        when (timerState) {
+            TimerState.RUNNING -> {
+                timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
+                timerState = TimerState.PAUSED
+                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
+            }
+            TimerState.PAUSED -> {
+                timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
+                timerState = TimerState.RUNNING
+                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+            }
+            TimerState.IDLE -> {}
+        }
+    }
+    /** Общий сброс — кнопка [Сброс] и голосовая команда "стоп таймер" (roadmap, этап 21
+     * ч.2 — таймер ранения ничем не отличается от обычного, отдельной voice-команды на
+     * его остановку не нужно). Если сейчас идёт таймер ранения — равнозначен [Стоп] на
+     * STATUS: не тихий обрыв без итога, а те же последствия (перевязка/лечение). Обычный
+     * сброс — только когда woundPhase == NONE. */
+    private fun resetTimer() {
+        if (woundPhase != WoundPhase.NONE) {
+            stopWoundTimerEarly()
+        } else {
+            timerState = TimerState.IDLE
+            syncClockTimerScreenVisibility()
+        }
+    }
     /**
      * Мелодия звонка (roadmap, "Часы — UX-спецификация") — функции уровня класса, не
      * локальные closure в onCreate: openClockMelodyScreen() вызывается из обработчика
@@ -3968,8 +4522,10 @@ class MainActivity : AppCompatActivity() {
         updateClockTimerLabel()
     }
     /** Вылечен — общий финал и для BANDAGE (успели), и для STUNNED (прошло/остановлено):
-     * возврат к man_face, таймер снят. CRIPPLED-тоггл по конечностям не трогается — это
-     * независимая механика, лечение ранения на неё не влияет. */
+     * возврат к man_face, таймер снят. CRIPPLED по всем шести частям тела снимается тоже
+     * (недосмотр, найден по фидбеку — "здоров" должно означать действительно здоров, не
+     * здоров-но-с-переломом; `reviveCharacter()`/`applyReviveVisuals()` уже вели себя так
+     * же, только для случая смерти). */
     private fun healWoundsToHealthy() {
         woundPhase = WoundPhase.NONE
         applyWoundFace()
@@ -3977,6 +4533,12 @@ class MainActivity : AppCompatActivity() {
         updateWoundStatusLine()
         timerState = TimerState.IDLE
         syncClockTimerScreenVisibility()
+        setCrippledHead(false)
+        setCrippledTorso(false)
+        setCrippledLeftArm(false)
+        setCrippledRightArm(false)
+        setCrippledLeftLeg(false)
+        setCrippledRightLeg(false)
     }
     /** [Стоп] на STATUS — и обработчик btn_clock_timer_reset на экране ITEMS/Таймер, когда
      * woundPhase != NONE (roadmap: сброс таймера ранения оттуда должен давать те же
@@ -4071,36 +4633,46 @@ class MainActivity : AppCompatActivity() {
      * woundPhase кроме DEAD — см. спеку; пока DEAD короткий тап по любой части фигуры
      * уходит на revive, см. setupFigureTouchTarget()) — не трогает woundPhase/лицо/
      * остальные части. */
-    private fun toggleCrippledHead() {
-        crippledHead = !crippledHead
+    // set*() — явная установка (не инверсия), нужна голосовым командам "ранение в
+    // <часть тела>" (roadmap, этап 21 ч.2): голосовая команда должна быть идемпотентной,
+    // повторный вызов с тем же значением не должен ничего переключать обратно. toggle*()
+    // (тач по фигуре) остаются тонкими обёртками поверх тех же set*().
+    private fun setCrippledHead(crippled: Boolean) {
+        crippledHead = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
     }
-    private fun toggleCrippledTorso() {
-        crippledTorso = !crippledTorso
+    private fun toggleCrippledHead() = setCrippledHead(!crippledHead)
+    private fun setCrippledTorso(crippled: Boolean) {
+        crippledTorso = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
     }
-    private fun toggleCrippledLeftArm() {
-        crippledLeftArm = !crippledLeftArm
+    private fun toggleCrippledTorso() = setCrippledTorso(!crippledTorso)
+    private fun setCrippledLeftArm(crippled: Boolean) {
+        crippledLeftArm = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
     }
-    private fun toggleCrippledRightArm() {
-        crippledRightArm = !crippledRightArm
+    private fun toggleCrippledLeftArm() = setCrippledLeftArm(!crippledLeftArm)
+    private fun setCrippledRightArm(crippled: Boolean) {
+        crippledRightArm = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
     }
-    private fun toggleCrippledLeftLeg() {
-        crippledLeftLeg = !crippledLeftLeg
+    private fun toggleCrippledRightArm() = setCrippledRightArm(!crippledRightArm)
+    private fun setCrippledLeftLeg(crippled: Boolean) {
+        crippledLeftLeg = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
     }
-    private fun toggleCrippledRightLeg() {
-        crippledRightLeg = !crippledRightLeg
+    private fun toggleCrippledLeftLeg() = setCrippledLeftLeg(!crippledLeftLeg)
+    private fun setCrippledRightLeg(crippled: Boolean) {
+        crippledRightLeg = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
     }
+    private fun toggleCrippledRightLeg() = setCrippledRightLeg(!crippledRightLeg)
     /**
      * Тач-цель на фигуре персонажа (roadmap, "Редизайн STATS/Status — UX-спецификация",
      * фидбек по итогам тестирования) — общий обработчик вешается на все 6 картинок частей
@@ -5135,11 +5707,14 @@ class MainActivity : AppCompatActivity() {
         val settingsAccent = currentWizardAccentColor()
         listOf(
             bindingMain.incLayoutSettingsGlobal.btnSettingsClose,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle,
             bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnSettingsMapBundleClose,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnSettingsVoiceModelClose,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnVoiceModelImport
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
         // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
         // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
@@ -5391,44 +5966,15 @@ class MainActivity : AppCompatActivity() {
 
         timer.btnClockTimerStart.setOnClickListener {
             playNewTabSelectAudio()
-            val totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds
-            if (totalSeconds > 0) {
-                timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
-                timerState = TimerState.RUNNING
-                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-                timer.layoutClockTimerSetup.visibility = View.GONE
-                timer.layoutClockTimerRunning.visibility = View.VISIBLE
-                updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
-            }
+            startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
             playNewTabSelectAudio()
-            when (timerState) {
-                TimerState.RUNNING -> {
-                    timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
-                    timerState = TimerState.PAUSED
-                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
-                }
-                TimerState.PAUSED -> {
-                    timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
-                    timerState = TimerState.RUNNING
-                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-                }
-                TimerState.IDLE -> {}
-            }
+            pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
             playNewTabSelectAudio()
-            // Если сейчас идёт таймер ранения — "Сброс" здесь равнозначен [Стоп] на
-            // STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация"): не тихий обрыв
-            // без итога, а те же последствия (перевязка/лечение). Обычный сброс — только
-            // когда woundPhase == NONE.
-            if (woundPhase != WoundPhase.NONE) {
-                stopWoundTimerEarly()
-            } else {
-                timerState = TimerState.IDLE
-                syncClockTimerScreenVisibility()
-            }
+            resetTimer()
         }
 
         /*
@@ -5555,11 +6101,37 @@ class MainActivity : AppCompatActivity() {
         // (тот же класс бага, что и backgroundTint на обычных кнопках, см. CLAUDE.md) —
         // иконка и фон сливаются в сплошной цветной квадрат, глиф не виден.
         ImageViewCompat.setImageTintList(journalEntryPopup.btnJournalEntryMic, null)
-        // Голосовой ввод (Vosk) ещё не подключён — тап по заглушке ничего не делает, кроме
-        // звука недоступного действия (тот же playErrorAudio(), что у прочих "пока нельзя"
-        // мест в приложении).
+        // Голосовой ввод (Vosk, этап 21 п.2) — тап 1 старт/тап 2 стоп, см.
+        // startJournalDictation()/stopJournalDictation(). Без импортированной модели —
+        // тот же playErrorAudio(), что и у прочих "пока нельзя" мест в приложении, плюс
+        // подсказка текстом в статус-строке (не молча).
         journalEntryPopup.btnJournalEntryMic.setOnClickListener {
-            playErrorAudio()
+            when (journalDictationState) {
+                JournalDictationState.IDLE -> {
+                    if (awaitingVoiceCommand) {
+                        // VoiceDictationService уже занят распознаванием голосовой команды
+                        // после будческого слова (onWakeWordTriggered) — не отбирать его.
+                        playErrorAudio()
+                        return@setOnClickListener
+                    }
+                    if (!voiceModelRepository.hasModel()) {
+                        playErrorAudio()
+                        setJournalMicStatus(getString(R.string.journal_mic_status_no_model))
+                        return@setOnClickListener
+                    }
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                        != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        ActivityCompat.requestPermissions(
+                            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_JOURNAL_DICTATION
+                        )
+                        return@setOnClickListener
+                    }
+                    startJournalDictation()
+                }
+                JournalDictationState.LOADING -> { /* повторный тап во время загрузки модели игнорируется */ }
+                JournalDictationState.LISTENING -> stopJournalDictation()
+            }
         }
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
@@ -5816,6 +6388,29 @@ class MainActivity : AppCompatActivity() {
 
         /***********************************************************************************************************
          *
+         * VOICE MODEL (roadmap, ветка app-voice-commands, этап 21) — импорт .zip с офлайн-моделью
+         * Vosk, см. VoiceModelRepository/openVoiceModelZipLauncher/refreshVoiceModelStatus().
+         *
+         **********************************************************************************************************/
+
+        val voiceModelPanel = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel
+
+        bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel.setOnClickListener {
+            voiceModelPanel.root.visibility = View.VISIBLE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
+            voiceModelPanel.tvVoiceModelImportResult.text = ""
+            refreshVoiceModelStatus()
+        }
+        voiceModelPanel.btnSettingsVoiceModelClose.setOnClickListener {
+            voiceModelPanel.root.visibility = View.GONE
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
+        }
+        voiceModelPanel.btnVoiceModelImport.setOnClickListener {
+            openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+        }
+
+        /***********************************************************************************************************
+         *
          * BLUETOOTH
          *
          **********************************************************************************************************/
@@ -6013,6 +6608,7 @@ class MainActivity : AppCompatActivity() {
         stopAmbientBackgroundSound()
         cancelBootSequence()
         wakeWordDetector?.release()
+        voiceDictationService.release()
         // Сервис НЕ останавливаем — он должен продолжать держать BLE-связь и в фоне,
         // это и есть весь смысл foreground service (протокол, раздел 5). Отвязываемся
         // только от локального биндинга, чтобы не утекала ссылка на Activity.

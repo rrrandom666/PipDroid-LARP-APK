@@ -24,10 +24,10 @@ import android.util.Log
  * исходников dscripka/openWakeWord (openwakeword/utils.py, класс AudioFeatures) — не подобраны
  * эмпирически, менять только вместе со сверкой с апстримом.
  *
- * ЗАГЛУШКА: wakeword_classifier.onnx сейчас — английская модель-пример автора ("hey jarvis"),
- * не своя "Пип-бой". Она даёт рабочий, проверяемый на устройстве конвейер уже сейчас; замена на
- * обученную под "Пип-бой" модель (roadmap, этап 19, обучение вне этого репозитория) не потребует
- * менять код — только файл в assets/models/wakeword/wakeword_classifier.onnx.
+ * wakeword_classifier.onnx — обученная под "Пип-бой" модель (roadmap, этап 19, обучение вне
+ * этого репозитория, финальная версия на русских TTS-голосах). Замена файла в
+ * assets/models/wakeword/ не требует правок в этом классе — сама архитектура конвейера не
+ * зависит от конкретной обученной модели.
  */
 class WakeWordDetector(
     private val context: Context,
@@ -49,6 +49,15 @@ class WakeWordDetector(
 
         private const val DETECTION_THRESHOLD = 0.5f
         private const val DETECTION_COOLDOWN_MS = 2_000L
+        // ~480мс pre-roll (6 чанков по 80мс) — компенсирует задержку самого детектора: пока
+        // classifier уверенно сработает, игрок уже начинает следующее слово, и без запаса
+        // начало команды терялось ("лёгкое ранение" -> "я ранения", второе слово доезжало
+        // нормально). Пробовали 2с (25 чанков) — оказалось СЛИШКОМ много: в захват попадало
+        // само будческое слово целиком, Vosk честно транскрибировал "Пип-бой" как похожие
+        // слова ("пип бой"/"любой"/"бой") и либо засорял результат, либо обрывал фразу
+        // раньше времени по ложной паузе. Значение подбирается эмпирически на реальном
+        // устройстве (как и recall/fp-rate самой модели, roadmap этап 19) — не точная физика.
+        private const val PREROLL_CHUNKS = 6
 
         private const val MEL_MODEL_ASSET = "models/wakeword/melspectrogram.onnx"
         private const val EMBED_MODEL_ASSET = "models/wakeword/embedding_model.onnx"
@@ -65,6 +74,23 @@ class WakeWordDetector(
     private var audioRecord: AudioRecord? = null
     private var captureThread: Thread? = null
     @Volatile private var running = false
+
+    /**
+     * Точка врезки для голосовых команд (roadmap, этап 21 п.4) — если установлена, каждый
+     * прочитанный из микрофона чанк (сырые int16-сэмплы, тот же поток, что кормит классификатор
+     * будческого слова) дополнительно отдаётся сюда, БЕЗ остановки/пересоздания AudioRecord.
+     * Ставить/снимать не напрямую — через armCommandSink()/disarmCommandSink() ниже (те же
+     * прогоняют pre-roll буфер перед тем, как встать на живой поток).
+     * Вызывается на WakeWordCapture-потоке, не на главном — обработчик должен сам переходить
+     * на нужный поток при необходимости (см. использование в MainActivity).
+     */
+    @Volatile private var rawAudioSink: ((ShortArray, Int) -> Unit)? = null
+
+    // Кольцевой буфер последних PREROLL_CHUNKS чанков — читается/пишется с разных потоков
+    // (запись — WakeWordCapture в captureLoop, чтение — armCommandSink() обычно с главного),
+    // отсюда preRollLock. Хранит копии (chunk переиспользуется буфером AudioRecord.read()).
+    private val preRollLock = Any()
+    private val preRollBuffer = ArrayDeque<ShortArray>()
 
     // Буфер мел-фреймов между вызовами melspectrogram.onnx и embedding_model.onnx.
     private val melBuffer = ArrayList<FloatArray>()
@@ -150,12 +176,65 @@ class WakeWordDetector(
         wakeSession?.close(); wakeSession = null
     }
 
+    /** Ставит точку врезки под голосовую команду — сначала прогоняет через [sink] то, что
+     * уже накопилось в pre-roll буфере (последние ~2с), потом переключает [rawAudioSink] на
+     * живой поток. Вызывать сразу после срабатывания [onDetected], с любого потока. */
+    fun armCommandSink(sink: (ShortArray, Int) -> Unit) {
+        val preRoll = synchronized(preRollLock) { preRollBuffer.toList() }
+        for (preRollChunk in preRoll) {
+            sink(preRollChunk, preRollChunk.size)
+        }
+        rawAudioSink = sink
+    }
+
+    /** Обрабатывается на WakeWordCapture-потоке (см. captureLoop) — melBuffer/embedBuffer не
+     * потокобезопасны, чистить их напрямую отсюда (главный поток) нельзя. */
+    @Volatile private var pendingClassifierReset = false
+
+    fun disarmCommandSink() {
+        // Пока классификатор не гонялся (см. captureLoop — во время команды он полностью
+        // выключен, не только игнорируется), его melBuffer/embedBuffer простояли
+        // замороженными с содержимым от самого "Пип-бой". Без сброса классификатор при
+        // возобновлении смотрит на этот огрызок как на скользящее окно и может ложно
+        // перевзвестись на старых данных сразу же — задокументированное поведение апстрима
+        // (dscripka/openWakeWord, issue #141: пауза в подаче аудио + возобновление = re-detect
+        // старого будческого слова из хвоста буфера; автор рекомендует сброс состояния при
+        // возобновлении). Найдено на реальном устройстве как "после успешной команды тут же
+        // снова слушает команду и ругается, что не распознал".
+        pendingClassifierReset = true
+        rawAudioSink = null
+    }
+
     private fun captureLoop() {
         val chunk = ShortArray(CHUNK_SAMPLES)
         val record = audioRecord ?: return
         while (running) {
             val read = record.read(chunk, 0, chunk.size)
             if (read <= 0) continue
+            val chunkCopy = chunk.copyOf(read)
+            synchronized(preRollLock) {
+                preRollBuffer.addLast(chunkCopy)
+                if (preRollBuffer.size > PREROLL_CHUNKS) preRollBuffer.removeFirst()
+            }
+            val sink = rawAudioSink
+            if (sink != null) {
+                // Пока слушаем команду — классификатор будческого слова на этот же чанк не
+                // гоняем вообще, не только не реагируем на его результат. Находка на реальном
+                // устройстве: тройная ONNX-инференция (mel+embed+classify) вперемешку с
+                // decode-шагом Vosk на одном потоке не укладывалась в 80мс на слитной быстрой
+                // речи — поток отставал от живого звука, и слова, идущие без пауз, теряли
+                // куски (симптом был "команду нужно проговаривать медленно с паузами между
+                // словами", не только после будческого слова). Классификатор всё равно
+                // бесполезен в этот момент — повторное срабатывание игнорируется
+                // (MainActivity.awaitingVoiceCommand), тратить на него такт незачем.
+                sink(chunk, read)
+                continue
+            }
+            if (pendingClassifierReset) {
+                pendingClassifierReset = false
+                melBuffer.clear()
+                embedBuffer.clear()
+            }
             // Сырые int16-значения приведены к float32 БЕЗ нормализации на 32768 — так же,
             // как это делает openWakeWord (x.astype(np.float32) без деления), меняли бы
             // масштаб — модель бы перестала узнавать звук.

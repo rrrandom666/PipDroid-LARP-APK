@@ -4522,8 +4522,10 @@ class MainActivity : AppCompatActivity() {
         updateClockTimerLabel()
     }
     /** Вылечен — общий финал и для BANDAGE (успели), и для STUNNED (прошло/остановлено):
-     * возврат к man_face, таймер снят. CRIPPLED-тоггл по конечностям не трогается — это
-     * независимая механика, лечение ранения на неё не влияет. */
+     * возврат к man_face, таймер снят. CRIPPLED по всем шести частям тела снимается тоже
+     * (недосмотр, найден по фидбеку — "здоров" должно означать действительно здоров, не
+     * здоров-но-с-переломом; `reviveCharacter()`/`applyReviveVisuals()` уже вели себя так
+     * же, только для случая смерти). */
     private fun healWoundsToHealthy() {
         woundPhase = WoundPhase.NONE
         applyWoundFace()
@@ -4531,6 +4533,12 @@ class MainActivity : AppCompatActivity() {
         updateWoundStatusLine()
         timerState = TimerState.IDLE
         syncClockTimerScreenVisibility()
+        setCrippledHead(false)
+        setCrippledTorso(false)
+        setCrippledLeftArm(false)
+        setCrippledRightArm(false)
+        setCrippledLeftLeg(false)
+        setCrippledRightLeg(false)
     }
     /** [Стоп] на STATUS — и обработчик btn_clock_timer_reset на экране ITEMS/Таймер, когда
      * woundPhase != NONE (roadmap: сброс таймера ранения оттуда должен давать те же

@@ -295,6 +295,15 @@ class MainActivity : AppCompatActivity() {
     // Путь в лат/лон (не пикселях, в отличие от MapOverlayView.routePx) — нужен для
     // haversine-расчёта остатка дистанции и порога перестроения в onMapLocationUpdate().
     private var mapRouteLatLonPath: List<Pair<Double, Double>> = emptyList()
+    // Голосовая команда "маршрут до <имя>" (roadmap, этап 21 ч.2) переключает на карту и
+    // сразу строит маршрут — но openMapScreen() асинхронно (Dispatchers.IO — декодирует
+    // битмап/граф дорог заново при КАЖДОМ входе на экран) сбрасывает mapRouteState/
+    // mapRouteLatLonPath в NONE/пусто, и эта загрузка может закончиться ПОСЛЕ того, как
+    // routeTo() уже построил и отрисовал маршрут (route.build() быстрее, если GPS/граф уже
+    // были в памяти с прошлого визита) — маршрут на экране мелькает и тут же стирается
+    // свежим сбросом. pendingMapReadyAction откладывает routeTo() до конца именно ЭТОГО
+    // захода в openMapScreen(), а не гоняет их наперегонки.
+    private var pendingMapReadyAction: (() -> Unit)? = null
     private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
     // Взведён кнопками "Поставить отметку"/"До точки на карте" (layout_tab_items_map.xml) —
     // следующий тап по карте выполняет действие и сам снимает взвод, а не тап-и-удержание
@@ -1054,21 +1063,262 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    /** Нормализация — нижний регистр + ё->е (STT нередко теряет ё). Матч по вхождению, не
-     * точному равенству — реплика может прийти с лишними словами вокруг. Раздельно по
-     * "легк"/"ранен" (не по фразе целиком) — устойчивее к падежным окончаниям
-     * ("лёгкое"/"лёгкого", "ранение"/"ранения"), см. находку про редукцию в roadmap. */
+    /** Полный словарь голосовых команд (roadmap, этап 21 ч.2). Нормализация — нижний
+     * регистр + ё->е (STT нередко теряет ё). Матч по вхождению, не точному равенству —
+     * реплика может прийти с лишними словами вокруг, раздельно по стеблям (не по фразе
+     * целиком) — устойчивее к падежным окончаниям ("лёгкое"/"лёгкого", "ранение"/
+     * "ранения"), см. находку про редукцию в roadmap. Последовательные проверки, первое
+     * совпадение выигрывает — порядок важен там, где один стебель — подстрока фразы
+     * другой команды ("маршрут" внутри "отменить маршрут", "таймер" в двух разных
+     * командах).
+     */
     private fun handleVoiceCommandText(text: String) {
         if (!awaitingVoiceCommand) return
         val normalized = text.lowercase().replace('ё', 'е')
-        if (!(normalized.contains("легк") && normalized.contains("ранен"))) return
-        if (woundPhase != WoundPhase.NONE) {
-            playErrorAudio()
-        } else {
-            playItemSelectAudio()
-            startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+
+        // Ранение (лёгкое/тяжёлое), опционально с частью тела — общий таймер плюс,
+        // если названа часть тела, ещё и CRIPPLED-отметка этой части (независимая
+        // механика, см. setCrippled*() выше).
+        val woundSeverity = when {
+            !normalized.contains("ранен") -> null
+            normalized.contains("тяжел") -> WoundSeverity.HEAVY
+            normalized.contains("легк") -> WoundSeverity.LIGHT
+            else -> null
         }
-        Toast.makeText(this, getString(R.string.voice_command_recognized, text), Toast.LENGTH_SHORT).show()
+        if (woundSeverity != null) {
+            if (woundPhase != WoundPhase.NONE) {
+                playErrorAudio()
+            } else {
+                playItemSelectAudio()
+                startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
+                matchBodyPartSetter(normalized)?.invoke(true)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Оглушение/контузия — та же общая система, третья фаза ранения.
+        if (normalized.contains("оглуш") || normalized.contains("контуз")) {
+            if (woundPhase != WoundPhase.NONE) {
+                playErrorAudio()
+            } else {
+                playItemSelectAudio()
+                startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Возвращение в строй — только пока персонаж мёртв (тот же гвард, что у тач-жеста
+        // по фигуре, см. setupFigureTouchTarget()).
+        if (normalized.contains("очнул") || normalized.contains("ожил")) {
+            if (woundPhase == WoundPhase.DEAD) {
+                playItemSelectAudio()
+                reviveCharacter()
+            } else {
+                playErrorAudio()
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Таймер ранения ничем не отличается от обычного (roadmap, этап 21 ч.2) — общий
+        // "стоп"/"пауза" на общем timerState/resetTimer()/pauseResumeTimer(), без отдельной
+        // voice-команды на именно таймер ранения. "Стоп"/"пауза" проверяются раньше "таймер
+        // N минут" — обе фразы содержат слово "таймер".
+        if (normalized.contains("таймер") && (normalized.contains("стоп") || normalized.contains("останов"))) {
+            playNewTabSelectAudio()
+            resetTimer()
+            finishVoiceCommand(text)
+            return
+        }
+        if (normalized.contains("пауз") || normalized.contains("продолж") || normalized.contains("возобнов")) {
+            val allowed = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
+            if (!allowed || timerState == TimerState.IDLE) {
+                playErrorAudio()
+            } else {
+                playNewTabSelectAudio()
+                pauseResumeTimer()
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Таймер с произвольным числом минут — разбор чисел из речи Vosk (parseRussianNumber(),
+        // самая сложная часть словаря). Отказ, если уже что-то тикает (в т.ч. таймер
+        // ранения) — так же, как кнопка [Старт] физически недоступна, пока видна
+        // Running-панель.
+        if (normalized.contains("таймер") && normalized.contains("минут")) {
+            val minutes = parseRussianNumber(normalized)
+            if (minutes == null || minutes <= 0 || timerState != TimerState.IDLE) {
+                playErrorAudio()
+            } else {
+                playNewTabSelectAudio()
+                startPlainTimer(minutes * 60)
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Карта — маршрут: отмена проверяется раньше построения (обе фразы содержат
+        // "маршрут"). Имя отметки сверяется по стеблю (russianStem()), не по буквальному
+        // вхождению — имя ставит игрок в именительном падеже ("Убежище"), а называет его
+        // потом в любом другом ("до убежища") — неоднозначность (0 или больше 1
+        // совпадения) трактуется как нераспознанная команда, а не угадывается.
+        if (normalized.contains("маршрут")) {
+            if (normalized.contains("отмен")) {
+                playNewTabSelectAudio()
+                cancelActiveRoute()
+            } else {
+                val queryTokens = normalized.substringAfter("маршрут").trim()
+                    .split(Regex("\\s+"))
+                    .filterNot { it.isBlank() || it in ROUTE_FILLER_WORDS }
+                val candidates = markerRepository.loadAll().filter { matchesMarkerQuery(queryTokens, it.name) }
+                if (candidates.size != 1) {
+                    playErrorAudio()
+                } else {
+                    playItemSelectAudio()
+                    val destination = candidates[0]
+                    // Отложено до конца ИМЕННО этого захода на экран карты — см.
+                    // pendingMapReadyAction, иначе асинхронный сброс внутри openMapScreen()
+                    // стирает только что построенный маршрут (найдено на реальном
+                    // устройстве — маршрут мелькал и тут же исчезал).
+                    pendingMapReadyAction = { routeTo(destination.lat, destination.lon) }
+                    navigateToItemsSection("MAP")
+                }
+            }
+            finishVoiceCommand(text)
+            return
+        }
+        // Журнал — новая запись (проверяется раньше голой навигации на "журнал" ниже).
+        if (normalized.contains("нов") && normalized.contains("запис")) {
+            playItemSelectAudio()
+            navigateToItemsSection("JOURNAL")
+            showJournalEntryPopupForNew()
+            finishVoiceCommand(text)
+            return
+        }
+        // Навигация по разделам/экранам — звук уже играет сама цепочка performClick()/
+        // menuOptionClickedBLE(), отдельно вызывать не нужно (см. navigateToItemsSection()).
+        if (normalized.contains("статус")) {
+            menuChangeBLE("STATS"); menuNavigator.resetToRoot(statsMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("модул")) {
+            menuChangeBLE("ITEMS"); menuNavigator.resetToRoot(itemsMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("данн")) {
+            menuChangeBLE("DATA"); menuNavigator.resetToRoot(dataMenuRoot())
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("журнал")) {
+            navigateToItemsSection("JOURNAL")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("карт")) {
+            navigateToItemsSection("MAP")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("гейгер")) {
+            navigateToItemsSection("GEIGER")
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("секундомер")) {
+            navigateToItemsSection("CLOCK")
+            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "STOPWATCH" })
+            finishVoiceCommand(text); return
+        }
+        if (normalized.contains("час")) {
+            navigateToItemsSection("CLOCK")
+            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "TIME" })
+            finishVoiceCommand(text); return
+        }
+    }
+    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>" — текстовых меток на
+     * самой фигуре нет (только картинка), стебли придуманы с нуля под голосовую команду.
+     * Принцип зеркала (фидбек по итогам тестирования на реальном устройстве) — фигура на
+     * STATUS смотрит на игрока, поэтому "своя" правая рука игрока — это `setCrippledLeftArm`
+     * (левая часть экрана, `img_..._left_arm`, bias 0.08 в разметке) и наоборот: код-имя
+     * `Left`/`Right` — это сторона экрана, а не сторона тела, которую называет игрок. */
+    private fun matchBodyPartSetter(normalized: String): ((Boolean) -> Unit)? = when {
+        normalized.contains("голов") -> ::setCrippledHead
+        normalized.contains("торс") || normalized.contains("груд") || normalized.contains("тулов") -> ::setCrippledTorso
+        normalized.contains("рук") && normalized.contains("лев") -> ::setCrippledRightArm
+        normalized.contains("рук") && normalized.contains("прав") -> ::setCrippledLeftArm
+        normalized.contains("ног") && normalized.contains("лев") -> ::setCrippledRightLeg
+        normalized.contains("ног") && normalized.contains("прав") -> ::setCrippledLeftLeg
+        else -> null
+    }
+    /** Разбор произвольного числа минут из речи (roadmap, этап 21 ч.2, "самое сложное") —
+     * маленькая модель Vosk не делает inverse text normalization, числа приходят словами,
+     * не цифрами. Покрывает 1-59 (реальный диапазон значений таймера) — этого достаточно.
+     * Цифры (`\d+`) проверяются первыми на случай, если конкретная сборка модели их всё же
+     * возвращает. */
+    private fun parseRussianNumber(text: String): Int? {
+        Regex("\\d+").find(text)?.value?.toIntOrNull()?.let { return it }
+        val units = mapOf(
+            "один" to 1, "одна" to 1, "два" to 2, "две" to 2, "три" to 3, "четыре" to 4,
+            "пять" to 5, "шесть" to 6, "семь" to 7, "восемь" to 8, "девять" to 9,
+        )
+        val teens = mapOf(
+            "десять" to 10, "одиннадцать" to 11, "двенадцать" to 12, "тринадцать" to 13,
+            "четырнадцать" to 14, "пятнадцать" to 15, "шестнадцать" to 16, "семнадцать" to 17,
+            "восемнадцать" to 18, "девятнадцать" to 19,
+        )
+        val tens = mapOf("двадцать" to 20, "тридцать" to 30, "сорок" to 40, "пятьдесят" to 50)
+        val tokens = text.split(Regex("\\s+"))
+        for (i in tokens.indices) {
+            tens[tokens[i]]?.let { tensValue -> return tensValue + (units[tokens.getOrNull(i + 1)] ?: 0) }
+            teens[tokens[i]]?.let { return it }
+            units[tokens[i]]?.let { return it }
+        }
+        return null
+    }
+    /** Переключение на один из top-level узлов ITEMS/МОДУЛИ по символическому id узла
+     * ([MenuNode.id] в [itemsMenuRoot]) — тот же путь, что и BLE-команды/восстановление
+     * состояния ([MenuNavigator.resetToRootAtIndex]), а не отдельный набор performClick()
+     * в обход дерева навигации (курсор энкодера иначе рассинхронизировался бы). */
+    private fun navigateToItemsSection(nodeId: String) {
+        val roots = itemsMenuRoot()
+        val index = roots.indexOfFirst { it.id == nodeId }
+        if (index < 0) return
+        menuChangeBLE("ITEMS")
+        menuNavigator.resetToRootAtIndex(roots, index)
+    }
+    private val ROUTE_FILLER_WORDS = setOf("до", "к", "на", "в")
+    /** Сопоставление имени отметки с запросом голосовой команды "маршрут до <имя>" — по
+     * стеблю ([russianStem]), не по буквальному вхождению целиком: игрок ставит имя
+     * отметки в именительном падеже ("Убежище"), а называет его потом в любом другом
+     * ("маршрут до убежищ*а*") — точное совпадение регулярно ломалось на падежных
+     * окончаниях (найдено на реальном устройстве). Каждое слово запроса должно найтись
+     * (по стеблю, в любую сторону) среди слов имени отметки — так работает и частичный
+     * запрос (одно слово из многословного имени), и запрос длиннее имени отметки.
+     */
+    private fun matchesMarkerQuery(queryTokens: List<String>, markerName: String): Boolean {
+        if (queryTokens.isEmpty()) return false
+        val markerStems = markerName.lowercase().replace('ё', 'е')
+            .split(Regex("\\s+")).filter { it.isNotBlank() }.map { russianStem(it) }
+        if (markerStems.isEmpty()) return false
+        return queryTokens.map { russianStem(it) }.all { queryStem ->
+            markerStems.any { markerStem -> markerStem.contains(queryStem) || queryStem.contains(markerStem) }
+        }
+    }
+    /** Лёгкий стеммер под конкретную задачу (не полноценная морфология) — срезает самое
+     * частое падежное окончание существительного/прилагательного, если после среза
+     * остаётся не меньше 3 букв (иначе короткие слова теряют смысл, "дом"/"дым" не
+     * должны схлопнуться в одно и то же). Длинные окончания проверяются раньше коротких,
+     * чтобы не срезать только последнюю букву там, где есть более точное совпадение. */
+    private fun russianStem(word: String): String {
+        val suffixes = listOf(
+            "иями", "иях", "ями", "ами", "его", "ого", "ему", "ому", "ыми", "ими",
+            "ия", "ие", "ых", "их", "ев", "ов", "ей", "ой", "ый", "ая", "яя", "ую", "юю",
+            "а", "я", "о", "е", "и", "ы", "у", "ю", "й", "ь",
+        )
+        for (suffix in suffixes) {
+            if (word.length - suffix.length >= 3 && word.endsWith(suffix)) return word.dropLast(suffix.length)
+        }
+        return word
+    }
+    /** Общий хвост распознанной (не обязательно успешно исполненной — см. playErrorAudio()
+     * по месту вызова) команды — тост + остановка прослушивания. */
+    private fun finishVoiceCommand(recognizedText: String) {
+        Toast.makeText(this, getString(R.string.voice_command_recognized, recognizedText), Toast.LENGTH_SHORT).show()
         cancelVoiceCommandListening(matched = true)
     }
     private fun cancelVoiceCommandListening(matched: Boolean) {
@@ -1993,6 +2243,7 @@ class MainActivity : AppCompatActivity() {
             mapScreen.photoViewMap.visibility = View.GONE
             mapScreen.viewMapOverlay.visibility = View.GONE
             mapScreen.layoutMapMenuContainer.visibility = View.GONE
+            pendingMapReadyAction = null
             return
         }
         lifecycleScope.launch(Dispatchers.IO) {
@@ -2005,6 +2256,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.photoViewMap.visibility = View.GONE
                     mapScreen.viewMapOverlay.visibility = View.GONE
                     mapScreen.layoutMapMenuContainer.visibility = View.GONE
+                    pendingMapReadyAction = null
                     return@withContext
                 }
                 mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
@@ -2093,6 +2345,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 startMapLocationUpdates()
+                // Голосовая команда "маршрут до <имя>" (см. pendingMapReadyAction) — только
+                // сейчас, после того как этот заход в openMapScreen() полностью отработал
+                // (иначе именно этот сброс несколькими строками выше стирает уже
+                // построенный маршрут, см. комментарий у объявления поля).
+                pendingMapReadyAction?.invoke()
+                pendingMapReadyAction = null
             }
         }
     }
@@ -3697,6 +3955,50 @@ class MainActivity : AppCompatActivity() {
         timer.layoutClockTimerRunning.visibility = if (running) View.VISIBLE else View.GONE
         timer.layoutClockTimerSetup.visibility = if (running) View.GONE else View.VISIBLE
     }
+    /** Общий старт — кнопка [Старт] (значения колёс ЧЧ:ММ:СС) и голосовая команда "таймер
+     * N минут" (roadmap, этап 21 ч.2) переиспользуют один и тот же путь, а не дублируют
+     * присвоение timerState/timerTargetEpochMillis по отдельности. No-op на 0 секунд —
+     * ровно как раньше вело себя условие в самом обработчике кнопки. */
+    private fun startPlainTimer(totalSeconds: Int) {
+        if (totalSeconds <= 0) return
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
+        timerState = TimerState.RUNNING
+        timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+        timer.layoutClockTimerSetup.visibility = View.GONE
+        timer.layoutClockTimerRunning.visibility = View.VISIBLE
+        updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
+    }
+    /** Общая пауза/возобновление — кнопка [Пауза] и голосовая команда "пауза"/"продолжи". */
+    private fun pauseResumeTimer() {
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        when (timerState) {
+            TimerState.RUNNING -> {
+                timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
+                timerState = TimerState.PAUSED
+                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
+            }
+            TimerState.PAUSED -> {
+                timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
+                timerState = TimerState.RUNNING
+                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
+            }
+            TimerState.IDLE -> {}
+        }
+    }
+    /** Общий сброс — кнопка [Сброс] и голосовая команда "стоп таймер" (roadmap, этап 21
+     * ч.2 — таймер ранения ничем не отличается от обычного, отдельной voice-команды на
+     * его остановку не нужно). Если сейчас идёт таймер ранения — равнозначен [Стоп] на
+     * STATUS: не тихий обрыв без итога, а те же последствия (перевязка/лечение). Обычный
+     * сброс — только когда woundPhase == NONE. */
+    private fun resetTimer() {
+        if (woundPhase != WoundPhase.NONE) {
+            stopWoundTimerEarly()
+        } else {
+            timerState = TimerState.IDLE
+            syncClockTimerScreenVisibility()
+        }
+    }
     /**
      * Мелодия звонка (roadmap, "Часы — UX-спецификация") — функции уровня класса, не
      * локальные closure в onCreate: openClockMelodyScreen() вызывается из обработчика
@@ -4323,36 +4625,46 @@ class MainActivity : AppCompatActivity() {
      * woundPhase кроме DEAD — см. спеку; пока DEAD короткий тап по любой части фигуры
      * уходит на revive, см. setupFigureTouchTarget()) — не трогает woundPhase/лицо/
      * остальные части. */
-    private fun toggleCrippledHead() {
-        crippledHead = !crippledHead
+    // set*() — явная установка (не инверсия), нужна голосовым командам "ранение в
+    // <часть тела>" (roadmap, этап 21 ч.2): голосовая команда должна быть идемпотентной,
+    // повторный вызов с тем же значением не должен ничего переключать обратно. toggle*()
+    // (тач по фигуре) остаются тонкими обёртками поверх тех же set*().
+    private fun setCrippledHead(crippled: Boolean) {
+        crippledHead = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
     }
-    private fun toggleCrippledTorso() {
-        crippledTorso = !crippledTorso
+    private fun toggleCrippledHead() = setCrippledHead(!crippledHead)
+    private fun setCrippledTorso(crippled: Boolean) {
+        crippledTorso = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
     }
-    private fun toggleCrippledLeftArm() {
-        crippledLeftArm = !crippledLeftArm
+    private fun toggleCrippledTorso() = setCrippledTorso(!crippledTorso)
+    private fun setCrippledLeftArm(crippled: Boolean) {
+        crippledLeftArm = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
     }
-    private fun toggleCrippledRightArm() {
-        crippledRightArm = !crippledRightArm
+    private fun toggleCrippledLeftArm() = setCrippledLeftArm(!crippledLeftArm)
+    private fun setCrippledRightArm(crippled: Boolean) {
+        crippledRightArm = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
     }
-    private fun toggleCrippledLeftLeg() {
-        crippledLeftLeg = !crippledLeftLeg
+    private fun toggleCrippledRightArm() = setCrippledRightArm(!crippledRightArm)
+    private fun setCrippledLeftLeg(crippled: Boolean) {
+        crippledLeftLeg = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
     }
-    private fun toggleCrippledRightLeg() {
-        crippledRightLeg = !crippledRightLeg
+    private fun toggleCrippledLeftLeg() = setCrippledLeftLeg(!crippledLeftLeg)
+    private fun setCrippledRightLeg(crippled: Boolean) {
+        crippledRightLeg = crippled
         val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
         applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
     }
+    private fun toggleCrippledRightLeg() = setCrippledRightLeg(!crippledRightLeg)
     /**
      * Тач-цель на фигуре персонажа (roadmap, "Редизайн STATS/Status — UX-спецификация",
      * фидбек по итогам тестирования) — общий обработчик вешается на все 6 картинок частей
@@ -5646,44 +5958,15 @@ class MainActivity : AppCompatActivity() {
 
         timer.btnClockTimerStart.setOnClickListener {
             playNewTabSelectAudio()
-            val totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds
-            if (totalSeconds > 0) {
-                timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
-                timerState = TimerState.RUNNING
-                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-                timer.layoutClockTimerSetup.visibility = View.GONE
-                timer.layoutClockTimerRunning.visibility = View.VISIBLE
-                updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
-            }
+            startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
             playNewTabSelectAudio()
-            when (timerState) {
-                TimerState.RUNNING -> {
-                    timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
-                    timerState = TimerState.PAUSED
-                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
-                }
-                TimerState.PAUSED -> {
-                    timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
-                    timerState = TimerState.RUNNING
-                    timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-                }
-                TimerState.IDLE -> {}
-            }
+            pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
             playNewTabSelectAudio()
-            // Если сейчас идёт таймер ранения — "Сброс" здесь равнозначен [Стоп] на
-            // STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация"): не тихий обрыв
-            // без итога, а те же последствия (перевязка/лечение). Обычный сброс — только
-            // когда woundPhase == NONE.
-            if (woundPhase != WoundPhase.NONE) {
-                stopWoundTimerEarly()
-            } else {
-                timerState = TimerState.IDLE
-                syncClockTimerScreenVisibility()
-            }
+            resetTimer()
         }
 
         /*

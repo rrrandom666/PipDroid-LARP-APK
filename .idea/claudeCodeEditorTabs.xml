@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ClaudeCodeEditorTabs">
-    <option name="activeSessionId" value="5d647bca-1893-4554-9556-26d0d7a7681d" />
+    <option name="activeSessionId" value="9e6482f8-e1bc-4269-a0d6-63d9665752cf" />
     <option name="openSessionIds">
       <list>
-        <option value="5d647bca-1893-4554-9556-26d0d7a7681d" />
+        <option value="cccb2262-5511-4d46-bc6a-715aa3dc2f88" />
+        <option value="9e6482f8-e1bc-4269-a0d6-63d9665752cf" />
       </list>
     </option>
     <option name="sessionPaths">
       <map>
-        <entry key="5d647bca-1893-4554-9556-26d0d7a7681d" value="/sessions/e7bda1c7-dd80-4d2a-a7df-402778f1f582" />
+        <entry key="9e6482f8-e1bc-4269-a0d6-63d9665752cf" value="/sessions/c3c0170f-da5f-46f4-8f33-41a0c8659291" />
+        <entry key="cccb2262-5511-4d46-bc6a-715aa3dc2f88" value="/sessions/7c54b3b6-f246-4006-bc5f-75bbd545a8c1" />
       </map>
     </option>
     <option name="sessionTitles">
       <map>
-        <entry key="5d647bca-1893-4554-9556-26d0d7a7681d" value="Давай теперь поправим баг с вырезом экрана. Создай" />
+        <entry key="9e6482f8-e1bc-4269-a0d6-63d9665752cf" value="Займёмся реализацией остальных голосовых команд? Д" />
+        <entry key="cccb2262-5511-4d46-bc6a-715aa3dc2f88" value="Погнали пилить голосовой ввод. Создашь под него ве" />
       </map>
     </option>
   </component>

@@ -136,6 +136,7 @@ class MainActivity : AppCompatActivity() {
     val bluetoothWUUID_SPKey = "bluetoothWUUID"
     val pipBoyMode_SPKey = "pipBoyMode"
     val appLanguage_SPKey = "appLanguage"
+    val geigerDose_SPKey = "geigerDose"
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
     private var languageSelector = -1
@@ -411,6 +412,10 @@ class MainActivity : AppCompatActivity() {
         // перестраивает маршрут заново от текущей позиции — не 0: граф дорог даёт узлы не
         // чаще чем через несколько метров, точное совпадение GPS-точки с узлом нереалистично.
         private const val MAP_ROUTE_REROUTE_THRESHOLD_M = 30.0
+
+        // Счётчик радиации (roadmap, этап 22; протокол, раздел 3.4) — смертельная доза,
+        // выше которой накопление фиксируется и дальше не растёт до сброса игроком.
+        private const val GEIGER_LETHAL_DOSE_RAD = 1000
     }
 
     /***********************************************************************************************************
@@ -3581,6 +3586,35 @@ class MainActivity : AppCompatActivity() {
         return listOf(MenuNode("RADIO") { })
     }
     /**
+     * Счётчик радиации (roadmap, этап 22; протокол, раздел 3.4) — `GEIGER:<рад/сек>`
+     * приходит от ESP32 безусловно раз в секунду, приложение само суммирует дозу и
+     * клампит на [0, GEIGER_LETHAL_DOSE_RAD]. Сохраняется в SharedPreferences, чтобы
+     * пережить перезапуск приложения за игру, сбрасывается только явной кнопкой на
+     * экране ITEMS/Гейгер — не авторитетный источник дозы, отдельная фича-удобство,
+     * не связана с официальным датчиком дозы игрока (см. CLAUDE.md, "Периферия").
+     */
+    private fun accumulateGeigerDose(radThisSecond: Int) {
+        val prevDose = sharedPreferences.getInt(geigerDose_SPKey, 0)
+        val curDose = (prevDose + radThisSecond).coerceIn(0, GEIGER_LETHAL_DOSE_RAD)
+        sharedPreferences.edit().putInt(geigerDose_SPKey, curDose).apply()
+        updateGeigerDoseDisplay(curDose)
+    }
+    /**
+     * Стрелка (`img_rad_arrow`) отражает долю накопленной дозы от смертельной — bias
+     * считается относительно самой шкалы (`img_rad_scale`), не всего экрана, см. комментарий
+     * в layout_tab_items_geiger.xml. Число на игле и в общей нижней панели — одно и то же
+     * значение, просто два места отображения одной величины.
+     */
+    private fun updateGeigerDoseDisplay(dose: Int) {
+        val doseText = dose.toString()
+        val geiger = bindingMain.incLayoutTabItemsGeiger
+        geiger.tvRadArrowValue.text = doseText
+        (geiger.imgRadArrow.layoutParams as ConstraintLayout.LayoutParams).horizontalBias =
+            (dose.toFloat() / GEIGER_LETHAL_DOSE_RAD).coerceIn(0f, 1f)
+        geiger.imgRadArrow.requestLayout()
+        bindingMain.incLayoutHeaderBottomCommon.tvBottomRadiationValue.text = doseText
+    }
+    /**
      * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
      * раздел 2: `КЛЮЧ:ЗНАЧЕНИЕ` для параметризованных команд, голое ключевое слово для
      * остальных) и раздаёт по обработчикам. STATS/ITEMS/DATA уходят в уже существующий
@@ -3599,7 +3633,7 @@ class MainActivity : AppCompatActivity() {
             "POWER" -> applyPowerState(value == "1")
             "ENCBTN" -> { menuNavigator.activateSelected(); syncRow2ActiveFromNavigator() }
             "ENC" -> { menuNavigator.moveCursor(value?.toIntOrNull() ?: 0); syncRow2ActiveFromNavigator() }
-            "GEIGER" -> Log.i("BLE", "GEIGER:$value — отображение, roadmap этап 7")
+            "GEIGER" -> accumulateGeigerDose(value?.toIntOrNull() ?: 0)
             // RADIOPWR:1 -> переключиться на экран радио (протокол, раздел 3.2). RADIOPWR:0 —
             // остаться на текущем экране, обновление статуса радио — roadmap этап 7.
             "RADIOPWR" -> if (value == "1") { menuChangeBLE("RADIO"); menuNavigator.resetToRoot(radioMenuRoot()) }
@@ -6165,6 +6199,22 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.VISIBLE
             stopMapLocationUpdates()
+        }
+
+        /*
+        ////////////////////////////////////////////////////////
+        ITEMS - GEIGER (roadmap, этап 22; протокол, раздел 3.4) — восстановить дозу,
+        накопленную до перезапуска приложения, и завести кнопку сброса. Сама шкала уже
+        построена в XML (layout_tab_items_geiger.xml) и обновляется дальше из
+        accumulateGeigerDose()/updateGeigerDoseDisplay() по каждому GEIGER:<рад/сек>.
+        */
+        updateGeigerDoseDisplay(sharedPreferences.getInt(geigerDose_SPKey, 0))
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.backgroundTintList =
+            ColorStateList.valueOf(currentWizardAccentColor())
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.setOnClickListener {
+            playNewTabSelectAudio()
+            sharedPreferences.edit().putInt(geigerDose_SPKey, 0).apply()
+            updateGeigerDoseDisplay(0)
         }
 
         /***********************************************************************************************************

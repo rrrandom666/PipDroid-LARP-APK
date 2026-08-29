@@ -44,13 +44,10 @@
     <string name="wizard_hint_connect_hardware">While the PipBoy is off, this screen stays black. To turn on the PipBoy, press POWER.</string>
     <string name="wizard_hide_hint">Hide Hint</string>
 
-    <string name="RAD_RESIST">RAD RESIST</string>
     <string name="current_rad_value">0</string>
     <string name="max">MAX</string>
     <string name="power_off">Power Off</string>
-    <string name="rad_resist_amount">8%</string>
-    <string name="radaway">RadAway</string>
-    <string name="radx">RadX</string>
+    <string name="geiger_reset_button">Reset</string>
     <string name="rad_cur_value">0</string>
     <string name="radio">Radio</string>
     <string name="radio_enclave">Enclave Radio</string>

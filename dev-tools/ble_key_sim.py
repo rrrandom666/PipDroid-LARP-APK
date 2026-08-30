@@ -18,12 +18,19 @@
     Enter / Space    ENCBTN (нажатие энкодера)
     p                POWER:1
     o                POWER:0
-    r                RADIOPWR:1
-    R (Shift+r)      RADIOPWR:0 (сейчас no-op в handleBleCommand() — обновление статуса
-                     радио на экране ещё не реализовано, roadmap этап 7; клавиша тут
-                     на будущее и для проверки, что это действительно ничего не делает)
+    r                RADIOPWR:1 (переключает экран на RADIO, как физический тумблер на ESP32)
+    R (Shift+r)      RADIOPWR:0 (остаётся на текущем экране, обновляет только статус-строку —
+                     протокол, раздел 3.2)
     c                свободный ввод "КЛЮЧ:ЗНАЧЕНИЕ" (Enter — отправить, пустая строка — отмена)
     q  или  Ctrl+C   выход
+
+    Реальное радио (протокол, разделы 3.2/3.3, roadmap этап 23) — RADIOFREQ шлётся как
+    абсолютное значение (МГц×10, как реально сделал бы ESP32 после тюнинга), VOLUME — только
+    дельтой (у ESP32 нет отправки абсолютной громкости, см. CLAUDE.md/протокол):
+    [                RADIOFREQ на шаг вниз (-0.1 МГц)
+    ]                RADIOFREQ на шаг вверх (+0.1 МГц)
+    ,                VOLUME:-1
+    .                VOLUME:+1
 
     Гейгер (протокол, раздел 3.4) — симулятор "нахождения в сети": выбранная клавишей
     сеть остаётся активной, пока не выбрана другая. Пока активна сеть с ненулевой дозой,
@@ -65,6 +72,13 @@ GEIGER_NETWORKS = {
     "7": ("R50", 25),
     "8": ("R100", 50),
 }
+
+# Реальное радио (roadmap, этап 23) — FM-диапазон 87.5-108.0 МГц, значение в МГц×10
+# (протокол, разделы 3.2/3.3), шаг 1 = 0.1 МГц — тот же шаг, что типично даёт RDA5807M.
+RADIO_FREQ_MIN = 875
+RADIO_FREQ_MAX = 1080
+RADIO_FREQ_STEP = 1
+radio_freq = 998  # 99.8 МГц — тот же пример, что в протоколе (RADIOFREQ:998)
 
 geiger_lock = threading.Lock()
 geiger_rate = 0
@@ -164,7 +178,7 @@ def read_line_cooked() -> str:
 
 
 def main() -> None:
-    global DEVICE_SERIAL
+    global DEVICE_SERIAL, radio_freq
     print(__doc__)
     DEVICE_SERIAL = resolve_device_serial()
     print(f"Устройство: {DEVICE_SERIAL}")
@@ -201,6 +215,16 @@ def main() -> None:
                 send("RADIOPWR:1")
             elif key == "R":
                 send("RADIOPWR:0")
+            elif key == "[":
+                radio_freq = max(RADIO_FREQ_MIN, radio_freq - RADIO_FREQ_STEP)
+                send(f"RADIOFREQ:{radio_freq}")
+            elif key == "]":
+                radio_freq = min(RADIO_FREQ_MAX, radio_freq + RADIO_FREQ_STEP)
+                send(f"RADIOFREQ:{radio_freq}")
+            elif key == ",":
+                send("VOLUME:-1")
+            elif key == ".":
+                send("VOLUME:+1")
             elif key in GEIGER_NETWORKS:
                 set_geiger_network(*GEIGER_NETWORKS[key])
             elif key == "c":

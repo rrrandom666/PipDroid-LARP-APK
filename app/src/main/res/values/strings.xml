@@ -13,7 +13,7 @@
     <string name="mode_phone">Phone</string>
     <string name="mode_pipboy_2000">PipBoy 2000</string>
     <string name="mode_pipboy_3000">PipBoy 3000</string>
-    <string name="mode_description_phone">The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware.</string>
+    <string name="mode_description_phone">The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware. Radio, the Geiger counter and holotape reading require the PipBoy case and are unavailable in this mode.</string>
     <string name="mode_description_pipboy_2000">The app\'s display area is set manually. The app is controlled by the PipBoy 2000 hardware. Touchscreen control is still available, but optional.</string>
     <string name="mode_description_pipboy_3000">This mode is under development.</string>
     <string name="mode_select_button">Select</string>
@@ -55,10 +55,17 @@
     <string name="geiger_status_critical">Extremely critical damage\nAre you still alive?</string>
     <string name="rad_cur_value">0</string>
     <string name="radio">Radio</string>
-    <string name="radio_enclave">Enclave Radio</string>
-    <string name="radio_galaxy_news">Galaxy News Radio</string>
-    <string name="radio_newvegas">New Vegas Radio</string>
-    <string name="radio_custom">Custom Radio</string>
+    <!-- Реальное радио (roadmap, этап 23) — статус-строка на экране RADIO, см.
+         applyRadioPowerState() в MainActivity.kt. Заглавные буквы намеренно — та же
+         конвенция, что у bluetooth_status_connected/_disconnected (статус-индикатор, не
+         подпись кнопки). -->
+    <string name="radio_status_on">ON AIR</string>
+    <string name="radio_status_off">OFF AIR</string>
+    <!-- Плейсхолдер до первого RADIOFREQ от ESP32, не переводится (те же символы во всех
+         языках), см. title_bottom_common_radiation_placeholder для аналогичного паттерна. -->
+    <string name="radio_frequency_placeholder">--.- MHz</string>
+    <string name="radio_volume_label">Volume</string>
+    <string name="radio_volume_value_placeholder">50%</string>
 
     <string name="bluetooth">Bluetooth</string>
 
@@ -527,7 +534,6 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_1_name">Player Name</string>
     <string name="settings_region_name">Player Region</string>
     <string name="settings_2_name">Player Level</string>
-    <string name="settings_3_name">C. Radio MP3 Folder</string>
     <string name="settings_4_name">Operating Mode:</string>
     <string name="settings_mode_change_button">Change</string>
     <string name="settings_5_name">World Map Scaling</string>
@@ -669,12 +675,7 @@ Here you can find some of the key quests from the games.
 Here you can find some of the Notes and Holotapes from around the Wasteland.
 
 ** Stay tuned for future updates, where even more Notes and Holotapes will be added, and special Holotapes will be implemented.
-
------ RADIO -----
-On this menu you can find music from some of the radio stations from the Wasteland.
-
-You can also choose to listen to your own local music from inside the APP.
-There is also an option to use PipDroid as a Bed-side clock, using the Clock menu."</string>
+"</string>
 
     <string name="tutorial_settings1">"---------- SETTINGS ----------
 
@@ -683,11 +684,6 @@ Set your players name (16 character limit)
 
 ----- PLAYER LEVEL -----
 Set your players level (3 digit limit)
-
------ C. RADIO MP3 FOLDER -----
-In order to use the Custom radio, you must choose a folder on your phone where your MP3 files are saved.
-On Android phones, this is typically 'Music' (Internally saved as '/storage/0/Music').
-If you had all your MP3 files in your Downloads folder for example, this value could be 'Download'
 
 ----- SCREEN RESIZE -----
 For those of you who wish to use this APP with the PipBoy 3000 from The Fallout 4 Special Edition, you can use this option to set the size of the interface to fit inside of the screen

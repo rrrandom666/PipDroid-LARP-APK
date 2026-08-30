@@ -150,7 +150,7 @@
     <string name="voice_command_recognized">Команда: %1$s</string>
     <string name="voice_command_not_recognized">Команда не распознана</string>
     <string name="max">МАКС</string>
-    <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.</string>
+    <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией. Радио, счётчик Гейгера и чтение голодисков требуют корпуса PipBoy и недоступны в этом режиме.</string>
     <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
     <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
     <string name="mode_phone">Телефон</string>
@@ -158,6 +158,9 @@
     <string name="placeholder_in_development">Раздел находится в разработке.</string>
     <string name="power_off">Выключить питание</string>
     <string name="radio">Радио</string>
+    <string name="radio_status_on">В ЭФИРЕ</string>
+    <string name="radio_status_off">НЕ В ЭФИРЕ</string>
+    <string name="radio_volume_label">Громкость</string>
     <string name="recycler_list_header">СПИСОК</string>
     <string name="search_menu_title">Поиск</string>
     <string name="settings">НАСТРОЙКИ</string>

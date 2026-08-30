@@ -32,16 +32,86 @@
         app:srcCompat="@drawable/rad_scale2"
         tools:layout_constraintVertical_bias="0.5" />
 
+    <!-- Подписи мажорных засечек — 200/400/600/800/1000 (500 убрали, крупных делений на
+         шкале и так пять). Раньше центрировались через horizontalBias — центр текста на
+         засечке, а не первый символ, из-за чего на глаз "гуляли" относительно самой
+         засечки (ширина текста у "200" и "1000" разная, у центрирования разный визуальный
+         сдвиг первого символа для каждой). Теперь вместо bias — Guideline на точную
+         позицию каждой засечки (доля ВСЕГО экрана: отступ шкалы (1-0.85)/2=0.075 +
+         X*0.85, где X — доля соответствующей засечки на самой картинке, см.
+         GEIGER_SCALE_START_BIAS/END_BIAS в MainActivity.kt), подпись стартует ровно от
+         неё и растёт вправо — первый символ всегда точно над засечкой, независимо от
+         ширины числа. -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_rad_scale_200"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.4062" />
+
     <TextView
-        android:id="@+id/tv_rad_scale_500"
+        android:id="@+id/tv_rad_scale_200"
         style="@style/TopTitleStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="500"
+        android:text="200"
         app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
-        app:layout_constraintEnd_toEndOf="@id/img_rad_scale"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="@id/img_rad_scale" />
+        app:layout_constraintStart_toStartOf="@id/guideline_rad_scale_200" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_rad_scale_400"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.5257" />
+
+    <TextView
+        android:id="@+id/tv_rad_scale_400"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="400"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="@id/guideline_rad_scale_400" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_rad_scale_600"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.6453" />
+
+    <TextView
+        android:id="@+id/tv_rad_scale_600"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="600"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="@id/guideline_rad_scale_600" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_rad_scale_800"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.7649" />
+
+    <TextView
+        android:id="@+id/tv_rad_scale_800"
+        style="@style/TopTitleStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="800"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="@id/guideline_rad_scale_800" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_rad_scale_1000"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.8844" />
 
     <TextView
         android:id="@+id/tv_rad_scale_1000"
@@ -50,14 +120,18 @@
         android:layout_height="wrap_content"
         android:text="1000"
         app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
-        app:layout_constraintEnd_toEndOf="@id/img_rad_scale" />
+        app:layout_constraintStart_toStartOf="@id/guideline_rad_scale_1000" />
 
     <!-- Start/End нарочно на img_rad_scale, не на parent (как было в дохлом виджете
          до этапа 22) — иначе горизонтальный bias 0..1 отсчитывался бы от ширины всего
          экрана, а не от самой шкалы, и стрелка не совпадала бы со шкалой значений.
-         horizontalBias выставляется кодом = накопленная доза / 1000 (updateGeigerDoseDisplay
-         в MainActivity.kt), исходное значение ниже — нейтральная заглушка на случай,
-         если код почему-то не отработает до первой отрисовки. -->
+         Второй уровень той же ошибки, найденный позже: 0 и 1000 на самой картинке —
+         не края картинки, а вертикальные грани двух треугольников (x=224 и x=857 из
+         900), картинка шире размеченного диапазона с обеих сторон. horizontalBias
+         выставляется кодом = GEIGER_SCALE_START_BIAS + доза/1000 * (END-START)
+         (updateGeigerDoseDisplay() в MainActivity.kt) — значение ниже (0.2489 = доза 0,
+         тот же GEIGER_SCALE_START_BIAS) просто нейтральная заглушка на случай, если код
+         почему-то не отработает до первой отрисовки. -->
     <ImageView
         android:id="@+id/img_rad_arrow"
         style="@style/ColorTintStyle"
@@ -68,7 +142,7 @@
         app:layout_constraintDimensionRatio="30:65"
         app:layout_constraintEnd_toEndOf="@id/img_rad_scale"
         app:layout_constraintHeight_percent="0.06"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="0.2489"
         app:layout_constraintStart_toStartOf="@id/img_rad_scale"
         app:layout_constraintTop_toTopOf="@id/img_rad_scale"
         app:layout_constraintVertical_bias="0.2"
@@ -84,14 +158,33 @@
         app:layout_constraintBottom_toBottomOf="@id/img_rad_arrow"
         app:layout_constraintEnd_toEndOf="@id/img_rad_arrow" />
 
+    <!-- Статус самочувствия по дозе (geigerStatusStringRes() в MainActivity.kt) — занимает
+         свободное место над шкалой, между верхом экрана и подписями делений. -->
+    <TextView
+        android:id="@+id/tv_geiger_status"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginBottom="32.0dip"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@id/img_rad_scale"
+        app:layout_constraintEnd_toEndOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="@id/img_rad_scale"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Вы в порядке" />
+
     <!-- Сбрасывает только локальный счётчик PipDroid (SharedPreferences), не связан с
-         официальным датчиком дозы игрока — см. CLAUDE.md, "Периферия". -->
+         официальным датчиком дозы игрока — см. CLAUDE.md, "Периферия". Под шкалой, не
+         над ней — верх экрана отдан статусу самочувствия (tv_geiger_status). -->
     <Button
         android:id="@+id/btn_geiger_reset"
         style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
+        android:layout_marginTop="8.0dip"
         android:text="@string/geiger_reset_button"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="@id/img_rad_scale"
+        app:layout_constraintStart_toStartOf="@id/img_rad_scale"
+        app:layout_constraintTop_toBottomOf="@id/img_rad_scale" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

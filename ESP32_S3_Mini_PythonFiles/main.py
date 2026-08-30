@@ -455,15 +455,20 @@ def run():
         _lastRadioTuneSWValue = radioTuneSWValue
 
         # geigerRate обновляется фоновым потоком сканирования (~раз в 6 сек). Стрелка
-        # вольтметра реагирует сразу по изменению — отдельно от отправки дозы в приложение,
-        # которая идёт по своему фиксированному таймеру ниже (roadmap, этап 22: "каждую
-        # секунду передавать дозу", безусловно, а не только по факту смены сети/уровня).
+        # вольтметра реагирует сразу по изменению — отдельно от отправки дозы в приложение
+        # ниже, которая идёт по своему фиксированному секундному таймеру (не по факту
+        # смены уровня — иначе доза копилась бы только на границах смены сети), но только
+        # пока geigerRate > 0.
         if geigerRate != _lastMeterRate:
             geiger_set_meter(geigerRate)
             _lastMeterRate = geigerRate
 
+        # Только пока есть доза — вне сетей ничего не шлём вообще (не GEIGER:0), обычное
+        # молчание. BLE-коннект отслеживается отдельно (_IRQ_CENTRAL_CONNECT/DISCONNECT),
+        # поэтому нули как "жив ли канал" не нужны — это был бы чистый шум в эфире на
+        # бо́льшую часть игры, когда игрок не в зоне.
         nowMs = time.ticks_ms()
-        if time.ticks_diff(nowMs, _lastGeigerDoseSendMs) >= GEIGER_DOSE_SEND_INTERVAL_MS:
+        if geigerRate > 0 and time.ticks_diff(nowMs, _lastGeigerDoseSendMs) >= GEIGER_DOSE_SEND_INTERVAL_MS:
             vars.sentVALUE = "GEIGER:{}".format(geigerRate)
             p.send(vars.sentVALUE)
             _lastGeigerDoseSendMs = nowMs

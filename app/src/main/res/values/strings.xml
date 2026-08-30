@@ -48,6 +48,11 @@
     <string name="max">MAX</string>
     <string name="power_off">Power Off</string>
     <string name="geiger_reset_button">Reset</string>
+    <string name="geiger_status_ok">You\'re fine</string>
+    <string name="geiger_status_mild">Mild radiation sickness\nYou should see a doctor</string>
+    <string name="geiger_status_moderate">Radiation sickness\nSee a doctor as soon as possible</string>
+    <string name="geiger_status_severe">Severe radiation sickness\nHopefully a doctor reaches you in time</string>
+    <string name="geiger_status_critical">Extremely critical damage\nAre you still alive?</string>
     <string name="rad_cur_value">0</string>
     <string name="radio">Radio</string>
     <string name="radio_enclave">Enclave Radio</string>

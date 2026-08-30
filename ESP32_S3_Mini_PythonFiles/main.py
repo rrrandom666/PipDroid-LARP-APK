@@ -206,25 +206,42 @@ _lastRadioTuneSWValue = 1
 
 
 # --- Гейгер (roadmap, Phase A; протокол, раздел 3) ---
-# Мгновенное чтение: периодический Wi-Fi-скан на маяки R10/R20/R50, есть сигнал —
-# уровень от силы RSSI, нет сигнала — тишина и ноль. Без памяти, без накопления, без
-# сброса на уровне самого сканера (это отдельная логика вне PipBoy, roadmap раздел 2).
+# Мгновенное чтение: периодический Wi-Fi-скан на маяки R10/R20/R50/R100, есть сигнал —
+# фиксированная доза (рад/сек) по имени маячка, нет сигнала — тишина и ноль. Без памяти,
+# без накопления, без сброса на уровне самого сканера (накопление дозы — на стороне
+# PipDroid, roadmap раздел 2, этап 22).
 #
-# ⚠️ Формула пересчёта RSSI -> 0-255 (_rssi_to_level) — линейная заглушка, не
-# откалибрована на реальном железе (протокол, раздел 7, открытый вопрос).
+# ⚠️ Уровень радиации больше НЕ считается от силы сигнала (RSSI) — по итогам обсуждения
+# каждое имя маячка даёт фиксированную дозу независимо от дистанции до него, "самый
+# мощный из видимых" означает маячок с максимальной дозой, не с максимальным RSSI.
+# R100 — смертельная доза (1000 рад) за 20 сек, то есть 50 рад/сек; остальные — та же
+# пропорция (номер в имени / 2).
 #
 # ⚠️ Wi-Fi и BLE делят один радиотракт на ESP32-S3 — риск-тест из Phase A ("работают ли
 # все три роли вместе") ещё не пройден на макетке. Ниже — рабочая реализация ожидаемого
 # поведения, а не подтверждение, что BLE не будет заикаться во время скана.
+#
+# ⚠️ Скан по-прежнему раз в 6 сек (см. GEIGER_SCAN_INTERVAL_S) — смена сети замечается с
+# запаздыванием до 6 сек, а зона R100 убивает за 20 сек. Осознанно отложено как часть
+# "медленного дозиметра", не трогать без явного решения.
 #
 # MicroPython `WLAN.scan()` — блокирующий вызов (в отличие от `WiFi.scanNetworks(true)`
 # из Arduino/ESP-IDF C++, на который ссылается roadmap — в MicroPython такого асинхронного
 # режима нет). Чтобы не подвешивать BLE-нотификации и опрос кнопок на время скана,
 # сканирование вынесено в отдельный поток на втором ядре (`_thread`), а не в главный цикл.
 
-GEIGER_BEACON_PREFIXES = ("R10", "R20", "R50")
+# ⚠️ Порядок важен: "R100" проверяется раньше "R10" — иначе SSID вида "R100-zone1"
+# совпадёт по startswith() с более коротким префиксом "R10" и потеряет свою настоящую ставку.
+GEIGER_BEACON_RATES = (
+    ("R100", 50),
+    ("R10", 5),
+    ("R20", 10),
+    ("R50", 25),
+)
+GEIGER_MAX_RATE = 50  # R100 — нормировка стрелки вольтметра и частоты треска
 GEIGER_SCAN_INTERVAL_S = 6  # roadmap: "раз в 6 сек"
-PIEZO_CLICK_MAX_PROB = 0.6  # вероятность клика за один тик главного цикла при макс. уровне
+GEIGER_DOSE_SEND_INTERVAL_MS = 1000  # доза шлётся раз в секунду, безусловно (не по изменению)
+PIEZO_CLICK_MAX_PROB = 0.6  # вероятность клика за один тик главного цикла при макс. ставке
 PIEZO_CLICK_MS = 8
 
 pwmGeigerMeter = PWM(Pin(PIN_GEIGER_METER), freq=1000, duty_u16=0)
@@ -233,49 +250,42 @@ pwmGeigerPiezo = PWM(Pin(PIN_GEIGER_PIEZO), freq=2000, duty_u16=0)
 wlanSTA = network.WLAN(network.STA_IF)
 wlanSTA.active(True)
 
-geigerLevel = 0  # 0-255, обновляется фоновым потоком сканирования
-_lastSentGeigerLevel = -1  # -1 -> форсировать первую отправку/применение, даже если 0
+geigerRate = 0  # рад/сек, обновляется фоновым потоком сканирования
+_lastMeterRate = -1  # -1 -> форсировать первое применение к вольтметру, даже если 0
+_lastGeigerDoseSendMs = 0  # time.ticks_ms() последней отправки GEIGER, выставляется в run()
 
 
-def _matches_geiger_beacon(ssid):
-    for prefix in GEIGER_BEACON_PREFIXES:
+def _beacon_rate(ssid):
+    for prefix, rate in GEIGER_BEACON_RATES:
         if ssid.startswith(prefix):
-            return True
-    return False
-
-
-def _rssi_to_level(rssi):
-    if rssi is None:
-        return 0
-    # Заглушка: типичный диапазон -90..-30 дБм линейно растянут в 0..255.
-    level = int((rssi + 90) * (255 / 60))
-    return max(0, min(255, level))
+            return rate
+    return 0
 
 
 def _geiger_scan_loop():
-    global geigerLevel
+    global geigerRate
     while True:
         try:
             found = wlanSTA.scan()
         except OSError:
             found = ()
 
-        best_rssi = None
-        for ssid_bytes, _bssid, _channel, rssi, _authmode, _hidden in found:
+        best_rate = 0
+        for ssid_bytes, _bssid, _channel, _rssi, _authmode, _hidden in found:
             ssid = ssid_bytes.decode('utf-8', 'ignore') if isinstance(ssid_bytes, bytes) else ssid_bytes
-            if _matches_geiger_beacon(ssid):
-                if best_rssi is None or rssi > best_rssi:
-                    best_rssi = rssi
+            rate = _beacon_rate(ssid)
+            if rate > best_rate:
+                best_rate = rate
 
-        geigerLevel = _rssi_to_level(best_rssi)
+        geigerRate = best_rate
         time.sleep(GEIGER_SCAN_INTERVAL_S)
 
 
 _thread.start_new_thread(_geiger_scan_loop, ())
 
 
-def geiger_set_meter(level):
-    pwmGeigerMeter.duty_u16(level * 257)  # 0-255 -> 0-65535
+def geiger_set_meter(rate):
+    pwmGeigerMeter.duty_u16(int((rate / GEIGER_MAX_RATE) * 65535))
 
 
 def geiger_piezo_click():
@@ -357,7 +367,7 @@ def run():
     global _lastEncMenuSWValue
     global radioPowerState, _lastRadioTogglePinValue
     global radioTuneMode, _lastRadioTuneSWValue
-    global _lastSentGeigerLevel
+    global _lastMeterRate, _lastGeigerDoseSendMs
 
     ble = bluetooth.BLE()
     p = BLESimplePeripheral(ble)
@@ -444,15 +454,26 @@ def run():
             p.send(vars.sentVALUE)
         _lastRadioTuneSWValue = radioTuneSWValue
 
-        # geigerLevel обновляется фоновым потоком сканирования (~раз в 6 сек) — здесь
-        # только реагируем на изменение, не сканируем сами.
-        if geigerLevel != _lastSentGeigerLevel:
-            geiger_set_meter(geigerLevel)
-            vars.sentVALUE = "GEIGER:{}".format(geigerLevel)
-            p.send(vars.sentVALUE)
-            _lastSentGeigerLevel = geigerLevel
+        # geigerRate обновляется фоновым потоком сканирования (~раз в 6 сек). Стрелка
+        # вольтметра реагирует сразу по изменению — отдельно от отправки дозы в приложение
+        # ниже, которая идёт по своему фиксированному секундному таймеру (не по факту
+        # смены уровня — иначе доза копилась бы только на границах смены сети), но только
+        # пока geigerRate > 0.
+        if geigerRate != _lastMeterRate:
+            geiger_set_meter(geigerRate)
+            _lastMeterRate = geigerRate
 
-        if geigerLevel > 0 and random.random() < (geigerLevel / 255) * PIEZO_CLICK_MAX_PROB:
+        # Только пока есть доза — вне сетей ничего не шлём вообще (не GEIGER:0), обычное
+        # молчание. BLE-коннект отслеживается отдельно (_IRQ_CENTRAL_CONNECT/DISCONNECT),
+        # поэтому нули как "жив ли канал" не нужны — это был бы чистый шум в эфире на
+        # бо́льшую часть игры, когда игрок не в зоне.
+        nowMs = time.ticks_ms()
+        if geigerRate > 0 and time.ticks_diff(nowMs, _lastGeigerDoseSendMs) >= GEIGER_DOSE_SEND_INTERVAL_MS:
+            vars.sentVALUE = "GEIGER:{}".format(geigerRate)
+            p.send(vars.sentVALUE)
+            _lastGeigerDoseSendMs = nowMs
+
+        if geigerRate > 0 and random.random() < (geigerRate / GEIGER_MAX_RATE) * PIEZO_CLICK_MAX_PROB:
             geiger_piezo_click()
 
         if p.is_connected():

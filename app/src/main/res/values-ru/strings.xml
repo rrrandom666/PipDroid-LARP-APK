@@ -72,6 +72,12 @@
     <string name="items_journal">Журнал</string>
     <string name="items_map">Карта</string>
     <string name="items_geiger">Гейгер</string>
+    <string name="geiger_reset_button">Сброс</string>
+    <string name="geiger_status_ok">Вы в порядке</string>
+    <string name="geiger_status_mild">Лёгкая лучевая болезнь\nВам бы к врачу</string>
+    <string name="geiger_status_moderate">Лучевая болезнь\nОбратитесь к врачу как можно быстрее</string>
+    <string name="geiger_status_severe">Тяжёлая лучевая болезнь\nНадеюсь, врач до вас дойдёт</string>
+    <string name="geiger_status_critical">Крайне тяжёлое поражение\nВы ещё живы?</string>
     <string name="clock_feature_time">Часы</string>
     <string name="clock_feature_alarm">Будильник</string>
     <string name="clock_feature_timer">Таймер</string>

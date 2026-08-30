@@ -1,6 +1,5 @@
 package com.malto4.pipdroid
 
-import kotlin.reflect.KMutableProperty0
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -105,7 +104,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import com.chibde.visualizer.LineVisualizer
 
 class MainActivity : AppCompatActivity() {
 
@@ -127,7 +125,6 @@ class MainActivity : AppCompatActivity() {
     val playerRegion_SPKey = "playerRegion"
     val playerLevel_SPKey = "playerLevel"
     val playerUIColour_SPKey = "playerUIColour"
-    val customMusicFolder_SPKey = "customMusicFolder"
     val customMapScaling_SPKey = "customMapScaling"
     val dateFormat_SPKey = "dateFormat"
     val gameYear_SPKey = "gameYear"
@@ -138,6 +135,7 @@ class MainActivity : AppCompatActivity() {
     val pipBoyMode_SPKey = "pipBoyMode"
     val appLanguage_SPKey = "appLanguage"
     val geigerDose_SPKey = "geigerDose"
+    val radioLastFrequency_SPKey = "radioLastFrequency"
     private var UIColour_Selector = 0
     private var dateFormat_Selector = 0
     private var languageSelector = -1
@@ -205,17 +203,18 @@ class MainActivity : AppCompatActivity() {
     )
     private lateinit var clockAdapter: SidebarMenuAdapter<String>
     private var listDataMisc = ArrayList<ConstraintLayout>()
-    private var listDataRadios = ArrayList<ConstraintLayout>()
+    // Локальное зеркало громкости радио (roadmap, этап 23) — см. RADIO_VOLUME_* в companion
+    // object и applyRadioVolumeDelta() ниже: только для отображения шкалы на этом экране, не
+    // авторитетный источник (ESP32 не подтверждает абсолютную громкость даже на реконнекте).
+    private var radioVolume = RADIO_VOLUME_DEFAULT
 
     /***********************************************************************************************************
      * MEDIA PLAYERS
      **********************************************************************************************************/
-    private lateinit var lineVisualizer: LineVisualizer
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
-    private val REQUEST_CODE_PERMISSION_MEDIA = 123
     // Голосовые команды (roadmap, этап 19) — свой код запроса RECORD_AUDIO, отдельный от
-    // REQUEST_CODE_PERMISSION_RECORD_AUDIO выше (тот — для визуализатора радио, без реального
-    // захвата микрофона, и его onRequestPermissionsResult сейчас никак не обрабатывается).
+    // REQUEST_CODE_PERMISSION_RECORD_AUDIO выше (тот — для визуализатора мелодии будильника,
+    // см. startMelodyPreview(); радио своего визуализатора с этапа 23 больше не имеет).
     private val REQUEST_CODE_PERMISSION_WAKE_WORD = 24
     private var wakeWordDetector: com.malto4.pipdroid.voice.WakeWordDetector? = null
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
@@ -223,21 +222,10 @@ class MainActivity : AppCompatActivity() {
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
     private var mediaPlayerLightOnOffList = mutableListOf<MediaPlayer>()
-    // Фоновый эмбиент и радиостанции живут дольше одного проигрывания (крутятся, пока их
-    // явно не остановят/не сменят) — в отличие от одноразовых UI-звуков выше, им нужно
-    // хранить ссылку на текущий MediaPlayer, а не только список для release-по-завершении.
+    // Фоновый эмбиент живёт дольше одного проигрывания (крутится, пока его явно не остановят) —
+    // в отличие от одноразовых UI-звуков выше, ему нужно хранить ссылку на текущий MediaPlayer,
+    // а не только список для release-по-завершении.
     private var mediaPlayerBackGround: MediaPlayer? = null
-    private var enclaveRadioMediaPlayer: MediaPlayer? = null
-    private var galaxyRadioMediaPlayer: MediaPlayer? = null
-    private var newVegasRadioMediaPlayer: MediaPlayer? = null
-    private var customRadioMediaPlayer: MediaPlayer? = null
-    private var radioEnclaveStateSelected = false
-    private var radioGNRStateSelected = false
-    private var radioNVRStateSelected = false
-    private var radioCustomStateSelected = false
-    private var customMP3Files: List<File> = emptyList()
-    private var customMP3FilesFound: Boolean = false
-    private var currentCustomTrackIndex = 0
 
     /***********************************************************************************************************
      * MAP (roadmap, этап 6, п.2) — бандл (map.png/map_bounds.json/map_roads.json)
@@ -425,6 +413,22 @@ class MainActivity : AppCompatActivity() {
         // треугольниками, поправить нужно во всех трёх местах разом.
         private const val GEIGER_SCALE_START_BIAS = 0.2489f
         private const val GEIGER_SCALE_END_BIAS = 0.9522f
+
+        // Реальное радио (roadmap, этап 23; протокол, разделы 3.2/3.3) — громкость приходит
+        // от ESP32 только дельтами (VOLUME:±N), без абсолютного подтверждения (в отличие от
+        // RADIOPWR/RADIOFREQ у ESP32 нет пересылки текущей громкости на реконнект), поэтому
+        // диапазон и дефолт — чисто экранное представление на телефоне, не зеркало реального
+        // регистра RDA5807M.
+        private const val RADIO_VOLUME_MIN = 0
+        private const val RADIO_VOLUME_MAX = 100
+        private const val RADIO_VOLUME_DEFAULT = 50
+        // RADIOPWR:1 — энкодер тюнинга даёт только дельты, у самого RDA5807M нет понятия
+        // "запомненная волна", поэтому именно телефон при включении радио решает, куда
+        // настроиться, и явно шлёт RADIOFREQ на ESP32 (см. applyRadioPowerState()): 99.9 МГц
+        // при самом первом включении за всё время, иначе — последняя волна, на которой
+        // радио реально слушали (radioLastFrequency_SPKey, обновляется в
+        // updateRadioFrequencyDisplay() при каждом подтверждённом RADIOFREQ от ESP32).
+        private const val RADIO_FREQUENCY_DEFAULT = 999
     }
 
     /***********************************************************************************************************
@@ -817,30 +821,8 @@ class MainActivity : AppCompatActivity() {
     private fun requestAudioPermission() {
         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_RECORD_AUDIO)
     }
-    private fun checkCustomMediaPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val result = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
-            result == PackageManager.PERMISSION_GRANTED
-        } else {
-            val result = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-            result == PackageManager.PERMISSION_GRANTED
-        }
-    }
-    private fun requestCustomMediaPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_MEDIA_AUDIO), REQUEST_CODE_PERMISSION_MEDIA)
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_CODE_PERMISSION_MEDIA)
-        }
-    }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSION_MEDIA) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadMp3Files()
-                playRandomTrack()
-            }
-        }
         if (requestCode == REQUEST_CODE_PERMISSION_WAKE_WORD) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 wakeWordDetector?.start()
@@ -855,134 +837,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    private fun loadMp3Files() {
-        /*
-        * Blackberry Passport by default uses /mnt/sdcard as "getExternalStorageDirectory()", but it seems /mnt/sdcard with this current code
-        * isn't a directory, but a file. I can't currently find a way to retrieve/access the MP3 files inside /mnt/sdcard, so this is for now paused
-        * This issue isn't present on my Samsung Galaxy S23 Ultra, only the Blackberry at the moment.
-        *
-        * I also don't seem to be able to save the mp3 files anywhere else on the phone other than in File Explorer (/mnt/sdcard).
-        * Other APPs like ES File Explorer is able to read this folder and files inside, so it must be possible, but after 2 days
-        * of testing and investigating, I am leaving this here for now, to continue on other parts of this project.
-        *
-        * */
-        val musicDir = File(Environment.getExternalStorageDirectory(),
-            sharedPreferences.getString(customMusicFolder_SPKey, "Music")!!
-        )
-        if (musicDir.exists() && musicDir.isDirectory) {
-            customMP3Files = findMp3Files(musicDir)
-            if(customMP3Files.isNotEmpty()){
-                customMP3Files = customMP3Files.shuffled() // Shuffle the list for random order
-                customMP3FilesFound = true
-            }
-        } else {
-            customMP3FilesFound = false
-        }
-    }
-    private fun findMp3Files(directory: File): MutableList<File> {
-        val mp3List = mutableListOf<File>()
-        if (directory.exists()) {
-            val files = directory.listFiles()
-            if (files != null) {
-                for (file in files) {
-                    if (file.isDirectory) {
-                        mp3List.addAll(findMp3Files(file))
-                    } else if (file.name.endsWith(".mp3", true)) {
-                        mp3List.add(file)
-                    }
-                }
-            }
-        }
-        return mp3List
-    }
-    private fun playRandomTrack() {
-        if (customMP3Files.isNotEmpty()) {
-            currentCustomTrackIndex = customMP3Files.indices.random()
-            playTrack(customMP3Files[currentCustomTrackIndex])
-        }
-    }
-    private fun playTrack(file: File) {
-        customRadioMediaPlayer = MediaPlayer().apply {
-            setDataSource(file.absolutePath)
-            prepare()
-            start()
-            setOnCompletionListener {
-                playNextTrack()
-            }
-        }
-    }
-    private fun playNextTrack() {
-        currentCustomTrackIndex = (currentCustomTrackIndex + 1) % customMP3Files.size
-        playTrack(customMP3Files[currentCustomTrackIndex])
-    }
-    /**
-     * Радиостанции (roadmap, "Рефакторинг кода" — память фонового процесса). Раньше "выключить
-     * станцию" значило просто обнулить громкость (setVolume(0,0)) — сама станция продолжала
-     * молча крутиться и декодироваться в фоне, поэтому стоило игроку за сессию заглянуть во
-     * все станции по разу, все они в итоге оказывались одновременно загружены и работали.
-     * Теперь "выключить" — это по-настоящему stop()+release(): в любой момент времени
-     * загружена максимум одна станция, и то только если её реально включали.
-     */
-    private fun releaseRadioPlayer(target: KMutableProperty0<MediaPlayer?>) {
-        target.get()?.apply {
-            try {
-                if (isPlaying) stop()
-            } catch (e: IllegalStateException) {
-                Log.w("MainActivity", "Радио-MediaPlayer уже был в неподходящем состоянии для stop()", e)
-            }
-            release()
-        }
-        target.set(null)
-    }
-    private fun turnAllRadioOff() {
-        // lineVisualizer больше не прячется при остановке — горизонтальная шкала (тот же
-        // View, что рисует бегущую волну во время игры) должна оставаться на экране
-        // независимо от того, играет музыка или нет.
-        releaseRadioPlayer(::galaxyRadioMediaPlayer)
-        releaseRadioPlayer(::enclaveRadioMediaPlayer)
-        releaseRadioPlayer(::newVegasRadioMediaPlayer)
-        if (customMP3FilesFound) {
-            releaseRadioPlayer(::customRadioMediaPlayer)
-        }
-    }
-    /** Встроенная станция (Galaxy/Enclave/New Vegas) — лениво создаётся здесь же, по resId,
-     * не заранее в onCreate(). Кастомная станция идёт другим путём (playTrack() уже создаёт
-     * и стартует её из файла на диске) — см. activateRadioAudio() ниже, общий хвост для обеих. */
-    private fun turnRadioOnBuiltIn(resId: Int, target: KMutableProperty0<MediaPlayer?>) {
-        turnAllRadioOff()
-        val random = Random()
-        val player = MediaPlayer.create(applicationContext, resId) ?: return
-        player.isLooping = true
-        player.seekTo(random.nextInt(player.duration))
-        player.start()
-        target.set(player)
-        activateRadioAudio(player)
-    }
-    /** Общий хвост turnRadioOnBuiltIn() и клика по Custom (та уже создана и запущена
-     * playTrack() к моменту вызова — здесь только громкость и подключение визуализатора,
-     * без повторного seekTo()/isLooping, что сломало бы переход на следующий трек по
-     * завершении, см. playNextTrack()). */
-    private fun activateRadioAudio(player: MediaPlayer) {
-        player.setVolume(1.0f, 1.0f)
-        val audioSessionId = player.audioSessionId
-        if (checkAudioPermission()) {
-            if (audioSessionId != -1) {
-                // BaseVisualizer.setPlayer() создаёт новый android.media.audiofx.Visualizer
-                // поверх старого, не освобождая предыдущий (баг библиотеки) — старый
-                // экземпляр остаётся enabled и продолжает слать колбэки от прежней,
-                // приглушённой дорожки, гоняясь за новым за один и тот же `bytes`. Из-за
-                // этого после первого трека на шкале залипала плоская линия, которая не
-                // сменялась новой при следующем воспроизведении. release() перед новым
-                // setPlayer() гарантирует, что активен только один Visualizer.
-                lineVisualizer.release()
-                lineVisualizer.setPlayer(audioSessionId)
-                lineVisualizer.visibility = View.VISIBLE
-            }
-        } else {
-            requestAudioPermission()
-        }
-    }
-
     /***********************************************************************************************************
      * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19/21)
      **********************************************************************************************************/
@@ -1603,6 +1457,23 @@ class MainActivity : AppCompatActivity() {
             selectPipBoyMode(modeSelectHighlighted)
         }
     }
+    /**
+     * Разделы, которым физически требуется корпус с ESP32 (roadmap, этап 23 — обнаружено на
+     * RADIO, но касается любой BLE-зависимой фичи): RADIO целиком (RADIOPWR/RADIOFREQ/VOLUME),
+     * Гейгер (GEIGER от Wi-Fi-скана) и чтение голодисков (USB Host) в режиме Телефон никогда
+     * не получат ни одной команды — BLE там вообще не поднимается
+     * (см. checkPermissions()/setupBluetooth(), `pipBoyMode != PHONE`). Прячем их из UI
+     * полностью вместо мёртвых экранов без единого способа их наполнить. Строка 1 (RADIO) —
+     * прямая видимость View здесь; ITEMS/Гейгер и DATA/Голодиски гейтятся не здесь, а прямо
+     * в itemsMenuRoot()/itemsRow2Items()/dataMenuRoot()/dataRow2Items() (списки строятся
+     * заново при каждом входе в раздел, отдельный "применить" им не нужен).
+     */
+    private fun applyModeGating() {
+        val header = bindingMain.incLayoutHeaderToplevel
+        val visibility = if (pipBoyMode == PipBoyMode.PHONE) View.GONE else View.VISIBLE
+        header.btnHeaderRadio.visibility = visibility
+        header.spaceHeaderRadioGap.visibility = visibility
+    }
     private fun selectPipBoyMode(mode: PipBoyMode) {
         // Смена режима через Settings ("Изменить") может застать эмбиент уже играющим
         // (предыдущий режим/сессия) — глушим его здесь безусловно, до входа в мастер, а не
@@ -1614,6 +1485,7 @@ class MainActivity : AppCompatActivity() {
         pipBoyMode = mode
         sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
         refreshModeSettingsLabel()
+        applyModeGating()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
         // Экран выбора режима можно открыть и поверх Settings (кнопка "Изменить" режима
@@ -1698,6 +1570,7 @@ class MainActivity : AppCompatActivity() {
         }
         pipBoyMode = restoredMode
         refreshModeSettingsLabel()
+        applyModeGating()
         when (restoredMode) {
             PipBoyMode.PHONE -> finishPhoneModeSetup()
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
@@ -3571,8 +3444,10 @@ class MainActivity : AppCompatActivity() {
             },
             onSelect = { bottom.btnItemsClock.performClick() }
         )
-        return listOf(
-            MenuNode("GEIGER") { bottom.btnItemsGeiger.performClick() },
+        // GEIGER требует физического корпуса (Wi-Fi-скан на ESP32) — недоступен в режиме
+        // Телефон, см. applyModeGating(). Порядок должен совпадать с itemsRow2Items() ниже.
+        return listOfNotNull(
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode("GEIGER") { bottom.btnItemsGeiger.performClick() } else null,
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
             MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
             clockNode,
@@ -3580,9 +3455,11 @@ class MainActivity : AppCompatActivity() {
     }
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
-        return listOf(
+        // HOLOTAPES требует физического корпуса (USB Host на ESP32-S3) — недоступен в режиме
+        // Телефон, см. applyModeGating(). Порядок должен совпадать с dataRow2Items() ниже.
+        return listOfNotNull(
             MenuNode("MISC") { bottom.btnDataMisc.performClick() },
-            MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() },
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() } else null,
         )
     }
     /**
@@ -3593,6 +3470,55 @@ class MainActivity : AppCompatActivity() {
      */
     private fun radioMenuRoot(): List<MenuNode> {
         return listOf(MenuNode("RADIO") { })
+    }
+    /**
+     * RADIOPWR (roadmap, этап 23; протокол, раздел 3.2) — источник истины физический тумблер
+     * на ESP32, не приложение. `on=true` дополнительно переключает экран (протокол требует
+     * увести игрока на RADIO при физическом включении радио) и командует ESP32 настроиться
+     * на волну (энкодер тюнинга даёт только дельты, у RDA5807M нет своей памяти "последней
+     * волны" — телефон явно шлёт `RADIOFREQ:<...>`, см. RADIO_FREQUENCY_DEFAULT в companion
+     * object). `on=false` — **только** статус-строка, экран не меняется ("неизвестно, куда
+     * игрок хочет перейти дальше").
+     */
+    private fun applyRadioPowerState(on: Boolean) {
+        if (on) {
+            menuChangeBLE("RADIO")
+            menuNavigator.resetToRoot(radioMenuRoot())
+            val freq = sharedPreferences.getInt(radioLastFrequency_SPKey, RADIO_FREQUENCY_DEFAULT)
+            updateRadioFrequencyDisplay(freq)
+            sendBLEText("RADIOFREQ:$freq")
+        }
+        bindingMain.incLayoutTabDataRadio.tvRadioStatus.setText(
+            if (on) R.string.radio_status_on else R.string.radio_status_off
+        )
+    }
+    /**
+     * RADIOFREQ (протокол, раздел 3.2/3.3) — абсолютное значение, МГц×10. Приходит либо как
+     * подтверждение от ESP32 (тюнинг физически происходит на самом ESP32 — второй энкодер
+     * крутит RDA5807M напрямую по I2C, `RADIOTUNE:±N` из протокола чисто информационная и
+     * телефоном не обрабатывается), либо выставляется самим applyRadioPowerState() при
+     * включении радио. Persist в SharedPreferences в любом случае — это и есть "последняя
+     * волна, на которой слушали" для следующего RADIOPWR:1.
+     */
+    private fun updateRadioFrequencyDisplay(freqTenthsOfMHz: Int) {
+        sharedPreferences.edit().putInt(radioLastFrequency_SPKey, freqTenthsOfMHz).apply()
+        bindingMain.incLayoutTabDataRadio.tvRadioFrequency.text =
+            String.format(Locale.US, "%.1f MHz", freqTenthsOfMHz / 10f)
+    }
+    /**
+     * VOLUME:±N (протокол, раздел 3.3) — только дельты со второго энкодера ESP32, без
+     * абсолютного подтверждения (см. RADIO_VOLUME_* в companion object) — radioVolume существует
+     * только для шкалы на этом экране, не переживает перезапуск приложения и не является
+     * авторитетным значением громкости.
+     */
+    private fun applyRadioVolumeDelta(delta: Int) {
+        radioVolume = (radioVolume + delta).coerceIn(RADIO_VOLUME_MIN, RADIO_VOLUME_MAX)
+        updateRadioVolumeDisplay()
+    }
+    private fun updateRadioVolumeDisplay() {
+        val radio = bindingMain.incLayoutTabDataRadio
+        radio.radioVolumeBar.progress = radioVolume
+        radio.tvRadioVolumeValue.text = String.format(Locale.US, "%d%%", radioVolume)
     }
     /**
      * Счётчик радиации (roadmap, этап 22; протокол, раздел 3.4) — `GEIGER:<рад/сек>`
@@ -3667,13 +3593,14 @@ class MainActivity : AppCompatActivity() {
             "ENCBTN" -> { menuNavigator.activateSelected(); syncRow2ActiveFromNavigator() }
             "ENC" -> { menuNavigator.moveCursor(value?.toIntOrNull() ?: 0); syncRow2ActiveFromNavigator() }
             "GEIGER" -> accumulateGeigerDose(value?.toIntOrNull() ?: 0)
-            // RADIOPWR:1 -> переключиться на экран радио (протокол, раздел 3.2). RADIOPWR:0 —
-            // остаться на текущем экране, обновление статуса радио — roadmap этап 7.
-            "RADIOPWR" -> if (value == "1") { menuChangeBLE("RADIO"); menuNavigator.resetToRoot(radioMenuRoot()) }
-            "RADIOFREQ" -> Log.i("BLE", "RADIOFREQ:$value — реальное радио, roadmap этап 7")
-            "RADIOTUNE" -> Log.i("BLE", "RADIOTUNE:$value — реальное радио, roadmap этап 7")
-            "VOLUME" -> Log.i("BLE", "VOLUME:$value — реальное радио, roadmap этап 7")
-            "RADIOTUNEBTN" -> Log.i("BLE", "RADIOTUNEBTN — реальное радио, roadmap этап 7")
+            "RADIOPWR" -> applyRadioPowerState(value == "1")
+            "RADIOFREQ" -> value?.toIntOrNull()?.let { updateRadioFrequencyDisplay(it) }
+            "VOLUME" -> applyRadioVolumeDelta(value?.toIntOrNull() ?: 0)
+            // RADIOTUNE — чисто информационная (см. updateRadioFrequencyDisplay()), экран
+            // обновится следующим RADIOFREQ от ESP32. RADIOTUNEBTN — протокол делает его
+            // опциональным ("если есть место на экране"), индикатор режима не строим.
+            "RADIOTUNE" -> Log.i("BLE", "RADIOTUNE:$value")
+            "RADIOTUNEBTN" -> Log.i("BLE", "RADIOTUNEBTN")
             "HOLOTAPE" -> Log.i("BLE", "HOLOTAPE:$value — голодиски, блокируется готовностью USB Host")
             else -> Log.w("BLE", "Неизвестная BLE-команда: $raw")
         }
@@ -3807,7 +3734,11 @@ class MainActivity : AppCompatActivity() {
 
         @Suppress("ResourceAsColor")
         primaryTextViews.forEach { it.setTextColor(resources.getColor(primaryColor)) }
-        lineVisualizer.setColor(getResources().getColor(primaryColor))
+        // ProgressBar не подхватывает тему через android:tint (в отличие от ImageView, см.
+        // CLAUDE.md "Архитектурный принцип: тематизация интерфейса") — тонируется явно, как
+        // и фон кнопок (backgroundTintList).
+        val accentColor = resources.getColor(primaryColor)
+        bindingMain.incLayoutTabDataRadio.radioVolumeBar.progressTintList = ColorStateList.valueOf(accentColor)
     }
     private fun applyScrollBar(scrollbarDrawable: Drawable?){
         scrollbarDrawable?.let {
@@ -4259,21 +4190,23 @@ class MainActivity : AppCompatActivity() {
         )
     }
     private fun itemsRow2Items(): List<Row2Item> {
-        // Порядок должен совпадать с itemsMenuRoot() и bottomButtonsModify() выше.
+        // Порядок должен совпадать с itemsMenuRoot() и bottomButtonsModify() выше. GEIGER —
+        // см. applyModeGating()/itemsMenuRoot().
         val bottom = bindingMain.incLayoutTabItemsBottom
-        return listOf(
-            Row2Item(bottom.btnItemsGeiger.text) { bottom.btnItemsGeiger.performClick() },
+        return listOfNotNull(
+            if (pipBoyMode != PipBoyMode.PHONE) Row2Item(bottom.btnItemsGeiger.text) { bottom.btnItemsGeiger.performClick() } else null,
             Row2Item(bottom.btnItemsMap.text) { bottom.btnItemsMap.performClick() },
             Row2Item(bottom.btnItemsJournal.text) { bottom.btnItemsJournal.performClick() },
             Row2Item(bottom.btnItemsClock.text) { bottom.btnItemsClock.performClick() },
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
-        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() выше.
+        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify() выше. HOLOTAPES —
+        // см. applyModeGating()/dataMenuRoot().
         val bottom = bindingMain.incLayoutTabDataBottom
-        return listOf(
+        return listOfNotNull(
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
-            Row2Item(bottom.btnDataHolotapes.text) { bottom.btnDataHolotapes.performClick() },
+            if (pipBoyMode != PipBoyMode.PHONE) Row2Item(bottom.btnDataHolotapes.text) { bottom.btnDataHolotapes.performClick() } else null,
         )
     }
     /** Кнопка строки 1, под которой должен оказаться активный пункт строки 2 (roadmap,
@@ -5099,11 +5032,10 @@ class MainActivity : AppCompatActivity() {
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, etSettings3: String, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
+    private fun saveValues(etSettings1: String, etSettings2: Int, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
         sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
         sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
         sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
-        sharedPreferences.edit().putString(customMusicFolder_SPKey, etSettings3).apply()
         sharedPreferences.edit().putInt(playerUIColour_SPKey, uiColourID).apply()
         sharedPreferences.edit().putFloat(customMapScaling_SPKey, etSettings5).apply()
         sharedPreferences.edit().putInt(dateFormat_SPKey, dateFormat).apply()
@@ -5200,9 +5132,6 @@ class MainActivity : AppCompatActivity() {
         //Load saved size and position
         loadViewState()
 
-        //Initialize RadioWave-View
-        lineVisualizer = findViewById(R.id.radioWave)
-
         // Тема (selected_button/selectedRowButton и т.п., applyAppTheme()) должна быть
         // применена ДО setupModeSelectScreen()/setupPipBoy2000Wizard() — экран выбора
         // режима строит SidebarMenuAdapter с текущим selected_button сразу при вызове, а не
@@ -5239,19 +5168,15 @@ class MainActivity : AppCompatActivity() {
         setupPipBoy2000Wizard()
         registerDebugCommandReceiver()
 
-        // Радиостанции теперь создаются лениво (см. turnRadioOnBuiltIn()) — на холодном
-        // старте им и так нечего выключать, но вызов оставлен на случай будущих путей входа.
-        turnAllRadioOff()
-
         //Keep phone screen active
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // MEDIA SETUP — намеренно пусто. Все звуки/радиостанции/фоновый эмбиент теперь
-        // создаются лениво, в момент реального использования (roadmap, "Рефакторинг кода" —
-        // память фонового процесса), а не все разом здесь при каждом старте. См.
+        // MEDIA SETUP — намеренно пусто. Все звуки/фоновый эмбиент теперь создаются лениво, в
+        // момент реального использования (roadmap, "Рефакторинг кода" — память фонового
+        // процесса), а не все разом здесь при каждом старте. См.
         // playCNDSelectAudio()/playNewTabSelectAudio()/playLightOnAudio()/playLightOffAudio()
-        // (одноразовые UI-звуки, create-play-release), startAmbientBackgroundSound()/
-        // turnRadioOnBuiltIn() (живут дольше одного проигрывания, до явного стопа).
+        // (одноразовые UI-звуки, create-play-release), startAmbientBackgroundSound()
+        // (живёт дольше одного проигрывания, до явного стопа).
 
         //BOTTOM BUTTON SETUP (DEFAULT STATUS)
         bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
@@ -5333,11 +5258,6 @@ class MainActivity : AppCompatActivity() {
 
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
         listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
-
-        listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioGnr)
-        listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioNvr)
-        listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave)
-        listDataRadios.add(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom)
 
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
@@ -6085,13 +6005,14 @@ class MainActivity : AppCompatActivity() {
         ////////////////////////////////////////////////////////
         ITEMS - CLOCK - МЕЛОДИЯ ЗВОНКА (roadmap, "Часы — UX-спецификация") — список строится
         кодом из ringtoneTracks (Data.kt), последний пункт — [Назад]. Клик по треку — превью
-        play/stop (визуализатор — тот же LineVisualizer, что у Radio, отдельный инстанс).
+        play/stop (визуализатор — LineVisualizer, единственный оставшийся в приложении с этапа
+        23 — у Radio своего визуализатора больше нет, реальный радиоприём идёт на ESP32).
         */
         val melody = clock.incLayoutTabItemsClockMelody
         melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
-        // Отдельный от Radio инстанс LineVisualizer — applyTextColor() красит только
-        // общий lineVisualizer радио, этот без явного setColor() рисует линию дефолтным
-        // цветом библиотеки, неотличимым от тёмного фона (баг, найденный на устройстве).
+        // applyTextColor() эту LineVisualizer не красит (не входит в её список View) — без
+        // явного setColor() линия рисуется дефолтным цветом библиотеки, неотличимым от
+        // тёмного фона (баг, найденный на устройстве).
         melody.melodyWave.setColor(currentWizardAccentColor())
         melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
 
@@ -6287,115 +6208,11 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabDataMisc.tvDataMiscHolotapeText.setText(R.string.data_misc_entry2_description)
         }
 
-        /*
-        ////////////////////////////////////////////////////////
-        DATA - RADIO MENU
-        // RADIO вынесен в top-level раздел строки 1 (roadmap, "Новая шапка + единый
-        // Settings", п.4) — кнопка второго уровня DATA, которая раньше открывала этот
-        // экран, убрана из разметки; вход теперь через btn_header_radio (см. ниже,
-        // "ШАПКА — строка 1"), который идёт по тому же menuChangeBLE("RADIO"), что и
-        // остальные разделы, а не отдельным ad-hoc переключением видимости.
-        */
-        bindingMain.incLayoutTabDataRadio.layoutTabRadioGnr.setOnClickListener{
-            if(radioGNRStateSelected){
-                if(bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility != View.VISIBLE){
-                    turnRadioOnBuiltIn(R.raw.galaxynewsradio, ::galaxyRadioMediaPlayer)
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
-                } else {
-                    turnAllRadioOff()
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
-                }
-            } else {
-                setSelectedSubMenuButton(bindingMain.incLayoutTabDataRadio.layoutTabRadioGnr, listDataRadios)
-                radioGNRStateSelected = true
-                radioEnclaveStateSelected = false
-                radioNVRStateSelected = false
-                radioCustomStateSelected = false
-            }
-        }
-        bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave.setOnClickListener{
-            if(radioEnclaveStateSelected){
-                if(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility != View.VISIBLE){
-                    turnRadioOnBuiltIn(R.raw.enclaveradio, ::enclaveRadioMediaPlayer)
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
-                } else {
-                    turnAllRadioOff()
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
-                }
-            } else {
-                setSelectedSubMenuButton(bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclave, listDataRadios)
-                radioGNRStateSelected = false
-                radioEnclaveStateSelected = true
-                radioNVRStateSelected = false
-                radioCustomStateSelected = false
-            }
-        }
-        bindingMain.incLayoutTabDataRadio.layoutTabRadioNvr.setOnClickListener{
-            if(radioNVRStateSelected){
-                if(bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility != View.VISIBLE){
-                    turnRadioOnBuiltIn(R.raw.newvegasradio, ::newVegasRadioMediaPlayer)
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.VISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
-                } else {
-                    turnAllRadioOff()
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
-                }
-            } else {
-                setSelectedSubMenuButton(bindingMain.incLayoutTabDataRadio.layoutTabRadioNvr, listDataRadios)
-                radioGNRStateSelected = false
-                radioEnclaveStateSelected = false
-                radioNVRStateSelected = true
-                radioCustomStateSelected = false
-            }
-        }
-        bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom.setOnClickListener{
-            if(radioCustomStateSelected){
-                if(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility != View.VISIBLE){
-                    if (checkCustomMediaPermission()) {
-                        // turnAllRadioOff() ДО создания нового трека — иначе, если бы он шёл
-                        // после playRandomTrack()/playTrack() (как раньше, внутри старого
-                        // turnRadioOn()), он бы немедленно release()-нул только что созданный
-                        // customRadioMediaPlayer вместо предыдущей станции.
-                        turnAllRadioOff()
-                        loadMp3Files()
-                        playRandomTrack()
-                        if(customMP3FilesFound){
-                            activateRadioAudio(customRadioMediaPlayer!!)
-                        }
-                    } else {
-                        requestCustomMediaPermission()
-                    }
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioGnrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioEnclaveSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioNvrSelector.visibility = View.INVISIBLE
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.VISIBLE
-                } else {
-                    turnAllRadioOff()
-                    bindingMain.incLayoutTabDataRadio.layoutTabRadioCustomSelector.visibility = View.INVISIBLE
-                }
-            } else {
-                setSelectedSubMenuButton(bindingMain.incLayoutTabDataRadio.layoutTabRadioCustom, listDataRadios)
-                radioGNRStateSelected = false
-                radioEnclaveStateSelected = false
-                radioNVRStateSelected = false
-                radioCustomStateSelected = true
-            }
-        }
-
         // DataStore for saving Settings
         val saveButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsSave
         val editSettings1 = bindingMain.incLayoutSettingsGlobal.etSettings1Value //PlayerName
         val editSettingsRegion = bindingMain.incLayoutSettingsGlobal.etSettingsRegionValue //PlayerRegion
         val editSettings2 = bindingMain.incLayoutSettingsGlobal.etSettings2Value //PlayerLevel
-        val editSettings3 = bindingMain.incLayoutSettingsGlobal.etSettings3Value //MusicFolder
         val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
         var editSettings6 = bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings //ShowTutorial
         var editSettings7 = bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings //Fullscreen
@@ -6404,9 +6221,8 @@ class MainActivity : AppCompatActivity() {
 
         saveButtonSettings.setOnClickListener{
             lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), editSettings3.text.toString(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
+                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
             }
-            turnAllRadioOff()
             sendBLEText("STATS")
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -6423,7 +6239,6 @@ class MainActivity : AppCompatActivity() {
             editSettings1.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
             editSettingsRegion.setText(sharedPreferences.getString(playerRegion_SPKey, "Richmond"))
             editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
-            editSettings3.setText(sharedPreferences.getString(customMusicFolder_SPKey, "Music"))
             editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
             editSettingsYear.setText((sharedPreferences.getInt(gameYear_SPKey, 2276)).toString())
             // cboxTutorialWelcome ("Больше не показывать") инвертирован относительно
@@ -6660,9 +6475,9 @@ class MainActivity : AppCompatActivity() {
     /** Сворачивание приложения или блокировка экрана — Activity перестаёт быть видимой
      * (в отличие от onPause(), который срабатывает и на кратких перекрытиях вроде системных
      * диалогов разрешений, onStop() — именно "игрок больше не смотрит на экран"). Эмбиент
-     * освобождается (не просто мьютится — та же логика "по-настоящему стоп", что и у
-     * радиостанций, см. releaseRadioPlayer()), но намерение [ambientShouldBePlaying] не
-     * трогаем — тикThread/BLE-сервис по-прежнему работают в фоне независимо от этого. */
+     * освобождается по-настоящему (stop+release, не просто мьютится), но намерение
+     * [ambientShouldBePlaying] не трогаем — тикThread/BLE-сервис по-прежнему работают в фоне
+     * независимо от этого. */
     override fun onStop() {
         super.onStop()
         releaseAmbientPlayer()
@@ -6687,7 +6502,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         tickThread?.interrupt()
-        turnAllRadioOff()
         stopAmbientBackgroundSound()
         cancelBootSequence()
         wakeWordDetector?.release()

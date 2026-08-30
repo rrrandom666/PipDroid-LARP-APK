@@ -80,14 +80,21 @@
             android:minHeight="0.0dip"
             android:text="@string/title_data" />
 
+        <!-- Свой id (не просто безымянный Space, как у остальных разделителей строки) —
+             прячется вместе с btn_header_radio в режиме Телефон (roadmap, этап 23 — там
+             физически нет ESP32/радиомодуля), иначе после скрытия кнопки остаётся висящий
+             пустой отступ в конце строки. -->
         <Space
+            android:id="@+id/space_header_radio_gap"
             android:layout_width="16dp"
             android:layout_height="0dp" />
 
         <!-- RADIO (roadmap, "Новая шапка + единый Settings", п.4) — 4-й раздел верхнего
              уровня, выносится из второго уровня DATA. У него уже есть свой аппаратный вход
              (физический тумблер, RADIOPWR от ESP32), тач по этой кнопке — второй,
-             равноценный способ. У раздела нет строки 2. -->
+             равноценный способ. У раздела нет строки 2. Скрывается целиком в режиме Телефон
+             (см. applyModeGating() в MainActivity.kt) — фича требует физического корпуса с
+             ESP32/RDA5807M, которого в этом режиме нет. -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_header_radio"
             style="@style/BottomButtonStyle"

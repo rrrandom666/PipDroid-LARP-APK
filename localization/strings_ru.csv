@@ -8,7 +8,7 @@ strings.xml:search_menu_title,values/strings.xml,search_menu_title,Search,гот
 strings.xml:mode_phone,values/strings.xml,mode_phone,Phone,готово,Телефон,,
 strings.xml:mode_pipboy_2000,values/strings.xml,mode_pipboy_2000,PipBoy 2000,готово,PipBoy 2000,,
 strings.xml:mode_pipboy_3000,values/strings.xml,mode_pipboy_3000,PipBoy 3000,готово,PipBoy 3000,,
-strings.xml:mode_description_phone,values/strings.xml,mode_description_phone,"The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware.",готово,"Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией.",,EN дописан задним числом Claude для базового strings.xml
+strings.xml:mode_description_phone,values/strings.xml,mode_description_phone,"The app runs in full-screen mode and is controlled via touchscreen, without interacting with the PipBoy hardware. Radio, the Geiger counter and holotape reading require the PipBoy case and are unavailable in this mode.",готово,"Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией. Радио, счётчик Гейгера и чтение голодисков требуют корпуса PipBoy и недоступны в этом режиме.",,"EN дописан задним числом Claude для базового strings.xml; дополнено этапом 23 про RADIO/Гейгер/голодиски, недоступные в режиме Телефон"
 strings.xml:mode_description_pipboy_2000,values/strings.xml,mode_description_pipboy_2000,"The app's display area is set manually. The app is controlled by the PipBoy 2000 hardware. Touchscreen control is still available, but optional.",готово,"Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.",,EN дописан задним числом Claude для базового strings.xml
 strings.xml:mode_description_pipboy_3000,values/strings.xml,mode_description_pipboy_3000,This mode is under development.,готово,Режим находится в разработке.,,EN дописан задним числом Claude для базового strings.xml
 strings.xml:mode_select_button,values/strings.xml,mode_select_button,Select,готово,Выбрать,,EN дописан задним числом Claude для базового strings.xml
@@ -42,10 +42,11 @@ strings.xml:radaway,values/strings.xml,radaway,RadAway,не переводитс
 strings.xml:radx,values/strings.xml,radx,RadX,не переводится (решение),RadX,,
 strings.xml:rad_cur_value,values/strings.xml,rad_cur_value,0,не текст (число/плейсхолдер),0,,
 strings.xml:radio,values/strings.xml,radio,Radio,готово,Радио,,
-strings.xml:radio_enclave,values/strings.xml,radio_enclave,Enclave Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
-strings.xml:radio_galaxy_news,values/strings.xml,radio_galaxy_news,Galaxy News Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
-strings.xml:radio_newvegas,values/strings.xml,radio_newvegas,New Vegas Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
-strings.xml:radio_custom,values/strings.xml,radio_custom,Custom Radio,не переводится (решение),,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
+strings.xml:radio_status_on,values/strings.xml,radio_status_on,ON AIR,готово,В ЭФИРЕ,,"этап 23 — статус-индикатор экрана RADIO, конвенция как у bluetooth_status_connected"
+strings.xml:radio_status_off,values/strings.xml,radio_status_off,OFF AIR,готово,НЕ В ЭФИРЕ,,этап 23
+strings.xml:radio_frequency_placeholder,values/strings.xml,radio_frequency_placeholder,--.- MHz,не текст (число/плейсхолдер),--.- MHz,,этап 23 — заглушка до первого RADIOFREQ
+strings.xml:radio_volume_label,values/strings.xml,radio_volume_label,Volume,готово,Громкость,,этап 23
+strings.xml:radio_volume_value_placeholder,values/strings.xml,radio_volume_value_placeholder,50%,не текст (число/плейсхолдер),50%,,этап 23 — заглушка до первого VOLUME
 strings.xml:bluetooth,values/strings.xml,bluetooth,Bluetooth,не переводится (решение),Bluetooth,,
 strings.xml:title_stats,values/strings.xml,title_stats,STATS,готово,ХАР-КИ,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
 strings.xml:title_stats_status,values/strings.xml,title_stats_status,Status,готово,Статус,,ПЕРЕВЕДЕНО ПОЛНОСТЬЮ по решению — возможна доработка layout row1/row2 под ширину
@@ -211,7 +212,6 @@ strings.xml:settings,values/strings.xml,settings,SETTINGS,готово,НАСТ�
 strings.xml:settings_1_name,values/strings.xml,settings_1_name,Player Name,готово,Имя игрока,,
 strings.xml:settings_region_name,values/strings.xml,settings_region_name,Player Region,готово,Регион игрока,,
 strings.xml:settings_2_name,values/strings.xml,settings_2_name,Player Level,готово,Уровень игрока,,
-strings.xml:settings_3_name,values/strings.xml,settings_3_name,C. Radio MP3 Folder,готово,,,"ОТЛОЖЕНО по решению — идёт под снос вместе с mp3-станциями, не переводим"
 strings.xml:settings_4_name,values/strings.xml,settings_4_name,Operating Mode:,готово,Режим работы:,,
 strings.xml:settings_mode_change_button,values/strings.xml,settings_mode_change_button,Change,готово,Изменить,,
 strings.xml:settings_5_name,values/strings.xml,settings_5_name,World Map Scaling,готово,Масштаб карты мира,,
@@ -334,12 +334,7 @@ Here you can find some of the key quests from the games.
 Here you can find some of the Notes and Holotapes from around the Wasteland.
 
 ** Stay tuned for future updates, where even more Notes and Holotapes will be added, and special Holotapes will be implemented.
-
------ RADIO -----
-On this menu you can find music from some of the radio stations from the Wasteland.
-
-You can also choose to listen to your own local music from inside the APP.
-There is also an option to use PipDroid as a Bed-side clock, using the Clock menu.""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести; RADIO-параграф снят этапом 23 вместе с mp3-станциями"
 strings.xml:tutorial_settings1,values/strings.xml,tutorial_settings1,"""---------- SETTINGS ----------
 
 ----- PLAYER NAME -----
@@ -348,16 +343,11 @@ Set your players name (16 character limit)
 ----- PLAYER LEVEL -----
 Set your players level (3 digit limit)
 
------ C. RADIO MP3 FOLDER -----
-In order to use the Custom radio, you must choose a folder on your phone where your MP3 files are saved.
-On Android phones, this is typically 'Music' (Internally saved as '/storage/0/Music').
-If you had all your MP3 files in your Downloads folder for example, this value could be 'Download'
-
 ----- SCREEN RESIZE -----
 For those of you who wish to use this APP with the PipBoy 3000 from The Fallout 4 Special Edition, you can use this option to set the size of the interface to fit inside of the screen
 Once you have selected this option, you can choose the resize button to enter editing mode and adjust both size (pinching action) and location (single finger moving).
 Simply press the resize button again to exit editing mode.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести; C. RADIO MP3 FOLDER-параграф снят этапом 23 вместе с mp3-станциями"
 strings.xml:tutorial_settings2,values/strings.xml,tutorial_settings2,"""
 ----- WORLD MAP SCALING -----
 Due to every phone having different screen sizes and resolutions sometimes the world map icons don't show up in the correct locations.

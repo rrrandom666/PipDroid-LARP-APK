@@ -272,6 +272,12 @@ class MainActivity : AppCompatActivity() {
     private enum class JournalDictationState { IDLE, LOADING, LISTENING }
     private var journalDictationState = JournalDictationState.IDLE
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
+    // Settings > Bluetooth может дойти до скана в режиме Телефон, минуя мастер PipBoy
+    // 2000/3000 (единственное место, где BLUETOOTH_SCAN обычно запрашивается заранее, см.
+    // requiredPermissionsForCurrentMode()) — свой отдельный запрос, чтобы не переиспользовать
+    // permissionRequestLauncher (тот жёстко зовёт onRequiredPermissionsGranted(), это про
+    // продолжение мастера, не про этот экран).
+    private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
     // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
@@ -531,6 +537,7 @@ class MainActivity : AppCompatActivity() {
             val result = mapBundleRepository.importFromTree(treeUri)
             withContext(Dispatchers.Main) {
                 refreshMapBundleStatus()
+                resultView.visibility = View.VISIBLE
                 resultView.text = result.fold(
                     onSuccess = { getString(R.string.map_bundle_import_success) },
                     onFailure = { it.message ?: getString(R.string.map_bundle_import_error_unknown) }
@@ -556,6 +563,7 @@ class MainActivity : AppCompatActivity() {
             val result = voiceModelRepository.importFromZip(zipUri)
             withContext(Dispatchers.Main) {
                 refreshVoiceModelStatus()
+                resultView.visibility = View.VISIBLE
                 resultView.text = result.fold(
                     onSuccess = { getString(R.string.voice_model_import_success) },
                     onFailure = { it.message ?: getString(R.string.voice_model_import_error_unknown) }
@@ -835,6 +843,12 @@ class MainActivity : AppCompatActivity() {
                 if (popupVisible) startJournalDictation()
             } else {
                 playErrorAudio()
+            }
+        }
+        if (requestCode == REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN) {
+            val bluetoothPanelVisible = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility == View.VISIBLE
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED } && bluetoothPanelVisible) {
+                startBluetoothPairingScan()
             }
         }
     }
@@ -1688,7 +1702,7 @@ class MainActivity : AppCompatActivity() {
         // Скан идёт только пока реально показан шаг PAIRING — начинаем/останавливаем
         // строго по факту показа шага, не полагаясь на то, что игрок сам нажмёт кнопку.
         if (step == PipBoyWizardStep.PAIRING) {
-            startPairingScan()
+            startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
         } else {
             stopPairingScan()
         }
@@ -1755,34 +1769,45 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /**
-     * Шаг PAIRING мастера (roadmap) — скан по Service UUID Nordic UART (та же константа,
-     * что уже была дефолтом bluetoothSUUID_SPKey в Settings) вместо ручного ввода MAC.
-     * Пока у каждого корпуса нет уникального BLE-имени (roadmap, "Периферия" — отложено до
-     * серийного производства, сейчас только один тестовый корпус) список может показывать
-     * несколько одинаково подписанных устройств — различать по имени пока не требуется.
+     * Скан по Service UUID Nordic UART (та же константа, что дефолт bluetoothSUUID_SPKey в
+     * Settings) вместо ручного ввода MAC — общий механизм для шага PAIRING мастера И
+     * раздела Settings > Bluetooth (roadmap, "Редизайн Settings" — правки по подразделам,
+     * "продублировать пейринг из мастера"). [devicesContainer]/[statusView]/[onSelect]
+     * задают, куда класть найденные кнопки и что делать по тапу — единственное, что
+     * различается между двумя местами вызова (мастер после выбора идёт на POWER_HINT,
+     * Settings просто обновляет отображаемый MAC, см. selectPairingDevice()/
+     * selectBluetoothSettingsPairingDevice()). Пока у каждого корпуса нет уникального
+     * BLE-имени (roadmap, "Периферия" — отложено до серийного производства, сейчас только
+     * один тестовый корпус) список может показывать несколько одинаково подписанных
+     * устройств — различать по имени пока не требуется.
      */
     private var pairingScanCallback: ScanCallback? = null
     private val pairingFoundAddresses = mutableSetOf<String>()
     private val pairingScanTimeoutRunnable = Runnable { stopPairingScan() }
     private val pairingScanDurationMs = 15000L
+    private var pairingDevicesContainer: LinearLayout? = null
+    private var pairingStatusView: TextView? = null
+    private var pairingOnSelect: ((String) -> Unit)? = null
 
     @SuppressLint("MissingPermission")
-    private fun startPairingScan() {
+    private fun startPairingScan(devicesContainer: LinearLayout, statusView: TextView, onSelect: (String) -> Unit) {
         stopPairingScan()
-        val w = bindingMain.incLayoutPipboy2000Wizard
-        w.layoutWizardPairingDevices.removeAllViews()
+        pairingDevicesContainer = devicesContainer
+        pairingStatusView = statusView
+        pairingOnSelect = onSelect
+        devicesContainer.removeAllViews()
         pairingFoundAddresses.clear()
-        w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scanning)
+        statusView.text = getString(R.string.wizard_pairing_scanning)
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (adapter == null || !adapter.isEnabled) {
-            w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_bluetooth_off)
+            statusView.text = getString(R.string.wizard_pairing_bluetooth_off)
             return
         }
         val scanner = adapter.bluetoothLeScanner
         if (scanner == null) {
-            w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scan_failed)
+            statusView.text = getString(R.string.wizard_pairing_scan_failed)
             return
         }
 
@@ -1799,7 +1824,7 @@ class MainActivity : AppCompatActivity() {
             }
             override fun onScanFailed(errorCode: Int) {
                 Log.e("MainActivity", "BLE scan failed: $errorCode")
-                w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_scan_failed)
+                pairingStatusView?.text = getString(R.string.wizard_pairing_scan_failed)
             }
         }
         pairingScanCallback = callback
@@ -1818,14 +1843,15 @@ class MainActivity : AppCompatActivity() {
             adapter.bluetoothLeScanner?.stopScan(callback)
         }
         if (pairingFoundAddresses.isEmpty()) {
-            bindingMain.incLayoutPipboy2000Wizard.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_none_found)
+            pairingStatusView?.text = getString(R.string.wizard_pairing_none_found)
         }
     }
 
     private fun addPairingDevice(address: String, name: String?) {
         if (!pairingFoundAddresses.add(address)) return
-        val w = bindingMain.incLayoutPipboy2000Wizard
-        w.tvWizardPairingStatus.text = getString(R.string.wizard_pairing_found, pairingFoundAddresses.size)
+        val container = pairingDevicesContainer ?: return
+        val statusView = pairingStatusView ?: return
+        statusView.text = getString(R.string.wizard_pairing_found, pairingFoundAddresses.size)
         val button = Button(this, null, 0, R.style.PipWizardButtonStyle).apply {
             text = name ?: address
             backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor())
@@ -1835,15 +1861,16 @@ class MainActivity : AppCompatActivity() {
             ).apply { bottomMargin = (12 * resources.displayMetrics.density).toInt() }
             setOnClickListener {
                 playNewTabSelectAudio()
-                selectPairingDevice(address)
+                pairingOnSelect?.invoke(address)
             }
         }
-        w.layoutWizardPairingDevices.addView(button)
+        container.addView(button)
     }
 
-    /** Игрок выбрал свой корпус из списка — сохраняем MAC и (пере)подключаемся тем же
-     * механизмом, что и кнопка Connect в Settings (bleService.reconnectWithCurrentSettings). */
-    private fun selectPairingDevice(address: String) {
+    /** Сохраняет MAC выбранного устройства и (пере)подключается — общая часть между
+     * мастером и Settings > Bluetooth. Тем же механизмом, что и кнопка Connect в Settings
+     * (bleService.reconnectWithCurrentSettings). */
+    private fun applyPairedDevice(address: String) {
         stopPairingScan()
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, address).apply()
         val service = bleService
@@ -1852,7 +1879,47 @@ class MainActivity : AppCompatActivity() {
         } else {
             startAndBindBleService()
         }
+    }
+
+    /** Игрок выбрал свой корпус из списка на шаге PAIRING мастера — после сохранения MAC
+     * мастер идёт дальше, к подсказке про POWER. */
+    private fun selectPairingDevice(address: String) {
+        applyPairedDevice(address)
         showWizardStep(PipBoyWizardStep.POWER_HINT)
+    }
+
+    /** То же самое, но из Settings > Bluetooth — никакого следующего шага мастера нет,
+     * просто обновляем отображаемый текущий MAC. */
+    private fun selectBluetoothSettingsPairingDevice(address: String) {
+        applyPairedDevice(address)
+        refreshBluetoothCurrentDevice()
+    }
+    /** Запускает тот же скан, что и шаг PAIRING мастера, но в раздел Settings > Bluetooth
+     * (roadmap, "Редизайн Settings" — правки по подразделам). Вызывается и при переходе на
+     * раздел (см. settingsSidebarAdapter.onSelect), и по кнопке Rescan. Проверяет
+     * BLUETOOTH_SCAN сама — в отличие от шага PAIRING мастера (там разрешения уже выданы
+     * шагом PERMISSIONS раньше по потоку), сюда можно попасть и без этого. */
+    private fun startBluetoothPairingScan() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT),
+                REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN
+            )
+            return
+        }
+        val bt = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth
+        startPairingScan(bt.layoutBluetoothPairingDevices, bt.tvBluetoothPairingStatus) { address ->
+            selectBluetoothSettingsPairingDevice(address)
+        }
+    }
+    /** Показывает сохранённый сейчас MAC (или "не выбрано", если пейринга ещё не было). */
+    private fun refreshBluetoothCurrentDevice() {
+        val value = sharedPreferences.getString(bluetoothMAC_SPKey, null)
+        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.tvBluetoothCurrentMac.text =
+            value ?: getString(R.string.bluetooth_mac_not_set)
     }
     private fun setupPipBoy2000Wizard() {
         val w = bindingMain.incLayoutPipboy2000Wizard
@@ -1946,7 +2013,7 @@ class MainActivity : AppCompatActivity() {
         }
         w.btnWizardPairingRescan.setOnClickListener {
             playNewTabSelectAudio()
-            startPairingScan()
+            startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
         }
         // Обход пейринга в debug-сборках — без реального ESP32 иначе нельзя пройти
         // мастер дальше этого шага вообще (roadmap, этап 7, "быстрая отладка логики
@@ -3697,15 +3764,14 @@ class MainActivity : AppCompatActivity() {
     private fun applyBackgroundResource(Colour: Int) {
         // Apply background to relevant views
         val backgrounds = listOf(
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.layoutTabSettingsBluetooth,
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup
             // Часы (ITEMS/Clock, roadmap этап 6 п.3) больше не в этом списке — раньше это
             // был попап со своим фоном-плашкой (settings_menu_background_green), теперь
             // обычный полноэкранный раздел без такого фона, перекрашивать нечего.
-            // Settings и экран фильтра тоже убраны (roadmap, "Редизайн экрана фильтра —
-            // UX-спецификация") — их корни больше не используют этот бокс-drawable, теперь
-            // тонкие линии (ColorTintStyle, самотонируются темой Activity), перекрашивать
-            // фон программно не нужно.
+            // Settings, экран фильтра и Bluetooth (roadmap, "Редизайн экрана фильтра —
+            // UX-спецификация" / "Редизайн Settings" — правки по подразделам) тоже убраны —
+            // их корни больше не используют этот бокс-drawable, перекрашивать фон
+            // программно не нужно.
             // Add other views as necessary
         )
         var backgroundRes = R.drawable.settings_menu_background_green
@@ -3770,7 +3836,7 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsMain,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsGameInfo,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsPreferences,
-                bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
+                bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.scrollBluetoothPairingDevices,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.scrollTutorialWelcomeMain,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.scrollTutorialWhatsnewMain,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.scrollTutorialStatsMain,
@@ -5065,12 +5131,6 @@ class MainActivity : AppCompatActivity() {
             .putBoolean("AmbientSoundEnabled", ambientSoundEnabled)
             .apply()
     }
-    private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
-        sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
-        sharedPreferences.edit().putString(bluetoothSUUID_SPKey, etBlueSUUID).apply()
-        sharedPreferences.edit().putString(bluetoothRUUID_SPKey, etBlueRUUID).apply()
-        sharedPreferences.edit().putString(bluetoothWUUID_SPKey, etBlueWUUID).apply()
-    }
     private fun saveViewState(layoutParams: ViewGroup.MarginLayoutParams) {
         sharedPreferences.edit().putInt("width", layoutParams.width).apply()
         sharedPreferences.edit().putInt("height", layoutParams.height).apply()
@@ -5320,6 +5380,7 @@ class MainActivity : AppCompatActivity() {
             menuNavigator.resetToRoot(radioMenuRoot())
         }
         bindingMain.incLayoutHeaderToplevel.btnHeaderSettings.setOnClickListener{
+            playNewTabSelectAudio()
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
@@ -5719,7 +5780,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
             bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode,
             bindingMain.incLayoutSettingsGlobal.btnMapBundleImport,
-            bindingMain.incLayoutSettingsGlobal.btnVoiceModelImport
+            bindingMain.incLayoutSettingsGlobal.btnVoiceModelImport,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnBluetoothRescan
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
         // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
         // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
@@ -6245,6 +6307,15 @@ class MainActivity : AppCompatActivity() {
             playSelectSound = { playItemSelectAudio() },
             onSelect = { _, item ->
                 settingsSectionPanels.forEach { it.visibility = if (it === item.payload) View.VISIBLE else View.GONE }
+                // Скан по эфиру идёт только пока реально виден раздел Bluetooth — та же
+                // дисциплина, что у шага PAIRING мастера (см. showWizardStep()). Уход на
+                // любой другой раздел останавливает его безусловно (stopPairingScan()
+                // безопасно вызывать и без активного скана).
+                if (item.payload === bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root) {
+                    startBluetoothPairingScan()
+                } else {
+                    stopPairingScan()
+                }
             },
         )
         bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar.adapter = settingsSidebarAdapter
@@ -6270,6 +6341,7 @@ class MainActivity : AppCompatActivity() {
         // recreate() ниже гарантированно видит новые значения без гонки с корутиной.
         saveButtonSettings.setOnClickListener {
             playNewTabSelectAudio()
+            stopPairingScan()
             saveValues(editSettings1.text.toString(), UIColour_Selector, dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
             sendBLEText("STATS")
             recreate()
@@ -6277,9 +6349,11 @@ class MainActivity : AppCompatActivity() {
         // Cancel — выход без сохранения (было [X] в углу, убран, roadmap "Редизайн Settings":
         // явная кнопка рядом с Save читается однозначнее нейтрального крестика). Несохранённые
         // правки полей теряются молча — при следующем открытии populate ниже перечитает
-        // актуальные SharedPreferences.
+        // актуальные SharedPreferences. stopPairingScan() — на случай, если раздел
+        // Bluetooth сканировал в момент закрытия.
         cancelButtonSettings.setOnClickListener {
             playNewTabSelectAudio()
+            stopPairingScan()
             if (!isResizing) {
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
                 enableDisableBottomButtons(true, listBottomButtons)
@@ -6352,47 +6426,20 @@ class MainActivity : AppCompatActivity() {
          *
          **********************************************************************************************************/
 
-        //BLUETOOTH — видимость раздела ведёт settingsSidebarAdapter выше (было — свои
+        // BLUETOOTH — видимость раздела ведёт settingsSidebarAdapter выше (было — свои
         // btn_settings_bluetooth/btn_settings_bluetooth_close, убраны вместе с редизайном).
-        val etBluetoothMAC = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etMACAddressValue
-        val etBluetoothSUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etServiceUUIDValue
-        val etBluetoothRUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etReadUUIDValue
-        val etBluetoothWUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etWriteUUIDValue
-        val bluetoothButtonSave = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsBluetoothSave
-
-        etBluetoothMAC.setText(sharedPreferences.getString(bluetoothMAC_SPKey, "AA:BB:CC:DD:EE:FF"))
-        etBluetoothSUUID.setText(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothRUUID.setText(sharedPreferences.getString(bluetoothRUUID_SPKey, "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
-        etBluetoothWUUID.setText(sharedPreferences.getString(bluetoothWUUID_SPKey, "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
-
-        bluetoothButtonSave.setOnClickListener{
-            saveBluetoothValues(
-                etBluetoothMAC.text.toString(),
-                etBluetoothSUUID.text.toString(),
-                etBluetoothRUUID.text.toString(),
-                etBluetoothWUUID.text.toString()
-            )
-        }
-
-        val bluetoothButtonConnect = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsConnect
-
-        // Настройки уже сохранены в SharedPreferences кнопкой Save — PipBoyBleService
-        // сам перечитывает их при (ре)коннекте, поэтому здесь достаточно просто дать
-        // сервису команду подключиться заново, не таская MAC/UUID через поля Activity.
-        bluetoothButtonConnect.setOnClickListener {
-            if (bleServiceBound) {
-                bleService?.reconnectWithCurrentSettings()
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                checkPermissions()
-            } else {
-                setupBluetooth()
-            }
-        }
-
-        val bluetoothButtonDisconnect = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsDisconnect
-
-        bluetoothButtonDisconnect.setOnClickListener{
-            disconnectBLE()
+        // Интерфейс мастера (скан + список + Rescan) заменяет собой старый ручной ввод
+        // MAC/UUID целиком, не сосуществует с ним (roadmap, "Редизайн Settings" — правки по
+        // подразделам) — Save/Connect/Disconnect тоже убраны: тап по найденному устройству
+        // уже сохраняет MAC и переподключается сам (applyPairedDevice(), стартует сервис
+        // сам, если он ещё не поднят — тот же путь, что раньше делала кнопка Connect).
+        // Скан идёт, только пока раздел Bluetooth реально виден (см. onSelect
+        // settingsSidebarAdapter выше и btnSettingsCancel/btnSettingsSave ниже — та же
+        // дисциплина "не слушать эфир вхолостую", что и у мастера/wake-word).
+        refreshBluetoothCurrentDevice()
+        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnBluetoothRescan.setOnClickListener {
+            playNewTabSelectAudio()
+            startBluetoothPairingScan()
         }
 
 

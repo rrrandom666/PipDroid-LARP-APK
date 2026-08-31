@@ -6,12 +6,8 @@
 <resources>
     <string name="action_save">Сохранить</string>
     <string name="app_version">версия 2.0.12</string>
-    <string name="bluetooth_connect_button">Подключить</string>
-    <string name="bluetooth_disconnect_button">Отключить</string>
     <string name="bluetooth_field_mac_address">MAC-адрес</string>
-    <string name="bluetooth_field_read_uuid">UUID для чтения</string>
-    <string name="bluetooth_field_service_uuid">UUID сервиса</string>
-    <string name="bluetooth_field_write_uuid">UUID для записи</string>
+    <string name="bluetooth_mac_not_set">Не выбрано</string>
     <string name="bluetooth_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
     <string name="bluetooth_status_connected">ПОДКЛЮЧЕНО</string>
     <string name="cancel">Отмена</string>

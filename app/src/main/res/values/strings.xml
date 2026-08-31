@@ -809,15 +809,10 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="filter_save_button">" Save "</string>
     <string name="filter_cancel_button">" Cancel "</string>
     <string name="stats_cnd_status_crippled">CRIPPLED</string>
-    <string name="bluetooth_setup_heading">BLUETOOTH</string>
     <string name="bluetooth_status_disconnected">DISCONNECTED</string>
     <string name="bluetooth_status_connected">CONNECTED</string>
     <string name="bluetooth_field_mac_address">MAC Address</string>
-    <string name="bluetooth_field_service_uuid">Service UUID</string>
-    <string name="bluetooth_field_read_uuid">Read UUID</string>
-    <string name="bluetooth_field_write_uuid">Write UUID</string>
+    <string name="bluetooth_mac_not_set">Not set</string>
     <string name="action_save">Save</string>
-    <string name="bluetooth_connect_button">Connect</string>
-    <string name="bluetooth_disconnect_button">Disconnect</string>
     <string name="recycler_list_header">LIST</string>
 </resources>

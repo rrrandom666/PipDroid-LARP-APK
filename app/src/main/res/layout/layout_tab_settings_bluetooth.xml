@@ -1,28 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Раздел Settings > Bluetooth (roadmap, "Редизайн Settings" — правки по подразделам).
+     Подключение — только сканом (тот же механизм, что и шаг PAIRING мастера PipBoy
+     2000/3000, см. startPairingScan()/selectBluetoothSettingsPairingDevice() в
+     MainActivity.kt) — интерфейс мастера заменяет собой старый ручной ввод MAC/UUID и
+     кнопки Save/Connect/Disconnect целиком, не сосуществует с ним: тап по найденному
+     устройству уже сохраняет MAC и переподключается сам (applyPairedDevice()). Свой фон
+     (старый settings_menu_background_green) тоже убран — раздел живёт на общем тёмном
+     фоне Settings, как Voice Commands/Map рядом. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/layout_tab_settings_bluetooth"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical"
-    android:background="@drawable/settings_menu_background_green">
+    android:orientation="vertical">
 
     <!-- Свой [X] убран (roadmap, "Редизайн Settings", этап 26) — экран встроен как раздел
          бокового меню, переключение между разделами теперь делает сам сайдбар, отдельного
-         локального закрытия не нужно. -->
-    <TextView
-        android:id="@+id/tv_bluetooth"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/bluetooth_setup_heading"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-
+         локального закрытия не нужно. Заголовок "BLUETOOTH" тоже убран — дублировал
+         название пункта в боковом меню. -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_tab_settings_aditional"
         android:layout_width="0.0dip"
@@ -30,7 +26,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_bluetooth"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintWidth_percent="0.975">
 
         <TextView
@@ -44,12 +40,59 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <ScrollView
-            android:id="@+id/scroll_tab_settings_bluetooth"
-            android:layout_marginTop="15dp"
-            android:layout_marginBottom="15dp"
+        <!-- Текущий сопряжённый MAC — просто читаемая строка, нет аналога в мастере (тот
+             сразу идёт дальше после выбора), но полезно видеть, какой корпус сохранён. -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_tab_settings_bluetooth_1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            app:layout_constraintTop_toBottomOf="@id/textView_BLUETOOTH_Connection">
+
+            <TextView
+                android:id="@+id/textView_MACAddress"
+                style="@style/CNDEFFRADButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/bluetooth_field_mac_address"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tv_bluetooth_current_mac"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_bluetooth_current_mac"
+                style="@style/SettingsButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center|right"
+                android:text="@string/bluetooth_mac_not_set"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/textView_MACAddress"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:id="@+id/tv_bluetooth_pairing_status"
+            style="@style/CNDEFFRADButtonStyle"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:text="@string/wizard_pairing_scanning"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_tab_settings_bluetooth_1" />
+
+        <!-- Высота — wrap_content, ограничена сверху местом до Rescan (та же логика, что у
+             scroll_wizard_pairing_devices в мастере): короткий список не растягивается,
+             длинный сам скроллится. -->
+        <ScrollView
+            android:id="@+id/scroll_bluetooth_pairing_devices"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:fadeScrollbars="false"
             android:overScrollMode="never"
             android:scrollbarAlwaysDrawVerticalTrack="true"
@@ -58,205 +101,34 @@
             android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
             android:scrollbars="vertical"
             android:verticalScrollbarPosition="left"
-            app:layout_constraintBottom_toTopOf="@id/btn_settings_bluetooth_save"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/textView_BLUETOOTH_Connection">
+            app:layout_constraintTop_toBottomOf="@id/tv_bluetooth_pairing_status"
+            app:layout_constraintVertical_bias="0.0">
 
             <LinearLayout
-                android:id="@+id/linearlayout_tab_settings_container"
-                android:layout_width="fill_parent"
+                android:id="@+id/layout_bluetooth_pairing_devices"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_bluetooth_1"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/textView_MACAddress"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_field_mac_address"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toStartOf="@id/et_MACAddress_value"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
-
-                    <EditText
-                        android:id="@+id/et_MACAddress_value"
-                        style="@style/SettingsButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="center|right"
-                        android:hint="00:11:22:33:44:55"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/textView_MACAddress"
-                        app:layout_constraintTop_toTopOf="parent" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_bluetooth_2"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/textView_ServiceUUID"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_field_service_uuid"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toStartOf="@id/et_ServiceUUID_value"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
-
-                    <EditText
-                        android:id="@+id/et_ServiceUUID_value"
-                        style="@style/SettingsButtonStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center|right"
-                        android:hint="00001234-0000-1000-8000-00805F9B34FB"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/textView_ServiceUUID"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintWidth_percent="0.4" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_bluetooth_3"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/textView_ReadUUID"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_field_read_uuid"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toStartOf="@id/et_ReadUUID_value"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
-
-                    <EditText
-                        android:id="@+id/et_ReadUUID_value"
-                        style="@style/SettingsButtonStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center|right"
-                        android:hint="00001234-0000-1000-8000-00805F9B34FB"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/textView_ReadUUID"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintWidth_percent="0.4" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_bluetooth_4"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/textView_WriteUUID"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bluetooth_field_write_uuid"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toStartOf="@id/et_WriteUUID_value"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
-
-                    <EditText
-                        android:id="@+id/et_WriteUUID_value"
-                        style="@style/SettingsButtonStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="center|right"
-                        android:hint="00001234-0000-1000-8000-00805F9B34FB"
-                        android:maxLines="1"
-                        android:singleLine="true"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/textView_WriteUUID"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintWidth_percent="0.4" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-            </LinearLayout>
-
+                android:orientation="vertical" />
         </ScrollView>
 
+        <!-- top_toBottomOf списка + marginTop 10dp — тот же отступ "кнопка сразу под
+             текстом", что у Import Bundle/Import Model (Map/Voice Commands), а не
+             приколоченная к низу панели позиция (та не зависела от того, насколько
+             короткий список реально занял места). Список сам капается constrainedHeight
+             (см. ScrollView выше) — для длинного списка кнопка окажется у низа панели, как
+             и раньше, для короткого — сразу под последним найденным устройством. -->
         <Button
-            android:id="@+id/btn_settings_bluetooth_save"
-            style="@style/CNDEFFRADButtonStyle"
+            android:id="@+id/btn_bluetooth_rescan"
+            style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/settings_menu_background_green"
-            android:clickable="false"
-            android:gravity="center|left"
-            android:minWidth="0.0dip"
-            android:minHeight="0.0dip"
-            android:text="@string/action_save"
-            android:textAllCaps="false"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginTop="10dp"
+            android:text="@string/wizard_pairing_rescan"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btn_settings_connect"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintVertical_bias="0.0" />
-
-        <Button
-            android:id="@+id/btn_settings_connect"
-            style="@style/CNDEFFRADButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/settings_menu_background_green"
-            android:clickable="false"
-            android:gravity="center|left"
-            android:minWidth="0.0dip"
-            android:minHeight="0.0dip"
-            android:text="@string/bluetooth_connect_button"
-            android:textAllCaps="false"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btn_settings_bluetooth_save"
-            app:layout_constraintEnd_toStartOf="@id/btn_settings_disconnect"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintVertical_bias="0.0" />
-
-        <Button
-            android:id="@+id/btn_settings_disconnect"
-            style="@style/CNDEFFRADButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/settings_menu_background_green"
-            android:clickable="false"
-            android:gravity="center|left"
-            android:minWidth="0.0dip"
-            android:minHeight="0.0dip"
-            android:text="@string/bluetooth_disconnect_button"
-            android:textAllCaps="false"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btn_settings_connect"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintVertical_bias="0.0" />
+            app:layout_constraintTop_toBottomOf="@id/scroll_bluetooth_pairing_devices" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

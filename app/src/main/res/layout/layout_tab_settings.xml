@@ -578,6 +578,15 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
+                <!-- Пустая строкой по умолчанию — не gone бы всё равно занимала место
+                     одной строки текста, из-за чего кнопка визуально уезжала намного
+                     дальше от статуса, чем Scan Again в Bluetooth (там аналогичный
+                     "может быть пустым" элемент — ScrollView списка устройств — при
+                     пустом содержимом схлопывается в 0dp сам, TextView с text="" так не
+                     умеет). gone + layout_goneMarginTop у кнопки ниже — тот же суммарный
+                     отступ (8dp+10dp=18dp), что у Bluetooth, когда результата ещё нет;
+                     как только появляется текст, видимость включает Kotlin
+                     (openVoiceModelZipLauncher). -->
                 <TextView
                     android:id="@+id/tv_voice_model_import_result"
                     style="@style/CNDEFFRADButtonStyle"
@@ -586,6 +595,7 @@
                     android:layout_marginStart="10dp"
                     android:layout_marginTop="10dp"
                     android:text=""
+                    android:visibility="gone"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_voice_model_status" />
@@ -596,6 +606,7 @@
                     android:layout_width="wrap_content"
                     android:layout_marginStart="10dp"
                     android:layout_marginTop="10dp"
+                    app:layout_goneMarginTop="18dp"
                     android:text="@string/voice_model_import_button"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_voice_model_import_result" />
@@ -626,6 +637,9 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
+                <!-- gone по умолчанию + layout_goneMarginTop у кнопки ниже — см. подробный
+                     комментарий у tv_voice_model_import_result (тот же приём, тот же
+                     суммарный отступ 18dp, что даёт Scan Again в Bluetooth). -->
                 <TextView
                     android:id="@+id/tv_map_bundle_import_result"
                     style="@style/CNDEFFRADButtonStyle"
@@ -634,6 +648,7 @@
                     android:layout_marginStart="10dp"
                     android:layout_marginTop="10dp"
                     android:text=""
+                    android:visibility="gone"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_status" />
@@ -644,6 +659,7 @@
                     android:layout_width="wrap_content"
                     android:layout_marginStart="10dp"
                     android:layout_marginTop="10dp"
+                    app:layout_goneMarginTop="18dp"
                     android:text="@string/map_bundle_import_button"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_import_result" />

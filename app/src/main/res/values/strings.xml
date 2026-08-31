@@ -531,13 +531,23 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="data_radio">Radio</string>
 
     <string name="settings">SETTINGS</string>
+    <!-- Разделы бокового меню Settings (roadmap, "Редизайн Settings", этап 26) — Map
+         переиспользует @string/items_map, отдельной строки не заводили. -->
+    <string name="settings_section_main">Main</string>
+    <string name="settings_section_game_info">Game Info</string>
+    <string name="settings_section_voice_commands">Voice Commands</string>
+    <string name="settings_section_bluetooth">Bluetooth</string>
+    <string name="settings_section_preferences">Preferences</string>
     <string name="settings_1_name">Player Name</string>
     <string name="settings_region_name">Player Region</string>
-    <string name="settings_2_name">Player Level</string>
     <string name="settings_4_name">Operating Mode:</string>
     <string name="settings_mode_change_button">Change</string>
-    <string name="settings_5_name">World Map Scaling</string>
     <string name="settings_year_name">Game Year</string>
+    <!-- Зарезервированы (roadmap, "Редизайн Settings") — переключатели пока задизейблены,
+         реальная логика (SharedPreferences-ключ + гейтинг в коде голосовых команд/журнала)
+         не реализована. -->
+    <string name="settings_enable_voice_commands">Enable Voice Commands</string>
+    <string name="settings_enable_journal_voice_input">Enable Journal Voice Input</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>
     <string name="settings_6_value_2">MM/DD/YYYY</string>
@@ -749,8 +759,6 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="settings_enable_true_fullscreen">Enable True Fullscreen</string>
     <string name="settings_show_tutorial_at_start">Show Tutorial at Start</string>
     <string name="settings_enable_ambient_sound">Enable Ambient Background Sound</string>
-    <string name="settings_bluetooth_setup_button">Bluetooth Setup</string>
-    <string name="settings_save_button">Save Settings</string>
     <string name="settings_map_bundle_button">Map Data</string>
     <string name="map_bundle_heading">MAP DATA</string>
     <string name="map_bundle_status_none">No map bundle imported</string>

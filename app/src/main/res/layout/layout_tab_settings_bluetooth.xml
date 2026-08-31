@@ -8,6 +8,9 @@
     android:orientation="vertical"
     android:background="@drawable/settings_menu_background_green">
 
+    <!-- Свой [X] убран (roadmap, "Редизайн Settings", этап 26) — экран встроен как раздел
+         бокового меню, переключение между разделами теперь делает сам сайдбар, отдельного
+         локального закрытия не нужно. -->
     <TextView
         android:id="@+id/tv_bluetooth"
         style="@style/CNDEFFRADButtonStyle"
@@ -20,24 +23,6 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintVertical_bias="0.0" />
 
-    <Button
-        android:id="@+id/btn_settings_bluetooth_close"
-        style="@style/CNDEFFRADButtonStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/settings_menu_background_green"
-        android:clickable="false"
-        android:gravity="center|left"
-        android:minWidth="0.0dip"
-        android:minHeight="0.0dip"
-        android:text=" X "
-        android:textAllCaps="false"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintVertical_bias="0.0" />
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_tab_settings_aditional"
         android:layout_width="0.0dip"
@@ -45,7 +30,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_settings_bluetooth_close"
+        app:layout_constraintTop_toBottomOf="@id/tv_bluetooth"
         app:layout_constraintWidth_percent="0.975">
 
         <TextView

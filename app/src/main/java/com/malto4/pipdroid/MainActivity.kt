@@ -123,9 +123,7 @@ class MainActivity : AppCompatActivity() {
     val sharedPreferences by lazy {getSharedPreferences("PipDroid_Preferences",Context.MODE_PRIVATE)}
     val playerName_SPKey = "playerName"
     val playerRegion_SPKey = "playerRegion"
-    val playerLevel_SPKey = "playerLevel"
     val playerUIColour_SPKey = "playerUIColour"
-    val customMapScaling_SPKey = "customMapScaling"
     val dateFormat_SPKey = "dateFormat"
     val gameYear_SPKey = "gameYear"
     val bluetoothMAC_SPKey = "bluetoothMAC"
@@ -1492,7 +1490,7 @@ class MainActivity : AppCompatActivity() {
         // работы) — тогда после выбора режима Settings остаётся видимым под ним (просто
         // временно перекрыт), и пользователь видит его вместо мастера/STATS, пока не
         // закроет вручную. Мастер не должен прерываться, поэтому Settings тоже закрываем
-        // здесь — как обычным крестиком (btnSettingsClose), с тем же восстановлением
+        // здесь — так же, как обычным Cancel (btnSettingsCancel), с тем же восстановлением
         // нижних кнопок/свайпа, которые открытие Settings отключает.
         if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
@@ -3749,7 +3747,10 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutTabStatsPerks.recyclerTabPerks,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
-                bindingMain.incLayoutSettingsGlobal.scrollTabSettings,
+                bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar,
+                bindingMain.incLayoutSettingsGlobal.scrollSettingsMain,
+                bindingMain.incLayoutSettingsGlobal.scrollSettingsGameInfo,
+                bindingMain.incLayoutSettingsGlobal.scrollSettingsPreferences,
                 bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.scrollTabSettingsBluetooth,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.scrollTutorialWelcomeMain,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.scrollTutorialWhatsnewMain,
@@ -5032,18 +5033,18 @@ class MainActivity : AppCompatActivity() {
     /***********************************************************************************************************
      * SHARED PREFERENCES
      **********************************************************************************************************/
-    private fun saveValues(etSettings1: String, etSettings2: Int, uiColourID: Int, etSettings5: Float, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
-        sharedPreferences.edit().putString(playerName_SPKey, etSettings1).apply()
-        sharedPreferences.edit().putString(playerRegion_SPKey, playerRegion).apply()
-        sharedPreferences.edit().putInt(playerLevel_SPKey, etSettings2).apply()
-        sharedPreferences.edit().putInt(playerUIColour_SPKey, uiColourID).apply()
-        sharedPreferences.edit().putFloat(customMapScaling_SPKey, etSettings5).apply()
-        sharedPreferences.edit().putInt(dateFormat_SPKey, dateFormat).apply()
-        sharedPreferences.edit().putBoolean("ShowTutorial", showTutorial).apply()
-        sharedPreferences.edit().putBoolean("TrueFullscreen", trueFullscreen).apply()
-        sharedPreferences.edit().putInt(gameYear_SPKey, gameYear).apply()
-        sharedPreferences.edit().putInt(appLanguage_SPKey, languageID).apply()
-        sharedPreferences.edit().putBoolean("AmbientSoundEnabled", ambientSoundEnabled).apply()
+    private fun saveValues(etSettings1: String, uiColourID: Int, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
+        sharedPreferences.edit()
+            .putString(playerName_SPKey, etSettings1)
+            .putString(playerRegion_SPKey, playerRegion)
+            .putInt(playerUIColour_SPKey, uiColourID)
+            .putInt(dateFormat_SPKey, dateFormat)
+            .putBoolean("ShowTutorial", showTutorial)
+            .putBoolean("TrueFullscreen", trueFullscreen)
+            .putInt(gameYear_SPKey, gameYear)
+            .putInt(appLanguage_SPKey, languageID)
+            .putBoolean("AmbientSoundEnabled", ambientSoundEnabled)
+            .apply()
     }
     private fun saveBluetoothValues(etBlueMAC: String, etBlueSUUID: String, etBlueRUUID: String, etBlueWUUID: String) {
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, etBlueMAC).apply()
@@ -5686,17 +5687,16 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        // Тематизация Close/Bluetooth setup/Save (roadmap, "Редизайн экрана фильтра —
+        // Тематизация Save/Cancel/Bluetooth setup (roadmap, "Редизайн экрана фильтра —
         // UX-спецификация") — те же PipWizardButtonStyle-кнопки, что у мастера: нейтральная
-        // заливка в разметке, акцент темы — backgroundTintList кодом. Сохранение всегда идёт
-        // через полный перезапуск Activity (см. saveButtonSettings.setOnClickListener ниже),
-        // живого повторного тонирования при смене темы не требуется — обычный onCreate-путь.
+        // заливка в разметке, акцент темы — backgroundTintList кодом. [X] убран (roadmap,
+        // "Редизайн Settings", этап 26) — Cancel теперь и закрывает, и явно сигнализирует
+        // "без сохранения", вместо неймingа через нейтральный крестик.
         val settingsAccent = currentWizardAccentColor()
         listOf(
-            bindingMain.incLayoutSettingsGlobal.btnSettingsClose,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsCancel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle,
-            bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnSettingsMapBundleClose,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport,
@@ -5709,20 +5709,11 @@ class MainActivity : AppCompatActivity() {
         listOf(
             bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings,
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
-            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings
+            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxVoiceCommandsSettings,
+            bindingMain.incLayoutSettingsGlobal.cboxJournalVoiceSettings
         ).forEach { CompoundButtonCompat.setButtonTintList(it, ColorStateList.valueOf(settingsAccent)) }
 
-        // Единый экран Settings (roadmap, "Новая шапка + единый Settings") — показывается
-        // поверх текущей вкладки, не нужно больше прятать её содержимое под собой. Открытие
-        // — только через шестерёнку строки 1 (btnHeaderSettings); легаси-кнопки "Settings"
-        // на STATS/General, ITEMS/Misc, DATA/Misc убраны вместе с разметкой.
-        bindingMain.incLayoutSettingsGlobal.btnSettingsClose.setOnClickListener{
-            if(!isResizing){
-                bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
-                enableDisableBottomButtons(true, listBottomButtons)
-                enableDisableTopSwipe(true)
-            }
-        }
         val rg_DateFormat_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat
         rg_DateFormat_Settings.setOnCheckedChangeListener{ _, checkedId ->
             when (checkedId){
@@ -6208,38 +6199,86 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabDataMisc.tvDataMiscHolotapeText.setText(R.string.data_misc_entry2_description)
         }
 
+        // Боковое меню разделов Settings (roadmap, "Редизайн Settings", этап 26) — тот же
+        // SidebarMenuAdapter, что у SPECIAL/Skills/Clock/Perks/Map/выбора режима. Пункт —
+        // сама панель-раздел (payload = View, который нужно показать): единственное, что
+        // нужно onSelect — какую панель сделать VISIBLE, остальные GONE, отдельный enum
+        // разделов не нужен.
+        val settingsSectionPanels: List<View> = listOf(
+            bindingMain.incLayoutSettingsGlobal.scrollSettingsMain,
+            bindingMain.incLayoutSettingsGlobal.scrollSettingsGameInfo,
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsSectionVoice,
+            bindingMain.incLayoutSettingsGlobal.layoutSettingsSectionMap,
+            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root,
+            bindingMain.incLayoutSettingsGlobal.scrollSettingsPreferences,
+        )
+        val settingsSectionLabels = listOf(
+            getString(R.string.settings_section_main),
+            getString(R.string.settings_section_game_info),
+            getString(R.string.settings_section_voice_commands),
+            getString(R.string.items_map),
+            getString(R.string.settings_section_bluetooth),
+            getString(R.string.settings_section_preferences),
+        )
+        bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar.layoutManager = LinearLayoutManager(this)
+        val settingsSidebarAdapter = SidebarMenuAdapter(
+            items = settingsSectionPanels.mapIndexed { index, panel ->
+                SidebarMenuItem(payload = panel, label = settingsSectionLabels[index])
+            },
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { _, item ->
+                settingsSectionPanels.forEach { it.visibility = if (it === item.payload) View.VISIBLE else View.GONE }
+            },
+        )
+        bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar.adapter = settingsSidebarAdapter
+        settingsSectionPanels.forEachIndexed { index, panel -> panel.visibility = if (index == 0) View.VISIBLE else View.GONE }
+
         // DataStore for saving Settings
         val saveButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsSave
+        val cancelButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsCancel
         val editSettings1 = bindingMain.incLayoutSettingsGlobal.etSettings1Value //PlayerName
         val editSettingsRegion = bindingMain.incLayoutSettingsGlobal.etSettingsRegionValue //PlayerRegion
-        val editSettings2 = bindingMain.incLayoutSettingsGlobal.etSettings2Value //PlayerLevel
-        val editSettings5 = bindingMain.incLayoutSettingsGlobal.etSettings5Value //CustomMapScaling
         var editSettings6 = bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings //ShowTutorial
         var editSettings7 = bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings //Fullscreen
         var editSettings8 = bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings //AmbientSoundEnabled
         val editSettingsYear = bindingMain.incLayoutSettingsGlobal.etSettingsYearValue //GameYear
 
-        saveButtonSettings.setOnClickListener{
-            lifecycleScope.launch(Dispatchers.IO) {
-                saveValues(editSettings1.text.toString(), editSettings2.text.toString().toInt(), UIColour_Selector, editSettings5.text.toString().toFloat(), dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
-            }
+        // Save пишет все поля разом и делает recreate() (roadmap, "Редизайн Settings", этап
+        // 26) — раньше был полный finishAffinity()+Intent-рестарт всего таска. recreate()
+        // не убирает пересоздание Activity целиком (тема — theme.applyStyle(), язык —
+        // attachBaseContext(), оба применяются только в onCreate, живой ре-тайминг/
+        // релокализация на лету не реализовывались), но не убивает и не создаёт новый таск.
+        // saveValues() зовётся синхронно (не в отдельной корутине, как раньше) — edit().apply()
+        // обновляет in-memory SharedPreferences сразу, на диск пишет асинхронно сам, так что
+        // recreate() ниже гарантированно видит новые значения без гонки с корутиной.
+        saveButtonSettings.setOnClickListener {
+            playNewTabSelectAudio()
+            saveValues(editSettings1.text.toString(), UIColour_Selector, dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
             sendBLEText("STATS")
-            val intent = Intent(this, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            finishAffinity() // Close all previous activities
-            startActivity(intent)
+            recreate()
+        }
+        // Cancel — выход без сохранения (было [X] в углу, убран, roadmap "Редизайн Settings":
+        // явная кнопка рядом с Save читается однозначнее нейтрального крестика). Несохранённые
+        // правки полей теряются молча — при следующем открытии populate ниже перечитает
+        // актуальные SharedPreferences.
+        cancelButtonSettings.setOnClickListener {
+            playNewTabSelectAudio()
+            if (!isResizing) {
+                bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
+                enableDisableBottomButtons(true, listBottomButtons)
+                enableDisableTopSwipe(true)
+            }
         }
 
             // Общая нижняя панель (roadmap, "Новая шапка + единый Settings") — имя и регион
             // выставляются один раз при старте, как и остальные Settings-поля ниже:
-            // сохранение настроек всегда идёт через полный перезапуск Activity (см.
+            // сохранение настроек всегда идёт через recreate() (см.
             // saveButtonSettings.setOnClickListener выше), живого обновления не требуется.
             bindingMain.incLayoutHeaderBottomCommon.tvBottomNameValue.text = sharedPreferences.getString(playerName_SPKey, "Player")
             bindingMain.incLayoutHeaderBottomCommon.tvBottomRegionValue.text = sharedPreferences.getString(playerRegion_SPKey, "Richmond")
             editSettings1.setText(sharedPreferences.getString(playerName_SPKey, "Player"))
             editSettingsRegion.setText(sharedPreferences.getString(playerRegion_SPKey, "Richmond"))
-            editSettings2.setText((sharedPreferences.getInt(playerLevel_SPKey, 1)).toString())
-            editSettings5.setText((sharedPreferences.getFloat(customMapScaling_SPKey, 1f)).toString())
             editSettingsYear.setText((sharedPreferences.getInt(gameYear_SPKey, 2276)).toString())
             // cboxTutorialWelcome ("Больше не показывать") инвертирован относительно
             // editSettings6/ShowTutorial ("Показывать обучение при запуске") — см.
@@ -6313,21 +6352,8 @@ class MainActivity : AppCompatActivity() {
          *
          **********************************************************************************************************/
 
-        //BLUETOOTH
-        val bluetoothButtonSettings = bindingMain.incLayoutSettingsGlobal.btnSettingsBluetooth
-
-        bluetoothButtonSettings.setOnClickListener{
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility = View.VISIBLE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
-        }
-
-        val bluetoothButtonClose = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnSettingsBluetoothClose
-
-        bluetoothButtonClose.setOnClickListener{
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility = View.GONE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
-        }
-
+        //BLUETOOTH — видимость раздела ведёт settingsSidebarAdapter выше (было — свои
+        // btn_settings_bluetooth/btn_settings_bluetooth_close, убраны вместе с редизайном).
         val etBluetoothMAC = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etMACAddressValue
         val etBluetoothSUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etServiceUUIDValue
         val etBluetoothRUUID = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.etReadUUIDValue

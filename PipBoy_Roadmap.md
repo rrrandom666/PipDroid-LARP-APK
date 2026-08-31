@@ -2477,6 +2477,81 @@ Settings-поле "C. Radio MP3 Folder" (`customMusicFolder_SPKey`), сами ф
   `RADIOFREQ` на шаг в пределах FM-диапазона 87.5–108.0 МГц, `,`/`.` — `VOLUME:±1`) — раньше
   эти команды были доступны только через свободный ввод `c`.
 
+### Редизайн Settings — структура разделе (этап 26, ветка `app-settings`)
+
+Main (Основные)
+    Operating Mode
+    Interface Language
+    UI Colour
+
+Game Info
+    Player Name
+    Player Region
+    Game Year
+
+Voice Commands
+    Enable Voice Commands (new feature)
+    Enable Journal Voice Input
+    Экран Import Voice Model
+
+Map
+    World Map Scaling? (сначала изучить)
+    Экран Import Bundle
+
+Bluetooth
+    Существующий экран настроек Bluetooth (изучить, зачем нужны)
+
+Preferences
+    Show Tutorial at Start
+    Enable Ambient Background Sound
+    Enable True Fullscreen
+    Date Formats
+
+
+Убрать:
+Player Level
+
+### Редизайн Settings — этап 1 (боковое меню + Save/Cancel), ветка `app-settings`
+
+Первый шаг из структуры выше сделан: боковое меню разделов и переработка логики
+сохранения. Вёрстка внутри каждого раздела — предмет следующих этапов, здесь только
+перенос существующих полей по разделам без визуального редизайна.
+
+- **World Map Scaling изучен и удалён.** `customMapScaling_SPKey` (float, дефолт 1)
+  читался и писался только самим экраном Settings — ни `MapOverlayView`, ни
+  `GeoReference`, ни остальной код карты его нигде не потребляли. Мёртвая настройка,
+  удалена целиком (поле, ключ, строки EN/RU).
+- **Player Level удалён целиком** — использовался только внутри Settings, нигде больше
+  в коде не читался.
+- **Боковое меню** — тот же `SidebarMenuAdapter`/`layout_recycler_selectable_list.xml`,
+  что у SPECIAL/Skills/Clock/Perks/Map/выбора режима (этап 31). Пункт — сама
+  панель-раздел (`payload = View`), не отдельный enum: `onSelect` просто показывает
+  выбранную панель и прячет остальные.
+- **Bluetooth встроен как раздел напрямую**, не отдельный подэкран — раньше был
+  полноэкранный `layout_tab_settings_bluetooth.xml` со своим `[X]`, теперь просто
+  контент раздела в боковом меню, свой крестик убран (`btn_settings_bluetooth_close`
+  и кнопка-переход `btn_settings_bluetooth` тоже убраны). Собственные Save/Connect/
+  Disconnect внутри панели не трогали.
+- **Map/Voice Commands** — "Экран Import Bundle"/"Экран Import Voice Model" остались
+  отдельными полноэкранными подэкранами по кнопке изнутри раздела, как и было (это не
+  поля, а разовое действие импорта файла, не часть Save/Cancel).
+  Voice Commands: "Enable Voice Commands"/"Enable Journal Voice Input" зарезервированы
+  как задизейбленные чекбоксы — реальной логики (SharedPreferences-ключ + гейтинг в
+  коде голосовых команд/журнала) ещё нет, отложено до отдельного этапа.
+- **`[X]` убран, `[Cancel]` добавлен рядом с `[Save]`** — общий футер под боковым меню
+  и контентом, виден при любом выбранном разделе (не нужно дублировать кнопки в каждой
+  панели). Cancel просто прячет Settings без записи — как раньше делал крестик.
+- **Save: recreate() вместо `finishAffinity()+Intent`.** Все поля пишутся одним
+  `edit()`-чейном вместо 10 отдельных вызовов. Заодно пофиксена гонка, найденная по
+  ходу — раньше `saveValues()` запускался в отдельной корутине (`Dispatchers.IO`) без
+  ожидания перед рестартом; теперь вызывается синхронно перед `recreate()` (сам
+  `apply()` всё равно пишет на диск асинхронно, но in-memory SharedPreferences
+  обновляется сразу).
+- Тема/язык по-прежнему применяются только в `onCreate()`
+  (`theme.applyStyle()`/`attachBaseContext()`) — `recreate()` пересоздаёт Activity, а не
+  делает живое перекрашивание/релокализацию без пересоздания; полностью безрестартовое
+  сохранение осознанно не делали (см. обсуждение этапа).
+
 ## 3. Среда разработки на MacBook
 
 - **Android Studio + встроенный эмулятор** — подходит для разработки и отладки UI/логики

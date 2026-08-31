@@ -3567,10 +3567,10 @@ class MainActivity : AppCompatActivity() {
      * текст статуса).
      */
     private fun geigerStatusStringRes(dose: Int): Int = when {
-        dose < 100 -> R.string.geiger_status_ok
-        dose < 200 -> R.string.geiger_status_mild
-        dose < 400 -> R.string.geiger_status_moderate
-        dose < 600 -> R.string.geiger_status_severe
+        dose < 200 -> R.string.geiger_status_ok
+        dose < 400 -> R.string.geiger_status_mild
+        dose < 600 -> R.string.geiger_status_moderate
+        dose < 800 -> R.string.geiger_status_severe
         else -> R.string.geiger_status_critical
     }
     /**

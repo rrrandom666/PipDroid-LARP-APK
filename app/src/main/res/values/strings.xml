@@ -543,11 +543,6 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_4_name">Operating Mode:</string>
     <string name="settings_mode_change_button">Change</string>
     <string name="settings_year_name">Game Year</string>
-    <!-- Зарезервированы (roadmap, "Редизайн Settings") — переключатели пока задизейблены,
-         реальная логика (SharedPreferences-ключ + гейтинг в коде голосовых команд/журнала)
-         не реализована. -->
-    <string name="settings_enable_voice_commands">Enable Voice Commands</string>
-    <string name="settings_enable_journal_voice_input">Enable Journal Voice Input</string>
     <string name="settings_6_name">Date Formats</string>
     <string name="settings_6_value_1">MM/DD/YY</string>
     <string name="settings_6_value_2">MM/DD/YYYY</string>
@@ -759,8 +754,6 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="settings_enable_true_fullscreen">Enable True Fullscreen</string>
     <string name="settings_show_tutorial_at_start">Show Tutorial at Start</string>
     <string name="settings_enable_ambient_sound">Enable Ambient Background Sound</string>
-    <string name="settings_map_bundle_button">Map Data</string>
-    <string name="map_bundle_heading">MAP DATA</string>
     <string name="map_bundle_status_none">No map bundle imported</string>
     <string name="map_bundle_status_imported">Imported: %1$s, %2$s</string>
     <string name="map_bundle_import_button">Import Bundle</string>
@@ -770,8 +763,6 @@ For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pi
     <string name="map_bundle_import_error_missing_files">Selected folder is missing: %1$s</string>
     <string name="map_bundle_import_error_read">Could not read %1$s</string>
     <string name="map_bundle_import_error_parse">%1$s is invalid or corrupted</string>
-    <string name="settings_voice_model_button">Voice Model</string>
-    <string name="voice_model_heading">VOICE MODEL</string>
     <string name="voice_model_status_none">No voice model imported</string>
     <string name="voice_model_status_imported">Imported: %1$s, %2$s</string>
     <string name="voice_model_import_button">Import Model</string>

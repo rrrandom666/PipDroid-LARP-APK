@@ -98,7 +98,6 @@
     <string name="clock_timer_fired_title">ТАЙМЕР</string>
     <string name="clock_melody_selected_label">Выбрано:</string>
     <string name="items_map_no_bundle_imported">БАНДЛ КАРТЫ НЕ ИМПОРТИРОВАН — ИМПОРТИРУЙТЕ В НАСТРОЙКАХ</string>
-    <string name="map_bundle_heading">ДАННЫЕ КАРТЫ</string>
     <string name="map_bundle_status_none">Бандл карты не импортирован</string>
     <string name="map_bundle_status_imported">Импортирован: %1$s, %2$s</string>
     <string name="map_bundle_import_button">Импортировать бандл</string>
@@ -108,8 +107,6 @@
     <string name="map_bundle_import_error_missing_files">В папке нет файла(ов): %1$s</string>
     <string name="map_bundle_import_error_read">Не удалось прочитать %1$s</string>
     <string name="map_bundle_import_error_parse">%1$s повреждён или имеет неверный формат</string>
-    <string name="settings_voice_model_button">Голосовая модель</string>
-    <string name="voice_model_heading">ГОЛОСОВАЯ МОДЕЛЬ</string>
     <string name="voice_model_status_none">Голосовая модель не импортирована</string>
     <string name="voice_model_status_imported">Импортирована: %1$s, %2$s</string>
     <string name="voice_model_import_button">Импортировать модель</string>
@@ -170,8 +167,6 @@
     <string name="settings_section_bluetooth">Bluetooth</string>
     <string name="settings_section_preferences">Прочее</string>
     <string name="settings_1_name">Имя игрока</string>
-    <string name="settings_enable_voice_commands">Включить голосовые команды</string>
-    <string name="settings_enable_journal_voice_input">Голосовой ввод в журнале</string>
     <string name="settings_6_name">Формат даты</string>
     <string name="settings_6_value_1">ММ/ДД/ГГ</string>
     <string name="settings_6_value_2">ММ/ДД/ГГГГ</string>
@@ -186,7 +181,6 @@
     <string name="settings_UI_Colour_4">Синий</string>
     <string name="settings_enable_ambient_sound">Фоновый эмбиент-звук</string>
     <string name="settings_enable_true_fullscreen">Полноэкранный режим</string>
-    <string name="settings_map_bundle_button">Данные карты</string>
     <string name="settings_region_name">Регион игрока</string>
     <string name="settings_show_tutorial_at_start">Показывать обучение при запуске</string>
     <string name="skill_barter">Бартер</string>

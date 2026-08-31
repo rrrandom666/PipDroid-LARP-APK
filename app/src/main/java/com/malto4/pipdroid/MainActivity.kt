@@ -517,16 +517,16 @@ class MainActivity : AppCompatActivity() {
         setupBluetooth()
     }
     /**
-     * Импорт бандла карты (Settings > Map Data, roadmap, ветка app-map) — SAF-пикер папки.
+     * Импорт бандла карты (Settings > Map, roadmap, ветка app-map) — SAF-пикер папки.
      * Требует API 21 (minSdk поднят 19->21 именно из-за этого, см. build.gradle). Само
      * копирование — MapBundleRepository.importFromTree() на IO-потоке, результат идёт в
-     * статус/строку ошибки подпанели.
+     * статус/строку ошибки раздела.
      */
     private val openMapBundleTreeLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { treeUri ->
         if (treeUri == null) return@registerForActivityResult
-        val resultView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.tvMapBundleImportResult
+        val resultView = bindingMain.incLayoutSettingsGlobal.tvMapBundleImportResult
         lifecycleScope.launch(Dispatchers.IO) {
             val result = mapBundleRepository.importFromTree(treeUri)
             withContext(Dispatchers.Main) {
@@ -539,17 +539,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /**
-     * Импорт офлайн-модели Vosk (Settings > Voice Model, roadmap, этап 21) — SAF-пикер
+     * Импорт офлайн-модели Vosk (Settings > Voice Commands, roadmap, этап 21) — SAF-пикер
      * одного .zip-файла (не папки, в отличие от бандла карты — модель Vosk обычно
      * распространяется уже упакованной). Само копирование/распаковка —
      * VoiceModelRepository.importFromZip() на IO-потоке, результат идёт в статус/строку
-     * ошибки подпанели.
+     * ошибки раздела. После успешного импорта заново пробуем поднять прослушивание
+     * будческого слова (startWakeWordIfPermitted()) — до этого его не было смысла слушать,
+     * см. её комментарий.
      */
     private val openVoiceModelZipLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { zipUri ->
         if (zipUri == null) return@registerForActivityResult
-        val resultView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelImportResult
+        val resultView = bindingMain.incLayoutSettingsGlobal.tvVoiceModelImportResult
         lifecycleScope.launch(Dispatchers.IO) {
             val result = voiceModelRepository.importFromZip(zipUri)
             withContext(Dispatchers.Main) {
@@ -558,6 +560,7 @@ class MainActivity : AppCompatActivity() {
                     onSuccess = { getString(R.string.voice_model_import_success) },
                     onFailure = { it.message ?: getString(R.string.voice_model_import_error_unknown) }
                 )
+                if (result.isSuccess) startWakeWordIfPermitted()
             }
         }
     }
@@ -842,6 +845,9 @@ class MainActivity : AppCompatActivity() {
      * Слушает постоянно, пока Activity жива — без сервиса/фонового режима, без привязки к
      * режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не готовая фича,
      * а тестовый конвейер (roadmap, этап 21 п.4 — первая тестовая команда "лёгкое ранение").
+     * Отдельного тумблера в Settings нет и не планируется (roadmap, "Редизайн Settings") —
+     * вместо этого слушать вообще нет смысла, пока не импортирована модель Vosk (см.
+     * startWakeWordIfPermitted()), это и есть вся "настройка".
      */
     private fun initWakeWordDetector() {
         wakeWordDetector = com.malto4.pipdroid.voice.WakeWordDetector(this) {
@@ -849,7 +855,18 @@ class MainActivity : AppCompatActivity() {
         }
         startWakeWordIfPermitted()
     }
+    /**
+     * Без импортированной модели Vosk будческое слово всё равно не приведёт ни к чему
+     * (onWakeWordTriggered() ниже сам проверяет hasModel() и молча выходит) — раньше от
+     * этого детектор всё равно постоянно слушал микрофон вхолостую. Гейтинг здесь же, до
+     * старта потока/запроса разрешения — voiceModelRepository.hasModel() дёшев
+     * (SharedPreferences), лишний раз спрашивать RECORD_AUDIO тоже смысла нет, если слушать
+     * пока нечем. Вызывается повторно из openVoiceModelZipLauncher после успешного импорта —
+     * start() у WakeWordDetector идемпотентен (if (running) return), поэтому безопасно звать
+     * ещё раз, если что-то уже слушает.
+     */
     private fun startWakeWordIfPermitted() {
+        if (!voiceModelRepository.hasModel()) return
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             wakeWordDetector?.start()
         } else {
@@ -2862,10 +2879,11 @@ class MainActivity : AppCompatActivity() {
         else getString(R.string.map_route_unit_meters, meters.roundToInt())
         return getString(R.string.map_route_status_remaining, unit)
     }
-    /** Обновляет статус-строку в Settings > Map Data — импортирован ли бандл, когда и из
-     * какой папки. Вызывается при открытии подпанели и сразу после (не)успешного импорта. */
+    /** Обновляет статус-строку в Settings > Map — импортирован ли бандл, когда и из какой
+     * папки. Вызывается один раз при инициализации Settings и сразу после (не)успешного
+     * импорта (раздел теперь всегда на месте, не отдельная подпанель по кнопке). */
     private fun refreshMapBundleStatus() {
-        val statusView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.tvMapBundleStatus
+        val statusView = bindingMain.incLayoutSettingsGlobal.tvMapBundleStatus
         if (!mapBundleRepository.hasBundle()) {
             statusView.text = getString(R.string.map_bundle_status_none)
             return
@@ -2877,11 +2895,12 @@ class MainActivity : AppCompatActivity() {
         statusView.text = getString(R.string.map_bundle_status_imported, folderName, dateText)
     }
 
-    /** Обновляет статус-строку в Settings > Voice Model — импортирована ли модель Vosk,
-     * когда и из какого файла. Вызывается при открытии подпанели и сразу после
-     * (не)успешного импорта. */
+    /** Обновляет статус-строку в Settings > Voice Commands — импортирована ли модель Vosk,
+     * когда и из какого файла. Вызывается один раз при инициализации Settings и сразу после
+     * (не)успешного импорта (раздел теперь всегда на месте, не отдельная подпанель по
+     * кнопке). */
     private fun refreshVoiceModelStatus() {
-        val statusView = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.tvVoiceModelStatus
+        val statusView = bindingMain.incLayoutSettingsGlobal.tvVoiceModelStatus
         if (!voiceModelRepository.hasModel()) {
             statusView.text = getString(R.string.voice_model_status_none)
             return
@@ -5687,21 +5706,20 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        // Тематизация Save/Cancel/Bluetooth setup (roadmap, "Редизайн экрана фильтра —
+        // Тематизация Save/Cancel/Change/импорт (roadmap, "Редизайн экрана фильтра —
         // UX-спецификация") — те же PipWizardButtonStyle-кнопки, что у мастера: нейтральная
         // заливка в разметке, акцент темы — backgroundTintList кодом. [X] убран (roadmap,
         // "Редизайн Settings", этап 26) — Cancel теперь и закрывает, и явно сигнализирует
-        // "без сохранения", вместо неймingа через нейтральный крестик.
+        // "без сохранения", вместо неявного сигнала через нейтральный крестик. Map/Voice
+        // Commands — свои кнопки-переходы и [X] тоже убраны (roadmap, "Редизайн Settings" —
+        // правки по подразделам), содержимое импорта встроено в раздел напрямую.
         val settingsAccent = currentWizardAccentColor()
         listOf(
             bindingMain.incLayoutSettingsGlobal.btnSettingsCancel,
-            bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel,
-            bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnSettingsMapBundleClose,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle.btnMapBundleImport,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnSettingsVoiceModelClose,
-            bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel.btnVoiceModelImport
+            bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode,
+            bindingMain.incLayoutSettingsGlobal.btnMapBundleImport,
+            bindingMain.incLayoutSettingsGlobal.btnVoiceModelImport
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(settingsAccent) }
         // Чекбоксы Settings — раньше тонировался только текст-лейбл (applyTextColor()),
         // сама рамка/галочка оставалась нетематизированным Material-дефолтом, на тёмном
@@ -5709,9 +5727,7 @@ class MainActivity : AppCompatActivity() {
         listOf(
             bindingMain.incLayoutSettingsGlobal.cboxTruefullscreenSettings,
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings,
-            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings,
-            bindingMain.incLayoutSettingsGlobal.cboxVoiceCommandsSettings,
-            bindingMain.incLayoutSettingsGlobal.cboxJournalVoiceSettings
+            bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings
         ).forEach { CompoundButtonCompat.setButtonTintList(it, ColorStateList.valueOf(settingsAccent)) }
 
         val rg_DateFormat_Settings = bindingMain.incLayoutSettingsGlobal.rgSettingsDateformat
@@ -6302,47 +6318,31 @@ class MainActivity : AppCompatActivity() {
 
         /***********************************************************************************************************
          *
-         * MAP DATA (roadmap, ветка app-map) — импорт бандла карты, см. MapBundleRepository/
-         * openMapBundleTreeLauncher/refreshMapBundleStatus().
+         * MAP (roadmap, ветка app-map) — импорт бандла карты, см. MapBundleRepository/
+         * openMapBundleTreeLauncher/refreshMapBundleStatus(). Раздел встроен напрямую
+         * (roadmap, "Редизайн Settings" — правки по подразделам), своей кнопки-перехода и
+         * [X] больше нет — статус читаем один раз при инициализации.
          *
          **********************************************************************************************************/
 
-        val mapBundlePanel = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsMapBundle
-
-        bindingMain.incLayoutSettingsGlobal.btnSettingsMapBundle.setOnClickListener {
-            mapBundlePanel.root.visibility = View.VISIBLE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
-            mapBundlePanel.tvMapBundleImportResult.text = ""
-            refreshMapBundleStatus()
-        }
-        mapBundlePanel.btnSettingsMapBundleClose.setOnClickListener {
-            mapBundlePanel.root.visibility = View.GONE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
-        }
-        mapBundlePanel.btnMapBundleImport.setOnClickListener {
+        refreshMapBundleStatus()
+        bindingMain.incLayoutSettingsGlobal.btnMapBundleImport.setOnClickListener {
             openMapBundleTreeLauncher.launch(null)
         }
 
         /***********************************************************************************************************
          *
-         * VOICE MODEL (roadmap, ветка app-voice-commands, этап 21) — импорт .zip с офлайн-моделью
-         * Vosk, см. VoiceModelRepository/openVoiceModelZipLauncher/refreshVoiceModelStatus().
+         * VOICE COMMANDS (roadmap, ветка app-voice-commands, этап 21) — импорт .zip с
+         * офлайн-моделью Vosk, см. VoiceModelRepository/openVoiceModelZipLauncher/
+         * refreshVoiceModelStatus(). Раздел встроен напрямую (roadmap, "Редизайн Settings" —
+         * правки по подразделам), своей кнопки-перехода и [X] больше нет; переключателей
+         * тоже нет — гейтинг по hasModel() теперь под капотом (см.
+         * startWakeWordIfPermitted()/btnJournalEntryMic.setOnClickListener).
          *
          **********************************************************************************************************/
 
-        val voiceModelPanel = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsVoiceModel
-
-        bindingMain.incLayoutSettingsGlobal.btnSettingsVoiceModel.setOnClickListener {
-            voiceModelPanel.root.visibility = View.VISIBLE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.GONE
-            voiceModelPanel.tvVoiceModelImportResult.text = ""
-            refreshVoiceModelStatus()
-        }
-        voiceModelPanel.btnSettingsVoiceModelClose.setOnClickListener {
-            voiceModelPanel.root.visibility = View.GONE
-            bindingMain.incLayoutSettingsGlobal.layoutSettingsLayout.visibility = View.VISIBLE
-        }
-        voiceModelPanel.btnVoiceModelImport.setOnClickListener {
+        refreshVoiceModelStatus()
+        bindingMain.incLayoutSettingsGlobal.btnVoiceModelImport.setOnClickListener {
             openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
         }
 

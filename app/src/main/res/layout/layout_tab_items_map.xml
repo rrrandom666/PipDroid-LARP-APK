@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ITEMS/Map (roadmap, этап 6, п.2). Карта больше не живая osmdroid + online OSM-тайлы —
      единственный источник карты теперь бандл (map.png + map_bounds.json + map_roads.json),
-     импортируемый игроком в Settings (см. layout_tab_settings_map_bundle.xml) из готового
+     импортируемый игроком в Settings > Map (см. layout_tab_settings.xml) из готового
      пайплайна falloutize_map.py (полигон часто без интернета, см. CLAUDE.md). PhotoView
      показывает статичную привязанную по координатам картинку, MapOverlayView поверх неё —
      GPS-точка игрока, отметки, линия маршрута. Меню слева — по образцу

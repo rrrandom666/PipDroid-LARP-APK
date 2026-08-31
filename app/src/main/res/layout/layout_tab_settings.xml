@@ -152,20 +152,12 @@
 
                         <Button
                             android:id="@+id/btn_settings_change_mode"
+                            style="@style/PipWizardButtonStyle"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:background="@drawable/settings_menu_background_green"
                             android:text="@string/settings_mode_change_button"
-                            style="@style/CNDEFFRADButtonStyle"
-                            android:clickable="false"
-                            android:gravity="center|left"
-                            android:minWidth="0.0dip"
-                            android:minHeight="0.0dip"
-                            android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_4"
-                            app:layout_constraintTop_toTopOf="parent"  />
+                            app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
                             android:id="@+id/tv_settings_4_right_spacer"
@@ -360,10 +352,24 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintWidth_percent="0.03" />
 
+                        <!-- Общая точка старта полей ввода Game Info (roadmap, "Редизайн
+                             Settings" — правки по подразделам): без неё каждое поле
+                             начиналось сразу после своей подписи (wrap_content), и позиция
+                             "плавала" из-за разной длины "Player Name"/"Player Region"/
+                             "Game Year" (и их переводов). Один и тот же процент в каждой из
+                             трёх строк (ширина строк одинакова) — они выравниваются по
+                             пикселям без общего родителя. -->
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline_settings_1_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.42" />
+
                         <TextView
                             android:id="@+id/tv_settings_1"
                             style="@style/CNDEFFRADButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0.0dip"
                             android:layout_height="fill_parent"
                             android:background="@drawable/button_unselected"
                             android:clickable="false"
@@ -373,6 +379,7 @@
                             android:text="@string/settings_1_name"
                             android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/guideline_settings_1_value"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_1_left_spacer"
                             app:layout_constraintTop_toTopOf="parent" />
 
@@ -381,14 +388,15 @@
                             style="@style/SettingsButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:gravity="center|right"
+                            android:gravity="center|left"
                             android:hint="PLAYER NAME"
                             android:maxLines="1"
                             android:maxLength="16"
                             android:singleLine="true"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tv_settings_1"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@id/guideline_settings_1_value"
                             app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
@@ -416,10 +424,19 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintWidth_percent="0.03" />
 
+                        <!-- Тот же процент, что у guideline_settings_1_value выше — строки
+                             одинаковой ширины, поэтому поля выравниваются между собой. -->
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline_settings_region_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.42" />
+
                         <TextView
                             android:id="@+id/tv_settings_region"
                             style="@style/CNDEFFRADButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0.0dip"
                             android:layout_height="fill_parent"
                             android:background="@drawable/button_unselected"
                             android:clickable="false"
@@ -429,6 +446,7 @@
                             android:text="@string/settings_region_name"
                             android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/guideline_settings_region_value"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_region_left_spacer"
                             app:layout_constraintTop_toTopOf="parent" />
 
@@ -437,14 +455,15 @@
                             style="@style/SettingsButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:gravity="center|right"
+                            android:gravity="center|left"
                             android:hint="Richmond"
                             android:maxLines="1"
                             android:maxLength="16"
                             android:singleLine="true"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tv_settings_region"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@id/guideline_settings_region_value"
                             app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
@@ -475,10 +494,19 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintWidth_percent="0.03" />
 
+                        <!-- Тот же процент, что у guideline_settings_1_value выше — строки
+                             одинаковой ширины, поэтому поля выравниваются между собой. -->
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline_settings_year_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.42" />
+
                         <TextView
                             android:id="@+id/tv_settings_year"
                             style="@style/CNDEFFRADButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0.0dip"
                             android:layout_height="fill_parent"
                             android:background="@drawable/button_unselected"
                             android:clickable="false"
@@ -488,6 +516,7 @@
                             android:text="@string/settings_year_name"
                             android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/guideline_settings_year_value"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_year_left_spacer"
                             app:layout_constraintTop_toTopOf="parent" />
 
@@ -496,7 +525,7 @@
                             style="@style/SettingsButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:gravity="center|right"
+                            android:gravity="center|left"
                             android:hint="2276"
                             android:maxLines="1"
                             android:maxLength="4"
@@ -504,7 +533,8 @@
                             android:inputType="number"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tv_settings_year"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@id/guideline_settings_year_value"
                             app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
@@ -520,8 +550,13 @@
                 </LinearLayout>
             </ScrollView>
 
-            <!-- Voice Commands: переключатели зарезервированы (ещё не реализованы, roadmap
-                 "Редизайн Settings"), плюс переход на импорт офлайн-модели Vosk. -->
+            <!-- Voice Commands: реальных переключателей нет и не будет (roadmap, "Редизайн
+                 Settings" — правки по подразделам) — вместо тумблеров само прослушивание
+                 будческого слова и кнопка микрофона в Журнале гейтятся наличием
+                 импортированной модели Vosk (см. startWakeWordIfPermitted()/
+                 btnJournalEntryMic.setOnClickListener в MainActivity.kt), отдельная ручная
+                 настройка не нужна. Раздел — сразу содержимое импорта модели, без
+                 промежуточной кнопки-перехода и без своего [X] (было — отдельный подэкран). -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_settings_section_voice"
                 android:layout_width="0dp"
@@ -532,81 +567,44 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_voice_commands"
-                    android:layout_width="fill_parent"
+                <TextView
+                    android:id="@+id/tv_voice_model_status"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10.0dp"
-                    app:layout_constraintTop_toTopOf="parent">
+                    android:layout_marginStart="10dp"
+                    android:text="@string/voice_model_status_none"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-                    <TextView
-                        android:id="@+id/tv_settings_voice_commands_left_spacer"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.03" />
-
-                    <CheckBox
-                        android:id="@+id/cbox_voice_commands_settings"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:enabled="false"
-                        android:gravity="center|left"
-                        android:minWidth="0.0dip"
-                        android:minHeight="0.0dip"
-                        android:text="@string/settings_enable_voice_commands"
-                        android:checked="true"
-                        app:layout_constraintStart_toEndOf="@id/tv_settings_voice_commands_left_spacer"
-                        app:layout_constraintTop_toTopOf="parent"/>
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_settings_journal_voice"
-                    android:layout_width="fill_parent"
+                <TextView
+                    android:id="@+id/tv_voice_model_import_result"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10.0dp"
-                    android:paddingTop="10dip"
-                    app:layout_constraintTop_toBottomOf="@id/layout_tab_settings_voice_commands">
-
-                    <TextView
-                        android:id="@+id/tv_settings_journal_voice_left_spacer"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.03" />
-
-                    <CheckBox
-                        android:id="@+id/cbox_journal_voice_settings"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:enabled="false"
-                        android:gravity="center|left"
-                        android:minWidth="0.0dip"
-                        android:minHeight="0.0dip"
-                        android:text="@string/settings_enable_journal_voice_input"
-                        android:checked="true"
-                        app:layout_constraintStart_toEndOf="@id/tv_settings_journal_voice_left_spacer"
-                        app:layout_constraintTop_toTopOf="parent"/>
-                </androidx.constraintlayout.widget.ConstraintLayout>
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="10dp"
+                    android:text=""
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tv_voice_model_status" />
 
                 <Button
-                    android:id="@+id/btn_settings_voice_model"
+                    android:id="@+id/btn_voice_model_import"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
-                    android:layout_marginStart="10.0dp"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/settings_voice_model_button"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/voice_model_import_button"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/layout_tab_settings_journal_voice" />
+                    app:layout_constraintTop_toBottomOf="@id/tv_voice_model_import_result" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- Map: только переход на импорт офлайн-бандла карты (World Map Scaling убран —
-                 ни на что не влиял, roadmap "Редизайн Settings"). -->
+            <!-- Map: World Map Scaling убран (ни на что не влиял, roadmap "Редизайн
+                 Settings"), остаётся только импорт офлайн-бандла — сразу его содержимое,
+                 без кнопки-перехода и без своего [X] (было — отдельный подэкран). -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_settings_section_map"
                 android:layout_width="0dp"
@@ -617,15 +615,38 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
+                <TextView
+                    android:id="@+id/tv_map_bundle_status"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="@string/map_bundle_status_none"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_map_bundle_import_result"
+                    style="@style/CNDEFFRADButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="10dp"
+                    android:text=""
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_status" />
+
                 <Button
-                    android:id="@+id/btn_settings_map_bundle"
+                    android:id="@+id/btn_map_bundle_import"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
-                    android:layout_marginStart="10.0dp"
+                    android:layout_marginStart="10dp"
                     android:layout_marginTop="10dp"
-                    android:text="@string/settings_map_bundle_button"
+                    android:text="@string/map_bundle_import_button"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_import_result" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -897,35 +918,6 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Экран Import Bundle/Import Voice Model — остаются отдельными полноэкранными
-         подэкранами со своим [X] (не разделы бокового меню, см. roadmap "Редизайн
-         Settings": "Экран Import Bundle"/"Экран Import Voice Model"), открываются кнопкой
-         изнутри разделов Map/Voice Commands. Дети layout_settings_frame — та же вложенность,
-         что была у всех трёх include до редизайна, чтобы app:layout_constraint*_toTopOf/
-         toBottomOf на img_settings_line_bottom/tv_settings резолвились (родство по
-         ConstraintLayout, не просто по XML-отступу). -->
-    <include
-        android:id="@+id/inc_layout_tab_settings_map_bundle"
-        layout="@layout/layout_tab_settings_map_bundle"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/img_settings_line_bottom"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_settings" />
-
-    <include
-        android:id="@+id/inc_layout_tab_settings_voice_model"
-        layout="@layout/layout_tab_settings_voice_model"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/img_settings_line_bottom"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_settings" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -68,13 +68,16 @@
         <!-- Фиксированная точка привязки кнопки [Выбрать] — не зависит от длины текста
              описания (roadmap, "Косметические правки мастера" — было "скачет" вслед за
              объёмом текста). Поднята вместе с текстом (см. ниже, текст теперь у верха, не
-             по центру высоты). -->
+             по центру высоты). Сдвинута ниже (0.32 -> 0.5) после того, как описание
+             Телефона выросло до двух предложений — на 0.32 кнопка наезжала на текст у
+             самого длинного описания (Телефон), а положение должно быть одинаковым у всех
+             трёх режимов, не только у самых коротких. -->
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideline_mode_select_confirm"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.32" />
+            app:layout_constraintGuide_percent="0.5" />
 
         <!-- Начинается на той же высоте, что и список слева (marginTop 16dp у списка +
              ~10dp свой отступ первого пункта списка, см. layout_recycler_selectable_list.xml

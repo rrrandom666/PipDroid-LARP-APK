@@ -66,31 +66,11 @@
                 layout="@layout/layout_tab_tutorial_welcome"
                 android:visibility="visible" />
 
-            <!-- Остальные страницы унаследованного тьюториала — не подключены сейчас
-                 (кнопка [Далее] задизейблена, см. MainActivity.kt), задел под roadmap п.20. -->
+            <!-- 7 страниц тьюториала (roadmap, этап 25) — один переиспользуемый layout,
+                 текст подставляется кодом по индексу (MainActivity.showTutorialPage()). -->
             <include
-                android:id="@+id/inc_layout_tab_tutorial_whatsnew"
-                layout="@layout/layout_tab_tutorial_whatsnew"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/inc_layout_tab_tutorial_1_stats"
-                layout="@layout/layout_tab_tutorial_1_stats"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/inc_layout_tab_tutorial_2_items"
-                layout="@layout/layout_tab_tutorial_2_items"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/inc_layout_tab_tutorial_3_data"
-                layout="@layout/layout_tab_tutorial_3_data"
-                android:visibility="gone" />
-
-            <include
-                android:id="@+id/inc_layout_tab_tutorial_4_settings"
-                layout="@layout/layout_tab_tutorial_4_settings"
+                android:id="@+id/inc_layout_tab_tutorial_page"
+                layout="@layout/layout_tab_tutorial_page"
                 android:visibility="gone" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>

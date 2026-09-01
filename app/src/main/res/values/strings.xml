@@ -82,6 +82,7 @@
     <string name="status_wound_bandage_label">Bandage</string>
     <string name="status_wound_stunned_label">Waking up in</string>
     <string name="status_wound_skip">Skip</string>
+    <string name="sidebar_menu_back">Menu</string>
     <string name="status_revive_hint">Tap the Vault Boy figure to reset</string>
     <string name="status_text_healthy">"Hooray, you\'re healthy!\nIf you get wounded, press a button.\nYou can tap the Vault Boy\'s body to mark where you got hit."</string>
     <string name="status_text_stunned">"Whoops, you\'re stunned!\nWaking up in: "</string>

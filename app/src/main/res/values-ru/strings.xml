@@ -577,6 +577,7 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="status_wound_bandage_label">Перевязка</string>
     <string name="status_wound_stunned_label">До пробуждения</string>
     <string name="status_wound_skip">Skip</string>
+    <string name="sidebar_menu_back">В меню</string>
     <string name="status_revive_hint">Нажми на ваулт-боя, чтобы обновить</string>
     <string name="status_text_healthy">"Ура, вы здоровы!\nЕсли получите ранение, нажмите кнопку.\nМожете указать на теле ваулт-боя, куда вас ранили."</string>
     <string name="status_text_stunned">"Упс, вы оглушены!\nДо пробуждения: "</string>

@@ -46,9 +46,12 @@ class SidebarMenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) 
  * зовёт колбэк сам, без явного вызова на каждом месте использования.
  *
  * [selectPosition] — единая точка входа и для тапа (setOnClickListener ниже), и для
- * энкодера (MenuNavigator.onSelect, MainActivity.kt) — раньше энкодер работал через
- * `View.performClick()` на реальной кнопке, что гарантировало одинаковое поведение тача и
- * энкодера "бесплатно"; теперь оба идут через один и тот же метод с тем же эффектом.
+ * энкодера, когда движение курсора и подтверждение (`ENCBTN`) для конкретного экрана — одно
+ * и то же действие (`MenuNode.onHighlight`/`onActivate`, `MainActivity.kt`) — раньше энкодер
+ * работал через `View.performClick()` на реальной кнопке, что гарантировало одинаковое
+ * поведение тача и энкодера "бесплатно"; теперь оба идут через один и тот же метод с тем же
+ * эффектом. Экраны, где эти два момента должны отличаться (Status — roadmap, этап 27),
+ * используют [setSelectedPositionSilently] отдельно от полного [selectPosition].
  */
 class SidebarMenuAdapter<T>(
     private var items: List<SidebarMenuItem<T>>,
@@ -126,7 +129,9 @@ class SidebarMenuAdapter<T>(
     /** Молча переставить рамку курсора — без звука, без [onSelect]. Нужно там, где позицию
      * меняет не тап игрока, а что-то другое: восстановление состояния после убийства
      * процесса, автоматическая эскалация таймера ранения на Status (Light -> Heavy сама
-     * двигает рамку, это не выбор игрока). */
+     * двигает рамку, это не выбор игрока), и `ENC` (движение курсора энкодером) на Status —
+     * roadmap, этап 27: там подтверждение (запуск таймера) требует отдельного `ENCBTN`,
+     * см. `MenuNode.onActivate` в `statsMenuRoot()`, `MainActivity.kt`. */
     fun setSelectedPositionSilently(position: Int) {
         if (position !in items.indices) return
         val previous = selectedPosition

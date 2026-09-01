@@ -743,6 +743,61 @@
                             app:layout_constraintWidth_percent="0.06" />
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
+                    <!-- Повторный вход в тьюториал (roadmap, этап 25) — открывает страницы
+                         тьюториала сразу с первой (минуя дисклеймер), тем же путём, что и
+                         "Изменить" у Operating Mode: закрывает Settings и показывает экран
+                         поверх основного контента. -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/layout_tab_settings_tutorial"
+                        android:layout_width="fill_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6.0dp"
+                        android:paddingTop="10dip">
+
+                        <TextView
+                            android:id="@+id/tv_settings_tutorial_left_spacer"
+                            android:layout_width="0.0dip"
+                            android:layout_height="0.0dip"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintWidth_percent="0.03" />
+
+                        <TextView
+                            android:id="@+id/tv_settings_tutorial"
+                            style="@style/CNDEFFRADButtonStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="fill_parent"
+                            android:background="@drawable/button_unselected"
+                            android:clickable="false"
+                            android:gravity="center|left"
+                            android:minWidth="0.0dip"
+                            android:minHeight="0.0dip"
+                            android:text="@string/settings_tutorial_name"
+                            android:textAllCaps="false"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/tv_settings_tutorial_left_spacer"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <Button
+                            android:id="@+id/btn_settings_open_tutorial"
+                            style="@style/PipWizardButtonStyle"
+                            android:layout_width="wrap_content"
+                            android:text="@string/settings_tutorial_open_button"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/tv_settings_tutorial"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tv_settings_tutorial_right_spacer"
+                            android:layout_width="0.0dip"
+                            android:layout_height="0.0dip"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintWidth_percent="0.06" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/layout_tab_settings_8"
                         android:layout_width="fill_parent"

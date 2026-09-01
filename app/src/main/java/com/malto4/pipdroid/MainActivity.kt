@@ -603,9 +603,21 @@ class MainActivity : AppCompatActivity() {
     private var lastY = 0f
 
     /***********************************************************************************************************
-     * DISCLAIMER
+     * DISCLAIMER / TUTORIAL
      **********************************************************************************************************/
     private var showTutorialBool = true
+    // Индекс текущей страницы тьюториала внутри tutorialPageStringRes (roadmap, этап 25).
+    // -1 значит "сейчас показан Welcome/дисклеймер, страницы контента ещё не открыты".
+    private var tutorialPageIndex = -1
+    private val tutorialPageStringRes = listOf(
+        R.string.tutorial_page_whatsnew,
+        R.string.tutorial_page_modes,
+        R.string.tutorial_page_stats,
+        R.string.tutorial_page_items,
+        R.string.tutorial_page_data,
+        R.string.tutorial_page_radio,
+        R.string.tutorial_page_voice,
+    )
 
     /***********************************************************************************************************
      * FILTER MODIFICATION
@@ -3838,11 +3850,7 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsPreferences,
                 bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.scrollBluetoothPairingDevices,
                 bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.scrollTutorialWelcomeMain,
-                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWhatsnew.scrollTutorialWhatsnewMain,
-                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial1Stats.scrollTutorialStatsMain,
-                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial2Items.scrollTutorialItemsMain,
-                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial3Data.scrollTutorialDataMain,
-                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorial4Settings.scrollTutorialSettingsMain,
+                bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialPage.scrollTutorialPageMain,
                 bindingMain.incLayoutFilterModification.scrollFilterModification
                 // Add other scroll views as necessary
             )
@@ -4214,11 +4222,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<ConstraintLayout>(R.id.inc_layout_filter_modification).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_base).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_welcome).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_whatsnew).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_1_stats).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_2_items).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_3_data).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_4_settings).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_page).visibility = View.GONE
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_status).visibility = View.VISIBLE
@@ -4250,11 +4254,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<ConstraintLayout>(R.id.inc_layout_filter_modification).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_base).visibility = View.GONE
         findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_welcome).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_whatsnew).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_1_stats).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_2_items).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_3_data).visibility = View.GONE
-        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_4_settings).visibility = View.GONE
+        findViewById<ConstraintLayout>(R.id.inc_layout_tab_tutorial_page).visibility = View.GONE
 
         if (menu == "STATS"){
             findViewById<ConstraintLayout>(R.id.inc_layout_tab_stats_status).visibility = View.VISIBLE
@@ -5166,6 +5166,66 @@ class MainActivity : AppCompatActivity() {
         super.attachBaseContext(newBase.createConfigurationContext(config))
     }
 
+    /**
+     * Текст + акцент темы + подпись кнопки [Далее]/[Готово] для текущей страницы тьюториала
+     * (roadmap, этап 25). Последняя страница списка — [Готово] вместо [Далее], и [Пропустить]
+     * прячется рядом (спека: на последнем экране только одна кнопка).
+     */
+    private fun showTutorialPage(index: Int) {
+        tutorialPageIndex = index
+        val page = bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialPage
+        page.tvTutorialPage.text = getString(tutorialPageStringRes[index])
+        page.tvTutorialPage.setTextColor(currentWizardAccentColor())
+        val isLastPage = index == tutorialPageStringRes.lastIndex
+        val nextButton = bindingMain.incLayoutTabTutorialBase.btnNextpage
+        val closeButton = bindingMain.incLayoutTabTutorialBase.btnTutorialClose
+        nextButton.text = getString(if (isLastPage) R.string.wizard_done else R.string.wizard_next)
+        // GONE — на последней странице [Пропустить] убирается из разметки совсем, чтобы
+        // [Готово] встало вплотную к чекбоксу "Don't show again" под ним (пользовательская
+        // правка), а не оставляло зазор под невидимую кнопку.
+        closeButton.visibility = if (isLastPage) View.GONE else View.VISIBLE
+        if (!isLastPage) {
+            equalizeButtonWidths(nextButton, closeButton)
+        }
+    }
+    /**
+     * Открывает страницы тьюториала с указанной, минуя Welcome/дисклеймер — используется и
+     * после [Далее] на Welcome (startIndex=0), и повторным входом из Settings ("Обучение" →
+     * "Открыть", тоже startIndex=0, но без дисклеймера — тот только про юридическое
+     * уведомление при первом запуске).
+     */
+    private fun openTutorialContent(startIndex: Int) {
+        bindingMain.constraintlayoutTutorial.visibility = View.VISIBLE
+        // setupMainContent()/setupMainContentBLE() (переключение STATS/ITEMS/DATA) защитно
+        // прячут inc_layout_tab_tutorial_base целиком при каждом обычном переключении вкладок
+        // — обычный побочный эффект их общего "спрятать все оверлеи" сброса. После хотя бы
+        // одного переключения за сессию (т.е. всегда, если тьюториал открыт не с самого
+        // холодного старта) он остаётся GONE, и одной видимости constraintlayoutTutorial
+        // недостаточно — сам include нужно возвращать явно.
+        bindingMain.incLayoutTabTutorialBase.root.visibility = View.VISIBLE
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.GONE
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialPage.root.visibility = View.VISIBLE
+        // Чекбокс остаётся видимым и на страницах контента, не только на Welcome — он общий
+        // элемент колонки кнопок (layout_tutorial_buttons), а не часть include с текстом.
+        // Прятать его нельзя: LinearLayout колонки центрируется по вертикали (gravity=center),
+        // и с пропавшим третьим элементом [Далее]/[Пропустить] съезжали относительно того,
+        // где они стоят на Welcome.
+        showTutorialPage(startIndex)
+    }
+    /**
+     * Закрывает тьюториал ([Пропустить] на любой странице, либо [Готово] на последней) и
+     * возвращает разметку в исходное состояние — следующий показ (обычный запуск или
+     * повторный вход из Settings) снова начинается с Welcome.
+     */
+    private fun closeTutorial() {
+        bindingMain.constraintlayoutTutorial.visibility = View.GONE
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialPage.root.visibility = View.GONE
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.root.visibility = View.VISIBLE
+        bindingMain.incLayoutTabTutorialBase.btnTutorialClose.visibility = View.VISIBLE
+        bindingMain.incLayoutTabTutorialBase.btnNextpage.text = getString(R.string.wizard_next)
+        tutorialPageIndex = -1
+    }
+
     /***********************************************************************************************************
      *
      *
@@ -5468,10 +5528,9 @@ class MainActivity : AppCompatActivity() {
 
 
         /***********************************************************************************************************
-         * DISCLAIMER (переиспользует старый Welcome-экран Tutorial — см. roadmap
-         * "Дисклеймер при запуске — UX-спецификация". Остальные страницы тьюториала
-         * (Whatsnew/Stats/Items/Data/Settings) остаются в разметке нетронутыми про запас
-         * (roadmap п.20), сейчас не подключены — показывается только Welcome/Disclaimer.
+         * DISCLAIMER / TUTORIAL (Welcome — переиспользует старый Welcome-экран Tutorial, см.
+         * roadmap "Дисклеймер при запуске — UX-спецификация". [Далее] с Welcome ведёт в 7
+         * страниц тьюториала — roadmap, этап 25, "Туториалы по функциям").
          **********************************************************************************************************/
         if (sharedPreferences.getBoolean("ShowTutorial", true)) {
             bindingMain.constraintlayoutTutorial.visibility = View.VISIBLE
@@ -5480,31 +5539,53 @@ class MainActivity : AppCompatActivity() {
         }
 
         bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.tvTutorialWelcome.setTextColor(currentWizardAccentColor())
+        setWizardButtonState(bindingMain.incLayoutTabTutorialBase.btnNextpage, selected = false)
         setWizardButtonState(bindingMain.incLayoutTabTutorialBase.btnTutorialClose, selected = false)
         equalizeButtonWidths(
             bindingMain.incLayoutTabTutorialBase.btnNextpage,
             bindingMain.incLayoutTabTutorialBase.btnTutorialClose
         )
 
-        // [Далее] — визуально задизейблен тем же приёмом, что и [Выбрать] для PipBoy 3000
-        // в мод-селекте: кнопка остаётся кликабельной (не android:enabled=false), но по
-        // клику ничего не делает, кроме звука ошибки. Задел под будущий многостраничный
-        // тьюториал (roadmap п.20) — сейчас у экрана фактически одна страница.
-        setWizardButtonDisabled(bindingMain.incLayoutTabTutorialBase.btnNextpage)
+        // [Далее] — на Welcome открывает страницы тьюториала с первой; на любой странице
+        // контента, кроме последней, просто листает дальше; на последней странице кнопка уже
+        // переименована в [Готово] (см. showTutorialPage()) и закрывает тьюториал целиком.
         bindingMain.incLayoutTabTutorialBase.btnNextpage.setOnClickListener {
-            playErrorAudio()
+            playNewTabSelectAudio()
+            when {
+                tutorialPageIndex == -1 -> openTutorialContent(0)
+                tutorialPageIndex < tutorialPageStringRes.lastIndex -> showTutorialPage(tutorialPageIndex + 1)
+                else -> closeTutorial()
+            }
         }
 
+        // [Пропустить] — на любой странице (Welcome или контент) закрывает тьюториал целиком,
+        // не долистывая до конца (roadmap-спека).
         bindingMain.incLayoutTabTutorialBase.btnTutorialClose.setOnClickListener {
             playNewTabSelectAudio()
-            // Чекбокс на этом экране инвертирован относительно чекбокса в Settings
+            // Чекбокс живёт только на Welcome и инвертирован относительно чекбокса в Settings
             // ("Больше не показывать" вместо "Показывать обучение при запуске") — оба
             // читают/пишут один и тот же ключ ShowTutorial, поэтому mirror isChecked()
-            // напрямую нельзя, см. roadmap "Дисклеймер при запуске — UX-спецификация".
+            // напрямую нельзя, см. roadmap "Дисклеймер при запуске — UX-спецификация". Если
+            // Skip нажат уже на странице контента, чекбокс скрыт и не менялся пользователем
+            // с момента ухода с Welcome — читаем его текущее (неизменное) состояние, поведение
+            // то же самое, что и на самом Welcome.
             showTutorialBool = !bindingMain.incLayoutTabTutorialBase.cboxTutorialWelcome.isChecked()
             sharedPreferences.edit().putBoolean("ShowTutorial", showTutorialBool).apply()
             bindingMain.incLayoutSettingsGlobal.cboxTutorialSettings.setChecked(showTutorialBool)
-            bindingMain.constraintlayoutTutorial.visibility = View.GONE
+            closeTutorial()
+        }
+
+        // Повторный вход в тьюториал из Settings ("Обучение" → "Открыть", roadmap этап 25) —
+        // сразу с первой страницы контента, минуя Welcome/дисклеймер (тот отвечает только за
+        // юридическое уведомление при первом запуске, не за сам тьюториал).
+        bindingMain.incLayoutSettingsGlobal.btnSettingsOpenTutorial.setOnClickListener {
+            playNewTabSelectAudio()
+            openTutorialContent(0)
+            if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
+                bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
+                enableDisableBottomButtons(true, listBottomButtons)
+                enableDisableTopSwipe(true)
+            }
         }
 
 
@@ -5779,6 +5860,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutSettingsGlobal.btnSettingsCancel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
             bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode,
+            bindingMain.incLayoutSettingsGlobal.btnSettingsOpenTutorial,
             bindingMain.incLayoutSettingsGlobal.btnMapBundleImport,
             bindingMain.incLayoutSettingsGlobal.btnVoiceModelImport,
             bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnBluetoothRescan

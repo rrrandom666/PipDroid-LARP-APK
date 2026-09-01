@@ -214,6 +214,8 @@ strings.xml:settings_region_name,values/strings.xml,settings_region_name,Player 
 strings.xml:settings_2_name,values/strings.xml,settings_2_name,Player Level,готово,Уровень игрока,,
 strings.xml:settings_4_name,values/strings.xml,settings_4_name,Operating Mode:,готово,Режим работы:,,
 strings.xml:settings_mode_change_button,values/strings.xml,settings_mode_change_button,Change,готово,Изменить,,
+strings.xml:settings_tutorial_name,values/strings.xml,settings_tutorial_name,Tutorial:,готово,Обучение:,,"тьюториал, этап 25"
+strings.xml:settings_tutorial_open_button,values/strings.xml,settings_tutorial_open_button,Open,готово,Открыть,,"тьюториал, этап 25"
 strings.xml:settings_5_name,values/strings.xml,settings_5_name,World Map Scaling,готово,Масштаб карты мира,,
 strings.xml:settings_year_name,values/strings.xml,settings_year_name,Game Year,готово,Игровой год,,
 strings.xml:settings_6_name,values/strings.xml,settings_6_name,Date Formats,готово,Формат даты,,
@@ -231,171 +233,101 @@ strings.xml:settings_UI_Colour_4,values/strings.xml,settings_UI_Colour_4,Blue,г
 strings.xml:disclaimer_skip_button,values/strings.xml,disclaimer_skip_button,Skip,готово,Пропустить,,
 strings.xml:disclaimer_dont_show_again,values/strings.xml,disclaimer_dont_show_again,Don't show again,готово,Больше не показывать,,
 strings.xml:disclaimer_text,values/strings.xml,disclaimer_text,"PipDroid LARP is a non-commercial fan project inspired by the Fallout universe, created for LARP use, based on PipDroid by Malto4. It is not affiliated with, endorsed by, or connected to Bethesda Softworks or any official rights holders. All Fallout-related trademarks and intellectual property belong to their respective owners. This application is distributed free of charge, without commercial intent.",готово,"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели.",,бывший tutorial_welcome — экран переделан в дисклеймер (roadmap, 'Дисклеймер при запуске')
-strings.xml:tutorial_whatsnew1,values/strings.xml,tutorial_whatsnew1,"""----- Whats New with PipDroid v2.0.12 -----
+strings.xml:tutorial_page_whatsnew,values/strings.xml,tutorial_page_whatsnew,"PipDroid LARP v3.0
 
-- IMPLEMENTED TUTORIAL SCREEN
-   Due to mass demand, PipDroid now includes a tutorial menu, introducing the APP, presenting new features, and explaining how to navigate and use the APP.
+PipDroid LARP is an adaptation of the well-known PipDroid app for live-action roleplay (LARP) use. Like its predecessor, PipDroid LARP simulates Pip-Boy firmware running on a phone built into the device's housing.
 
-- FACTION REPUTATION MODIFICATION
-   You can now modify your reputation level with all factions inside the APP.
-   Simply press and hold the name of the faction once selected, and watch the reputation level change between the different options.
+However, PipDroid LARP is tuned for LARP mechanics. Instead of tracking hit points, it runs injury timers. The Fallout 3 and New Vegas item libraries have been trimmed significantly — only SPECIAL stats, skills, and perks remain. In exchange, the app can pick up in-game radio, detect in-game radiation, and plot routes on the venue map.
 
-- MENU CHANGE VARIETY
-   You can now change between different menus in more ways.
-   Simply swiping the top title menu either left or right will switch between the different menus (STATS, ITEMS and DATA)
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_whatsnew2,values/strings.xml,tutorial_whatsnew2,"""
-- FULL SCREEN GOODNESS
-   The APP can now be run in true full screen, hiding both the notification bar and the navigation buttons, allowing for a more immersive experience.
-   This new feature can be found in the SETTINGS.
+You can go through this tutorial once now, or come back to it later from Settings.",готово,"PipDroid LARP v3.0
 
-- PERKS AND ITEMS CUSTOMIZATION
-   Perks and ITEMS (Weapons, Apparel, Aid, etc.) can now be customized, such that you can choose from all of the Perks and ITEMS available in the game, and add/show the ones you want, adding an even more personalized experience.
-   The Weapons and Apparel sub-menus also allow ""equipping"" where you can press and hold the name of an ITEM and ""equip"" it. The logic of ""equipping"" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
-    """,не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_stats1,values/strings.xml,tutorial_stats1,"""---------- STATS ----------
+PipDroid LARP — это адаптация известного приложения PipDroid под цели полигонной ролевой игры. Как и его предшественник, PipDroid LARP симулирует прошивку пип-боя на телефоне, который интегрируется в корпус устройства.
 
------ STATUS -----
-Here you can see your character's basic information
- - Player Name
- - Player Level
- - Health
- - Number of Stimpaks
- - Etc.
+Однако PipDroid LARP оптимизирован под механики полигонной ролевой игры. Вместо счётчика хит-пойнтов он запускает таймеры ранений. Библиотеки материалов из Fallout 3 и New Vegas заметно урезаны — остались только характеристики, навыки и перки. Зато приложение умеет ловить игровое радио, распознавать игровую радиацию и строить маршруты по карте полигона.
 
-If you press and hold a health container for 1 second or longer, it will hurt your character.
-Get hurt enough and you'll see the typical damage expressions
-In order to recover health, simply press the Stimpak button and recover damage
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_stats2,values/strings.xml,tutorial_stats2,"""
-It's also on this submenu where you can find the RAD and EFF menus, where you can see your current RAD levels and status effects.
+Это обучение можно пройти один раз сейчас или вернуться к нему позже через Настройки.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_modes,values/strings.xml,tutorial_page_modes,"Setup Wizard
 
------ S.P.E.C.I.A.L. -----
-Here you can find all of the classic S.P.E.C.I.A.L. values from the games.
+On first launch, the app walks you through initial setup automatically. To start, choose a mode:
 
-These values can be edited.
-Simply select a S.P.E.C.I.A.L. item, press and hold the name of the item, and watch the value increase and decrease.
-The values you modify will be saved in the APP, so that your character will always have the values you configure.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_stats3,values/strings.xml,tutorial_stats3,"""
------ SKILLS -----
-Here you can find the SKILLS from both Fallout 3 and Fallout New Vegas.
+Phone — a demo of the app's features, without connecting to any Pip-Boy peripherals. Radio, the radiation counter, and holotape reading are unavailable in this mode — they physically require the case with electronics.
 
-These values can be edited.
-Just like the S.P.E.C.I.A.L. values, simply press and hold the name of a SKILL, and watch the value increase and decrease.
-The longer you press and hold the item, the faster the value will increase.
+PipBoy 2000 — the app connects to the case over Bluetooth and is controlled via the encoder, buttons, and voice commands. The touchscreen still works as a backup control method.
 
------ PERKS -----
-Here you can find some of the PERKS from the games.
+If the case isn't built yet or isn't on hand — choose Phone. You can always switch modes later in Settings → Main.",готово,"Мастер настроек
 
-PERKS are now configurable, such that each player can set their own PERKS from a vast list of PERKS from the games. To select the PERKS, simply press and hold the PERKS sub-menu button until the Filter menu pops-up.
-You can then search for specific PERK names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new PERKS will show up dynamically.
+При запуске приложение само проведёт вас через все начальные настройки. Для начала выберите режим:
 
------ GENERAL -----
-Here you can find the factions from the games.
+Телефон — демонстрация возможностей приложения, без подключения к периферии пип-боя. В этом режиме недоступны радио, счётчик радиации и чтение голодисков — им физически нужен корпус с электроникой.
 
-These values can be edited.
-Once you select a faction, you will see their icon, and your reputation with that faction.
-Press and hold a faction name for the reputation to change from the different options (Idolized, Liked, Accepted, Neutral, Shunned, Hated, Vilified)
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_stats4,values/strings.xml,tutorial_stats4,"""
-It is here too where you can find the SETTINGS menu, to change between the different MENUs (STATS, ITEMS, DATA)""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_items1,values/strings.xml,tutorial_items1,"""---------- ITEMS ----------
+PipBoy 2000 — приложение подключается к корпусу по Bluetooth, управляется энкодером, кнопками и голосовыми командами. Сенсорный экран продолжает работать как запасной способ управления.
 
------ WEAPONS, APPAREL, AID, MISC, AMMO -----
-Here you can find some of the classic items from the games.
+Если корпус ещё не собран или не под рукой — выбирайте Телефон. Режим всегда можно сменить позже в Настройки → Основные.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_stats,values/strings.xml,tutorial_page_stats,"STATS
 
-Currently, these entries are static, and are just for show.
+The STATS section keeps most of its structure. The General tab is gone. SPECIAL, Skills, and Perks got interface improvements to make them easier to fill out. The Status tab has been completely rebuilt around LARP rules.
 
-ITEMS are now configurable, such that each player can set their own Weapons, Apparel, Aid, Misc and Ammo from a vast list of ITEMS from the games. To select the ITEMS, simply press and hold the corresponding sub-menu button (Weapons, Apparel, Aid, etc.) until the Filter menu pops-up.
-You can then search for specific Weapons, Apparel, etc. names, SELECT ALL or CLEAR ALL, and save. Once you close the Filter, the new ITEMS will show up dynamically.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_items2,values/strings.xml,tutorial_items2,"""
-The Weapons and Apparel sub-menus also allow ""equipping"" where you can press and hold the name of an ITEM and ""equip"" it. The logic of ""equipping"" follows that of the games, where you can have a weapon and a throwable, or a hat and armour.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
-strings.xml:tutorial_data,values/strings.xml,tutorial_data,"""---------- DATA ----------
+Instead of hit points and stimpak healing, there are three buttons: Light Wound, Heavy Wound, Stunned. Pressing one starts a real-time injury timer. While a timer is active, you can't switch to another status.",готово,"STATS
 
------ LOCAL MAP -----
-On this menu, you can find a map of the earth.
+Раздел STATS большей частью сохранил структуру. С разделом General пришлось проститься. В разделах SPECIAL, Skills и Perks доработан интерфейс, чтобы было удобнее их заполнять. Раздел Status полностью пересобран под правила полигонной игры.
 
-** Stay tuned for future updates, where there will be little easter eggs added to different key points on the map.
+Вместо хит-пойнтов и лечения стимпаками — три кнопки: Легко ранен, Тяжело ранен, Оглушён. Нажатие запускает таймер ранения в реальном времени. Пока таймер активен, переключиться на другой статус не получится.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_items,values/strings.xml,tutorial_page_items,"ITEMS
 
------ WORLD MAP -----
-Here you can find the World Maps from both Fallout 3 and Fallout New Vegas.
+The old Fallout 3/New Vegas catalogs of weapons, armor, aid, and junk are gone entirely — there's no LARP mechanic that syncs a player's pockets with the Pip-Boy. In their place, four sections: Geiger, Map, Journal, Clock.
 
-Featuring all key locations from both games, you can zoom in and see both key location icons and names.
+Geiger shows your current radiation dose on a gauge with a needle — the dose builds up from signals sent by the case and can be reset from a button on the screen at any time. Available in PipBoy 2000 mode only.
 
------ QUESTS -----
-Here you can find some of the key quests from the games.
+Map — a real map of the venue with GPS navigation, route plotting, and the ability to drop markers.
 
-** Stay tuned for future updates, where even more quests will be added, and will be editable for you to choose which quest to work on / are pending or not.
+Journal — a place for in-game notes. Supports voice input.
 
------ MISC -----
-Here you can find some of the Notes and Holotapes from around the Wasteland.
+Clock — time, alarm, timer, and stopwatch. You can set your alarm melody to one of 8 popular in-game tracks.",готово,"ITEMS
 
-** Stay tuned for future updates, where even more Notes and Holotapes will be added, and special Holotapes will be implemented.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести; RADIO-параграф снят этапом 23 вместе с mp3-станциями"
-strings.xml:tutorial_settings1,values/strings.xml,tutorial_settings1,"""---------- SETTINGS ----------
+Старые каталоги оружия, брони, препаратов и хлама из Fallout 3 и New Vegas убраны целиком — на полигоне нет механик, синхронизирующих карманы игрока с пип-боем. Вместо них четыре раздела: Гейгер, Карта, Журнал, Часы.
 
------ PLAYER NAME -----
-Set your players name (16 character limit)
+Гейгер показывает текущую дозу радиации со шкалой и стрелкой — доза копится по сигналу от корпуса и сбрасывается кнопкой на экране в любой момент. Доступен только в режиме PipBoy 2000.
 
------ PLAYER LEVEL -----
-Set your players level (3 digit limit)
+Карта — реальная карта полигона с GPS-навигацией, построением маршрутов и возможностью ставить отметки.
 
------ SCREEN RESIZE -----
-For those of you who wish to use this APP with the PipBoy 3000 from The Fallout 4 Special Edition, you can use this option to set the size of the interface to fit inside of the screen
-Once you have selected this option, you can choose the resize button to enter editing mode and adjust both size (pinching action) and location (single finger moving).
-Simply press the resize button again to exit editing mode.
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести; C. RADIO MP3 FOLDER-параграф снят этапом 23 вместе с mp3-станциями"
-strings.xml:tutorial_settings2,values/strings.xml,tutorial_settings2,"""
------ WORLD MAP SCALING -----
-Due to every phone having different screen sizes and resolutions sometimes the world map icons don't show up in the correct locations.
-To fix this, we've added a simple scaling value just simply modify this value until the locations appear in the correct spots.
-The following are some example values:
+Журнал — место для игровых заметок. Поддерживает голосовой ввод.
 
- - Samsung Galaxy S23 Ultra (Resolution 2316x1080)
- --- 0.9347
+Часы — время, будильник, таймер и секундомер. Вы можете поставить в качестве мелодии будильника один из 8 популярных треков из игры.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_data,values/strings.xml,tutorial_page_data,"DATA
 
- - Samsung Galaxy J3(6) (Resolution 1280x720)
- --- 0.663
+This section has two parts left: Files and Holotapes.
 
- - Blackberry Passport (Resolution 1440x1440)
- --- 1.0
+Files — a library of files stored on the Pip-Boy. We lovingly kept the Caravan rules around, in case you feel like playing a round.
 
------ DATE FORMATS -----
-You can modify the Date format shown on the DATA menus from the different options available.
+Holotapes — the holotape reading interface. Plug a holotape you found in the Wasteland into the socket on the Pip-Boy case, copy the files over — and they'll show up in Files.",готово,"DATA
 
- - MM/DD/YY
- - MM/DD/YYYY
- - DD/MM/YY
- - DD/MM/YYYY
- - YYYY/MM/DD
+Здесь остались два раздела: Files и Holotapes.
 
------ UI COLOUR -----
-Here you can change the interface colour from different options available in the games.
+Files — библиотека файлов, хранящихся на пип-бое. Правила игры в Караван мы любовно сохранили — вдруг вы захотите поиграть.
 
-** Stay tuned for future updates, where a Custom/modifiable colour will be available
+Holotapes — интерфейс чтения голодисков. Вставляйте голодиски, найденные на Пустоши, в разъём на корпусе пип-боя, копируйте файлы — и они появятся в разделе Files.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_radio,values/strings.xml,tutorial_page_radio,"Real Radio
 
------ ENABLE TRUE FULLSCREEN -----
-This option hides both the notification bar and the navegation buttons, allowing for a more immersive / fullscreen experience.
+The old built-in mp3 stations are gone — replaced by a real FM receiver in the case. The app doesn't play any audio itself; it just shows the receiver's state: whether it's on, the current frequency, and the volume.
 
------ SHOW TUTORIAL AT START -----
-This checkbox indicates whether this tutorial should be shown when the APP is loaded or not.
+The radio is turned on and tuned physically. The knob changes the frequency and volume, and the app syncs automatically. On first power-on the receiver tunes to 99.9 MHz; after that, it remembers the last frequency you listened to.
 
------ BLUETOOTH SETUP -----
-Here you can configure external devices to connect with PipDroid using Bluetooth (ESP32 S3 mini board for example).
+Radio is only available in PipBoy 2000 mode.",готово,"Настоящее радио
 
-For this, you must first configure:
- - MAC Address of the Bluetooth device
- - Service UUID
- - Read UUID
- - Write UUID
+Старые встроенные mp3-станции убраны — вместо них настоящий FM-приёмник в корпусе. Приложение не проигрывает звук само, а только показывает состояние приёмника: включён ли он, на какой частоте и с какой громкостью.
 
-** These values can be found connecting your bluetooth device with a Bluetooth terminal APP
+Включается и настраивается радио физически. Крутилятор меняет волну и громкость, приложение синхронизируется само. При первом включении приёмник настраивается на 99.9 МГц, при повторных — вспоминает последнюю прослушанную частоту.
 
-For more information, check out PipDroid's theRPF post '[PipDroid] Functional Pip-Boy 3000 APK'
-""",не переводится (решение),,,"ОТЛОЖЕНО по решению — экран обучения переписать под актуальный функционал, тогда и перевести"
+Радио доступно только в режиме PipBoy 2000.",,"тьюториал, этап 25"
+strings.xml:tutorial_page_voice,values/strings.xml,tutorial_page_voice,"Voice Commands & Case Controls
+
+Three buttons on the case jump straight to STATS/ITEMS/DATA. The top knob moves the cursor through menu items, and pressing it confirms your selection. The POWER button turns the Pip-Boy on and off, with a boot-up/shutdown animation. A separate button turns on the radio. In radio mode, the top knob adjusts volume, and the bottom knob switches frequencies.
+
+Voice commands work off the wake word ""Pip-Boy"" — say it, then your command: ""Pip-Boy, light wound""; ""Pip-Boy, route to the gecko den""; ""Pip-Boy, status"". Recognition runs fully offline, no internet required. Enable it separately in Settings → Voice Commands. The full command list is in the project's README on GitHub.",готово,"Голосовые команды и управление с корпуса
+
+Три кнопки на корпусе — быстрый переход в STATS/ITEMS/DATA. Верхний крутилятор двигает курсор по пунктам меню, нажатие на него подтверждает выбор. Кнопка POWER включает и выключает пип-бой с анимацией загрузки/выключения. Отдельная кнопка включает радио. В режиме радио верхний крутилятор регулирует громкость, а нижний — переключает частоты.
+
+Голосовые команды работают по вейк-слову «Пип-бой» — скажите его, затем команду: «Пип-бой, лёгкое ранение»; «Пип-бой, маршрут до логова гекконов»; «Пип-бой, статус». Распознавание работает офлайн, без интернета. Включается отдельно в Settings → Voice Commands. Полный список команд — в README проекта на GitHub.",,"тьюториал, этап 25"
 strings.xml:cnd_popup_easter_egg_title,values/strings.xml,cnd_popup_easter_egg_title,"Achievement unlocked:
 Easter Egg found",готово,"Достижение получено:
 Найдено пасхальное яйцо",,

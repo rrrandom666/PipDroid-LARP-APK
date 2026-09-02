@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Индикация фокуса энкодера "прицел-уголки" (roadmap, этап 27) — 4 независимых L-образных
+     уголка по углам, не сплошная рамка. Каждый уголок — два коротких прямоугольника
+     фиксированного размера (не тянутся под размер View, как обычная 9-patch/shape), gravity
+     ставит их точно по углам bounds, в которые растянут этот drawable — тот же приём, что и
+     у остальных тонируемых кнопок (белый цвет-заглушка, реальный акцент — backgroundTintList
+     в коде, currentWizardAccentColor()). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Верхний левый -->
+    <item android:width="10dp" android:height="2dp" android:gravity="top|left">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <item android:width="2dp" android:height="10dp" android:gravity="top|left">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <!-- Верхний правый -->
+    <item android:width="10dp" android:height="2dp" android:gravity="top|right">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <item android:width="2dp" android:height="10dp" android:gravity="top|right">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <!-- Нижний левый -->
+    <item android:width="10dp" android:height="2dp" android:gravity="bottom|left">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <item android:width="2dp" android:height="10dp" android:gravity="bottom|left">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <!-- Нижний правый -->
+    <item android:width="10dp" android:height="2dp" android:gravity="bottom|right">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <item android:width="2dp" android:height="10dp" android:gravity="bottom|right">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+</layer-list>

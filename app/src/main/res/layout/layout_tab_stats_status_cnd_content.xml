@@ -20,6 +20,7 @@
             android:id="@+id/layout_tab_status_cnd_pipboy"
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
+            android:layout_marginStart="4dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintDimensionRatio="1.1:1"
             app:layout_constraintHeight_percent="0.8"
@@ -244,6 +245,29 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <!-- Фокус энкодера на фигуре целиком, когда woundPhase == DEAD (roadmap, этап 27 —
+             "курсор должен устанавливаться на персонажа, ENCBTN = тот же жест, что тап,
+             воскрешает") — тот же приём "прицел-уголки", что у Stop/+/-. В отличие от Stop
+             (у которого уже был запас 12dp margin, безопасно превращённый в padding) у
+             фигуры своего отступа не было вообще — стояла впритык к боковому меню слева,
+             а прицелу нужно ещё 4dp за её левый край. Проще и понятнее не padding-трюк с
+             clipChildren/clipToPadding=false, а прямой marginStart="4dp" на самой фигуре —
+             сдвигает её на эти же 4dp вправо, ровно на то, что обрезалось. -->
+        <View
+            android:id="@+id/view_dead_revive_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintTop_toTopOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintEnd_toEndOf="@id/layout_tab_status_cnd_pipboy"
+            app:layout_constraintBottom_toBottomOf="@id/layout_tab_status_cnd_pipboy" />
+
         <!-- Панель статуса — текст + [Стоп]/[Skip] (roadmap, "Редизайн STATS/Status —
              UX-спецификация", фидбек по итогам тестирования) — справа от фигуры, в
              свободном месте (раньше эта строка жила между фигурой и нижней панелью,
@@ -273,13 +297,31 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <LinearLayout
+            <!-- ConstraintLayout, не LinearLayout (roadmap, этап 27 — "прицел-уголки" фокуса
+                 энкодера на Stop): нужен сиблинг view_wound_stop_focus, constraint'ами
+                 привязанный прямо к рёбрам btn_tab_status_wound_stop с отрицательным margin
+                 (тот же проверенный приём, что у +/- SPECIAL/Skills, layout_special_value_
+                 buttons) — FrameLayout+match_parent+отрицательный margin пробовали раньше,
+                 давал сломанный рендер (кнопка Skip пропадала, вместо уголков — "чёрточка").
+
+                 marginStart 8dp + paddingStart 4dp (= прежние 12dp, кнопка не сдвинулась ни
+                 на пиксель) — отступ отбирается ИЗ УЖЕ существующего margin в padding, чтобы
+                 прицел (view_wound_stop_focus, -4dp) занимал эту зону ВНУТРИ собственных
+                 границ контейнера, а не снаружи. Настоящая находка (roadmap, этап 27 —
+                 "прицел то обрезается, то наезжает на кнопку", разобрано измерением
+                 пикселей, не на глаз): само по себе этого было мало —
+                 ViewGroup по умолчанию обрезает рисование детей по границе СВОЕЙ padded
+                 области (clipToPadding=true по умолчанию), а не только по внешней границе —
+                 прицел рисовался в отведённой зоне padding, но обрезался всё равно. Нужен
+                 ещё явный android:clipToPadding="false" на самом контейнере. -->
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_tab_status_wound_buttons"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="8dp"
                 android:layout_marginTop="16dp"
-                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:clipToPadding="false"
                 android:visibility="gone"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_tab_status_wound_text">
@@ -288,23 +330,46 @@
                     android:id="@+id/btn_tab_status_wound_stop"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
-                    android:layout_marginEnd="8dp"
                     android:paddingLeft="8dp"
                     android:paddingRight="8dp"
                     android:maxLines="1"
-                    android:text="@string/clock_fired_stop" />
+                    android:text="@string/clock_fired_stop"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <!-- Кнопка flush к левому краю контейнера (выровнена относительно текста
+                     статуса выше, двигать нельзя). -->
+                <View
+                    android:id="@+id/view_wound_stop_focus"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:layout_marginStart="-4dp"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginEnd="-4dp"
+                    android:layout_marginBottom="-4dp"
+                    android:background="@drawable/focus_corner_brackets"
+                    android:visibility="gone"
+                    app:layout_constraintStart_toStartOf="@id/btn_tab_status_wound_stop"
+                    app:layout_constraintTop_toTopOf="@id/btn_tab_status_wound_stop"
+                    app:layout_constraintEnd_toEndOf="@id/btn_tab_status_wound_stop"
+                    app:layout_constraintBottom_toBottomOf="@id/btn_tab_status_wound_stop" />
 
                 <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btn_tab_status_wound_skip"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
+                    android:layout_marginStart="8dp"
                     android:paddingLeft="8dp"
                     android:paddingRight="8dp"
                     android:maxLines="1"
                     android:visibility="gone"
-                    android:text="@string/status_wound_skip" />
+                    android:text="@string/status_wound_skip"
+                    app:layout_constraintStart_toEndOf="@id/btn_tab_status_wound_stop"
+                    app:layout_constraintTop_toTopOf="@id/btn_tab_status_wound_stop"
+                    app:layout_constraintBottom_toBottomOf="@id/btn_tab_status_wound_stop" />
 
-            </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

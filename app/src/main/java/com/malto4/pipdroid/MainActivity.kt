@@ -723,6 +723,15 @@ class MainActivity : AppCompatActivity() {
     )
     private lateinit var skillsAdapter: SidebarMenuAdapter<String>
 
+    // Perks (roadmap, этап 27 — энкодер-эргономика) — раньше adapter был локальным val
+    // внутри STATSPerksSetup(), пересоздавался при каждом вызове и никуда не сохранялся;
+    // теперь нужен снаружи (statsMenuRoot()), чтобы дерево энкодера могло провалиться в
+    // список перков так же, как в SPECIAL/Skills. perksRealItemCount — количество реальных
+    // перков без учёта дописанного "В меню" (список фильтруется, длина не фиксирована, в
+    // отличие от statusMeta/specialMeta/skillsMeta).
+    private lateinit var perksAdapter: SidebarMenuAdapter<Map<String, String>>
+    private var perksRealItemCount = 0
+
     private lateinit var selectedSubMenu: Button
 
     private val handler = Handler(Looper.getMainLooper())
@@ -1946,6 +1955,7 @@ class MainActivity : AppCompatActivity() {
         val wizardAccent = currentWizardAccentColor()
         listOf(
             w.btnWizardHardwareBack,
+            w.btnWizardHardwareSkipDebug,
             w.btnWizardHardwareNext,
             w.btnWizardDone,
             w.btnWizardReset,
@@ -1985,6 +1995,15 @@ class MainActivity : AppCompatActivity() {
         w.btnWizardHardwareNext.setOnClickListener {
             playNewTabSelectAudio()
             showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
+        }
+        // Обход всего мастера + анимации загрузки в debug-сборках (roadmap, этап 27 — "много
+        // времени уходит на протапывание и просмотр мультика") — тот же приём, что и у
+        // btnWizardPairingSkipDebug ниже, но с шага 1 и до полностью готового главного
+        // экрана, а не просто до следующего шага мастера.
+        w.btnWizardHardwareSkipDebug.visibility = if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
+        w.btnWizardHardwareSkipDebug.setOnClickListener {
+            playNewTabSelectAudio()
+            skipWizardToMainScreenDebug()
         }
 
         // Шаг 3: Display Area
@@ -2046,6 +2065,31 @@ class MainActivity : AppCompatActivity() {
             w.tvWizardPowerHint.visibility = View.GONE
             w.btnWizardHideHint.visibility = View.GONE
         }
+    }
+    /**
+     * Дебаг-кнопка на шаге HARDWARE_INSTRUCTIONS мастера (roadmap, этап 27) — вместо
+     * PERMISSIONS/PAIRING/POWER_HINT и ожидания реального `POWER:1` с последующей анимацией
+     * загрузки, сразу собирает то же конечное состояние вручную — те же шаги, что
+     * `applyPowerState(true)`/`finishBootSequence()`, но без самого `playBootSequence()`.
+     * Не трогает BLE/разрешения вообще — для команд вроде `ENC`/`ENCBTN` на голом главном
+     * экране есть `dev-tools/ble_key_sim.py` (adb-broadcast напрямую, без реального BLE).
+     * `row2Views.isEmpty()` — та же защита от повторной инициализации, что в
+     * `finishBootSequence()`.
+     */
+    private fun skipWizardToMainScreenDebug() {
+        stopPairingScan()
+        cancelBootSequence()
+        bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        bindingMain.viewPowerOff.animate().cancel()
+        bindingMain.viewPowerOff.visibility = View.GONE
+        updateScreenGlareVisibility()
+        loadViewState()
+        if (row2Views.isEmpty()) {
+            menuChangeBLE(curMenu)
+            menuNavigator.resetToRoot(menuRootNodesFor(curMenu))
+        }
+        startContinuousGlitch()
+        startAmbientBackgroundSound()
     }
 
 
@@ -3508,16 +3552,12 @@ class MainActivity : AppCompatActivity() {
         // только двигает рамку выделения молча, никакого действия. Запуск таймера ранения
         // (statusAdapter.selectPosition -> звук + statusMeta[].action(), см. onSelect
         // колбэк адаптера ниже) требует отдельного подтверждения onActivate = ENCBTN — тач
-        // не меняется, у него это по-прежнему один и тот же тап.
+        // не меняется, у него это по-прежнему один и тот же тап. Дети — statusChildrenNodes()
+        // (не инлайн) — тот же список нужен и живьём, при смене woundPhase на лету, не
+        // только при свежем входе в STATS, см. refreshStatusEncoderChildren().
         val statusNode = MenuNode(
             id = "STATUS",
-            children = statusMeta.mapIndexed { index, meta ->
-                MenuNode(
-                    id = meta.key,
-                    onHighlight = { statusAdapter.setSelectedPositionSilently(index) },
-                    onActivate = { statusAdapter.selectPosition(index) },
-                )
-            } + menuBackNode(pipBoyMode) { statusAdapter.setSelectedPositionSilently(statusMeta.size) },
+            children = statusChildrenNodes(),
             onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsStatus.performClick() }
         )
         // SPECIAL (roadmap, этап 27 — находка "SPECIAL/Skills"): onHighlight не изменился —
@@ -3532,12 +3572,29 @@ class MainActivity : AppCompatActivity() {
                     id = meta.key,
                     onHighlight = { specialAdapter.selectPosition(index) },
                     valueEditor = ValueEditor(
-                        onAdjust = { delta -> adjustSelectedSpecial(delta) },
-                        onEnter = { setSpecialValueEditorFocused(true) },
-                        onExit = { setSpecialValueEditorFocused(false) },
+                        onAdjust = { delta ->
+                            val special = bindingMain.incLayoutTabStatsSpecial
+                            flashButtonPressImmediate(if (delta > 0) special.btnSpecialIncrease else special.btnSpecialDecrease)
+                            adjustSelectedSpecial(delta)
+                        },
+                        onEnter = {
+                            playCNDSelectAudio()
+                            setSpecialValueEditorFocused(true)
+                        },
+                        onExit = {
+                            // playItemSelectAudio(), не playCNDSelectAudio() — звук выхода
+                            // из редактирования должен отличаться от звука входа/нажатия
+                            // +/- (roadmap, этап 27).
+                            playItemSelectAudio()
+                            setSpecialValueEditorFocused(false)
+                        },
                     ),
                 )
-            } + menuBackNode(pipBoyMode) { specialAdapter.setSelectedPositionSilently(specialMeta.size) },
+            } + menuBackNode(
+                pipBoyMode,
+                onHighlight = { specialAdapter.setSelectedPositionSilently(specialMeta.size) },
+                onBeforePop = { specialAdapter.flashPressAnimation(specialMeta.size) },
+            ),
             onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.performClick() }
         )
         // Skills — тот же ValueEditor-приём, что у specialNode выше.
@@ -3548,12 +3605,26 @@ class MainActivity : AppCompatActivity() {
                     id = meta.key,
                     onHighlight = { skillsAdapter.selectPosition(index) },
                     valueEditor = ValueEditor(
-                        onAdjust = { delta -> adjustSelectedSkill(delta) },
-                        onEnter = { setSkillValueEditorFocused(true) },
-                        onExit = { setSkillValueEditorFocused(false) },
+                        onAdjust = { delta ->
+                            val skills = bindingMain.incLayoutTabStatsSkills
+                            flashButtonPressImmediate(if (delta > 0) skills.btnSkillIncrease else skills.btnSkillDecrease)
+                            adjustSelectedSkill(delta)
+                        },
+                        onEnter = {
+                            playCNDSelectAudio()
+                            setSkillValueEditorFocused(true)
+                        },
+                        onExit = {
+                            playItemSelectAudio()
+                            setSkillValueEditorFocused(false)
+                        },
                     ),
                 )
-            } + menuBackNode(pipBoyMode) { skillsAdapter.setSelectedPositionSilently(skillsMeta.size) },
+            } + menuBackNode(
+                pipBoyMode,
+                onHighlight = { skillsAdapter.setSelectedPositionSilently(skillsMeta.size) },
+                onBeforePop = { skillsAdapter.flashPressAnimation(skillsMeta.size) },
+            ),
             onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsSkills.performClick() }
         )
         val bottom = bindingMain.incLayoutTabStatsBottom
@@ -3561,7 +3632,11 @@ class MainActivity : AppCompatActivity() {
             statusNode,
             specialNode,
             skillsNode,
-            MenuNode("PERKS") { bottom.btnStatsPerks.performClick() },
+            MenuNode(
+                id = "PERKS",
+                children = perksChildrenNodes(),
+                onHighlight = { bottom.btnStatsPerks.performClick() },
+            ),
         )
     }
     /**
@@ -3731,12 +3806,42 @@ class MainActivity : AppCompatActivity() {
         val value = parts.getOrNull(1)
 
         when (key) {
-            "STATS" -> { menuChangeBLE(key); menuNavigator.resetToRoot(statsMenuRoot()) }
+            "STATS" -> {
+                menuChangeBLE(key)
+                menuNavigator.resetToRoot(statsMenuRoot())
+                // Возврат в STATS с других разделов (roadmap, этап 27) — пока таймер ранения
+                // актуален, курсор энкодера должен сразу попасть на Stop, а не на вкладку
+                // Status/её обычный список: Status всегда индекс 0 в statsMenuRoot(), поэтому
+                // activateSelected() здесь безусловно проваливается именно в неё.
+                if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
+                    menuNavigator.activateSelected()
+                }
+            }
             "ITEMS" -> { menuChangeBLE(key); menuNavigator.resetToRoot(itemsMenuRoot()) }
             "DATA" -> { menuChangeBLE(key); menuNavigator.resetToRoot(dataMenuRoot()) }
             "POWER" -> applyPowerState(value == "1")
-            "ENCBTN" -> { menuNavigator.activateSelected(); syncRow2ActiveFromNavigator() }
-            "ENC" -> { menuNavigator.moveCursor(value?.toIntOrNull() ?: 0); syncRow2ActiveFromNavigator() }
+            // Оверлей срабатывания таймера/будильника (roadmap, этап 27 — "курсор энкодера
+            // попадает на Stop") — глобальный, поверх любого раздела (activity_main.xml,
+            // последний ребёнок корня), не часть дерева MenuNavigator ни одного раздела.
+            // Пока он виден, ENCBTN закрывает именно его, ENC — no-op (крутить нечего,
+            // кнопка одна): раздельно от menuNavigator, а не как ещё один узел дерева.
+            "ENCBTN" -> {
+                if (bindingMain.incLayoutClockFiredOverlay.root.visibility == View.VISIBLE) {
+                    flashButtonPressThenRun(bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop) {
+                        playNewTabSelectAudio()
+                        dismissClockFiredOverlay()
+                    }
+                } else {
+                    menuNavigator.activateSelected()
+                    syncRow2ActiveFromNavigator()
+                }
+            }
+            "ENC" -> {
+                if (bindingMain.incLayoutClockFiredOverlay.root.visibility != View.VISIBLE) {
+                    menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
+                    syncRow2ActiveFromNavigator()
+                }
+            }
             "GEIGER" -> accumulateGeigerDose(value?.toIntOrNull() ?: 0)
             "RADIOPWR" -> applyRadioPowerState(value == "1")
             "RADIOFREQ" -> value?.toIntOrNull()?.let { updateRadioFrequencyDisplay(it) }
@@ -3949,62 +4054,127 @@ class MainActivity : AppCompatActivity() {
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
     }
     /**
-     * Хранит исходные размеры/отступы кнопки +/- SPECIAL/Skills, снятые один раз при первом
-     * входе в режим редактирования энкодером (см. [setValueEditorButtonGrown]) — без этого
-     * не от чего было бы отталкиваться при выходе из режима (percent-based ширина/высота
-     * этих кнопок в XML резолвится в пиксели только в рантайме, исходного литерала нет).
+     * Общий визуальный признак "энкодер сфокусирован здесь" (roadmap, этап 27) — "прицел-
+     * уголки" (`focus_corner_brackets.xml`, 4 независимых L-уголка, не сплошная рамка) на
+     * отдельном View-оверлее рядом с целью, не на самой кнопке — увеличение самой кнопки на
+     * 1px пробовали раньше, визуально было незаметно. Тач это состояние не видит и не меняет.
      */
-    private data class ValueEditorButtonMetrics(
-        val width: Int,
-        val height: Int,
-        val marginStart: Int,
-        val marginEnd: Int,
-        val marginTop: Int,
-        val marginBottom: Int,
-    )
-    /**
-     * Энкодер-эргономика SPECIAL/Skills (roadmap, этап 27) — `ENCBTN` на характеристике/навыке
-     * переводит фокус энкодера на кнопки `+`/`-` (см. `ValueEditor` в MenuNavigator), заметно
-     * это ровно тем, что залитая область каждой кнопки увеличивается на 1px с каждой стороны
-     * (не цветной рамкой — кнопки и так уже целиком в акценте темы через backgroundTintList,
-     * добавлять контрастную обводку поверх единой заливки нельзя: backgroundTintList
-     * перекрасил бы её в тот же акцент). Тач это состояние не видит и не меняет.
-     */
-    private fun setValueEditorButtonGrown(button: View, grown: Boolean) {
-        val params = button.layoutParams as ConstraintLayout.LayoutParams
-        val metrics = button.tag as? ValueEditorButtonMetrics
-            ?: ValueEditorButtonMetrics(
-                width = button.width,
-                height = button.height,
-                marginStart = params.marginStart,
-                marginEnd = params.marginEnd,
-                marginTop = params.topMargin,
-                marginBottom = params.bottomMargin,
-            ).also { button.tag = it }
-        if (grown) {
-            params.width = metrics.width + 2
-            params.height = metrics.height + 2
-            params.marginStart = metrics.marginStart - 1
-            params.marginEnd = metrics.marginEnd - 1
-            params.topMargin = metrics.marginTop - 1
-            params.bottomMargin = metrics.marginBottom - 1
-        } else {
-            params.width = metrics.width
-            params.height = metrics.height
-            params.marginStart = metrics.marginStart
-            params.marginEnd = metrics.marginEnd
-            params.topMargin = metrics.marginTop
-            params.bottomMargin = metrics.marginBottom
-        }
-        button.layoutParams = params
+    private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) {
+        bracketsView.visibility = if (visible) View.VISIBLE else View.GONE
     }
     private fun setSpecialValueEditorFocused(focused: Boolean) {
-        setValueEditorButtonGrown(bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease, focused)
-        setValueEditorButtonGrown(bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease, focused)
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus, focused)
     }
     private fun setSkillValueEditorFocused(focused: Boolean) {
-        setValueEditorButtonGrown(bindingMain.incLayoutTabStatsSkills.btnSkillIncrease, focused)
-        setValueEditorButtonGrown(bindingMain.incLayoutTabStatsSkills.btnSkillDecrease, focused)
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsSkills.viewSkillValueFocus, focused)
+    }
+    private fun setWoundStopButtonFocused(focused: Boolean) {
+        setFocusBracketsVisible(
+            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewWoundStopFocus,
+            focused,
+        )
+    }
+    private fun setDeadReviveFocused(focused: Boolean) {
+        setFocusBracketsVisible(
+            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewDeadReviveFocus,
+            focused,
+        )
+    }
+    /** Мгновенный флэш "нажатия" (roadmap, этап 27 — "должна срабатывать анимация нажатия,
+     * такая же, как при таче", раньше играл только звук) — для непрерывных ENC-действий
+     * (`+`/`-` в ValueEditor), где реальное действие не откладывается: пауза перед ним была
+     * бы заметна как лаг при быстром вращении энкодера. Кнопка при этом никуда не девается,
+     * ждать нечего. */
+    private fun flashButtonPressImmediate(button: View) {
+        button.isPressed = true
+        button.postDelayed({ button.isPressed = false }, ENCODER_PRESS_FLASH_DURATION_MS)
+    }
+    /** Флэш "нажатия", ЗАТЕМ (после той же паузы) настоящее действие — для одноразовых
+     * ENCBTN-команд, которые сами же сразу прячут/меняют эту кнопку (Stop на STATUS —
+     * прячет layout_tab_status_wound_buttons; Stop на оверлее — прячет весь оверлей): без
+     * паузы анимация не успела бы стать видна раньше, чем экран уже поменялся. */
+    private fun flashButtonPressThenRun(button: View, action: () -> Unit) {
+        button.isPressed = true
+        button.postDelayed({
+            button.isPressed = false
+            action()
+        }, ENCODER_PRESS_FLASH_DURATION_MS)
+    }
+    /**
+     * Дети узла STATUS дерева энкодера (roadmap, этап 27 — "энкодер должен переключаться на
+     * Stop"). Пока таймер ранения актуален (BLEED/BANDAGE/STUNNED — те же фазы, при которых
+     * видна сама кнопка Stop, см. updateWoundStatusLine()), список ранений и "В меню"
+     * недостижимы энкодером совсем — не просто задизейблены, а единственный узел здесь STOP:
+     * игрока в этот момент не волнует ничего, кроме как поскорее его остановить, не искать
+     * нужную позицию энкодером. Вне таймера/DEAD — обычный список. setWoundStopButtonFocused
+     * (false) в обычной ветке — не столько для актуального перехода (тот отдельно триггерит
+     * refreshStatusEncoderChildren() при смене woundPhase, см. startWoundTimer() и др.),
+     * сколько подстраховка идемпотентности: кнопка должна быть не "выросшей" при любой
+     * пересборке этого списка, а не только сразу после выхода из фокуса.
+     */
+    private fun statusChildrenNodes(): List<MenuNode> {
+        return if (woundPhase == WoundPhase.DEAD) {
+            // roadmap, этап 27 — "когда персонаж переходит в DEAD, курсор энкодера должен
+            // устанавливаться на персонажа, ENCBTN = тот же жест, что тап, воскрешает".
+            // reviveCharacter() — то же самое, что зовёт тач-жест (setupFigureTouchTarget),
+            // без отдельного звука: у тача его тоже нет, ENCBTN не должен придумывать новый.
+            // setWoundStopButtonFocused(false) — на случай прихода в DEAD прямо из активного
+            // таймера (killCharacter() из fireWoundTimer()), где Stop только что был в фокусе.
+            setWoundStopButtonFocused(false)
+            listOf(
+                MenuNode(
+                    id = "REVIVE",
+                    onHighlight = { setDeadReviveFocused(true) },
+                    onActivate = { reviveCharacter() },
+                )
+            )
+        } else if (woundPhase != WoundPhase.NONE) {
+            listOf(
+                MenuNode(
+                    id = "STOP",
+                    onHighlight = { setWoundStopButtonFocused(true) },
+                    onActivate = {
+                        flashButtonPressThenRun(
+                            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop,
+                        ) {
+                            playNewTabSelectAudio()
+                            stopWoundTimerEarly()
+                        }
+                    },
+                )
+            )
+        } else {
+            setWoundStopButtonFocused(false)
+            setDeadReviveFocused(false)
+            statusMeta.mapIndexed { index, meta ->
+                MenuNode(
+                    id = meta.key,
+                    // Звук на перемещение курсора — тот же playItemSelectAudio(), что и у
+                    // SPECIAL/Skills при листании (roadmap, этап 27), просто не через
+                    // playSelectSound() адаптера (тот для Status специально no-op, звук
+                    // решает сам onSelect — см. комментарий выше о статusAdapter ниже).
+                    onHighlight = {
+                        playItemSelectAudio()
+                        statusAdapter.setSelectedPositionSilently(index)
+                    },
+                    onActivate = {
+                        statusAdapter.selectPosition(index)
+                        statusAdapter.flashPressAnimation(index)
+                    },
+                )
+            } + menuBackNode(
+                pipBoyMode,
+                onHighlight = { statusAdapter.setSelectedPositionSilently(statusMeta.size) },
+                onBeforePop = { statusAdapter.flashPressAnimation(statusMeta.size) },
+            )
+        }
+    }
+    /** Живая пересборка узла STATUS в дереве энкодера (roadmap, этап 27) — вызывается из
+     * каждого места, где меняется woundPhase (startWoundTimer()/healWoundsToHealthy()/
+     * killCharacter()/reviveCharacter()), не только при свежем входе в STATS. No-op, если
+     * игрок сейчас не внутри списка Status (MenuNavigator.replaceChildrenOf сам проверяет). */
+    private fun refreshStatusEncoderChildren() {
+        menuNavigator.replaceChildrenOf("STATUS", statusChildrenNodes())
     }
     /**
      * Пункт "В меню" в боковых списках Status/SPECIAL/Skills (roadmap, этап 27 — находка "нет
@@ -4015,15 +4185,32 @@ class MainActivity : AppCompatActivity() {
      * (режим может стать известен уже после того, как адаптеры собраны — мастер выбора
      * режима идёт позже в том же onCreate()).
      */
-    private fun backSidebarItem(): SidebarMenuItem<String> =
-        SidebarMenuItem(payload = SIDEBAR_BACK_PAYLOAD, label = getString(R.string.sidebar_menu_back))
+    private fun backSidebarItem(enabled: Boolean = true): SidebarMenuItem<String> =
+        SidebarMenuItem(payload = SIDEBAR_BACK_PAYLOAD, label = getString(R.string.sidebar_menu_back), enabled = enabled)
     /** Пункт "В меню" как ребёнок дерева энкодера (`statsMenuRoot()`) — тот же индекс (конец
      * списка), что и [backSidebarItem] в адаптере: пусто в режиме Телефон, один узел иначе.
-     * [onHighlight] передаётся отдельно, потому что молчаливая подсветка (см.
-     * [SidebarMenuAdapter.setSelectedPositionSilently]) у каждого экрана — свой adapter. */
-    private fun menuBackNode(mode: PipBoyMode, onHighlight: () -> Unit): List<MenuNode> =
+     * [onHighlight]/[onBeforePop] передаются отдельно, потому что молчаливая подсветка и
+     * флэш нажатия (roadmap, этап 27) у каждого экрана — свой adapter/индекс. */
+    private fun menuBackNode(mode: PipBoyMode, onHighlight: () -> Unit, onBeforePop: () -> Unit): List<MenuNode> =
         if (mode != PipBoyMode.PHONE) {
-            listOf(MenuNode(id = "MENU", onHighlight = onHighlight, onActivate = { menuNavigator.popLevel() }))
+            listOf(
+                MenuNode(
+                    id = "MENU",
+                    // Звук на листание/нажатие (roadmap, этап 27 — раньше не было вообще)
+                    // — тот же язык, что у остальных пунктов этих же списков:
+                    // playItemSelectAudio() на перемещение курсора, playCNDSelectAudio()
+                    // (как у +/-) на реальное нажатие ENCBTN.
+                    onHighlight = {
+                        playItemSelectAudio()
+                        onHighlight()
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        onBeforePop()
+                        menuNavigator.popLevel()
+                    },
+                )
+            )
         } else {
             emptyList()
         }
@@ -4048,14 +4235,16 @@ class MainActivity : AppCompatActivity() {
         return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
     }
     private fun statusSidebarItems(): List<SidebarMenuItem<String>> {
+        // "В меню" дизейблится вместе с LIGHT/HEAVY/STUNNED, пока актуален таймер ранения
+        // (roadmap, этап 27) — тач по нему в это время всё равно доедет до onSelect и даст
+        // звук ошибки (SidebarMenuItem.enabled — только визуальное затенение, не блокировка
+        // тапа, см. SidebarMenuAdapter.kt), энкодер же в это время туда вообще не попадёт
+        // (statusChildrenNodes() убирает "В меню" из дерева совсем, единственный узел — STOP).
+        val enabled = woundPhase == WoundPhase.NONE
         val items = statusMeta.map { meta ->
-            SidebarMenuItem(
-                payload = meta.key,
-                label = getString(meta.labelRes),
-                enabled = woundPhase == WoundPhase.NONE,
-            )
+            SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes), enabled = enabled)
         }
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
+        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem(enabled) else items
     }
     /** Пересобирает три списка выше, когда режим становится известен/меняется уже после
      * того, как onCreate() построил адаптеры (selectPipBoyMode()/restoreAppState()) — сам
@@ -4120,7 +4309,22 @@ class MainActivity : AppCompatActivity() {
         alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
         bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_alarm_fired_title)
         bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
+        setClockFiredStopFocused(true)
         playClockFiredSound()
+    }
+    /** Фокус энкодера на Stop оверлея срабатывания (roadmap, этап 27 — "когда срабатывает
+     * таймер или будильник... курсор попадает на Stop") — тот же приём "залитая область
+     * +1px с каждой стороны", что и у Stop на STATUS/кнопок +/- SPECIAL/Skills, см.
+     * setValueEditorButtonGrown(). */
+    private fun setClockFiredStopFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus, focused)
+    }
+    /** Закрытие оверлея срабатывания — общее для тапа по Stop и ENCBTN, пока оверлей открыт
+     * (roadmap, этап 27, см. handleBleCommand()). */
+    private fun dismissClockFiredOverlay() {
+        stopClockFiredSound()
+        setClockFiredStopFocused(false)
+        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.GONE
     }
     /**
      * Звук срабатывания — выбранный трек из "Мелодия звонка" (roadmap, "Часы —
@@ -4203,6 +4407,7 @@ class MainActivity : AppCompatActivity() {
         }
         bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_timer_fired_title)
         bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
+        setClockFiredStopFocused(true)
         playClockFiredSound()
     }
     /** Экран ITEMS/Часы/Таймер и таймер ранения на STATUS — один и тот же таймер
@@ -4693,11 +4898,11 @@ class MainActivity : AppCompatActivity() {
         // тапа/энкодера (курсор уже там, где нужно), и после смены woundPhase без участия
         // игрока (эскалация — та явно двигает курсор сама, см. startWoundTimer()).
         if (::statusAdapter.isInitialized) {
-            val enabled = woundPhase == WoundPhase.NONE
-            statusAdapter.setItems(
-                statusMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes), enabled = enabled) },
-                resetSelection = false,
-            )
+            // statusSidebarItems() — не инлайн-реконструкция статуса из statusMeta напрямую:
+            // та версия домалывала список без пункта "В меню" (roadmap, этап 27 — баг "Menu
+            // пропадает при старте таймера"), т.к. он дописывается только в
+            // statusSidebarItems()/pipBoyMode, единственном источнике истины для этого списка.
+            statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         }
         // Таймер ранения нельзя ставить на паузу — ни отсюда, ни с экрана ITEMS/Таймер
         // (roadmap, "Редизайн STATS/Status — UX-спецификация"). DEAD — таймера уже нет,
@@ -4768,6 +4973,7 @@ class MainActivity : AppCompatActivity() {
         statusAdapter.setSelectedPositionSilently(cursorIndex)
         applyWoundFace()
         updateWoundButtonsUI()
+        refreshStatusEncoderChildren()
         timerState = TimerState.RUNNING
         timerTargetEpochMillis = System.currentTimeMillis() + durationSeconds * 1000L
         syncClockTimerScreenVisibility()
@@ -4784,6 +4990,7 @@ class MainActivity : AppCompatActivity() {
         woundPhase = WoundPhase.NONE
         applyWoundFace()
         updateWoundButtonsUI()
+        refreshStatusEncoderChildren()
         updateWoundStatusLine()
         timerState = TimerState.IDLE
         syncClockTimerScreenVisibility()
@@ -4824,6 +5031,7 @@ class MainActivity : AppCompatActivity() {
         woundPhase = WoundPhase.DEAD
         applyWoundFace()
         updateWoundButtonsUI()
+        refreshStatusEncoderChildren()
         updateWoundStatusLine()
         timerState = TimerState.IDLE
         syncClockTimerScreenVisibility()
@@ -4837,6 +5045,7 @@ class MainActivity : AppCompatActivity() {
         woundPhase = WoundPhase.NONE
         applyWoundFace()
         updateWoundButtonsUI()
+        refreshStatusEncoderChildren()
         updateWoundStatusLine()
         applyReviveVisuals()
     }
@@ -5247,16 +5456,17 @@ class MainActivity : AppCompatActivity() {
      * перков. Вычисляется один раз: язык интерфейса меняется только через полный рестарт
      * Activity (см. `attachBaseContext()`), а не на лету.
      */
+    private fun localizePerk(perk: Map<String, String>): Map<String, String> {
+        val id = perk["id"]
+        val nameResId = resources.getIdentifier("perk_${id}_name", "string", packageName)
+        val descResId = resources.getIdentifier("perk_${id}_desc", "string", packageName)
+        return perk + mapOf(
+            "name" to if (nameResId != 0) getString(nameResId) else perk["name"].orEmpty(),
+            "desc" to if (descResId != 0) getString(descResId) else perk["desc"].orEmpty(),
+        )
+    }
     private val localizedPerks: List<Map<String, String>> by lazy {
-        perks.map { perk ->
-            val id = perk["id"]
-            val nameResId = resources.getIdentifier("perk_${id}_name", "string", packageName)
-            val descResId = resources.getIdentifier("perk_${id}_desc", "string", packageName)
-            perk + mapOf(
-                "name" to if (nameResId != 0) getString(nameResId) else perk["name"].orEmpty(),
-                "desc" to if (descResId != 0) getString(descResId) else perk["desc"].orEmpty(),
-            )
-        }
+        perks.map { perk -> localizePerk(perk) }
     }
     /** Единый компонент бокового меню 3 уровня (roadmap) — SidebarMenuAdapter вместо
      * PerkAdapter.kt. Список уже отфильтрован (filteredPerksList) до разблокированных
@@ -5266,22 +5476,77 @@ class MainActivity : AppCompatActivity() {
     private fun STATSPerksSetup(recyclerView: RecyclerView){
         val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
-        val filteredPerksList = localizedPerks.filter { perk -> perk["id"] in selectedSTATSPerksArray }
+        // Фильтруем СНАЧАЛА (по сырому perks, без локализации), локализуем ТОЛЬКО отобранное
+        // (roadmap, этап 27) — не через localizedPerks (весь список, ~140 перков, каждый —
+        // 2 вызова resources.getIdentifier(), заметно дороже одного отфильтрованного
+        // десятка). localizedPerks остаётся as is (полный список, by lazy) — нужен целиком
+        // только экрану фильтра (чекбоксы/поиск по всем перкам), который открывается не
+        // сразу, а по отдельному клику — там расчёт по-прежнему честно ленивый.
+        val filteredPerksList = perks.filter { perk -> perk["id"] in selectedSTATSPerksArray }.map { localizePerk(it) }
+        perksRealItemCount = filteredPerksList.size
 
         fun showPerkDescription(perk: Map<String, String>) {
             bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
             bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
         }
 
-        val adapter = SidebarMenuAdapter(
-            items = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") },
+        val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") }
+        perksAdapter = SidebarMenuAdapter(
+            items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item -> showPerkDescription(item.payload) },
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тут, а не
+                // только в onHighlight/onActivate: этот колбэк общий и для тача, и для
+                // энкодера, а тач раньше вообще не сообщал MenuNavigator, куда встал.
+                menuNavigator.syncCursor("PERKS", position)
+                if (item.payload["id"] == SIDEBAR_BACK_PAYLOAD) {
+                    playCNDSelectAudio()
+                    menuNavigator.popLevel()
+                    syncRow2ActiveFromNavigator()
+                } else {
+                    showPerkDescription(item.payload)
+                }
+            },
         )
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = adapter
+        recyclerView.adapter = perksAdapter
         filteredPerksList.firstOrNull()?.let { showPerkDescription(it) }
+        // Список фильтруется (не фиксированной длины, в отличие от statusMeta/specialMeta/
+        // skillsMeta) — дерево энкодера нужно пересобрать каждый раз, когда список меняется
+        // (не только при первом входе в STATS), roadmap этап 27. No-op, если игрок сейчас не
+        // внутри списка Perks (см. MenuNavigator.replaceChildrenOf).
+        menuNavigator.replaceChildrenOf("PERKS", perksChildrenNodes())
+    }
+    /** Пункт "В меню" со спец-payload для Perks — SidebarMenuItem<Map<String, String>>, не
+     * SidebarMenuItem<String> (см. [backSidebarItem]): payload у Perks — карта полей
+     * перка (id/name/desc/icon), нужен эквивалентный дозорный маркер того же типа. */
+    private fun perksBackSidebarItem(): SidebarMenuItem<Map<String, String>> =
+        SidebarMenuItem(payload = mapOf("id" to SIDEBAR_BACK_PAYLOAD), label = getString(R.string.sidebar_menu_back))
+    /** Дети узла PERKS дерева энкодера (roadmap, этап 27) — как и сам список, пересчитывается
+     * заново при каждом вызове (не кэшируется), т.к. perksRealItemCount/perksAdapter уже
+     * отражают текущий фильтр к моменту вызова (STATSPerksSetup() всегда обновляет их первым).
+     * Каждый перк — чистое превью (onHighlight обновляет описание/иконку), без onActivate/
+     * valueEditor: пунктам нечего "активировать", ENCBTN на них просто поднимается наверх,
+     * как и было в дереве по умолчанию до появления onActivate/valueEditor у других экранов. */
+    private fun perksChildrenNodes(): List<MenuNode> {
+        return (0 until perksRealItemCount).map { index ->
+            // onActivate = {} (no-op), не оставлять null (roadmap, этап 27 — находка "ENCBTN
+            // на любом перке поднимает наверх"): лист без children/valueEditor/onActivate
+            // проваливается в запасной "подняться к родителю" в activateSelected() — это
+            // предназначено для листьев вообще без какого-либо действия (устаревший дефолт),
+            // а не то же самое, что "у перка нет действия" — тут это конкретно нежелательное
+            // поведение, только "В меню" должен подниматься наверх.
+            MenuNode(
+                id = "PERK_$index",
+                onHighlight = { perksAdapter.selectPosition(index) },
+                onActivate = {},
+            )
+        } + menuBackNode(
+            pipBoyMode,
+            onHighlight = { perksAdapter.setSelectedPositionSilently(perksRealItemCount) },
+            onBeforePop = { perksAdapter.flashPressAnimation(perksRealItemCount) },
+        )
     }
     /***********************************************************************************************************
      * SHARED PREFERENCES
@@ -5498,7 +5763,10 @@ class MainActivity : AppCompatActivity() {
             items = specialSidebarItems(),
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тач раньше не
+                // сообщал MenuNavigator, куда встал, следующий ENC листал с прежней позиции.
+                menuNavigator.syncCursor("SPECIAL", position)
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     menuNavigator.popLevel()
                     syncRow2ActiveFromNavigator()
@@ -5522,7 +5790,8 @@ class MainActivity : AppCompatActivity() {
             items = skillsSidebarItems(),
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
+            onSelect = { position, item ->
+                menuNavigator.syncCursor("SKILLS", position)
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     menuNavigator.popLevel()
                     syncRow2ActiveFromNavigator()
@@ -5542,23 +5811,37 @@ class MainActivity : AppCompatActivity() {
         // недоступном сейчас действии, см. StatusWoundMeta/WoundPhase выше). enabled у всех
         // трёх пунктов одинаковый и следует за woundPhase — обновляется в
         // updateWoundButtonsUI(), не тут: тут только начальное состояние при первом показе.
-        // "В меню" всегда enabled и не зависит от woundPhase — уйти с экрана Status не
-        // отменяет уже идущий таймер, он живёт независимо от того, какой раздел открыт.
+        // "В меню" дизейблится вместе с LIGHT/HEAVY/STUNNED, пока актуален таймер ранения
+        // (roadmap, этап 27) — тач по нему тогда просто даёт звук ошибки, тем же способом,
+        // что и по трём кнопкам статуса ниже (энкодер до него в это время не доедет вообще,
+        // statusChildrenNodes() убирает "В меню" из дерева совсем).
         statusAdapter = SidebarMenuAdapter(
             items = statusSidebarItems(),
             selectedBackgroundRes = selected_button,
             playSelectSound = {},
-            onSelect = { _, item ->
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — no-op, если
+                // сейчас в дереве не обычный список (STOP-only при активном ранении), см.
+                // MenuNavigator.syncCursor().
+                menuNavigator.syncCursor("STATUS", position)
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playItemSelectAudio()
-                    menuNavigator.popLevel()
-                    syncRow2ActiveFromNavigator()
+                    if (woundPhase != WoundPhase.NONE) {
+                        playErrorAudio()
+                    } else {
+                        playItemSelectAudio()
+                        menuNavigator.popLevel()
+                        syncRow2ActiveFromNavigator()
+                    }
                 } else {
                     val meta = statusMeta.first { it.key == item.payload }
                     if (woundPhase != WoundPhase.NONE) {
                         playErrorAudio()
                     } else {
-                        playItemSelectAudio()
+                        // playCNDSelectAudio(), не playItemSelectAudio() — звук нажатия
+                        // (roadmap, этап 27), тот же, что у +/- в SPECIAL/Skills. Листание
+                        // (просто перемещение курсора) — playItemSelectAudio(), см. onHighlight
+                        // в statusChildrenNodes() выше.
+                        playCNDSelectAudio()
                         meta.action()
                     }
                 }
@@ -5847,6 +6130,11 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
+            // Синхронизация энкодера с тачем по нижним кнопкам (roadmap, этап 27 — та же
+            // находка, что и у строки 2 шапки выше: без этого MenuNavigator продолжал бы
+            // считать курсор там, где он был до тапа). Индекс — позиция в statsMenuRoot().
+            menuNavigator.setRootCursor(0)
+            syncRow2ActiveFromNavigator()
         }
 
         // Клики по LIGHT/HEAVY/STUNNED — теперь внутри SidebarMenuAdapter (statusAdapter,
@@ -5884,6 +6172,8 @@ class MainActivity : AppCompatActivity() {
         val woundAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
         cndContentSetup.btnTabStatusWoundStop.backgroundTintList = woundAccentTint
         cndContentSetup.btnTabStatusWoundSkip.backgroundTintList = woundAccentTint
+        cndContentSetup.viewWoundStopFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewDeadReviveFocus.backgroundTintList = woundAccentTint
 
         /*
         ////////////////////////////////////////////////////////
@@ -5895,6 +6185,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
+            menuNavigator.setRootCursor(1)
+            syncRow2ActiveFromNavigator()
         }
 
         // Клики по пунктам SPECIAL — теперь внутри SidebarMenuAdapter (specialAdapter, см.
@@ -5939,6 +6231,7 @@ class MainActivity : AppCompatActivity() {
         val specialValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
         bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.backgroundTintList = specialValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.backgroundTintList = specialValueButtonsAccentTint
+        bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus.backgroundTintList = specialValueButtonsAccentTint
 
 
 
@@ -5952,6 +6245,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
+            menuNavigator.setRootCursor(2)
+            syncRow2ActiveFromNavigator()
         }
 
         // Клики по пунктам Skills — теперь внутри SidebarMenuAdapter (skillsAdapter, см.
@@ -6000,18 +6295,31 @@ class MainActivity : AppCompatActivity() {
         val skillValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
         bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.backgroundTintList = skillValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.backgroundTintList = skillValueButtonsAccentTint
+        bindingMain.incLayoutTabStatsSkills.viewSkillValueFocus.backgroundTintList = skillValueButtonsAccentTint
 
 
         /*
         ////////////////////////////////////////////////////////
         STATS - PERKS MENU
         */
+        // Построить сразу здесь, не только лениво по клику на вкладку (roadmap, этап 27) —
+        // иначе к моменту первой сборки statsMenuRoot() (finishPhoneModeSetup()/
+        // finishBootSequence(), задолго до первого клика по Perks) perksRealItemCount ещё
+        // 0, и узел PERKS замораживает единственный пункт "В меню" навсегда: MenuNode.children
+        // — обычный val, а не ленивый геттер, повторный вызов STATSPerksSetup() из клика
+        // (см. ниже) уже не перестраивает однажды построенный узел ROOT-уровня. Не тяжело —
+        // STATSPerksSetup() локализует только отфильтрованные перки (обычно единицы), не
+        // весь список ~140 (тот остаётся ленивым, localizedPerks, нужен только экрану
+        // фильтра).
+        STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
         bindingMain.incLayoutTabStatsBottom.btnStatsPerks.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabStatsBottom.btnStatsPerks, listBottomButtons)
             bindingMain.incLayoutTabStatsStatus.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSpecial.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.VISIBLE
+            menuNavigator.setRootCursor(3)
+            syncRow2ActiveFromNavigator()
             STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
         }
         bindingMain.incLayoutTabStatsPerks.btnPerksFilter.setOnClickListener {
@@ -6369,10 +6677,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
+        bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus.backgroundTintList = clockAccentTint
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.setOnClickListener {
             playNewTabSelectAudio()
-            stopClockFiredSound()
-            bindingMain.incLayoutClockFiredOverlay.root.visibility = View.GONE
+            dismissClockFiredOverlay()
         }
 
         /*

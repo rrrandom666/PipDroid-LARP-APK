@@ -7,6 +7,12 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
+/** Длительность имитации тач-нажатия для ENCBTN-действий (roadmap, этап 27) — общая и для
+ * пунктов бокового меню ([SidebarMenuAdapter.flashPressAnimation]), и для отдельных кнопок
+ * вроде Stop/`+`/`-` (MainActivity.kt, playButtonPressAnimation()/flashButtonPressThenRun()) —
+ * один и тот же визуальный язык "нажатие энкодером" по всему приложению. */
+const val ENCODER_PRESS_FLASH_DURATION_MS = 100L
+
 /**
  * Один пункт бокового меню 3 уровня (Roadmap, "Единый компонент бокового меню 3 уровня").
  * [rightValue] — только у SPECIAL/Skills (справа от названия). [enabled] — только
@@ -62,6 +68,42 @@ class SidebarMenuAdapter<T>(
 ) : RecyclerView.Adapter<SidebarMenuViewHolder>() {
 
     private var selectedPosition = initialSelectedPosition.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+
+    // Ссылка на свой RecyclerView (roadmap, этап 27 — "видимая область должна следовать за
+    // курсором энкодера") — не передаётся снаружи отдельным параметром, а берётся из
+    // штатного лайфстайл-метода адаптера: RecyclerView сам вызывает его в момент
+    // `recyclerView.adapter = someAdapter`, раньше, чем вызывающий код успел бы что-то
+    // сохранить сам.
+    private var recyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        this.recyclerView = null
+    }
+
+    private fun scrollToReveal(position: Int) {
+        recyclerView?.scrollToPosition(position)
+    }
+
+    /** Визуальная имитация тач-нажатия для ENCBTN-действий (roadmap, этап 27 — "должна
+     * срабатывать анимация нажатия, такая же, как при таче") — раньше срабатывал только
+     * звук. `post()` — строка только что могла проехать в видимую область через
+     * [scrollToReveal] этим же кадром, ViewHolder для неё появляется не раньше следующего
+     * layout-прохода. Кратковременный `isPressed` true->false — стандартный приём вызвать
+     * анимацию состояния кнопки (ripple/фон по `state_pressed`) без реального касания. */
+    fun flashPressAnimation(position: Int) {
+        val rv = recyclerView ?: return
+        rv.post {
+            val holder = rv.findViewHolderForAdapterPosition(position) as? SidebarMenuViewHolder ?: return@post
+            holder.label.isPressed = true
+            holder.label.postDelayed({ holder.label.isPressed = false }, ENCODER_PRESS_FLASH_DURATION_MS)
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarMenuViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -122,6 +164,7 @@ class SidebarMenuAdapter<T>(
         selectedPosition = position
         if (previous != position) notifyItemChanged(previous)
         notifyItemChanged(selectedPosition)
+        scrollToReveal(position)
         playSelectSound()
         onSelect(position, item)
     }
@@ -138,6 +181,7 @@ class SidebarMenuAdapter<T>(
         selectedPosition = position
         if (previous != position) notifyItemChanged(previous)
         notifyItemChanged(selectedPosition)
+        scrollToReveal(position)
     }
 
     fun selectedPosition(): Int = selectedPosition

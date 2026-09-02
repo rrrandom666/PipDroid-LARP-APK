@@ -159,6 +159,44 @@ class MenuNavigator {
         }
     }
 
+    /**
+     * Заменяет узлы ТЕКУЩЕГО (верхнего) уровня на лету, только если он был порождён узлом с
+     * id [parentId] — иначе no-op, энкодер сейчас не там (roadmap, этап 27 — набор пунктов
+     * Status меняется на ходу при смене фазы ранения: обычный список ранений/"В меню"
+     * заменяется на один пункт Stop и обратно, не только при свежем входе в STATS). [cursor]
+     * по умолчанию 0 — новый список почти всегда должен сразу сфокусировать первый (часто
+     * единственный) пункт.
+     */
+    fun replaceChildrenOf(parentId: String, nodes: List<MenuNode>, cursor: Int = 0) {
+        if (stack.size < 2 || nodes.isEmpty()) return
+        val parentLevel = stack[stack.size - 2]
+        val parentNode = parentLevel.nodes.getOrNull(parentLevel.cursor) ?: return
+        if (parentNode.id != parentId) return
+        editingNode = null
+        stack[stack.size - 1] = Level(nodes, cursor.coerceIn(0, nodes.size - 1))
+        activateCurrent()
+    }
+
+    /**
+     * Синхронизирует курсор ТЕКУЩЕГО уровня с тем, что уже выбрал тач (roadmap, этап 27 —
+     * находка "тач и энкодер расходятся": `SidebarMenuAdapter.selectPosition()` меняет
+     * подсветку в самом адаптере и на тач, и на энкодер-активацию одинаково, но раньше не
+     * сообщал об этом `MenuNavigator` — следующий `ENC` после тача продолжал листать с
+     * прежней, а не с тронутой тачем позиции). Не вызывает `onHighlight`/`activateCurrent()`
+     * — визуальный эффект тач уже применил сам, здесь только внутренняя бухгалтерия курсора.
+     * No-op, если текущий уровень не был порождён узлом с id [parentId] (энкодер сейчас не
+     * там) — тот же принцип защиты, что и у [replaceChildrenOf].
+     */
+    fun syncCursor(parentId: String, position: Int) {
+        if (stack.size < 2) return
+        val parentLevel = stack[stack.size - 2]
+        val parentNode = parentLevel.nodes.getOrNull(parentLevel.cursor) ?: return
+        if (parentNode.id != parentId) return
+        val level = stack[stack.size - 1]
+        if (position !in level.nodes.indices) return
+        level.cursor = position
+    }
+
     private fun activateCurrent() {
         val level = stack.lastOrNull() ?: return
         if (level.nodes.isEmpty()) return

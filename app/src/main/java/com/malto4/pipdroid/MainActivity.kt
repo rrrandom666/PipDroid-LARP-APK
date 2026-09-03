@@ -272,6 +272,22 @@ class MainActivity : AppCompatActivity() {
     private var selectedJournalEntryForDetail: JournalEntry? = null
     // Не null — попап работает на редактирование существующей записи, не на создание новой.
     private var editingJournalEntryId: String? = null
+    // Идентификатор записи, для которой сейчас открыт редактор, JOURNAL_NEW_ENTRY_SENTINEL —
+    // для новой, null — редактор закрыт (roadmap, этап 27, п.1/3/4). Отдельно от
+    // editingJournalEntryId (тот также используется в логике Save и остаётся null и для
+    // "закрыто", и для "открыт на новую запись") — нужен, чтобы showJournalEntryEditorForNew/
+    // ForEdit() были безопасны для повторного вызова: MenuNode.onHighlight вызывается на
+    // каждое перемещение ENC, в т.ч. повторно на Mic при листании Mic/Cancel/Save, и не
+    // должен каждый раз сбрасывать уже введённый текст.
+    private var journalEditorOpenFor: String? = null
+    // Дети узла New Entry / Edit дерева энкодера (Mic/Cancel/Save, roadmap этап 27) — общие
+    // и для создания, и для редактирования; разные пункты бокового меню Journal (список
+    // записей) отличают эти два состояния через это же значение payload.
+    private sealed class JournalSidebarEntry {
+        object NewEntry : JournalSidebarEntry()
+        data class Existing(val entry: JournalEntry) : JournalSidebarEntry()
+        object Menu : JournalSidebarEntry()
+    }
     // Голосовой ввод записей (этап 21 п.2) — Model держится в voiceDictationService дольше
     // одной сессии диктовки (тяжёлый объект, см. VoiceDictationService), пересоздаётся только
     // при первом использовании после старта приложения. journalDictationState — тап 1/тап 2
@@ -407,6 +423,10 @@ class MainActivity : AppCompatActivity() {
         // "нет способа подняться из третьего уровня") — payload гарантированно не совпадает
         // ни с одним реальным key из statusMeta/specialMeta/skillsMeta.
         private const val SIDEBAR_BACK_PAYLOAD = "BACK"
+
+        // journalEditorOpenFor (roadmap, этап 27, п.1/3/4) — реальный id записи занят
+        // настоящими UUID (JournalEntry.id), эта строка с ними никогда не совпадёт.
+        private const val JOURNAL_NEW_ENTRY_SENTINEL = "JOURNAL_NEW_ENTRY"
 
         // Прокрутка длинной записи энкодером (roadmap, этап 27 — Files/Perks) — шаг одного
         // деления ENC, подобран "на глаз" как пара строк текста, не привязан к реальной
@@ -1125,7 +1145,7 @@ class MainActivity : AppCompatActivity() {
         if (normalized.contains("нов") && normalized.contains("запис")) {
             playItemSelectAudio()
             navigateToItemsSection("JOURNAL")
-            showJournalEntryPopupForNew()
+            showJournalEntryEditorForNew()
             finishVoiceCommand(text)
             return
         }
@@ -2730,23 +2750,44 @@ class MainActivity : AppCompatActivity() {
         bindJournalListAdapter()
         hideJournalEntryDetail()
     }
-    private lateinit var journalListAdapter: SidebarMenuAdapter<JournalEntry?>
-    /** Первый пункт списка — всегда "Новая запись" (payload=null), дальше все существующие
-     * записи, новые сверху. Тот же приём, что "[Назад]" (payload=null) в списке меток карты,
-     * только в начале списка, а не в конце. */
-    private fun bindJournalListAdapter() {
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        val items: List<SidebarMenuItem<JournalEntry?>> =
-            listOf(SidebarMenuItem<JournalEntry?>(payload = null, label = getString(R.string.journal_new_entry_button))) +
+    private lateinit var journalListAdapter: SidebarMenuAdapter<JournalSidebarEntry>
+    /** Первый пункт списка — всегда "Новая запись", дальше все существующие записи (новые
+     * сверху), "В меню" — последним, только в режиме PipBoy 2000/3000 (roadmap, этап 27,
+     * п.2 — тот же приём, что у dataFilesSidebarItems()/statusSidebarItems(): порядок здесь
+     * обязан совпадать с journalChildrenNodes() дерева энкодера). */
+    private fun journalSidebarItems(): List<SidebarMenuItem<JournalSidebarEntry>> {
+        val items: List<SidebarMenuItem<JournalSidebarEntry>> =
+            listOf(SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.NewEntry, label = getString(R.string.journal_new_entry_button))) +
                 journalEntries.sortedByDescending { it.createdAtEpochMillis }
-                    .map { entry -> SidebarMenuItem<JournalEntry?>(payload = entry, label = formatJournalDate(entry.createdAtEpochMillis)) }
+                    .map { entry -> SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.Existing(entry), label = formatJournalDate(entry.createdAtEpochMillis)) }
+        return if (pipBoyMode != PipBoyMode.PHONE) {
+            items + SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.Menu, label = getString(R.string.sidebar_menu_back))
+        } else {
+            items
+        }
+    }
+    /** [initialSelectedPosition] — курсор энкодера после Save/Delete должен встать на
+     * затронутую запись, не всегда на 0 (roadmap, этап 27, п.3/4). */
+    private fun bindJournalListAdapter(initialSelectedPosition: Int = 0) {
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
         val adapter = SidebarMenuAdapter(
-            items = items,
+            items = journalSidebarItems(),
             selectedBackgroundRes = selected_button,
+            initialSelectedPosition = initialSelectedPosition,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
-                val entry = item.payload
-                if (entry == null) showJournalEntryPopupForNew() else showJournalEntryDetail(entry)
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
+                // что у dataFilesAdapter/statusAdapter и т.п.
+                menuNavigator.syncCursor("JOURNAL", position)
+                when (val payload = item.payload) {
+                    is JournalSidebarEntry.NewEntry -> showJournalEntryEditorForNew()
+                    is JournalSidebarEntry.Existing -> showJournalEntryDetail(payload.entry)
+                    is JournalSidebarEntry.Menu -> {
+                        playCNDSelectAudio()
+                        menuNavigator.popLevel()
+                        syncRow2ActiveFromNavigator()
+                    }
+                }
             },
         )
         journalListAdapter = adapter
@@ -2761,8 +2802,15 @@ class MainActivity : AppCompatActivity() {
         gameCalendar.set(Calendar.YEAR, sharedPreferences.getInt(gameYear_SPKey, 2276))
         return SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(gameCalendar.time)
     }
+    /** Карточка записи — взаимоисключающе с подсказкой и с редактором (roadmap, этап 27).
+     * hideJournalEntryEditor()/setAllJournalEntryDetailFocusesHidden() в начале — идемпотентная
+     * подстраховка, а не просто для входа из списка: эта же функция дёргается из onHighlight
+     * узла EDIT (journalEntryDetailChildrenNodes()) при возврате из редактора по Cancel/Save,
+     * когда его действительно нужно закрыть и сбросить прицелы Edit/Delete/Back. */
     private fun showJournalEntryDetail(entry: JournalEntry) {
         selectedJournalEntryForDetail = entry
+        hideJournalEntryEditor()
+        setAllJournalEntryDetailFocusesHidden()
         val journalScreen = bindingMain.incLayoutTabItemsJournal
         journalScreen.tvJournalEntryDetailDate.text = formatJournalDate(entry.createdAtEpochMillis)
         journalScreen.tvJournalEntryDetailText.text = entry.text
@@ -2774,6 +2822,8 @@ class MainActivity : AppCompatActivity() {
      * проверка не по списку, а по journalEntries) или обычное "выбери запись". */
     private fun hideJournalEntryDetail() {
         selectedJournalEntryForDetail = null
+        hideJournalEntryEditor()
+        setAllJournalEntryDetailFocusesHidden()
         val journalScreen = bindingMain.incLayoutTabItemsJournal
         journalScreen.layoutJournalEntryDetail.visibility = View.GONE
         journalScreen.tvJournalHint.text = getString(
@@ -2783,23 +2833,50 @@ class MainActivity : AppCompatActivity() {
     }
     // Клавиатура открывается обычным тапом по EditText, никакого showSoftInput()/
     // requestFocus() в коде (см. CLAUDE.md — уже наступали на эти грабли на Map/Filter).
-    private fun showJournalEntryPopupForNew() {
+    /** Редактор занимает всю контентную область (roadmap, этап 27, п.1 — раньше всплывающая
+     * панель поверх контента) — при создании подменяет собой подсказку. Ранний выход по
+     * journalEditorOpenFor (см. объявление поля выше) — редактор уже открыт на новую запись,
+     * нельзя затирать уже введённый текст: onHighlight узла MIC (journalEntryEditorChildrenNodes())
+     * зовёт эту же функцию на каждое возвращение курсора на Mic внутри уже открытого
+     * редактора, не только один раз при входе. */
+    private fun showJournalEntryEditorForNew() {
+        if (journalEditorOpenFor == JOURNAL_NEW_ENTRY_SENTINEL) return
+        journalEditorOpenFor = JOURNAL_NEW_ENTRY_SENTINEL
         editingJournalEntryId = null
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        selectedJournalEntryForDetail = null
+        setAllJournalEntryDetailFocusesHidden()
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        journalScreen.tvJournalHint.visibility = View.GONE
+        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
+        val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText("")
         popup.root.visibility = View.VISIBLE
         refreshJournalMicAvailability()
     }
-    private fun showJournalEntryPopupForEdit(entry: JournalEntry) {
+    /** Та же схема, что у [showJournalEntryEditorForNew] выше, только подменяет собой не
+     * подсказку, а карточку конкретной записи (roadmap, этап 27, п.1 — "заменять собой
+     * редактируемую запись"). */
+    private fun showJournalEntryEditorForEdit(entry: JournalEntry) {
+        if (journalEditorOpenFor == entry.id) return
+        journalEditorOpenFor = entry.id
         editingJournalEntryId = entry.id
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        setAllJournalEntryDetailFocusesHidden()
+        val journalScreen = bindingMain.incLayoutTabItemsJournal
+        journalScreen.tvJournalHint.visibility = View.GONE
+        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
+        val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText(entry.text)
         popup.root.visibility = View.VISIBLE
         refreshJournalMicAvailability()
     }
-    private fun hideJournalEntryPopup() {
+    /** Идемпотентен (безопасно звать многократно, в т.ч. когда редактор и так уже закрыт) —
+     * вызывается защитно из showJournalEntryDetail()/hideJournalEntryDetail() тоже, не
+     * только явным Cancel/Save (roadmap, этап 27). */
+    private fun hideJournalEntryEditor() {
+        journalEditorOpenFor = null
         editingJournalEntryId = null
         stopJournalDictation()
+        setAllJournalEntryEditorFocusesHidden()
         bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
     }
     /** Сбрасывает кнопку-микрофон и статус-строку к состоянию покоя при каждом открытии
@@ -2894,6 +2971,114 @@ class MainActivity : AppCompatActivity() {
         journalDictationState = JournalDictationState.IDLE
         setJournalMicStatus("")
         updateJournalMicVisual(recording = false)
+    }
+    /** Общее тело тапа по микрофону (roadmap, этап 27) — раньше жило только в
+     * setOnClickListener самой кнопки, теперь общее и для тача, и для ENCBTN (MenuNode.
+     * onActivate узла MIC, journalEntryEditorChildrenNodes()) — "кнопки реагируют на
+     * ENCBTN как на тач". */
+    private fun handleJournalMicTap() {
+        when (journalDictationState) {
+            JournalDictationState.IDLE -> {
+                if (awaitingVoiceCommand) {
+                    // VoiceDictationService уже занят распознаванием голосовой команды
+                    // после будческого слова (onWakeWordTriggered) — не отбирать его.
+                    playErrorAudio()
+                    return
+                }
+                if (!voiceModelRepository.hasModel()) {
+                    playErrorAudio()
+                    setJournalMicStatus(getString(R.string.journal_mic_status_no_model))
+                    return
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(
+                        this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_JOURNAL_DICTATION
+                    )
+                    return
+                }
+                startJournalDictation()
+            }
+            JournalDictationState.LOADING -> { /* повторный тап/ENCBTN во время загрузки модели игнорируется */ }
+            JournalDictationState.LISTENING -> stopJournalDictation()
+        }
+    }
+    /** Индекс записи (со сдвигом на "Новую запись" в начале списка) в journalSidebarItems()/
+     * journalChildrenNodes() — общая точка между Save и Delete, чтобы курсор энкодера и
+     * подсветка списка попадали на актуальную позицию (roadmap, этап 27, п.3/4). Fallback 0
+     * — теоретический, entryId всегда должен находиться в списке сразу после сохранения в
+     * repository. */
+    private fun journalEntrySidebarIndex(entryId: String): Int {
+        val sorted = journalEntries.sortedByDescending { it.createdAtEpochMillis }
+        val index = sorted.indexOfFirst { it.id == entryId }
+        return if (index >= 0) index + 1 else 0
+    }
+    /** Родитель узла Mic/Cancel/Save в дереве энкодера для текущего состояния редактора
+     * (roadmap, этап 27, п.3/4 — нужен тач-обработчикам кнопок для menuNavigator.syncCursor(),
+     * тот же приём, что у btnGeigerReset.setOnClickListener) — общий id для любой "новой"
+     * записи ("JOURNAL_NEW", ровно один такой узел в дереве) и общий id для "правки" любой
+     * записи ("JOURNAL_ENTRY_EDIT" — переиспользуется во всех journalEntryDetailChildrenNodes(),
+     * тот же принцип безопасного повтора id, что у "MENU" в menuBackNode()). Читать
+     * editingJournalEntryId нужно ДО того, как Cancel/Save его сбросят. */
+    private fun journalEditorEncoderParentId(): String =
+        if (editingJournalEntryId != null) "JOURNAL_ENTRY_EDIT" else "JOURNAL_NEW"
+    /** Cancel — общее тело для тача и ENCBTN (roadmap, этап 27, п.3/4). Данные не меняет,
+     * только закрывает редактор и поднимает курсор энкодера: для новой записи — на список
+     * (боковое меню, один popLevel() — у "Новая запись" дети сразу Mic/Cancel/Save, без
+     * промежуточного уровня, см. journalChildrenNodes()), для правки существующей — на
+     * карточку записи (второй popLevel() — там между списком и Mic/Cancel/Save есть ещё
+     * уровень Edit/Delete/Back, см. journalEntryDetailChildrenNodes()). */
+    private fun performJournalEntryCancel() {
+        val wasEditing = editingJournalEntryId != null
+        hideJournalEntryEditor()
+        menuNavigator.popLevel()
+        if (wasEditing) menuNavigator.popLevel()
+    }
+    /** Save — общее тело для тача и ENCBTN. Курсор энкодера всегда приземляется на уровень
+     * списка, на карточку сохранённой записи (roadmap, этап 27 — "на карточку созданной
+     * записи"; то же самое и для правки существующей — её текст в уже построенных MenuNode-
+     * замыканиях иначе остался бы устаревшим, дерево пересобирается в любом случае). */
+    private fun performJournalEntrySave() {
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        val text = popup.etJournalEntryValue.text.toString()
+        if (text.isBlank()) {
+            playErrorAudio()
+            return
+        }
+        val editingId = editingJournalEntryId
+        val savedEntryId: String
+        if (editingId != null) {
+            val existing = journalEntries.find { it.id == editingId }
+            if (existing != null) {
+                val updated = existing.copy(text = text, updatedAtEpochMillis = System.currentTimeMillis())
+                journalEntries[journalEntries.indexOf(existing)] = updated
+                journalRepository.update(updated)
+            }
+            savedEntryId = editingId
+        } else {
+            val entry = JournalEntry(UUID.randomUUID().toString(), text, System.currentTimeMillis())
+            journalRepository.add(entry)
+            journalEntries.add(entry)
+            savedEntryId = entry.id
+        }
+        hideJournalEntryEditor()
+        menuNavigator.popLevel()
+        if (editingId != null) menuNavigator.popLevel()
+        val index = journalEntrySidebarIndex(savedEntryId)
+        bindJournalListAdapter(initialSelectedPosition = index)
+        menuNavigator.replaceChildrenOf("JOURNAL", journalChildrenNodes(), cursor = index)
+    }
+    /** Delete — общее тело для тача и ENCBTN, без подтверждения (roadmap, этап 27, п.4 — то
+     * же поведение, что уже было у тача до энкодера). Курсор энкодера возвращается в боковое
+     * меню (список записей) — узел записи, внутри которого он был, больше не существует. */
+    private fun performJournalEntryDelete(entry: JournalEntry) {
+        journalRepository.delete(entry.id)
+        journalEntries.removeAll { it.id == entry.id }
+        hideJournalEntryDetail()
+        bindJournalListAdapter()
+        menuNavigator.popLevel()
+        menuNavigator.replaceChildrenOf("JOURNAL", journalChildrenNodes())
     }
     /** Пеший маршрут до точки/отметки (PedestrianRouter, A* по графу дорог из бандла) — с
      * текущей GPS-позиции. Расчёт на Dispatchers.Default — граф может быть на пару тысяч
@@ -3658,8 +3843,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * ITEMS (roadmap, этап 6) — Map (п.2, переехал из DATA/Local Map), Clock (п.3, переехал
      * из списка радиостанций RADIO — был попапом, теперь обычный раздел), Journal (п.4,
-     * заглушка "Раздел находится в разработке" — полная реализация с голосовым вводом,
-     * видение, п.8).
+     * энкодер-эргономика — этап 27, дети journalChildrenNodes()).
      */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
@@ -3680,11 +3864,164 @@ class MainActivity : AppCompatActivity() {
             children = geigerChildrenNodes(),
             onHighlight = { bottom.btnItemsGeiger.performClick() },
         )
+        // Journal — дети journalChildrenNodes() (roadmap, этап 27 — энкодер-эргономика
+        // ITEMS: п.2-4), тот же приём "список + Menu в конце", что у MISC/Status.
+        // childrenProvider, не статичный children (roadmap — находка "энкодер видит только
+        // 2 старых пункта, пока не сохранишь запись") — itemsMenuRoot() строится один раз
+        // на вход в ITEMS, до того, как openJournalScreen() успевает подгрузить journalEntries
+        // с диска; childrenProvider пересчитывает список записей заново на каждый провал в
+        // узел, когда данные уже точно свежие (см. MenuNode.childrenProvider в MenuNavigator.kt).
+        val journalNode = MenuNode(
+            id = "JOURNAL",
+            childrenProvider = { journalChildrenNodes() },
+            onHighlight = { bottom.btnItemsJournal.performClick() },
+        )
         return listOfNotNull(
             if (pipBoyMode != PipBoyMode.PHONE) geigerNode else null,
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
-            MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
+            journalNode,
             clockNode,
+        )
+    }
+    /** Дети узла JOURNAL (roadmap, этап 27, п.2) — "Новая запись" всегда первым пунктом,
+     * дальше все существующие записи (новые сверху), "В меню" — последним пунктом только в
+     * PipBoy 2000/3000 (menuBackNode()). Порядок и состав обязаны совпадать с
+     * journalSidebarItems() построчно — [MenuNode.onHighlight] каждого пункта дублирует
+     * действие тапа по тому же пункту списка (тот же приём, что у dataFilesChildrenNodes()):
+     * "Новая запись"/запись сразу показывают соответствующий контент (редактор/карточку) —
+     * не только по ENCBTN, а на каждое перемещение курсора, как и везде в списках этого
+     * приложения (Files/Perks/Status). */
+    private fun journalChildrenNodes(): List<MenuNode> {
+        val sortedEntries = journalEntries.sortedByDescending { it.createdAtEpochMillis }
+        val newEntryNode = MenuNode(
+            id = "JOURNAL_NEW",
+            onHighlight = {
+                playItemSelectAudio()
+                journalListAdapter.setSelectedPositionSilently(0)
+                showJournalEntryEditorForNew()
+            },
+            children = journalEntryEditorChildrenNodes(null),
+        )
+        val entryNodes = sortedEntries.mapIndexed { index, entry ->
+            MenuNode(
+                id = "JOURNAL_ENTRY_${entry.id}",
+                onHighlight = {
+                    playItemSelectAudio()
+                    journalListAdapter.setSelectedPositionSilently(index + 1)
+                    showJournalEntryDetail(entry)
+                },
+                children = journalEntryDetailChildrenNodes(entry),
+            )
+        }
+        return listOf(newEntryNode) + entryNodes + menuBackNode(
+            pipBoyMode,
+            onHighlight = { journalListAdapter.setSelectedPositionSilently(sortedEntries.size + 1) },
+            onBeforePop = { journalListAdapter.flashPressAnimation(sortedEntries.size + 1) },
+        )
+    }
+    /** Дети узла конкретной записи Journal (Edit/Delete/Back, roadmap, этап 27, п.4) — тот
+     * же приём прицела-уголков, что у Reset/Menu на Гейгере (geigerChildrenNodes()). Edit
+     * проваливается ещё на уровень глубже — journalEntryEditorChildrenNodes(), тот же
+     * редактор, что и у "Новой записи". Delete/Back — листья без children, ENCBTN на них
+     * (activateSelected()) зовёт onActivate напрямую, никуда дальше не проваливаясь. */
+    private fun journalEntryDetailChildrenNodes(entry: JournalEntry): List<MenuNode> {
+        val journal = bindingMain.incLayoutTabItemsJournal
+        return listOf(
+            MenuNode(
+                id = "JOURNAL_ENTRY_EDIT",
+                onHighlight = {
+                    playItemSelectAudio()
+                    // Пересобирает и подсказку/детали (её и так уже показывает onHighlight
+                    // родительского узла записи выше), и все три прицела — на случай
+                    // возврата сюда из редактора по Cancel/Save (см. showJournalEntryDetail()).
+                    showJournalEntryDetail(entry)
+                    setJournalEntryDetailEditFocused(true)
+                },
+                children = journalEntryEditorChildrenNodes(entry),
+            ),
+            MenuNode(
+                id = "JOURNAL_ENTRY_DELETE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllJournalEntryDetailFocusesHidden()
+                    setJournalEntryDetailDeleteFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(journal.btnJournalEntryDetailDelete) {
+                        playNewTabSelectAudio()
+                        performJournalEntryDelete(entry)
+                    }
+                },
+            ),
+            MenuNode(
+                id = "JOURNAL_ENTRY_BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllJournalEntryDetailFocusesHidden()
+                    setJournalEntryDetailBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(journal.btnJournalEntryDetailBack) {
+                        playCNDSelectAudio()
+                        menuNavigator.popLevel()
+                    }
+                },
+            ),
+        )
+    }
+    /** Дети редактора записи Journal (Mic/Cancel/Save, roadmap, этап 27, п.3-4) — общие и
+     * для создания новой записи ([editingEntry] == null), и для правки существующей.
+     * onHighlight узла MIC переключает контентную область на редактор (idempotent-безопасно,
+     * см. showJournalEntryEditorForNew()/ForEdit()) — при создании это уже сделал onHighlight
+     * "Новой записи" на уровне списка, здесь по сути повтор; при правке это первое и
+     * единственное место, где редактор реально открывается (уровень выше, EDIT, только
+     * показывает карточку и ждёт ENCBTN). Cancel/Delete/Save реагируют на ENCBTN как на тач
+     * (roadmap, п.3) — через ту же общую логику, что и сами тач-обработчики кнопок. */
+    private fun journalEntryEditorChildrenNodes(editingEntry: JournalEntry?): List<MenuNode> {
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        return listOf(
+            MenuNode(
+                id = "JOURNAL_EDITOR_MIC",
+                onHighlight = {
+                    playItemSelectAudio()
+                    if (editingEntry != null) showJournalEntryEditorForEdit(editingEntry) else showJournalEntryEditorForNew()
+                    setAllJournalEntryEditorFocusesHidden()
+                    setJournalEntryEditorMicFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(popup.btnJournalEntryMic) {
+                        handleJournalMicTap()
+                    }
+                },
+            ),
+            MenuNode(
+                id = "JOURNAL_EDITOR_CANCEL",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllJournalEntryEditorFocusesHidden()
+                    setJournalEntryEditorCancelFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(popup.btnJournalEntryPopupCancel) {
+                        playCNDSelectAudio()
+                        performJournalEntryCancel()
+                    }
+                },
+            ),
+            MenuNode(
+                id = "JOURNAL_EDITOR_SAVE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllJournalEntryEditorFocusesHidden()
+                    setJournalEntryEditorSaveFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(popup.btnJournalEntryPopupSave) {
+                        playNewTabSelectAudio()
+                        performJournalEntrySave()
+                    }
+                },
+            ),
         )
     }
     /** Дети узла GEIGER (roadmap, этап 27 — энкодер-эргономика ITEMS, п.1-2): Reset всегда
@@ -4171,6 +4508,38 @@ class MainActivity : AppCompatActivity() {
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
     }
+    /** Тот же приём на ITEMS/Journal (roadmap, этап 27, п.4) — Edit/Delete/Back карточки
+     * конкретной записи, см. journalEntryDetailChildrenNodes(). */
+    private fun setJournalEntryDetailEditFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailEditFocus, focused)
+    }
+    private fun setJournalEntryDetailDeleteFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailDeleteFocus, focused)
+    }
+    private fun setJournalEntryDetailBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailBackFocus, focused)
+    }
+    private fun setAllJournalEntryDetailFocusesHidden() {
+        setJournalEntryDetailEditFocused(false)
+        setJournalEntryDetailDeleteFocused(false)
+        setJournalEntryDetailBackFocused(false)
+    }
+    /** Тот же приём на редакторе записи Journal (roadmap, этап 27, п.3) — Mic/Cancel/Save,
+     * общие и для создания, и для правки, см. journalEntryEditorChildrenNodes(). */
+    private fun setJournalEntryEditorMicFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryMicFocus, focused)
+    }
+    private fun setJournalEntryEditorCancelFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryPopupCancelFocus, focused)
+    }
+    private fun setJournalEntryEditorSaveFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryPopupSaveFocus, focused)
+    }
+    private fun setAllJournalEntryEditorFocusesHidden() {
+        setJournalEntryEditorMicFocused(false)
+        setJournalEntryEditorCancelFocused(false)
+        setJournalEntryEditorSaveFocused(false)
+    }
     /** Прицелы на отдельных частях тела (roadmap, этап 27 — курсор энкодера со Stop должен
      * уметь переходить на конкретную часть тела и отмечать её CRIPPLED), тот же приём, что
      * у [setWoundStopButtonFocused]/[setDeadReviveFocused]. [setAllCrippledFocusesHidden] —
@@ -4509,6 +4878,13 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
+        // journalListAdapter, в отличие от адаптеров выше, не строится безусловно в
+        // onCreate() — только при первом заходе на вкладку Journal (bindJournalListAdapter(),
+        // openJournalScreen()), поэтому единственный из всех тут нуждается в проверке
+        // инициализации (roadmap, этап 27, п.2).
+        if (::journalListAdapter.isInitialized) {
+            journalListAdapter.setItems(journalSidebarItems(), resetSelection = false)
+        }
         refreshGeigerMenuButtonVisibility()
     }
     /** Menu на ITEMS/Гейгер — не SidebarMenuAdapter (обычная кнопка, см.
@@ -6942,8 +7318,10 @@ class MainActivity : AppCompatActivity() {
 
         /*
         ////////////////////////////////////////////////////////
-        ITEMS - JOURNAL MENU (roadmap, этап 6, п.4) — заглушка "Раздел находится в
-        разработке", полная реализация (голосовой ввод) — видение, п.8
+        ITEMS - JOURNAL MENU (roadmap, этап 6, п.4; энкодер-эргономика — этап 27) — личные
+        записи игрока, редактор занимает контентную область (не всплывающая панель), листание
+        энкодером через journalChildrenNodes()/journalEntryDetailChildrenNodes()/
+        journalEntryEditorChildrenNodes() (itemsMenuRoot()).
         */
         bindingMain.incLayoutTabItemsBottom.btnItemsJournal.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsJournal, listBottomButtons)
@@ -6960,15 +7338,31 @@ class MainActivity : AppCompatActivity() {
         journalScreen.tvJournalEntryDetailDate.setTextColor(currentWizardAccentColor())
         journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
+        journalScreen.btnJournalEntryDetailBack.backgroundTintList = journalAccentColor
+        // Прицелы-уголки (roadmap, этап 27) — та же схема тонирования, что у Reset/Menu на
+        // Гейгере (viewGeigerResetFocus/viewGeigerMenuFocus чуть выше).
+        journalScreen.viewJournalEntryDetailEditFocus.backgroundTintList = journalAccentColor
+        journalScreen.viewJournalEntryDetailDeleteFocus.backgroundTintList = journalAccentColor
+        journalScreen.viewJournalEntryDetailBackFocus.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailEdit.setOnClickListener {
-            showJournalEntryPopupForEdit(selectedJournalEntryForDetail ?: return@setOnClickListener)
+            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
+            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 0)
+            playNewTabSelectAudio()
+            showJournalEntryEditorForEdit(entry)
         }
         journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            journalRepository.delete(entry.id)
-            journalEntries.removeAll { it.id == entry.id }
-            hideJournalEntryDetail()
-            bindJournalListAdapter()
+            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 1)
+            playNewTabSelectAudio()
+            performJournalEntryDelete(entry)
+        }
+        // Back — новый пункт (roadmap, этап 27, п.4), только поднимает курсор энкодера в
+        // боковое меню, самой записи не касается.
+        journalScreen.btnJournalEntryDetailBack.setOnClickListener {
+            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
+            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 2)
+            playCNDSelectAudio()
+            menuNavigator.popLevel()
         }
         val journalEntryPopup = journalScreen.incLayoutTabItemsJournalEntryPopup
         journalEntryPopup.btnJournalEntryMic.backgroundTintList = journalAccentColor
@@ -6976,62 +7370,27 @@ class MainActivity : AppCompatActivity() {
         // (тот же класс бага, что и backgroundTint на обычных кнопках, см. CLAUDE.md) —
         // иконка и фон сливаются в сплошной цветной квадрат, глиф не виден.
         ImageViewCompat.setImageTintList(journalEntryPopup.btnJournalEntryMic, null)
-        // Голосовой ввод (Vosk, этап 21 п.2) — тап 1 старт/тап 2 стоп, см.
-        // startJournalDictation()/stopJournalDictation(). Без импортированной модели —
-        // тот же playErrorAudio(), что и у прочих "пока нельзя" мест в приложении, плюс
-        // подсказка текстом в статус-строке (не молча).
+        journalEntryPopup.viewJournalEntryMicFocus.backgroundTintList = journalAccentColor
+        journalEntryPopup.viewJournalEntryPopupCancelFocus.backgroundTintList = journalAccentColor
+        journalEntryPopup.viewJournalEntryPopupSaveFocus.backgroundTintList = journalAccentColor
+        // Голосовой ввод (Vosk, этап 21 п.2) — тап 1 старт/тап 2 стоп, тело вынесено в
+        // handleJournalMicTap() (roadmap, этап 27) — общее и для тача, и для ENCBTN (см.
+        // journalEntryEditorChildrenNodes()).
         journalEntryPopup.btnJournalEntryMic.setOnClickListener {
-            when (journalDictationState) {
-                JournalDictationState.IDLE -> {
-                    if (awaitingVoiceCommand) {
-                        // VoiceDictationService уже занят распознаванием голосовой команды
-                        // после будческого слова (onWakeWordTriggered) — не отбирать его.
-                        playErrorAudio()
-                        return@setOnClickListener
-                    }
-                    if (!voiceModelRepository.hasModel()) {
-                        playErrorAudio()
-                        setJournalMicStatus(getString(R.string.journal_mic_status_no_model))
-                        return@setOnClickListener
-                    }
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                        != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        ActivityCompat.requestPermissions(
-                            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_JOURNAL_DICTATION
-                        )
-                        return@setOnClickListener
-                    }
-                    startJournalDictation()
-                }
-                JournalDictationState.LOADING -> { /* повторный тап во время загрузки модели игнорируется */ }
-                JournalDictationState.LISTENING -> stopJournalDictation()
-            }
+            menuNavigator.syncCursor(journalEditorEncoderParentId(), 0)
+            handleJournalMicTap()
         }
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
-            hideJournalEntryPopup()
+            menuNavigator.syncCursor(journalEditorEncoderParentId(), 1)
+            playCNDSelectAudio()
+            performJournalEntryCancel()
         }
         journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
-            val text = journalEntryPopup.etJournalEntryValue.text.toString()
-            if (text.isBlank()) return@setOnClickListener
-            val editingId = editingJournalEntryId
-            if (editingId != null) {
-                val existing = journalEntries.find { it.id == editingId }
-                if (existing != null) {
-                    val updated = existing.copy(text = text, updatedAtEpochMillis = System.currentTimeMillis())
-                    journalEntries[journalEntries.indexOf(existing)] = updated
-                    journalRepository.update(updated)
-                    showJournalEntryDetail(updated)
-                }
-            } else {
-                val entry = JournalEntry(UUID.randomUUID().toString(), text, System.currentTimeMillis())
-                journalRepository.add(entry)
-                journalEntries.add(entry)
-            }
-            bindJournalListAdapter()
-            hideJournalEntryPopup()
+            menuNavigator.syncCursor(journalEditorEncoderParentId(), 2)
+            playNewTabSelectAudio()
+            performJournalEntrySave()
         }
         bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, listBottomButtons)

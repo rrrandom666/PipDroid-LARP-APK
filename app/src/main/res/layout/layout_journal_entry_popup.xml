@@ -1,30 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ввод текста записи Журнала (этап 20) — тот же приём, что у попапа имени метки на карте
-     (inc_layout_tab_items_map_name_popup.xml): небольшая GONE/VISIBLE подпанель, не
-     AlertDialog. Кнопка микрофона — голосовой ввод (диктовка) через Vosk, этап 21 п.2, см.
-     VoiceDictationService.kt и статус-строку tv_journal_entry_mic_status ниже. Alpha 0.4
-     остаётся визуальным "недоступно", пока в Settings > Voice Model не импортирована модель. -->
+<!-- Ввод текста записи Журнала (этап 20) — теперь полноэкранное состояние контентной области
+     Journal (roadmap, этап 27, п.1), не всплывающая панель: этот layout всегда включается
+     через <include> с шириной/высотой match_constraint на весь правый блок (см.
+     layout_tab_items_journal.xml). Кнопка микрофона — голосовой ввод (диктовка) через Vosk,
+     этап 21 п.2, см. VoiceDictationService.kt и статус-строку tv_journal_entry_mic_status
+     ниже. Alpha 0.4 остаётся визуальным "недоступно", пока в Settings > Voice Model не
+     импортирована модель. clipToPadding=false — под прицелы-уголки энкодера (roadmap,
+     этап 27), та же ловушка, что у layout_geiger_bottom_buttons, см. CLAUDE.md. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_journal_entry_popup"
     android:layout_width="0dp"
-    android:layout_height="wrap_content"
+    android:layout_height="0dp"
     android:padding="12dp"
+    android:clipToPadding="false"
     android:background="@color/pip_background_darker"
     app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent">
 
+    <!-- Растянут на всю доступную высоту сверху до строки Mic/Cancel/Save (roadmap, этап 27
+         — раньше 4 строки wrap_content, оставлявшие пустое место под всплывающей панелью;
+         теперь панель — вся контентная область, полю есть куда расти). -->
     <EditText
         android:id="@+id/et_journal_entry_value"
         style="@style/SettingsButtonStyle"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginBottom="8dp"
         android:minLines="4"
         android:gravity="top|start"
         android:inputType="textMultiLine"
         android:hint="@string/journal_entry_popup_hint"
         app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/barrier_journal_entry_row"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -34,72 +44,119 @@
          MainActivity.kt) — тот же приём, что у "недоступна сейчас" кнопки на Status
          (SidebarMenuAdapter.enabled). Одноцветная плоская иконка (ic_mic, тот же тёмный
          цвет, что текст на кнопках), не эмодзи. Тап 1 — старт записи, тап 2 — стоп
-         (MainActivity.kt, journalDictationState). -->
+         (MainActivity.kt, journalDictationState). Курсор энкодера входит в редактор сразу на
+         эту кнопку (roadmap, этап 27, п.3). -->
     <ImageButton
         android:id="@+id/btn_journal_entry_mic"
         style="@style/PipWizardButtonStyle"
         android:layout_width="44dp"
         android:layout_height="44dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
         android:padding="10dp"
         android:scaleType="fitCenter"
         android:src="@drawable/ic_mic"
         android:tint="@null"
         android:contentDescription="@null"
         android:alpha="0.4"
-        app:layout_constraintTop_toBottomOf="@id/et_journal_entry_value"
+        app:layout_constraintBottom_toTopOf="@id/tv_journal_entry_mic_status"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Cancel/Save — равной ширины по самой широкой кнопке (measureWithLargestChild, не
-         layout_weight — вес растягивает обе на всю оставшуюся ширину ряда, а не просто
-         уравнивает их между собой). Прижаты к правому краю, как и было изначально у Save. -->
-    <LinearLayout
-        android:id="@+id/layout_journal_entry_popup_actions"
+    <View
+        android:id="@+id/view_journal_entry_mic_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_journal_entry_mic"
+        app:layout_constraintTop_toTopOf="@id/btn_journal_entry_mic"
+        app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_mic"
+        app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_mic" />
+
+    <!-- Cancel/Save — прямые дети ConstraintLayout, не LinearLayout (roadmap, этап 27,
+         находка "прицел виден только на Mic"): прицел-уголок — сосед по констрейнтам,
+         ссылающийся на кнопку по id, а ConstraintLayout умеет резолвить такие ссылки только
+         между СВОИМИ прямыми детьми — кнопка, спрятанная на уровень глубже в LinearLayout,
+         для него как бы не существует, и `view_journal_entry_popup_cancel_focus`/`..._save_focus`
+         молча схлопывались в (0,0). Тот же приём, что у Reset/Menu на Гейгере
+         (layout_tab_items_geiger.xml) — тут просто зеркально, прижато к правому краю, как и
+         было у Save изначально. Обратная сторона: кнопки больше не равной ширины
+         (measureWithLargestChild была только у LinearLayout) — сочтено приемлемой ценой за
+         рабочий прицел энкодера. -->
+    <Button
+        android:id="@+id/btn_journal_entry_popup_save"
+        style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        android:measureWithLargestChild="true"
-        app:layout_constraintTop_toBottomOf="@id/et_journal_entry_value"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_marginBottom="8dp"
+        android:text="@string/filter_save_button"
+        app:layout_constraintBottom_toTopOf="@id/tv_journal_entry_mic_status"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
-            android:id="@+id/btn_journal_entry_popup_cancel"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="@string/filter_cancel_button" />
+    <View
+        android:id="@+id/view_journal_entry_popup_save_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_journal_entry_popup_save"
+        app:layout_constraintTop_toTopOf="@id/btn_journal_entry_popup_save"
+        app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_popup_save"
+        app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_popup_save" />
 
-        <Button
-            android:id="@+id/btn_journal_entry_popup_save"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/filter_save_button" />
+    <Button
+        android:id="@+id/btn_journal_entry_popup_cancel"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="@string/filter_cancel_button"
+        app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_popup_save"
+        app:layout_constraintEnd_toStartOf="@id/btn_journal_entry_popup_save" />
 
-    </LinearLayout>
+    <View
+        android:id="@+id/view_journal_entry_popup_cancel_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_journal_entry_popup_cancel"
+        app:layout_constraintTop_toTopOf="@id/btn_journal_entry_popup_cancel"
+        app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_popup_cancel"
+        app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_popup_cancel" />
 
-    <!-- Барьер под более длинным из mic-кнопки/ряда Cancel-Save — статус-строка голосового
-         ввода (roadmap, этап 21, п.2) встаёт под них обоими, не под каким-то одним из двух
-         произвольно выбранным. -->
+    <!-- Верхняя граница более высокой из mic-кнопки/ряда Cancel-Save (roadmap, этап 27) —
+         growing-поле et_journal_entry_value упирается снизу именно в неё, не в конкретную
+         из двух строк отдельно (иначе поле могло бы наехать на другую, если та выше).
+         Direction=top — верхний (наименьший Y), не нижний край: сама строка Mic/Cancel/Save
+         снизу уже прибита к статус-строке напрямую (bottom_toTopOf), барьеру нижняя граница
+         тут не нужна вообще. -->
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/barrier_journal_entry_row"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:barrierDirection="bottom"
-        app:constraint_referenced_ids="btn_journal_entry_mic,layout_journal_entry_popup_actions" />
+        app:barrierDirection="top"
+        app:constraint_referenced_ids="btn_journal_entry_mic,btn_journal_entry_popup_cancel,btn_journal_entry_popup_save" />
 
     <!-- Статус диктовки (нет модели / загрузка / слушаю / текущий частичный результат /
-         ошибка) — пусто, когда голосовой ввод не используется. -->
+         ошибка) — пусто, когда голосовой ввод не используется. Прибита к низу панели — та
+         же нижняя якорная точка, от которой выше отталкиваются Mic/Cancel/Save. -->
     <TextView
         android:id="@+id/tv_journal_entry_mic_status"
         style="@style/CNDEFFRADButtonStyle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:text=""
-        app:layout_constraintTop_toBottomOf="@id/barrier_journal_entry_row"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

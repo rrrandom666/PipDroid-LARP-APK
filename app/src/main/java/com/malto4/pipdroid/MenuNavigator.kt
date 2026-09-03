@@ -22,14 +22,37 @@ class ValueEditor(
  * таймеров. [onActivate] — реальное одноразовое действие листа, вызывается только явным
  * `ENCBTN` (Status — запуск таймера ранения; roadmap этап 27, находка про Status). Лист без
  * [onActivate] и без [valueEditor] на `ENCBTN` просто поднимается к родителю, как раньше.
+ *
+ * [childrenProvider] — альтернатива статичному [children] для узлов, чей список детей может
+ * меняться по составу, а не только по содержимому отдельного пункта, пока сам родительский
+ * узел ещё не сконструирован заново (roadmap, этап 27 — находка на Journal: `itemsMenuRoot()`
+ * вызывается один раз за вход в ITEMS и "запекает" список записей в момент, предшествующий
+ * их реальной загрузке с диска через `openJournalScreen()` — при обычном статичном `children`
+ * список остаётся тем самым, устаревшим снимком до явного `replaceChildrenOf()`, которого не
+ * происходит, пока курсор ещё не провалился внутрь). [childrenProvider], если задан,
+ * пересчитывается заново на каждый `ENCBTN`-провал в узел ([MenuNavigator.activateSelected]) —
+ * то есть строго после того, как уже отработал [onHighlight] самого узла (курсор физически не
+ * может провалиться внутрь узла, на который ещё не наведён), а тот для строк верхнего уровня
+ * ITEMS/DATA/STATS обычно и есть точка, где актуальные данные подгружаются (см.
+ * `btnItemsJournal.performClick()` → `openJournalScreen()`).
  */
 class MenuNode(
     val id: String,
-    val children: List<MenuNode> = emptyList(),
+    children: List<MenuNode> = emptyList(),
     val onActivate: (() -> Unit)? = null,
     val valueEditor: ValueEditor? = null,
+    private val childrenProvider: (() -> List<MenuNode>)? = null,
+    // Последний параметр — единственный сохраняет существующий приём "trailing lambda"
+    // (`MenuNode("MAP") { ... }`) без явного onHighlight = у полусотни существующих мест по
+    // всему MainActivity.kt: Kotlin резолвит висячую лямбду в конце вызова на ПОСЛЕДНИЙ
+    // параметр функционального типа, а не на конкретное имя — добавленный childrenProvider
+    // должен стоять раньше него, иначе все такие вызовы молча перестанут компилироваться
+    // (что и произошло при первой попытке — компилятор ловит расхождение типов сразу).
     val onHighlight: () -> Unit = {},
-)
+) {
+    private val staticChildren: List<MenuNode> = children
+    val children: List<MenuNode> get() = childrenProvider?.invoke() ?: staticChildren
+}
 
 /**
  * Курсор по дереву меню: стек уровней, на каждом — свой список узлов и своя позиция

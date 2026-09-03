@@ -48,11 +48,15 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- clipToPadding=false — обязателен под прицелы-уголки с отрицательным margin поверх
+         Edit/Delete/Back (roadmap, этап 27 — тот же приём и та же ловушка, что у
+         layout_geiger_bottom_buttons в layout_tab_items_geiger.xml, см. CLAUDE.md). -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_journal_entry_detail"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:padding="10dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toEndOf="@id/layout_journal_menu_container"
         app:layout_constraintEnd_toEndOf="parent"
@@ -94,6 +98,23 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы-уголки курсора энкодера (roadmap, этап 27 — энкодер-эргономика ITEMS:
+             Journal) — та же схема, что у view_geiger_reset_focus/view_geiger_menu_focus. -->
+        <View
+            android:id="@+id/view_journal_entry_detail_edit_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_journal_entry_detail_edit"
+            app:layout_constraintTop_toTopOf="@id/btn_journal_entry_detail_edit"
+            app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_detail_edit"
+            app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_detail_edit" />
+
         <Button
             android:id="@+id/btn_journal_entry_detail_delete"
             style="@style/PipWizardButtonStyle"
@@ -104,17 +125,63 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/btn_journal_entry_detail_edit" />
 
+        <View
+            android:id="@+id/view_journal_entry_detail_delete_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_journal_entry_detail_delete"
+            app:layout_constraintTop_toTopOf="@id/btn_journal_entry_detail_delete"
+            app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_detail_delete"
+            app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_detail_delete" />
+
+        <!-- Back — новый пункт (roadmap, этап 27, п.4): только возвращает курсор энкодера в
+             боковое меню, самой записи не касается. -->
+        <Button
+            android:id="@+id/btn_journal_entry_detail_back"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/wizard_back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/btn_journal_entry_detail_delete" />
+
+        <View
+            android:id="@+id/view_journal_entry_detail_back_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_journal_entry_detail_back"
+            app:layout_constraintTop_toTopOf="@id/btn_journal_entry_detail_back"
+            app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_detail_back"
+            app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_detail_back" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Редактор записи (roadmap, этап 27, п.1) — раньше всплывающая панель поверх контента
+         (60% ширины, wrap_content сверху), теперь полноценное состояние контентной области,
+         взаимоисключающее с подсказкой/карточкой детали выше: при создании занимает то же
+         место, что подсказка, при редактировании — заменяет собой карточку записи. -->
     <include
         android:id="@+id/inc_layout_tab_items_journal_entry_popup"
         layout="@layout/layout_journal_entry_popup"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toEndOf="@id/layout_journal_menu_container"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintWidth_percent="0.6" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

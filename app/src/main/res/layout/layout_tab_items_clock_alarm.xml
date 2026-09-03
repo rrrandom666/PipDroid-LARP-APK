@@ -3,56 +3,85 @@
      будильник, время задаётся свайповым колесом (ClockWheelPicker.kt, переиспользуется
      Таймером) по образцу системных часов Android. Срабатывание —
      MainActivity.checkAlarmFiring(), полноэкранный оверлей layout_clock_fired_overlay.xml
-     поверх любого раздела приложения. -->
+     поверх любого раздела приложения.
+     Энкодер-эргономика (roadmap, этап 27, п.3) — Hour/Minute/Set/Back, прицелы-уголки
+     (focus_corner_brackets). Колёса и разделитель ":" — прямые дети корневого
+     ConstraintLayout (не LinearLayout, как раньше) — прицел над колесом резолвится только
+     между прямыми детьми одного ConstraintLayout (см. CLAUDE.md, Journal Cancel/Save). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_tab_items_clock_alarm"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent">
 
-    <!-- Вертикальная цепочка (колесо -> статус -> кнопка), packed с небольшим смещением
-         к верху — гарантирует, что кнопка всегда попадает в видимую область независимо от
-         реальной высоты экрана конкретного телефона (BYOD), в отличие от фиксированного
-         vertical_bias у одного только колеса (баг, найденный при проверке на устройстве:
-         кнопка [Set] уезжала за подвал). Высота колеса — в процентах от экрана, не
-         фиксированный dp, по той же причине. -->
-    <LinearLayout
-        android:id="@+id/layout_clock_alarm_time"
-        android:layout_width="wrap_content"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_clock_alarm_hour"
+        android:layout_width="72dp"
         android:layout_height="0dp"
-        android:orientation="horizontal"
-        android:gravity="center"
+        android:overScrollMode="never"
         app:layout_constraintHeight_percent="0.55"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/tv_clock_alarm_status"
-        app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintVertical_bias="0.1">
+        app:layout_constraintVertical_bias="0.1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/tv_clock_alarm_colon"
+        app:layout_constraintHorizontal_chainStyle="packed" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_clock_alarm_hour"
-            android:layout_width="72dp"
-            android:layout_height="match_parent"
-            android:overScrollMode="never" />
+    <View
+        android:id="@+id/view_clock_alarm_hour_focus"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintEnd_toEndOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintTop_toTopOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintBottom_toBottomOf="@id/rv_clock_alarm_hour" />
 
-        <TextView
-            style="@style/ClockStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:textSize="28sp"
-            android:text=":" />
+    <TextView
+        android:id="@+id/tv_clock_alarm_colon"
+        style="@style/ClockStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:textSize="28sp"
+        android:text=":"
+        app:layout_constraintTop_toTopOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintBottom_toBottomOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintStart_toEndOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintEnd_toStartOf="@id/rv_clock_alarm_minute" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_clock_alarm_minute"
-            android:layout_width="72dp"
-            android:layout_height="match_parent"
-            android:overScrollMode="never" />
+    <!-- top/bottom зеркалят УЖЕ РЕЗОЛВЛЕННЫЕ края rv_clock_alarm_hour, а не независимо
+         те же top=parent/bottom=status/bias — иначе два виджета с одинаковыми, но
+         НЕЗАВИСИМЫМИ constraint-наборами, оба ссылающиеся на tv_clock_alarm_status (которая
+         сама зависит только от hour), решаются солвером асимметрично и оказываются на
+         разной высоте на пиксель-два (найдено на устройстве — колесо минут "плыло" выше
+         часов). Одно направление зависимости — гарантированно то же самое место. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_clock_alarm_minute"
+        android:layout_width="72dp"
+        android:layout_height="0dp"
+        android:overScrollMode="never"
+        app:layout_constraintTop_toTopOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintBottom_toBottomOf="@id/rv_clock_alarm_hour"
+        app:layout_constraintStart_toEndOf="@id/tv_clock_alarm_colon"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    </LinearLayout>
+    <View
+        android:id="@+id/view_clock_alarm_minute_focus"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/rv_clock_alarm_minute"
+        app:layout_constraintEnd_toEndOf="@id/rv_clock_alarm_minute"
+        app:layout_constraintTop_toTopOf="@id/rv_clock_alarm_minute"
+        app:layout_constraintBottom_toBottomOf="@id/rv_clock_alarm_minute" />
 
+    <!-- Три расстояния композиции (снизу вверх): кнопки-подвал самое большое, колесо-статус
+         среднее, статус-кнопки самое маленькое — иначе блок визуально прилипает к подвалу
+         (фидбек по итогам тестирования). -->
     <TextView
         android:id="@+id/tv_clock_alarm_status"
         style="@style/TextStyle"
@@ -62,18 +91,66 @@
         android:text="@string/clock_alarm_status_off"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_clock_alarm_time"
+        app:layout_constraintTop_toBottomOf="@id/rv_clock_alarm_hour"
         app:layout_constraintBottom_toTopOf="@id/btn_clock_alarm_toggle" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_clock_alarm_toggle"
         style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="48dp"
         android:text="@string/clock_alarm_set"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_clock_alarm_status"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_goneMarginEnd="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_clock_alarm_back"
+        app:layout_constraintHorizontal_chainStyle="packed" />
+
+    <View
+        android:id="@+id/view_clock_alarm_set_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintEnd_toEndOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_alarm_toggle" />
+
+    <!-- Back — новый пункт (roadmap, этап 27, п.3), только поднимает курсор энкодера в
+         боковое меню Clock. Виден только в режимах с физическим энкодером (не Phone),
+         видимость обновляется кодом (refreshClockAlarmBackButtonVisibility()). -->
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_clock_alarm_back"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:text="@string/wizard_back"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintStart_toEndOf="@id/btn_clock_alarm_toggle"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <View
+        android:id="@+id/view_clock_alarm_back_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_clock_alarm_back"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_alarm_back"
+        app:layout_constraintEnd_toEndOf="@id/btn_clock_alarm_back"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_alarm_back" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

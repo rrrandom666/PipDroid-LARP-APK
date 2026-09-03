@@ -146,11 +146,16 @@ class MainActivity : AppCompatActivity() {
     private var alarmMinute = 0
     private var alarmArmed = false
     private var clockFiredRingtonePlayer: MediaPlayer? = null
+    private lateinit var alarmHourWheel: ClockWheelPicker
+    private lateinit var alarmMinuteWheel: ClockWheelPicker
     private enum class TimerState { IDLE, RUNNING, PAUSED }
     private var timerHours = 0
     private var timerMinutes = 5
     private var timerSeconds = 0
     private var timerState = TimerState.IDLE
+    private lateinit var timerHourWheel: ClockWheelPicker
+    private lateinit var timerMinuteWheel: ClockWheelPicker
+    private lateinit var timerSecondWheel: ClockWheelPicker
     private var timerTargetEpochMillis = 0L
     private var timerRemainingSecondsAtPause = 0
     private enum class StopwatchState { IDLE, RUNNING, PAUSED }
@@ -1240,6 +1245,7 @@ class MainActivity : AppCompatActivity() {
                 showWizardStep(PipBoyWizardStep.PERMISSIONS)
             }
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
+                setPowerOffInstant()
                 bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
                 showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
             }
@@ -3347,11 +3353,10 @@ class MainActivity : AppCompatActivity() {
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
         // Clock — SidebarMenuAdapter, тот же приём, что у SPECIAL/Skills/Status выше.
+        // Recipe B (roadmap, этап 27, п.1) — дети clockChildrenNodes().
         val clockNode = MenuNode(
             id = "CLOCK",
-            children = clockMeta.mapIndexed { index, meta ->
-                MenuNode(meta.key) { clockAdapter.selectPosition(index) }
-            },
+            children = clockChildrenNodes(),
             onHighlight = { bottom.btnItemsClock.performClick() }
         )
         // GEIGER требует физического корпуса (Wi-Fi-скан на ESP32) — недоступен в режиме
@@ -4011,6 +4016,94 @@ class MainActivity : AppCompatActivity() {
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
     }
+    /** Тот же приём на ITEMS/Clock/Alarm (roadmap, этап 27, п.3) — часы/минуты/Set/Back. */
+    private fun setClockAlarmHourFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmHourFocus, focused)
+    }
+    private fun setClockAlarmMinuteFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmMinuteFocus, focused)
+    }
+    private fun setClockAlarmSetFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmSetFocus, focused)
+    }
+    private fun setClockAlarmBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmBackFocus, focused)
+    }
+    private fun setAllClockAlarmFocusesHidden() {
+        setClockAlarmHourFocused(false)
+        setClockAlarmMinuteFocused(false)
+        setClockAlarmSetFocused(false)
+        setClockAlarmBackFocused(false)
+    }
+    /** Тот же приём на ITEMS/Clock/Timer, панель настройки (roadmap, этап 27, п.4). */
+    private fun setClockTimerHourFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerHourFocus, focused)
+    }
+    private fun setClockTimerMinuteFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerMinuteFocus, focused)
+    }
+    private fun setClockTimerSecondFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerSecondFocus, focused)
+    }
+    private fun setClockTimerPreset5Focused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPreset5Focus, focused)
+    }
+    private fun setClockTimerPreset10Focused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPreset10Focus, focused)
+    }
+    private fun setClockTimerStartFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerStartFocus, focused)
+    }
+    private fun setClockTimerSetupBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerSetupBackFocus, focused)
+    }
+    private fun setAllClockTimerSetupFocusesHidden() {
+        setClockTimerHourFocused(false)
+        setClockTimerMinuteFocused(false)
+        setClockTimerSecondFocused(false)
+        setClockTimerPreset5Focused(false)
+        setClockTimerPreset10Focused(false)
+        setClockTimerStartFocused(false)
+        setClockTimerSetupBackFocused(false)
+    }
+    /** Тот же приём на ITEMS/Clock/Timer, панель обратного отсчёта (roadmap, этап 27, п.4). */
+    private fun setClockTimerPauseResumeFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPauseResumeFocus, focused)
+    }
+    private fun setClockTimerResetFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerResetFocus, focused)
+    }
+    private fun setClockTimerRunningBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerRunningBackFocus, focused)
+    }
+    private fun setAllClockTimerRunningFocusesHidden() {
+        setClockTimerPauseResumeFocused(false)
+        setClockTimerResetFocused(false)
+        setClockTimerRunningBackFocused(false)
+    }
+    /** Тот же приём на ITEMS/Clock/Stopwatch (roadmap, этап 27, п.4). */
+    private fun setClockStopwatchStartPauseFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchStartPauseFocus, focused)
+    }
+    private fun setClockStopwatchResetFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchResetFocus, focused)
+    }
+    private fun setClockStopwatchBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchBackFocus, focused)
+    }
+    private fun setAllClockStopwatchFocusesHidden() {
+        setClockStopwatchStartPauseFocused(false)
+        setClockStopwatchResetFocused(false)
+        setClockStopwatchBackFocused(false)
+    }
+    /** Тот же приём на ITEMS/Clock/Ringtones — Select/Back под конкретным треком
+     * (roadmap, этап 27, п.2). */
+    private fun setClockMelodySelectFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.viewClockMelodySelectFocus, focused)
+    }
+    private fun setClockMelodyBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.viewClockMelodyBackFocus, focused)
+    }
     /** Тот же приём на ITEMS/Journal (roadmap, этап 27, п.4) — Edit/Delete/Back карточки
      * конкретной записи, см. journalEntryDetailChildrenNodes(). */
     private fun setJournalEntryDetailEditFocused(focused: Boolean) {
@@ -4371,6 +4464,409 @@ class MainActivity : AppCompatActivity() {
             onBeforePop = { dataFilesAdapter.flashPressAnimation(dataFilesMeta.size) },
         )
     }
+    /** ITEMS/Clock — тот же приём, что у dataFilesSidebarItems() выше: фиксированный список,
+     * "В меню" — последний пункт (roadmap, этап 27). */
+    private fun clockSidebarItems(): List<SidebarMenuItem<String>> {
+        val items = clockMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) }
+        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
+    }
+    /** Дети узла CLOCK дерева энкодера (itemsMenuRoot()) — контент следует за курсором
+     * (roadmap, этап 27, п.1, фидбек по итогам тестирования — тот же приём, что у записей
+     * Journal): TIME/ALARM/TIMER/STOPWATCH показывают свою панель на КАЖДЫЙ шаг листания
+     * (`clockAdapter.selectPosition()` в onHighlight, не только по ENCBTN), у ALARM/TIMER/
+     * STOPWATCH при этом есть свои `children` — ENCBTN проваливается в них, `onActivate`
+     * никогда не понадобится. TIME — лист без children (экран часов декоративный),
+     * `onActivate = {}` — ENCBTN на нём не делает ничего (та же схема, что у записей
+     * DATA/Files: подсветка уже стоит, проваливаться/подниматься некуда).
+     * MELODY — единственное исключение, сознательно остаётся "тихим" (Recipe B): это
+     * полноэкранный оверлей, скрывающий весь сайдбар целиком (см. openClockMelodyScreen()),
+     * а не панель в правой части того же экрана — если бы онHighlight открывал его на
+     * каждый шаг листания, "Назад" из Ringtones немедленно открывал бы экран заново (тот же
+     * узел MELODY остаётся выделенным в этом списке после popLevel()). Открывается только по
+     * ENCBTN — коммит лежит в onHighlight ПЕРВОГО трека (см. melodyChildrenNodes()). */
+    private fun clockChildrenNodes(): List<MenuNode> {
+        return clockMeta.mapIndexed { index, meta ->
+            when (meta.key) {
+                "TIME" -> MenuNode(
+                    id = meta.key,
+                    onHighlight = { clockAdapter.selectPosition(index) },
+                    onActivate = {},
+                )
+                "ALARM" -> MenuNode(
+                    id = meta.key,
+                    onHighlight = { clockAdapter.selectPosition(index) },
+                    children = alarmChildrenNodes(),
+                )
+                "TIMER" -> MenuNode(
+                    id = meta.key,
+                    onHighlight = { clockAdapter.selectPosition(index) },
+                    // childrenProvider, не статичный children — состав детей зависит от
+                    // timerState, пересчитывается заново на каждый провал (см. Journal).
+                    childrenProvider = { timerChildrenNodes() },
+                )
+                "STOPWATCH" -> MenuNode(
+                    id = meta.key,
+                    onHighlight = { clockAdapter.selectPosition(index) },
+                    children = stopwatchChildrenNodes(),
+                )
+                else -> MenuNode( // "MELODY"
+                    id = meta.key,
+                    onHighlight = { playItemSelectAudio(); clockAdapter.setSelectedPositionSilently(index) },
+                    children = melodyChildrenNodes(),
+                )
+            }
+        } + menuBackNode(
+            pipBoyMode,
+            onHighlight = { clockAdapter.setSelectedPositionSilently(clockMeta.size) },
+            onBeforePop = { clockAdapter.flashPressAnimation(clockMeta.size) },
+        )
+    }
+    /** Дети узла ALARM (roadmap, этап 27, п.3) — настройка часов/минут (ValueEditor поверх
+     * ClockWheelPicker), Set (существующий toggle alarmArmed), Back. HOUR коммитит панель
+     * (clockAdapter.selectPosition) — первый ребёнок при провале в ALARM. */
+    private fun alarmChildrenNodes(): List<MenuNode> {
+        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
+        return listOfNotNull(
+            MenuNode(
+                id = "HOUR",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockAlarmFocusesHidden()
+                    setClockAlarmHourFocused(true)
+                },
+                valueEditor = ValueEditor(
+                    onAdjust = { delta -> alarmHourWheel.scrollToValue(alarmHourWheel.currentValue() + delta) },
+                    onEnter = { playCNDSelectAudio() },
+                    onExit = { playItemSelectAudio() },
+                ),
+            ),
+            MenuNode(
+                id = "MINUTE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockAlarmFocusesHidden()
+                    setClockAlarmMinuteFocused(true)
+                },
+                valueEditor = ValueEditor(
+                    onAdjust = { delta -> alarmMinuteWheel.scrollToValue(alarmMinuteWheel.currentValue() + delta) },
+                    onEnter = { playCNDSelectAudio() },
+                    onExit = { playItemSelectAudio() },
+                ),
+            ),
+            MenuNode(
+                id = "SET",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockAlarmFocusesHidden()
+                    setClockAlarmSetFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(alarm.btnClockAlarmToggle) {
+                        playNewTabSelectAudio()
+                        toggleAlarmArmed()
+                    }
+                },
+            ),
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                id = "BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockAlarmFocusesHidden()
+                    setClockAlarmBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(alarm.btnClockAlarmBack) {
+                        playCNDSelectAudio()
+                        setClockAlarmBackFocused(false)
+                        menuNavigator.popLevel()
+                    }
+                },
+            ) else null,
+        )
+    }
+    /** Дети узла TIMER (roadmap, этап 27, п.4) — ветвится по timerState: IDLE — колёса
+     * Ч/М/С + пресеты + Start, иначе — Pause/Resume + Reset. HOUR/PAUSE_RESUME коммитят
+     * панель (первый ребёнок в каждой из двух веток). Пересобирается на лету через
+     * refreshClockTimerEncoderChildren() (см. startPlainTimer()/syncClockTimerScreenVisibility()). */
+    private fun timerChildrenNodes(): List<MenuNode> {
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        return if (timerState == TimerState.IDLE) {
+            listOfNotNull(
+                MenuNode(
+                    id = "HOUR",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerHourFocused(true)
+                    },
+                    valueEditor = ValueEditor(
+                        onAdjust = { delta -> timerHourWheel.scrollToValue(timerHourWheel.currentValue() + delta) },
+                        onEnter = { playCNDSelectAudio() },
+                        onExit = { playItemSelectAudio() },
+                    ),
+                ),
+                MenuNode(
+                    id = "MINUTE",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerMinuteFocused(true)
+                    },
+                    valueEditor = ValueEditor(
+                        onAdjust = { delta -> timerMinuteWheel.scrollToValue(timerMinuteWheel.currentValue() + delta) },
+                        onEnter = { playCNDSelectAudio() },
+                        onExit = { playItemSelectAudio() },
+                    ),
+                ),
+                MenuNode(
+                    id = "SECOND",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerSecondFocused(true)
+                    },
+                    valueEditor = ValueEditor(
+                        onAdjust = { delta -> timerSecondWheel.scrollToValue(timerSecondWheel.currentValue() + delta) },
+                        onEnter = { playCNDSelectAudio() },
+                        onExit = { playItemSelectAudio() },
+                    ),
+                ),
+                MenuNode(
+                    id = "PRESET5",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerPreset5Focused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerPreset5) {
+                            playNewTabSelectAudio()
+                            addTimerPresetMinutes(5)
+                        }
+                    },
+                ),
+                MenuNode(
+                    id = "PRESET10",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerPreset10Focused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerPreset10) {
+                            playNewTabSelectAudio()
+                            addTimerPresetMinutes(10)
+                        }
+                    },
+                ),
+                MenuNode(
+                    id = "START",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerStartFocused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerStart) {
+                            playNewTabSelectAudio()
+                            startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
+                        }
+                    },
+                ),
+                if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                    id = "BACK",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerSetupFocusesHidden()
+                        setClockTimerSetupBackFocused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerSetupBack) {
+                            playCNDSelectAudio()
+                            setClockTimerSetupBackFocused(false)
+                            menuNavigator.popLevel()
+                        }
+                    },
+                ) else null,
+            )
+        } else {
+            listOfNotNull(
+                MenuNode(
+                    id = "PAUSE_RESUME",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerRunningFocusesHidden()
+                        setClockTimerPauseResumeFocused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerPauseResume) {
+                            playNewTabSelectAudio()
+                            pauseResumeTimer()
+                        }
+                    },
+                ),
+                MenuNode(
+                    id = "RESET",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerRunningFocusesHidden()
+                        setClockTimerResetFocused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerReset) {
+                            playNewTabSelectAudio()
+                            resetTimer()
+                        }
+                    },
+                ),
+                if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                    id = "BACK",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllClockTimerRunningFocusesHidden()
+                        setClockTimerRunningBackFocused(true)
+                    },
+                    onActivate = {
+                        flashButtonPressThenRun(timer.btnClockTimerRunningBack) {
+                            playCNDSelectAudio()
+                            setClockTimerRunningBackFocused(false)
+                            menuNavigator.popLevel()
+                        }
+                    },
+                ) else null,
+            )
+        }
+    }
+    /** Живая пересборка узла TIMER в дереве энкодера (roadmap, этап 27, п.4) — тот же приём,
+     * что у refreshStatusEncoderChildren(): вызывается при смене timerState, no-op если
+     * курсор энкодера сейчас не внутри TIMER (MenuNavigator.replaceChildrenOf сам проверяет). */
+    private fun refreshClockTimerEncoderChildren() {
+        menuNavigator.replaceChildrenOf("TIMER", timerChildrenNodes())
+    }
+    /** Дети узла STOPWATCH (roadmap, этап 27, п.4) — статичный список, набор кнопок не
+     * зависит от stopwatchState (только текст START_PAUSE меняется). */
+    private fun stopwatchChildrenNodes(): List<MenuNode> {
+        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
+        return listOfNotNull(
+            MenuNode(
+                id = "START_PAUSE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockStopwatchFocusesHidden()
+                    setClockStopwatchStartPauseFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(stopwatch.btnClockStopwatchStartPause) {
+                        playNewTabSelectAudio()
+                        toggleStopwatchStartPause()
+                    }
+                },
+            ),
+            MenuNode(
+                id = "RESET",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockStopwatchFocusesHidden()
+                    setClockStopwatchResetFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(stopwatch.btnClockStopwatchReset) {
+                        playNewTabSelectAudio()
+                        resetStopwatch()
+                    }
+                },
+            ),
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                id = "BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllClockStopwatchFocusesHidden()
+                    setClockStopwatchBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(stopwatch.btnClockStopwatchBack) {
+                        playCNDSelectAudio()
+                        setClockStopwatchBackFocused(false)
+                        menuNavigator.popLevel()
+                    }
+                },
+            ) else null,
+        )
+    }
+    /** Дети узла MELODY (roadmap, этап 27, п.2) — трек за треком, автопрослушивание на
+     * каждый шаг листания (startMelodyPreview()). ENCBTN на треке проваливается в
+     * [SELECT, BACK] (melodySelectBackChildrenNodes()) — первый ребёнок, который получит
+     * onHighlight, это SELECT ("курсор переходит на кнопку [Select]"). Существующий пункт
+     * списка "Назад" (payload=null в melodyAdapter) — уже готовый общий выход с экрана,
+     * отдельный "Menu" не нужен (в ТЗ явно сказано не добавлять). */
+    private fun melodyChildrenNodes(): List<MenuNode> {
+        val trackNodes = ringtoneTracks.indices.map { i ->
+            MenuNode(
+                id = "TRACK_$i",
+                onHighlight = {
+                    // Только первый трек коммитит панель (открывает экран Мелодии) — тот же
+                    // приём, что у HOUR в alarmChildrenNodes(): провал в MELODY сразу
+                    // приземляет курсор на первый трек, дальнейшее листание уже открытого
+                    // экрана коммита не требует.
+                    if (i == 0) clockAdapter.selectPosition(4) else playItemSelectAudio()
+                    melodyAdapter.setSelectedPositionSilently(i)
+                    melodyFocusedIndex = i
+                    startMelodyPreview(i)
+                },
+                children = melodySelectBackChildrenNodes(),
+            )
+        }
+        val backNode = MenuNode(
+            id = "MELODY_LIST_BACK",
+            onHighlight = { playItemSelectAudio(); melodyAdapter.setSelectedPositionSilently(ringtoneTracks.size) },
+            // Не дублировать menuNavigator.popLevel() здесь — melodyAdapter.selectPosition()
+            // уже вызывает его сам через onSelect (payload=null), см. сетап-блок onCreate().
+            // Найденный баг: двойной popLevel() уводил курсор энкодера на уровень выше, чем
+            // нужно (в строку ITEMS вместо бокового меню Clock).
+            onActivate = {
+                melodyAdapter.selectPosition(ringtoneTracks.size)
+                melodyAdapter.flashPressAnimation(ringtoneTracks.size)
+            },
+        )
+        return trackNodes + backNode
+    }
+    /** Select/Back под конкретным треком (roadmap, этап 27, п.2) — Select коммитит текущий
+     * melodyFocusedIndex (уже выставлен onHighlight трека), Back — обычный подъём на один
+     * уровень (то же тело, что и тач на новой кнопке btnClockMelodyBack). */
+    private fun melodySelectBackChildrenNodes(): List<MenuNode> {
+        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
+        return listOfNotNull(
+            MenuNode(
+                id = "SELECT",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setClockMelodyBackFocused(false)
+                    setClockMelodySelectFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(melody.btnClockMelodySelect) {
+                        playNewTabSelectAudio()
+                        commitMelodySelection()
+                    }
+                },
+            ),
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                id = "BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setClockMelodySelectFocused(false)
+                    setClockMelodyBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(melody.btnClockMelodyBack) {
+                        playCNDSelectAudio()
+                        setClockMelodyBackFocused(false)
+                        menuNavigator.popLevel()
+                    }
+                },
+            ) else null,
+        )
+    }
     /** Пересобирает три списка выше, когда режим становится известен/меняется уже после
      * того, как onCreate() построил адаптеры (selectPipBoyMode()/restoreAppState()) — сам
      * список нужно поменять целиком, а не просто добавить/убрать один View, поэтому
@@ -4381,6 +4877,7 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
+        clockAdapter.setItems(clockSidebarItems(), resetSelection = false)
         // journalListAdapter, в отличие от адаптеров выше, не строится безусловно в
         // onCreate() — только при первом заходе на вкладку Journal (bindJournalListAdapter(),
         // openJournalScreen()), поэтому единственный из всех тут нуждается в проверке
@@ -4390,6 +4887,10 @@ class MainActivity : AppCompatActivity() {
         }
         refreshGeigerMenuButtonVisibility()
         refreshJournalBackButtonVisibility()
+        refreshClockAlarmBackButtonVisibility()
+        refreshClockTimerBackButtonsVisibility()
+        refreshClockStopwatchBackButtonVisibility()
+        refreshClockMelodyBackButtonVisibility()
     }
     /** Menu на ITEMS/Гейгер — не SidebarMenuAdapter (обычная кнопка, см.
      * geigerChildrenNodes()), поэтому видимость по режиму обновляется отдельным вызовом
@@ -4407,6 +4908,26 @@ class MainActivity : AppCompatActivity() {
      * в боковое меню). */
     private fun refreshJournalBackButtonVisibility() {
         bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack.visibility =
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    }
+    /** Back-кнопки ITEMS/Clock (roadmap, этап 27, п.3-4) — та же схема, что у Menu на
+     * Гейгере/Back на Journal: обычные кнопки экрана, не элементы SidebarMenuAdapter. */
+    private fun refreshClockAlarmBackButtonVisibility() {
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.btnClockAlarmBack.visibility =
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    }
+    private fun refreshClockTimerBackButtonsVisibility() {
+        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
+        val visibility = if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+        timer.btnClockTimerSetupBack.visibility = visibility
+        timer.btnClockTimerRunningBack.visibility = visibility
+    }
+    private fun refreshClockStopwatchBackButtonVisibility() {
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.btnClockStopwatchBack.visibility =
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    }
+    private fun refreshClockMelodyBackButtonVisibility() {
+        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.btnClockMelodyBack.visibility =
             if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
     }
     private fun bottomButtonsModify(vararg buttons: Button){
@@ -4436,6 +4957,22 @@ class MainActivity : AppCompatActivity() {
      * Совпадение сразу разоружает будильник — иначе сработает повторно на следующей
      * итерации цикла в той же самой минуте.
      */
+    /** Функции уровня класса (не локальные closure в onCreate) — нужны и из
+     * alarmChildrenNodes() (roadmap, этап 27, п.3), отдельной функции вне сетап-блока. */
+    private fun updateAlarmStatusViews() {
+        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
+        if (alarmArmed) {
+            alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_on, String.format("%02d:%02d", alarmHour, alarmMinute))
+            alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_cancel)
+        } else {
+            alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
+            alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
+        }
+    }
+    private fun toggleAlarmArmed() {
+        alarmArmed = !alarmArmed
+        updateAlarmStatusViews()
+    }
     private fun checkAlarmFiring(gameCalendar: Calendar) {
         if (!alarmArmed) return
         val hour = gameCalendar.get(Calendar.HOUR_OF_DAY)
@@ -4561,6 +5098,9 @@ class MainActivity : AppCompatActivity() {
         val running = timerState != TimerState.IDLE
         timer.layoutClockTimerRunning.visibility = if (running) View.VISIBLE else View.GONE
         timer.layoutClockTimerSetup.visibility = if (running) View.GONE else View.VISIBLE
+        // Живая пересборка дерева энкодера (roadmap, этап 27, п.4) — общая точка для
+        // resetTimer()/fireTimer()/таймера ранения/restore, см. refreshClockTimerEncoderChildren().
+        refreshClockTimerEncoderChildren()
     }
     /** Общий старт — кнопка [Старт] (значения колёс ЧЧ:ММ:СС) и голосовая команда "таймер
      * N минут" (roadmap, этап 21 ч.2) переиспользуют один и тот же путь, а не дублируют
@@ -4575,6 +5115,18 @@ class MainActivity : AppCompatActivity() {
         timer.layoutClockTimerSetup.visibility = View.GONE
         timer.layoutClockTimerRunning.visibility = View.VISIBLE
         updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
+        // startPlainTimer() — единственный переход IDLE->RUNNING, что не проходит через
+        // syncClockTimerScreenVisibility() (roadmap, этап 27, п.4).
+        refreshClockTimerEncoderChildren()
+    }
+    /** Пресеты +5/+10 мин (roadmap, "Часы — UX-спецификация") — функция уровня класса, не
+     * локальная closure в onCreate: нужна и из timerChildrenNodes() (roadmap, этап 27, п.4). */
+    private fun addTimerPresetMinutes(minutesToAdd: Int) {
+        val totalMinutes = (timerHours * 60 + timerMinutes + minutesToAdd) % (24 * 60)
+        timerHours = totalMinutes / 60
+        timerMinutes = totalMinutes % 60
+        timerHourWheel.scrollToValue(timerHours)
+        timerMinuteWheel.scrollToValue(timerMinutes)
     }
     /** Общая пауза/возобновление — кнопка [Пауза] и голосовая команда "пауза"/"продолжи". */
     private fun pauseResumeTimer() {
@@ -4620,6 +5172,13 @@ class MainActivity : AppCompatActivity() {
             text = ringtoneTracks[index].displayName
             isSelected = false // застывшее обрезанное состояние, пока не нажали [Выбрать]
         }
+    }
+    /** Тело кнопки [Выбрать] (roadmap, этап 27, п.2) — общее для тача и ENCBTN на узле
+     * SELECT (melodySelectBackChildrenNodes()). */
+    private fun commitMelodySelection() {
+        sharedPreferences.edit().putInt(selectedRingtone_SPKey, melodyFocusedIndex).apply()
+        updateMelodySelectedLabel()
+        playMelodySelectedMarqueeOnce()
     }
     /** Один проход marquee у названия в строке "Выбрано:" сразу после [Выбрать]
      * (roadmap, "Часы — UX-спецификация") — сброс isSelected перед повторной установкой
@@ -4689,6 +5248,35 @@ class MainActivity : AppCompatActivity() {
         clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
         clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
         clock.layoutTabItemsClockContent.visibility = View.VISIBLE
+    }
+    /** Функции уровня класса (не локальные closure в onCreate) — нужны и из
+     * stopwatchChildrenNodes() (roadmap, этап 27, п.4). */
+    private fun toggleStopwatchStartPause() {
+        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
+        when (stopwatchState) {
+            StopwatchState.IDLE -> {
+                stopwatchStartEpochMillis = System.currentTimeMillis()
+                stopwatchState = StopwatchState.RUNNING
+                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
+            }
+            StopwatchState.RUNNING -> {
+                stopwatchElapsedMillisAtPause = System.currentTimeMillis() - stopwatchStartEpochMillis
+                stopwatchState = StopwatchState.PAUSED
+                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_resume)
+            }
+            StopwatchState.PAUSED -> {
+                stopwatchStartEpochMillis = System.currentTimeMillis() - stopwatchElapsedMillisAtPause
+                stopwatchState = StopwatchState.RUNNING
+                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
+            }
+        }
+    }
+    private fun resetStopwatch() {
+        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
+        stopwatchState = StopwatchState.IDLE
+        stopwatchElapsedMillisAtPause = 0L
+        stopwatch.tvClockStopwatchElapsed.text = "00:00:00"
+        stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_start)
     }
     /** Обновление отображения секундомера — вызывается из общего 300мс-цикла, пока RUNNING. */
     private fun updateStopwatchDisplay() {
@@ -6651,11 +7239,18 @@ class MainActivity : AppCompatActivity() {
         */
         val clock = bindingMain.incLayoutTabItemsClock
         clockAdapter = SidebarMenuAdapter(
-            items = clockMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
+            items = clockSidebarItems(),
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
-                if (item.payload == "MELODY") {
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
+                // что у SPECIAL/Skills/Status/MISC.
+                menuNavigator.syncCursor("CLOCK", position)
+                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    playCNDSelectAudio()
+                    menuNavigator.popLevel()
+                    syncRow2ActiveFromNavigator()
+                } else if (item.payload == "MELODY") {
                     openClockMelodyScreen()
                 } else {
                     showClockContentPanel(item.payload)
@@ -6670,40 +7265,44 @@ class MainActivity : AppCompatActivity() {
         ITEMS - CLOCK - БУДИЛЬНИК (roadmap, "Часы — UX-спецификация") — свайповое колесо
         на часы/минуты (ClockWheelPicker.kt, по образцу системных часов Android, инерция —
         родная физика RecyclerView), заворот на границах, один однократный будильник.
+        Энкодер-эргономика (этап 27, п.3) — Hour/Minute/Set/Back, см. alarmChildrenNodes().
         */
         val clockAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
         val alarm = clock.incLayoutTabItemsClockAlarm
         alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
-
-        fun updateAlarmStatusViews() {
-            if (alarmArmed) {
-                alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_on, String.format("%02d:%02d", alarmHour, alarmMinute))
-                alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_cancel)
-            } else {
-                alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
-                alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
-            }
-        }
+        alarm.btnClockAlarmBack.backgroundTintList = clockAccentTint
+        alarm.viewClockAlarmHourFocus.backgroundTintList = clockAccentTint
+        alarm.viewClockAlarmMinuteFocus.backgroundTintList = clockAccentTint
+        alarm.viewClockAlarmSetFocus.backgroundTintList = clockAccentTint
+        alarm.viewClockAlarmBackFocus.backgroundTintList = clockAccentTint
         updateAlarmStatusViews()
 
-        ClockWheelPicker(alarm.rvClockAlarmHour, 0..23, alarmHour) { value ->
+        alarmHourWheel = ClockWheelPicker(alarm.rvClockAlarmHour, 0..23, alarmHour) { value ->
             alarmHour = value
             updateAlarmStatusViews()
         }
-        ClockWheelPicker(alarm.rvClockAlarmMinute, 0..59, alarmMinute) { value ->
+        alarmMinuteWheel = ClockWheelPicker(alarm.rvClockAlarmMinute, 0..59, alarmMinute) { value ->
             alarmMinute = value
             updateAlarmStatusViews()
         }
         alarm.btnClockAlarmToggle.setOnClickListener {
+            menuNavigator.syncCursor("ALARM", 2)
             playNewTabSelectAudio()
-            alarmArmed = !alarmArmed
-            updateAlarmStatusViews()
+            toggleAlarmArmed()
         }
+        alarm.btnClockAlarmBack.setOnClickListener {
+            menuNavigator.syncCursor("ALARM", 3)
+            playCNDSelectAudio()
+            setClockAlarmBackFocused(false)
+            menuNavigator.popLevel()
+        }
+        refreshClockAlarmBackButtonVisibility()
 
         /*
         ////////////////////////////////////////////////////////
         ITEMS - CLOCK - ТАЙМЕР (roadmap, "Часы — UX-спецификация") — три колеса ЧЧ:ММ:СС
-        (тот же ClockWheelPicker, что у Будильника) + пресеты, один таймер.
+        (тот же ClockWheelPicker, что у Будильника) + пресеты, один таймер. Энкодер-
+        эргономика (этап 27, п.4) — timerChildrenNodes(), два набора кнопок по timerState.
         */
         // layout_clock_timer_setup/layout_clock_timer_running — обычные вложенные
         // ConstraintLayout внутри layout_tab_items_clock_timer.xml, не <include>, поэтому
@@ -6711,83 +7310,104 @@ class MainActivity : AppCompatActivity() {
         // вложенных блоков — то же самое, что и остальные плоские экраны приложения).
         val timer = clock.incLayoutTabItemsClockTimer
         for (btn in listOf(timer.btnClockTimerPreset5, timer.btnClockTimerPreset10, timer.btnClockTimerStart,
-            timer.btnClockTimerPauseResume, timer.btnClockTimerReset)) {
+            timer.btnClockTimerPauseResume, timer.btnClockTimerReset, timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)) {
             btn.backgroundTintList = clockAccentTint
         }
-
-        val timerHourWheel = ClockWheelPicker(timer.rvClockTimerHour, 0..23, timerHours) { timerHours = it }
-        val timerMinuteWheel = ClockWheelPicker(timer.rvClockTimerMinute, 0..59, timerMinutes) { timerMinutes = it }
-        val timerSecondWheel = ClockWheelPicker(timer.rvClockTimerSecond, 0..59, timerSeconds) { timerSeconds = it }
-
-        fun addTimerPresetMinutes(minutesToAdd: Int) {
-            val totalMinutes = (timerHours * 60 + timerMinutes + minutesToAdd) % (24 * 60)
-            timerHours = totalMinutes / 60
-            timerMinutes = totalMinutes % 60
-            timerHourWheel.scrollToValue(timerHours)
-            timerMinuteWheel.scrollToValue(timerMinutes)
+        for (view in listOf(timer.viewClockTimerHourFocus, timer.viewClockTimerMinuteFocus, timer.viewClockTimerSecondFocus,
+            timer.viewClockTimerPreset5Focus, timer.viewClockTimerPreset10Focus, timer.viewClockTimerStartFocus, timer.viewClockTimerSetupBackFocus,
+            timer.viewClockTimerPauseResumeFocus, timer.viewClockTimerResetFocus, timer.viewClockTimerRunningBackFocus)) {
+            view.backgroundTintList = clockAccentTint
         }
-        timer.btnClockTimerPreset5.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(5) }
-        timer.btnClockTimerPreset10.setOnClickListener { playNewTabSelectAudio(); addTimerPresetMinutes(10) }
 
+        timerHourWheel = ClockWheelPicker(timer.rvClockTimerHour, 0..23, timerHours) { timerHours = it }
+        timerMinuteWheel = ClockWheelPicker(timer.rvClockTimerMinute, 0..59, timerMinutes) { timerMinutes = it }
+        timerSecondWheel = ClockWheelPicker(timer.rvClockTimerSecond, 0..59, timerSeconds) { timerSeconds = it }
+
+        timer.btnClockTimerPreset5.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 3)
+            playNewTabSelectAudio()
+            addTimerPresetMinutes(5)
+        }
+        timer.btnClockTimerPreset10.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 4)
+            playNewTabSelectAudio()
+            addTimerPresetMinutes(10)
+        }
         timer.btnClockTimerStart.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 5)
             playNewTabSelectAudio()
             startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
+        timer.btnClockTimerSetupBack.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 6)
+            playCNDSelectAudio()
+            setClockTimerSetupBackFocused(false)
+            menuNavigator.popLevel()
+        }
         timer.btnClockTimerPauseResume.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 0)
             playNewTabSelectAudio()
             pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 1)
             playNewTabSelectAudio()
             resetTimer()
         }
+        timer.btnClockTimerRunningBack.setOnClickListener {
+            menuNavigator.syncCursor("TIMER", 2)
+            playCNDSelectAudio()
+            setClockTimerRunningBackFocused(false)
+            menuNavigator.popLevel()
+        }
+        refreshClockTimerBackButtonsVisibility()
 
         /*
         ////////////////////////////////////////////////////////
         ITEMS - CLOCK - СЕКУНДОМЕР (roadmap, "Часы — UX-спецификация") — старт/пауза/сброс,
-        без кругов.
+        без кругов. Энкодер-эргономика (этап 27, п.4) — StartPause/Reset/Back, статичное
+        дерево, см. stopwatchChildrenNodes().
         */
         val stopwatch = clock.incLayoutTabItemsClockStopwatch
         stopwatch.btnClockStopwatchStartPause.backgroundTintList = clockAccentTint
         stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
+        stopwatch.btnClockStopwatchBack.backgroundTintList = clockAccentTint
+        stopwatch.viewClockStopwatchStartPauseFocus.backgroundTintList = clockAccentTint
+        stopwatch.viewClockStopwatchResetFocus.backgroundTintList = clockAccentTint
+        stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
 
         stopwatch.btnClockStopwatchStartPause.setOnClickListener {
+            menuNavigator.syncCursor("STOPWATCH", 0)
             playNewTabSelectAudio()
-            when (stopwatchState) {
-                StopwatchState.IDLE -> {
-                    stopwatchStartEpochMillis = System.currentTimeMillis()
-                    stopwatchState = StopwatchState.RUNNING
-                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
-                }
-                StopwatchState.RUNNING -> {
-                    stopwatchElapsedMillisAtPause = System.currentTimeMillis() - stopwatchStartEpochMillis
-                    stopwatchState = StopwatchState.PAUSED
-                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_resume)
-                }
-                StopwatchState.PAUSED -> {
-                    stopwatchStartEpochMillis = System.currentTimeMillis() - stopwatchElapsedMillisAtPause
-                    stopwatchState = StopwatchState.RUNNING
-                    stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
-                }
-            }
+            toggleStopwatchStartPause()
         }
         stopwatch.btnClockStopwatchReset.setOnClickListener {
+            menuNavigator.syncCursor("STOPWATCH", 1)
             playNewTabSelectAudio()
-            stopwatchState = StopwatchState.IDLE
-            stopwatchElapsedMillisAtPause = 0L
-            stopwatch.tvClockStopwatchElapsed.text = "00:00:00"
-            stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_start)
+            resetStopwatch()
         }
+        stopwatch.btnClockStopwatchBack.setOnClickListener {
+            menuNavigator.syncCursor("STOPWATCH", 2)
+            playCNDSelectAudio()
+            setClockStopwatchBackFocused(false)
+            menuNavigator.popLevel()
+        }
+        refreshClockStopwatchBackButtonVisibility()
 
         /*
         ////////////////////////////////////////////////////////
         ITEMS - CLOCK - МЕЛОДИЯ ЗВОНКА (roadmap, "Часы — UX-спецификация") — список строится
-        кодом из ringtoneTracks (Data.kt), последний пункт — [Назад]. Клик по треку — превью
-        play/stop (визуализатор — LineVisualizer, единственный оставшийся в приложении с этапа
-        23 — у Radio своего визуализатора больше нет, реальный радиоприём идёт на ESP32).
+        кодом из ringtoneTracks (Data.kt), последний пункт — [Назад]. Листание энкодером —
+        автопрослушивание (roadmap, этап 27, п.2, melodyChildrenNodes()), тач по треку —
+        превью play/stop как раньше (визуализатор — LineVisualizer, единственный оставшийся
+        в приложении с этапа 23 — у Radio своего визуализатора больше нет, реальный
+        радиоприём идёт на ESP32).
         */
         val melody = clock.incLayoutTabItemsClockMelody
         melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
+        melody.btnClockMelodyBack.backgroundTintList = clockAccentTint
+        melody.viewClockMelodySelectFocus.backgroundTintList = clockAccentTint
+        melody.viewClockMelodyBackFocus.backgroundTintList = clockAccentTint
         // applyTextColor() эту LineVisualizer не красит (не входит в её список View) — без
         // явного setColor() линия рисуется дефолтным цветом библиотеки, неотличимым от
         // тёмного фона (баг, найденный на устройстве).
@@ -6804,9 +7424,11 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             initialSelectedPosition = melodyFocusedIndex,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
+            onSelect = { position, item ->
+                menuNavigator.syncCursor("MELODY", position)
                 val index = item.payload
                 if (index == null) {
+                    menuNavigator.popLevel()
                     closeClockMelodyScreen()
                 } else {
                     melodyFocusedIndex = index
@@ -6818,11 +7440,17 @@ class MainActivity : AppCompatActivity() {
         melody.recyclerClockMelodyTracks.adapter = melodyAdapter
 
         melody.btnClockMelodySelect.setOnClickListener {
+            menuNavigator.syncCursor("TRACK_${melodyFocusedIndex}", 0)
             playNewTabSelectAudio()
-            sharedPreferences.edit().putInt(selectedRingtone_SPKey, melodyFocusedIndex).apply()
-            updateMelodySelectedLabel()
-            playMelodySelectedMarqueeOnce()
+            commitMelodySelection()
         }
+        melody.btnClockMelodyBack.setOnClickListener {
+            menuNavigator.syncCursor("TRACK_${melodyFocusedIndex}", 1)
+            playCNDSelectAudio()
+            setClockMelodyBackFocused(false)
+            menuNavigator.popLevel()
+        }
+        refreshClockMelodyBackButtonVisibility()
 
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
         bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus.backgroundTintList = clockAccentTint

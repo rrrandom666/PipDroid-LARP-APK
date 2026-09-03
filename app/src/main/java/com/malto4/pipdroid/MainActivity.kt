@@ -3797,8 +3797,7 @@ class MainActivity : AppCompatActivity() {
      * Разбирает входящую BLE-строку по конвенции протокола (PipBoy_BLE_Protocol_v0.2.md,
      * раздел 2: `КЛЮЧ:ЗНАЧЕНИЕ` для параметризованных команд, голое ключевое слово для
      * остальных) и раздаёт по обработчикам. STATS/ITEMS/DATA уходят в уже существующий
-     * menuChangeBLE() без изменений — остальные команды пока только логируются, реальная
-     * обработка (навигация энкодером, радио) — следующие этапы roadmap.
+     * menuChangeBLE() без изменений.
      */
     private fun handleBleCommand(raw: String) {
         val parts = raw.split(":", limit = 2)
@@ -3838,8 +3837,15 @@ class MainActivity : AppCompatActivity() {
             }
             "ENC" -> {
                 if (bindingMain.incLayoutClockFiredOverlay.root.visibility != View.VISIBLE) {
-                    menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
-                    syncRow2ActiveFromNavigator()
+                    // RADIO — без второго уровня навигации (radioMenuRoot()), поэтому здесь
+                    // ENC напрямую крутит громкость вместо курсора по дереву, без входа в
+                    // режим редактирования через ENCBTN — на этом экране больше нечего делать.
+                    if (curMenu == "RADIO") {
+                        applyRadioVolumeDelta(value?.toIntOrNull() ?: 0)
+                    } else {
+                        menuNavigator.moveCursor(value?.toIntOrNull() ?: 0)
+                        syncRow2ActiveFromNavigator()
+                    }
                 }
             }
             "GEIGER" -> accumulateGeigerDose(value?.toIntOrNull() ?: 0)

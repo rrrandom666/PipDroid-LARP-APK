@@ -3926,7 +3926,7 @@ class MainActivity : AppCompatActivity() {
      * (activateSelected()) зовёт onActivate напрямую, никуда дальше не проваливаясь. */
     private fun journalEntryDetailChildrenNodes(entry: JournalEntry): List<MenuNode> {
         val journal = bindingMain.incLayoutTabItemsJournal
-        return listOf(
+        return listOfNotNull(
             MenuNode(
                 id = "JOURNAL_ENTRY_EDIT",
                 onHighlight = {
@@ -3953,7 +3953,10 @@ class MainActivity : AppCompatActivity() {
                     }
                 },
             ),
-            MenuNode(
+            // Только режимы с физическим энкодером — не Phone (найденный баг: кнопка была
+            // видна и в Phone, где ей вообще нечем пользоваться, см.
+            // refreshJournalBackButtonVisibility()), тот же гейт, что у Menu на Гейгере.
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "JOURNAL_ENTRY_BACK",
                 onHighlight = {
                     playItemSelectAudio()
@@ -3966,7 +3969,7 @@ class MainActivity : AppCompatActivity() {
                         menuNavigator.popLevel()
                     }
                 },
-            ),
+            ) else null,
         )
     }
     /** Дети редактора записи Journal (Mic/Cancel/Save, roadmap, этап 27, п.3-4) — общие и
@@ -4025,10 +4028,11 @@ class MainActivity : AppCompatActivity() {
         )
     }
     /** Дети узла GEIGER (roadmap, этап 27 — энкодер-эргономика ITEMS, п.1-2): Reset всегда
-     * первый пункт, Menu ("В меню") — второй, только в режиме PipBoy 2000 (тач-кнопка тоже
-     * скрыта в остальных режимах, см. её visibility рядом с setOnClickListener ниже).
-     * onActivate у Menu поднимает курсор энкодера обратно на уровень ITEMS через тот же
-     * menuNavigator.popLevel(), что и "В меню" в SPECIAL/Skills/PERKS/Status/MISC
+     * первый пункт, Menu ("В меню") — второй, в любом режиме с физическим энкодером (не
+     * Phone — тач-кнопка тоже скрыта только в Phone, см. её visibility рядом с
+     * setOnClickListener ниже; было сознательно только PipBoy 2000, пересмотрено по фидбеку
+     * — см. roadmap). onActivate у Menu поднимает курсор энкодера обратно на уровень ITEMS
+     * через тот же menuNavigator.popLevel(), что и "В меню" в SPECIAL/Skills/PERKS/Status/MISC
      * (menuBackNode()) — здесь не через menuBackNode(), т.к. Reset/Menu не элементы
      * SidebarMenuAdapter, а обычные кнопки экрана. */
     private fun geigerChildrenNodes(): List<MenuNode> {
@@ -4048,7 +4052,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 },
             ),
-            if (pipBoyMode == PipBoyMode.PIPBOY_2000) MenuNode(
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "MENU",
                 onHighlight = {
                     playItemSelectAudio()
@@ -4886,13 +4890,25 @@ class MainActivity : AppCompatActivity() {
             journalListAdapter.setItems(journalSidebarItems(), resetSelection = false)
         }
         refreshGeigerMenuButtonVisibility()
+        refreshJournalBackButtonVisibility()
     }
     /** Menu на ITEMS/Гейгер — не SidebarMenuAdapter (обычная кнопка, см.
      * geigerChildrenNodes()), поэтому видимость по режиму обновляется отдельным вызовом
-     * рядом с остальными "В меню" выше, не через [SidebarMenuAdapter.setItems]. */
+     * рядом с остальными "В меню" выше, не через [SidebarMenuAdapter.setItems]. Любой режим
+     * с физическим энкодером (не Phone) — было сознательно только PipBoy 2000, пересмотрено
+     * по фидбоку (roadmap, этап 27). */
     private fun refreshGeigerMenuButtonVisibility() {
         bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.visibility =
-            if (pipBoyMode == PipBoyMode.PIPBOY_2000) View.VISIBLE else View.GONE
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    }
+    /** Back на карточке записи Journal — та же схема, что у Menu на Гейгере выше: обычная
+     * кнопка экрана, не элемент SidebarMenuAdapter, видимость по режиму обновляется отдельно
+     * (roadmap, этап 27 — найденный баг: кнопка была видна и в Phone, где физического
+     * энкодера нет вообще, а сама кнопка нужна только чтобы отдать курсор энкодера обратно
+     * в боковое меню). */
+    private fun refreshJournalBackButtonVisibility() {
+        bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack.visibility =
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
     }
     private fun bottomButtonsModify(vararg buttons: Button){
         listBottomButtons.clear()
@@ -7357,13 +7373,16 @@ class MainActivity : AppCompatActivity() {
             performJournalEntryDelete(entry)
         }
         // Back — новый пункт (roadmap, этап 27, п.4), только поднимает курсор энкодера в
-        // боковое меню, самой записи не касается.
+        // боковое меню, самой записи не касается. Любой режим с физическим энкодером, не
+        // Phone (найденный баг — была видна и в Phone, см. refreshJournalBackButtonVisibility()),
+        // видимость также обновляется в refreshSidebarBackItems() при смене режима в рантайме.
         journalScreen.btnJournalEntryDetailBack.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
             menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 2)
             playCNDSelectAudio()
             menuNavigator.popLevel()
         }
+        refreshJournalBackButtonVisibility()
         val journalEntryPopup = journalScreen.incLayoutTabItemsJournalEntryPopup
         journalEntryPopup.btnJournalEntryMic.backgroundTintList = journalAccentColor
         // Без этого сам глиф иконки красится темой в тот же акцентный цвет, что и фон кнопки
@@ -7424,8 +7443,8 @@ class MainActivity : AppCompatActivity() {
             playNewTabSelectAudio()
             resetGeigerDose()
         }
-        // Menu ("В меню") — только режим PipBoy 2000 (roadmap, этап 27), см.
-        // geigerChildrenNodes(). Видимость также обновляется в refreshSidebarBackItems() —
+        // Menu ("В меню") — любой режим с физическим энкодером, не Phone (roadmap, этап 27),
+        // см. geigerChildrenNodes(). Видимость также обновляется в refreshSidebarBackItems() —
         // режим может смениться в рантайме через Settings ("Изменить").
         bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.backgroundTintList = geigerButtonAccent
         bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.setOnClickListener {

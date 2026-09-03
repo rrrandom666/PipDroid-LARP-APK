@@ -141,7 +141,9 @@
             app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_detail_delete" />
 
         <!-- Back — новый пункт (roadmap, этап 27, п.4): только возвращает курсор энкодера в
-             боковое меню, самой записи не касается. -->
+             боковое меню, самой записи не касается. Нужна только в режимах с физическим
+             энкодером — gone по умолчанию, как у btn_geiger_menu, реальная видимость
+             выставляется кодом (refreshJournalBackButtonVisibility()). -->
         <Button
             android:id="@+id/btn_journal_entry_detail_back"
             style="@style/PipWizardButtonStyle"
@@ -149,6 +151,7 @@
             android:layout_marginTop="8dp"
             android:layout_marginStart="8dp"
             android:text="@string/wizard_back"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/btn_journal_entry_detail_delete" />
 

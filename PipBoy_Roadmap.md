@@ -2837,13 +2837,17 @@ Map/Ringtones/выбор произвольной точки на карте (IT
 
 - **GEIGER подключён к дереву энкодера.** Раньше — лист без действия (`ENCBTN` не имел
   эффекта). Теперь `children = geigerChildrenNodes()`: `RESET` (всегда) и `MENU` ("В меню",
-  только режим PipBoy 2000 — см. ниже) — тот же приём прицела-уголков, что у Stop/Revive на
-  STATUS (`setGeigerResetFocused()`/`setGeigerMenuFocused()`, свои `view_geiger_reset_focus`/
-  `view_geiger_menu_focus` рядом с кнопками, тот же `focus_corner_brackets.xml`).
-- **Menu — сознательно только PipBoy 2000, не PipBoy 3000** (решение зафиксировано здесь,
-  раньше нигде не описывалось). Кнопка физически скрыта (`View.GONE`) в остальных режимах;
-  видимость пересчитывается там же, где остальные "В меню" при смене режима в рантайме —
-  `refreshSidebarBackItems()` → новый `refreshGeigerMenuButtonVisibility()`.
+  любой режим с физическим энкодером — см. ниже) — тот же приём прицела-уголков, что у
+  Stop/Revive на STATUS (`setGeigerResetFocused()`/`setGeigerMenuFocused()`, свои
+  `view_geiger_reset_focus`/`view_geiger_menu_focus` рядом с кнопками, тот же
+  `focus_corner_brackets.xml`).
+- **Menu — виден в PipBoy 2000 и 3000, скрыт только в Phone.** Первая версия правки решила
+  ограничить его только PipBoy 2000 — по фидбеку это было ошибкой (никакой особой причины
+  прятать от 3000 не было, просто скопирована не та граница условия), исправлено сразу на
+  оба места: `geigerChildrenNodes()` (`pipBoyMode != PipBoyMode.PHONE`, было `==
+  PIPBOY_2000`) и `refreshGeigerMenuButtonVisibility()`. Кнопка физически скрыта
+  (`View.GONE`) только в Phone; видимость пересчитывается там же, где остальные "В меню" при
+  смене режима в рантайме — `refreshSidebarBackItems()`.
 - **`ENCBTN` на Menu** — тот же `menuNavigator.popLevel()`, что и у "В меню" в
   SPECIAL/Skills/Perks/Status/MISC, но не через общий `menuBackNode()` — Reset/Menu обычные
   кнопки экрана, а не элементы `SidebarMenuAdapter`.
@@ -2906,6 +2910,15 @@ Map/Ringtones/выбор произвольной точки на карте (IT
   Исправлено — `LinearLayout` убран, Cancel/Save стали прямыми детьми `ConstraintLayout`
   (тот же приём, что у Reset/Menu на Гейгере), ценой равной ширины кнопок (была только у
   `measureWithLargestChild`) — сочтено приемлемым.
+- **Найденный баг — кнопка Back на карточке записи была видна и в режиме Телефон**, где
+  физического энкодера нет вообще и отдавать курсор ей просто некуда. При первой реализации
+  кнопка не была гейтована по режиму вовсе (в отличие от Menu на Гейгере, у которого гейт
+  был с самого начала, просто на неверную границу — см. пункт выше). Исправлено тем же
+  способом: `View.GONE` по умолчанию в XML, реальная видимость — новый
+  `refreshJournalBackButtonVisibility()` (`pipBoyMode != PipBoyMode.PHONE`), вызывается и
+  при живой настройке кнопки, и из `refreshSidebarBackItems()` при смене режима в рантайме;
+  сам узел `JOURNAL_ENTRY_BACK` в `journalEntryDetailChildrenNodes()` тоже гейтован тем же
+  условием, чтобы дерево энкодера не предлагало пункт, у которого нет видимой кнопки.
 
 ## 3. Среда разработки на MacBook
 

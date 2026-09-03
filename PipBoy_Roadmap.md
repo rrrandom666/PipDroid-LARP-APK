@@ -2827,6 +2827,33 @@ Map/Ringtones/выбор произвольной точки на карте (IT
     изменилась) — переключение `ENCBTN` туда-обратно на одной и той же записи прокрутку не
     трогает, читать можно с того места, где остановились.
 
+### Энкодер-эргономика ITEMS (этап 27, ITEMS/Гейгер-часть сделана, ветка `app-encoder`)
+
+Первый экран ITEMS в этом проходе — Гейгер. Map/Journal остаются плоскими пунктами без
+своего третьего уровня (см. комментарий у `itemsMenuRoot()` в коде — их структура целиком
+поменяется на этапе 6, перестройка IA); Clock свой третий уровень (`clockMeta`) уже имел
+с самого начала модели навигации энкодером (этап 3), эта правка его не трогала.
+
+- **GEIGER подключён к дереву энкодера.** Раньше — лист без действия (`ENCBTN` не имел
+  эффекта). Теперь `children = geigerChildrenNodes()`: `RESET` (всегда) и `MENU` ("В меню",
+  только режим PipBoy 2000 — см. ниже) — тот же приём прицела-уголков, что у Stop/Revive на
+  STATUS (`setGeigerResetFocused()`/`setGeigerMenuFocused()`, свои `view_geiger_reset_focus`/
+  `view_geiger_menu_focus` рядом с кнопками, тот же `focus_corner_brackets.xml`).
+- **Menu — сознательно только PipBoy 2000, не PipBoy 3000** (решение зафиксировано здесь,
+  раньше нигде не описывалось). Кнопка физически скрыта (`View.GONE`) в остальных режимах;
+  видимость пересчитывается там же, где остальные "В меню" при смене режима в рантайме —
+  `refreshSidebarBackItems()` → новый `refreshGeigerMenuButtonVisibility()`.
+- **`ENCBTN` на Menu** — тот же `menuNavigator.popLevel()`, что и у "В меню" в
+  SPECIAL/Skills/Perks/Status/MISC, но не через общий `menuBackNode()` — Reset/Menu обычные
+  кнопки экрана, а не элементы `SidebarMenuAdapter`.
+- **Тач синхронизирован с курсором энкодера** — `menuNavigator.syncCursor("GEIGER", 0/1)` в
+  обоих `setOnClickListener` (Reset/Menu), тот же приём, что у `SidebarMenuAdapter.onSelect`
+  на остальных экранах.
+- **Побочный баг — прицел красился в белую заглушку из drawable, не в акцент темы.** Тот же
+  класс находки, что уже был на CRIPPLED-прицелах STATUS (см. выше): `backgroundTintList` на
+  новых `viewGeigerResetFocus`/`viewGeigerMenuFocus` забыли выставить при первой реализации —
+  добавлено рядом с тонировкой самих кнопок Reset/Menu.
+
 ## 3. Среда разработки на MacBook
 
 - **Android Studio + встроенный эмулятор** — подходит для разработки и отладки UI/логики

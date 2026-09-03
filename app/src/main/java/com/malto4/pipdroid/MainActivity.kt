@@ -3673,11 +3673,59 @@ class MainActivity : AppCompatActivity() {
         )
         // GEIGER требует физического корпуса (Wi-Fi-скан на ESP32) — недоступен в режиме
         // Телефон, см. applyModeGating(). Порядок должен совпадать с itemsRow2Items() ниже.
+        // Дети — geigerChildrenNodes() (roadmap, этап 27 — энкодер-эргономика ITEMS): Reset
+        // (+ Menu только в PipBoy 2000), тот же приём прицела-уголков, что у STOP в STATUS.
+        val geigerNode = MenuNode(
+            id = "GEIGER",
+            children = geigerChildrenNodes(),
+            onHighlight = { bottom.btnItemsGeiger.performClick() },
+        )
         return listOfNotNull(
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode("GEIGER") { bottom.btnItemsGeiger.performClick() } else null,
+            if (pipBoyMode != PipBoyMode.PHONE) geigerNode else null,
             MenuNode("MAP") { bottom.btnItemsMap.performClick() },
             MenuNode("JOURNAL") { bottom.btnItemsJournal.performClick() },
             clockNode,
+        )
+    }
+    /** Дети узла GEIGER (roadmap, этап 27 — энкодер-эргономика ITEMS, п.1-2): Reset всегда
+     * первый пункт, Menu ("В меню") — второй, только в режиме PipBoy 2000 (тач-кнопка тоже
+     * скрыта в остальных режимах, см. её visibility рядом с setOnClickListener ниже).
+     * onActivate у Menu поднимает курсор энкодера обратно на уровень ITEMS через тот же
+     * menuNavigator.popLevel(), что и "В меню" в SPECIAL/Skills/PERKS/Status/MISC
+     * (menuBackNode()) — здесь не через menuBackNode(), т.к. Reset/Menu не элементы
+     * SidebarMenuAdapter, а обычные кнопки экрана. */
+    private fun geigerChildrenNodes(): List<MenuNode> {
+        val geiger = bindingMain.incLayoutTabItemsGeiger
+        return listOfNotNull(
+            MenuNode(
+                id = "RESET",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setGeigerMenuFocused(false)
+                    setGeigerResetFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(geiger.btnGeigerReset) {
+                        playNewTabSelectAudio()
+                        resetGeigerDose()
+                    }
+                },
+            ),
+            if (pipBoyMode == PipBoyMode.PIPBOY_2000) MenuNode(
+                id = "MENU",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setGeigerResetFocused(false)
+                    setGeigerMenuFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(geiger.btnGeigerMenu) {
+                        playCNDSelectAudio()
+                        setGeigerMenuFocused(false)
+                        menuNavigator.popLevel()
+                    }
+                },
+            ) else null,
         )
     }
     private fun dataMenuRoot(): List<MenuNode> {
@@ -3775,6 +3823,13 @@ class MainActivity : AppCompatActivity() {
         val curDose = (prevDose + radThisSecond).coerceIn(0, GEIGER_LETHAL_DOSE_RAD)
         sharedPreferences.edit().putInt(geigerDose_SPKey, curDose).apply()
         updateGeigerDoseDisplay(curDose)
+    }
+    /** Общая логика кнопки Reset (roadmap, этап 27) — используется и тач-обработчиком, и
+     * `onActivate` узла RESET дерева энкодера (см. geigerChildrenNodes()); звук
+     * (playNewTabSelectAudio(), тот же что у тача) каждый вызывающий проигрывает сам. */
+    private fun resetGeigerDose() {
+        sharedPreferences.edit().putInt(geigerDose_SPKey, 0).apply()
+        updateGeigerDoseDisplay(0)
     }
     /**
      * Стрелка (`img_rad_arrow`) отражает долю накопленной дозы от смертельной — bias
@@ -4107,6 +4162,14 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewDeadReviveFocus,
             focused,
         )
+    }
+    /** Тот же приём прицела-уголков на ITEMS/Гейгер (roadmap, этап 27 — энкодер-эргономика
+     * ITEMS) — Reset и Menu ("В меню"), см. geigerChildrenNodes(). */
+    private fun setGeigerResetFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerResetFocus, focused)
+    }
+    private fun setGeigerMenuFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
     }
     /** Прицелы на отдельных частях тела (roadmap, этап 27 — курсор энкодера со Stop должен
      * уметь переходить на конкретную часть тела и отмечать её CRIPPLED), тот же приём, что
@@ -4446,6 +4509,14 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
+        refreshGeigerMenuButtonVisibility()
+    }
+    /** Menu на ITEMS/Гейгер — не SidebarMenuAdapter (обычная кнопка, см.
+     * geigerChildrenNodes()), поэтому видимость по режиму обновляется отдельным вызовом
+     * рядом с остальными "В меню" выше, не через [SidebarMenuAdapter.setItems]. */
+    private fun refreshGeigerMenuButtonVisibility() {
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.visibility =
+            if (pipBoyMode == PipBoyMode.PIPBOY_2000) View.VISIBLE else View.GONE
     }
     private fun bottomButtonsModify(vararg buttons: Button){
         listBottomButtons.clear()
@@ -6979,13 +7050,33 @@ class MainActivity : AppCompatActivity() {
         accumulateGeigerDose()/updateGeigerDoseDisplay() по каждому GEIGER:<рад/сек>.
         */
         updateGeigerDoseDisplay(sharedPreferences.getInt(geigerDose_SPKey, 0))
-        bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.backgroundTintList =
-            ColorStateList.valueOf(currentWizardAccentColor())
+        val geigerButtonAccent = ColorStateList.valueOf(currentWizardAccentColor())
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.backgroundTintList = geigerButtonAccent
+        // Прицелы-уголки (focus_corner_brackets) — белая заглушка в самом drawable, реальный
+        // акцент темы всегда только кодом (тот же приём, что у остальных прицелов —
+        // viewWoundStopFocus/viewSpecialValueFocus/viewClockFiredStopFocus и т.п.).
+        bindingMain.incLayoutTabItemsGeiger.viewGeigerResetFocus.backgroundTintList = geigerButtonAccent
+        bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus.backgroundTintList = geigerButtonAccent
         bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.setOnClickListener {
+            // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём, что
+            // у SidebarMenuAdapter.onSelect (SPECIAL/Skills/Status/PERKS/MISC), только без
+            // самого адаптера: Reset/Menu — обычные кнопки экрана, не элементы списка.
+            menuNavigator.syncCursor("GEIGER", 0)
             playNewTabSelectAudio()
-            sharedPreferences.edit().putInt(geigerDose_SPKey, 0).apply()
-            updateGeigerDoseDisplay(0)
+            resetGeigerDose()
         }
+        // Menu ("В меню") — только режим PipBoy 2000 (roadmap, этап 27), см.
+        // geigerChildrenNodes(). Видимость также обновляется в refreshSidebarBackItems() —
+        // режим может смениться в рантайме через Settings ("Изменить").
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.backgroundTintList = geigerButtonAccent
+        bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.setOnClickListener {
+            menuNavigator.syncCursor("GEIGER", 1)
+            playCNDSelectAudio()
+            setGeigerMenuFocused(false)
+            menuNavigator.popLevel()
+            syncRow2ActiveFromNavigator()
+        }
+        refreshGeigerMenuButtonVisibility()
 
         /***********************************************************************************************************
          * DATA

@@ -16,8 +16,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ScrollView
-            android:id="@+id/scroll_tab_data_misc"
+        <!-- Боковое меню Files (roadmap, "Единый компонент бокового меню 3 уровня") — тот же
+             SidebarMenuAdapter/RecyclerView, что у SPECIAL/Skills/Perks/Clock, вместо двух
+             hand-copied ConstraintLayout-строк без энкодер-логики. -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_tab_data_misc"
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
             android:fadeScrollbars="false"
@@ -33,98 +36,7 @@
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_percent="0.425">
-
-            <LinearLayout
-                android:id="@+id/linearlayout_tab_data_misc_container"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_data_misc_entry1"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/tv_data_misc_left_spacer_entry1"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.03" />
-
-                    <Button
-                        android:id="@+id/btn_data_misc_entry1"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="fill_parent"
-                        android:background="@drawable/button_unselected"
-                        android:clickable="false"
-                        android:gravity="center|left"
-                        android:minWidth="0.0dip"
-                        android:minHeight="0.0dip"
-                        android:text="@string/data_misc_entry1_name"
-                        android:textAllCaps="false"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/tv_data_misc_left_spacer_entry1"
-                        app:layout_constraintTop_toTopOf="parent" />
-
-                    <TextView
-                        android:id="@+id/tv_data_misc_right_spacer_entry1"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.06" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/layout_tab_data_misc_entry2"
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6.0dp">
-
-                    <TextView
-                        android:id="@+id/tv_data_misc_left_spacer_entry2"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.03" />
-
-                    <Button
-                        android:id="@+id/btn_data_misc_entry2"
-                        style="@style/CNDEFFRADButtonStyle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="fill_parent"
-                        android:background="@drawable/button_unselected"
-                        android:clickable="false"
-                        android:gravity="center|left"
-                        android:minWidth="0.0dip"
-                        android:minHeight="0.0dip"
-                        android:text="@string/data_misc_entry2_name"
-                        android:textAllCaps="false"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/tv_data_misc_left_spacer_entry2"
-                        app:layout_constraintTop_toTopOf="parent" />
-
-                    <TextView
-                        android:id="@+id/tv_data_misc_right_spacer_entry2"
-                        android:layout_width="0.0dip"
-                        android:layout_height="0.0dip"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintWidth_percent="0.06" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-            </LinearLayout>
-        </ScrollView>
+            app:layout_constraintWidth_percent="0.425" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_tab_data_misc_descriptions"
@@ -133,7 +45,7 @@
             android:layout_marginTop="10dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintLeft_toRightOf="@id/scroll_tab_data_misc"
+            app:layout_constraintLeft_toRightOf="@id/recycler_tab_data_misc"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="1.0">

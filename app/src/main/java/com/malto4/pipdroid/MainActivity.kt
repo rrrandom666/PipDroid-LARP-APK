@@ -67,6 +67,7 @@ import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -200,7 +201,14 @@ class MainActivity : AppCompatActivity() {
         ClockFeatureMeta("MELODY", R.string.clock_feature_melody),
     )
     private lateinit var clockAdapter: SidebarMenuAdapter<String>
-    private var listDataMisc = ArrayList<ConstraintLayout>()
+    /** DATA/Files (roadmap, "Единый компонент бокового меню 3 уровня") — тот же приём, что у
+     * clockMeta выше: фиксированный список, боковое меню строится из SidebarMenuAdapter. */
+    private data class DataFileMeta(val key: String, val nameRes: Int, val descriptionRes: Int)
+    private val dataFilesMeta = listOf(
+        DataFileMeta("ENTRY1", R.string.data_misc_entry1_name, R.string.data_misc_entry1_description),
+        DataFileMeta("ENTRY2", R.string.data_misc_entry2_name, R.string.data_misc_entry2_description),
+    )
+    private lateinit var dataFilesAdapter: SidebarMenuAdapter<String>
     // Локальное зеркало громкости радио (roadmap, этап 23) — см. RADIO_VOLUME_* в companion
     // object и applyRadioVolumeDelta() ниже: только для отображения шкалы на этом экране, не
     // авторитетный источник (ESP32 не подтверждает абсолютную громкость даже на реконнекте).
@@ -399,6 +407,11 @@ class MainActivity : AppCompatActivity() {
         // "нет способа подняться из третьего уровня") — payload гарантированно не совпадает
         // ни с одним реальным key из statusMeta/specialMeta/skillsMeta.
         private const val SIDEBAR_BACK_PAYLOAD = "BACK"
+
+        // Прокрутка длинной записи энкодером (roadmap, этап 27 — Files/Perks) — шаг одного
+        // деления ENC, подобран "на глаз" как пара строк текста, не привязан к реальной
+        // высоте строки (шрифт/масштаб экрана могут отличаться).
+        private const val SIDEBAR_RECORD_SCROLL_STEP_DP = 60f
 
         // Карта — бэклог этапа 18 (зум, тап по маркеру/точке, следование по маршруту).
         private const val MAP_ZOOM_STEP_FACTOR = 1.4f
@@ -3543,9 +3556,12 @@ class MainActivity : AppCompatActivity() {
      * не фиксированный набор пунктов, тот же приём "провалиться -> активировать пункт" не
      * подходит напрямую. Пока лист, без вложенности — отдельная задача.
      *
-     * У ITEMS/DATA сейчас только плоский список вкладок — их структура целиком поменяется
-     * на этапе 6 (перестройка IA, см. видение приложения в roadmap), глубже разбирать их
-     * сейчас смысла нет.
+     * DATA/MISC (Files) — та же схема, что у SPECIAL/Skills/Perks: фиксированный список
+     * (dataFilesMeta), дети узла — dataFilesChildrenNodes(), см. dataMenuRoot() ниже.
+     *
+     * Остальные вкладки ITEMS/DATA (Map/Journal/Holotapes) пока плоский список без своего
+     * третьего уровня — их структура целиком поменяется на этапе 6 (перестройка IA, см.
+     * видение приложения в roadmap), глубже разбирать их сейчас смысла нет.
      */
     private fun statsMenuRoot(): List<MenuNode> {
         // Status (roadmap, этап 27 — находка "Status"): перемещение курсора (onHighlight)
@@ -3668,8 +3684,14 @@ class MainActivity : AppCompatActivity() {
         val bottom = bindingMain.incLayoutTabDataBottom
         // HOLOTAPES требует физического корпуса (USB Host на ESP32-S3) — недоступен в режиме
         // Телефон, см. applyModeGating(). Порядок должен совпадать с dataRow2Items() ниже.
+        // MISC (Files) — единственный из двух с реальным третьим уровнем (dataFilesChildrenNodes()),
+        // тот же приём, что у STATUS/SPECIAL/SKILLS/PERKS в statsMenuRoot().
         return listOfNotNull(
-            MenuNode("MISC") { bottom.btnDataMisc.performClick() },
+            MenuNode(
+                id = "MISC",
+                children = dataFilesChildrenNodes(),
+                onHighlight = { bottom.btnDataMisc.performClick() },
+            ),
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() } else null,
         )
     }
@@ -4002,7 +4024,7 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial,
                 bindingMain.incLayoutTabStatsSkills.scrollTabSkills,
                 bindingMain.incLayoutTabStatsPerks.recyclerTabPerks,
-                bindingMain.incLayoutTabDataMisc.scrollTabDataMisc,
+                bindingMain.incLayoutTabDataMisc.recyclerTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
                 bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsMain,
@@ -4340,6 +4362,23 @@ class MainActivity : AppCompatActivity() {
         } else {
             emptyList()
         }
+    /**
+     * `ValueEditor` для длинной записи бокового меню (Files/Perks, roadmap этап 27) —
+     * `ENCBTN` на записи переключает `ENC` на прокрутку её панели описания вместо движения
+     * курсора по списку, повторный `ENCBTN` возвращает к списку (тот же приём переключения
+     * режима `ENC`, что и `+`/`-` у SPECIAL/Skills, только `onAdjust` крутит `ScrollView`,
+     * а не число). `smoothScrollBy()` — не `scrollBy()`: `ScrollView` сам клэмпит цель в
+     * границы контента ([0, childHeight - contentHeight]), простой `scrollBy()` этого не
+     * делает и может увести прокрутку в пустоту за пределами текста.
+     */
+    private fun recordScrollValueEditor(scrollView: ScrollView): ValueEditor {
+        val stepPx = (SIDEBAR_RECORD_SCROLL_STEP_DP * resources.displayMetrics.density).toInt()
+        return ValueEditor(
+            onAdjust = { delta -> scrollView.smoothScrollBy(0, delta * stepPx) },
+            onEnter = { playCNDSelectAudio() },
+            onExit = { playItemSelectAudio() },
+        )
+    }
     private fun specialSidebarItems(): List<SidebarMenuItem<String>> {
         val items = specialMeta.map { meta ->
             SidebarMenuItem(
@@ -4372,6 +4411,31 @@ class MainActivity : AppCompatActivity() {
         }
         return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem(enabled) else items
     }
+    /** DATA/Files — тот же приём, что у specialSidebarItems()/skillsSidebarItems() выше:
+     * фиксированный список (не фильтруется, в отличие от Perks), "В меню" — последний пункт. */
+    private fun dataFilesSidebarItems(): List<SidebarMenuItem<String>> {
+        val items = dataFilesMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.nameRes)) }
+        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
+    }
+    /** Дети узла MISC дерева энкодера DATA (dataMenuRoot()) — та же схема, что у perksChildrenNodes():
+     * onActivate = {} (не null) на каждой записи, чтобы ENCBTN на ней просто подтверждал
+     * подсветку и не проваливался/поднимался никуда (roadmap — "нажатие ENCBTN на пункт меню
+     * не делает ничего"), "В меню" поднимает курсор обратно на строку 2 DATA (MISC/HOLOTAPES). */
+    private fun dataFilesChildrenNodes(): List<MenuNode> {
+        return dataFilesMeta.mapIndexed { index, _ ->
+            MenuNode(
+                id = "FILE_$index",
+                onHighlight = { dataFilesAdapter.selectPosition(index) },
+                // ENCBTN на записи — не подъём наверх и не no-op, а вход в прокрутку её
+                // описания (roadmap, этап 27 — находка "листание длинных файлов").
+                valueEditor = recordScrollValueEditor(bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText),
+            )
+        } + menuBackNode(
+            pipBoyMode,
+            onHighlight = { dataFilesAdapter.setSelectedPositionSilently(dataFilesMeta.size) },
+            onBeforePop = { dataFilesAdapter.flashPressAnimation(dataFilesMeta.size) },
+        )
+    }
     /** Пересобирает три списка выше, когда режим становится известен/меняется уже после
      * того, как onCreate() построил адаптеры (selectPipBoyMode()/restoreAppState()) — сам
      * список нужно поменять целиком, а не просто добавить/убрать один View, поэтому
@@ -4381,17 +4445,7 @@ class MainActivity : AppCompatActivity() {
         specialAdapter.setItems(specialSidebarItems(), resetSelection = false)
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
-    }
-    private fun setSelectedSubMenuButton(layout: ConstraintLayout?, listArrayListLayout: ArrayList<ConstraintLayout>?) {
-        layout?.setBackgroundResource(selected_button)
-        playItemSelectAudio()
-        val it: Iterator<ConstraintLayout> = listArrayListLayout!!.iterator()
-        while (it.hasNext()) {
-            val next = it.next()
-            if (!Intrinsics.areEqual(next as Any, layout as Any)) {
-                next.setBackgroundResource(R.drawable.button_unselected)
-            }
-        }
+        dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
     }
     private fun bottomButtonsModify(vararg buttons: Button){
         listBottomButtons.clear()
@@ -4406,8 +4460,8 @@ class MainActivity : AppCompatActivity() {
         // initialSelectedPosition по умолчанию 0), отдельная строка тут больше не нужна.
     }
     private fun setupDATA(){
-        //Set Selected buttons by default
-        findViewById<ConstraintLayout>(R.id.layout_tab_data_misc_entry1).setBackgroundResource(selected_button)
+        // Files — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
+        // initialSelectedPosition по умолчанию 0), отдельная строка тут больше не нужна.
     }
     private fun setupITEMSClock(){
         // Clock — первый пункт подсвечивается сам по себе (SidebarMenuAdapter,
@@ -5614,6 +5668,10 @@ class MainActivity : AppCompatActivity() {
         fun showPerkDescription(perk: Map<String, String>) {
             bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
             bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
+            // Сброс прокрутки на новую запись (roadmap, этап 27 — "листание длинных файлов")
+            // — иначе переключение на другой перк после того, как энкодер проскроллил
+            // предыдущее описание вниз, показало бы новый текст с той же смещённой позиции.
+            bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
         }
 
         val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") }
@@ -5657,16 +5715,15 @@ class MainActivity : AppCompatActivity() {
      * как и было в дереве по умолчанию до появления onActivate/valueEditor у других экранов. */
     private fun perksChildrenNodes(): List<MenuNode> {
         return (0 until perksRealItemCount).map { index ->
-            // onActivate = {} (no-op), не оставлять null (roadmap, этап 27 — находка "ENCBTN
-            // на любом перке поднимает наверх"): лист без children/valueEditor/onActivate
-            // проваливается в запасной "подняться к родителю" в activateSelected() — это
-            // предназначено для листьев вообще без какого-либо действия (устаревший дефолт),
-            // а не то же самое, что "у перка нет действия" — тут это конкретно нежелательное
-            // поведение, только "В меню" должен подниматься наверх.
+            // ENCBTN на перке — не подъём наверх (лист без children/valueEditor/onActivate
+            // раньше проваливался в запасной "подняться к родителю", roadmap, этап 27 —
+            // находка "ENCBTN на любом перке поднимает наверх") и не no-op, а вход в
+            // прокрутку описания перка (roadmap, этап 27 — "листание длинных файлов"),
+            // повторный ENCBTN — назад к списку перков.
             MenuNode(
                 id = "PERK_$index",
                 onHighlight = { perksAdapter.selectPosition(index) },
-                onActivate = {},
+                valueEditor = recordScrollValueEditor(bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText),
             )
         } + menuBackNode(
             pipBoyMode,
@@ -5975,9 +6032,6 @@ class MainActivity : AppCompatActivity() {
         )
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.layoutManager = LinearLayoutManager(this)
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.adapter = statusAdapter
-
-        listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1)
-        listDataMisc.add(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2)
 
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
@@ -6961,14 +7015,34 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry1, listDataMisc)
-            bindingMain.incLayoutTabDataMisc.tvDataMiscHolotapeText.setText(R.string.data_misc_entry1_description)
-        }
-        bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2.setOnClickListener{
-            setSelectedSubMenuButton(bindingMain.incLayoutTabDataMisc.layoutTabDataMiscEntry2, listDataMisc)
-            bindingMain.incLayoutTabDataMisc.tvDataMiscHolotapeText.setText(R.string.data_misc_entry2_description)
-        }
+        // DATA - FILES — единый компонент бокового меню 3 уровня (см. SPECIAL/Skills/Perks/
+        // Clock выше) вместо двух hand-copied ConstraintLayout-строк + 2 setOnClickListener,
+        // без какой-либо энкодер-логики.
+        val files = bindingMain.incLayoutTabDataMisc
+        dataFilesAdapter = SidebarMenuAdapter(
+            items = dataFilesSidebarItems(),
+            selectedBackgroundRes = selected_button,
+            playSelectSound = { playItemSelectAudio() },
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тач раньше не
+                // сообщал MenuNavigator, куда встал, следующий ENC листал с прежней позиции.
+                menuNavigator.syncCursor("MISC", position)
+                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    playCNDSelectAudio()
+                    menuNavigator.popLevel()
+                    syncRow2ActiveFromNavigator()
+                } else {
+                    val meta = dataFilesMeta.first { it.key == item.payload }
+                    files.tvDataMiscHolotapeText.setText(meta.descriptionRes)
+                    // Сброс прокрутки на новую запись (roadmap, этап 27 — "листание длинных
+                    // файлов") — см. тот же приём в showPerkDescription() выше.
+                    files.scrollTabDataMiscText.scrollTo(0, 0)
+                }
+            },
+        )
+        files.recyclerTabDataMisc.layoutManager = LinearLayoutManager(this)
+        files.recyclerTabDataMisc.adapter = dataFilesAdapter
+        files.tvDataMiscHolotapeText.setText(dataFilesMeta.first().descriptionRes)
 
         // Боковое меню разделов Settings (roadmap, "Редизайн Settings", этап 26) — тот же
         // SidebarMenuAdapter, что у SPECIAL/Skills/Clock/Perks/Map/выбора режима. Пункт —

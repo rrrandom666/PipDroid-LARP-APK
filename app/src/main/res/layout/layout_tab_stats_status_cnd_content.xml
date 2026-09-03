@@ -21,6 +21,7 @@
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
             android:layout_marginStart="4dp"
+            android:clipChildren="false"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintDimensionRatio="1.1:1"
             app:layout_constraintHeight_percent="0.8"
@@ -114,10 +115,17 @@
                 app:layout_constraintVertical_bias="0.4615"
                 app:srcCompat="@drawable/man_arm_right" />
 
+            <!-- clipChildren=false (roadmap, этап 27 — прицелы на ногах обрезались) — ноги, в
+                 отличие от торса/рук/головы, занимают весь этот контейнер целиком без запаса,
+                 отрицательный margin прицела (view_crippled_left/right_leg_focus) выходит за
+                 его собственные границы, а ViewGroup по умолчанию обрезает рисование детей
+                 по своим границам (clipChildren=true) — тот же класс проблемы, что уже был
+                 с clipToPadding у Stop, см. комментарий у layout_tab_status_wound_buttons. -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/layout_tab_status_cnd_pipboy_legs"
                 android:layout_width="0.0dip"
                 android:layout_height="0.0dip"
+                android:clipChildren="false"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintDimensionRatio="W,175:100"
                 app:layout_constraintHeight_percent="0.305"
@@ -151,7 +159,104 @@
                     app:layout_constraintTop_toTopOf="parent"
                     app:srcCompat="@drawable/man_leg_right" />
 
+                <View
+                    android:id="@+id/view_crippled_left_leg_focus"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:layout_marginStart="-4dp"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginEnd="-4dp"
+                    android:layout_marginBottom="-4dp"
+                    android:background="@drawable/focus_corner_brackets"
+                    android:visibility="gone"
+                    app:layout_constraintStart_toStartOf="@id/img_tab_status_cnd_pipboy_left_leg"
+                    app:layout_constraintTop_toTopOf="@id/img_tab_status_cnd_pipboy_left_leg"
+                    app:layout_constraintEnd_toEndOf="@id/img_tab_status_cnd_pipboy_left_leg"
+                    app:layout_constraintBottom_toBottomOf="@id/img_tab_status_cnd_pipboy_left_leg" />
+
+                <View
+                    android:id="@+id/view_crippled_right_leg_focus"
+                    android:layout_width="0.0dip"
+                    android:layout_height="0.0dip"
+                    android:layout_marginStart="-4dp"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginEnd="-4dp"
+                    android:layout_marginBottom="-4dp"
+                    android:background="@drawable/focus_corner_brackets"
+                    android:visibility="gone"
+                    app:layout_constraintStart_toStartOf="@id/img_tab_status_cnd_pipboy_right_leg"
+                    app:layout_constraintTop_toTopOf="@id/img_tab_status_cnd_pipboy_right_leg"
+                    app:layout_constraintEnd_toEndOf="@id/img_tab_status_cnd_pipboy_right_leg"
+                    app:layout_constraintBottom_toBottomOf="@id/img_tab_status_cnd_pipboy_right_leg" />
+
             </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Прицелы энкодера на отдельных частях тела (roadmap, этап 27 — "пока таймер
+                 ранения активен, курсор энкодера должен уметь переходить со Stop на
+                 конкретную часть тела и отмечать её CRIPPLED") — тот же приём "прицел-уголки",
+                 что у view_wound_stop_focus/view_dead_revive_focus выше, по одному на
+                 каждую из 6 частей. Ноги — не здесь, а внутри
+                 layout_tab_status_cnd_pipboy_legs (см. ниже): их ImageView — сиблинги друг
+                 друга внутри того контейнера, а не внутри этого. -->
+            <View
+                android:id="@+id/view_crippled_head_focus"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:layout_marginBottom="-4dp"
+                android:background="@drawable/focus_corner_brackets"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/layout_tab_status_cnd_pipboy_head"
+                app:layout_constraintTop_toTopOf="@id/layout_tab_status_cnd_pipboy_head"
+                app:layout_constraintEnd_toEndOf="@id/layout_tab_status_cnd_pipboy_head"
+                app:layout_constraintBottom_toBottomOf="@id/layout_tab_status_cnd_pipboy_head" />
+
+            <View
+                android:id="@+id/view_crippled_torso_focus"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:layout_marginBottom="-4dp"
+                android:background="@drawable/focus_corner_brackets"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/img_tab_status_cnd_pipboy_torso"
+                app:layout_constraintTop_toTopOf="@id/img_tab_status_cnd_pipboy_torso"
+                app:layout_constraintEnd_toEndOf="@id/img_tab_status_cnd_pipboy_torso"
+                app:layout_constraintBottom_toBottomOf="@id/img_tab_status_cnd_pipboy_torso" />
+
+            <View
+                android:id="@+id/view_crippled_left_arm_focus"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:layout_marginBottom="-4dp"
+                android:background="@drawable/focus_corner_brackets"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/img_tab_status_cnd_pipboy_left_arm"
+                app:layout_constraintTop_toTopOf="@id/img_tab_status_cnd_pipboy_left_arm"
+                app:layout_constraintEnd_toEndOf="@id/img_tab_status_cnd_pipboy_left_arm"
+                app:layout_constraintBottom_toBottomOf="@id/img_tab_status_cnd_pipboy_left_arm" />
+
+            <View
+                android:id="@+id/view_crippled_right_arm_focus"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:layout_marginBottom="-4dp"
+                android:background="@drawable/focus_corner_brackets"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/img_tab_status_cnd_pipboy_right_arm"
+                app:layout_constraintTop_toTopOf="@id/img_tab_status_cnd_pipboy_right_arm"
+                app:layout_constraintEnd_toEndOf="@id/img_tab_status_cnd_pipboy_right_arm"
+                app:layout_constraintBottom_toBottomOf="@id/img_tab_status_cnd_pipboy_right_arm" />
 
             <TextView
                 android:id="@+id/tv_tab_status_cnd_pipboy_torso_hp_crippled"

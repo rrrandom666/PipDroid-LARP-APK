@@ -4080,6 +4080,37 @@ class MainActivity : AppCompatActivity() {
             focused,
         )
     }
+    /** Прицелы на отдельных частях тела (roadmap, этап 27 — курсор энкодера со Stop должен
+     * уметь переходить на конкретную часть тела и отмечать её CRIPPLED), тот же приём, что
+     * у [setWoundStopButtonFocused]/[setDeadReviveFocused]. [setAllCrippledFocusesHidden] —
+     * подстраховка идемпотентности при выходе из этой ветки дерева (DEAD/здоров), тот же
+     * смысл, что у существующих `setWoundStopButtonFocused(false)` в других ветках. */
+    private fun setCrippledHeadFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledHeadFocus, focused)
+    }
+    private fun setCrippledTorsoFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledTorsoFocus, focused)
+    }
+    private fun setCrippledLeftArmFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledLeftArmFocus, focused)
+    }
+    private fun setCrippledRightArmFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledRightArmFocus, focused)
+    }
+    private fun setCrippledLeftLegFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledLeftLegFocus, focused)
+    }
+    private fun setCrippledRightLegFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledRightLegFocus, focused)
+    }
+    private fun setAllCrippledFocusesHidden() {
+        setCrippledHeadFocused(false)
+        setCrippledTorsoFocused(false)
+        setCrippledLeftArmFocused(false)
+        setCrippledRightArmFocused(false)
+        setCrippledLeftLegFocused(false)
+        setCrippledRightLegFocused(false)
+    }
     /** Мгновенный флэш "нажатия" (roadmap, этап 27 — "должна срабатывать анимация нажатия,
      * такая же, как при таче", раньше играл только звук) — для непрерывных ENC-действий
      * (`+`/`-` в ValueEditor), где реальное действие не откладывается: пауза перед ним была
@@ -4104,13 +4135,17 @@ class MainActivity : AppCompatActivity() {
      * Дети узла STATUS дерева энкодера (roadmap, этап 27 — "энкодер должен переключаться на
      * Stop"). Пока таймер ранения актуален (BLEED/BANDAGE/STUNNED — те же фазы, при которых
      * видна сама кнопка Stop, см. updateWoundStatusLine()), список ранений и "В меню"
-     * недостижимы энкодером совсем — не просто задизейблены, а единственный узел здесь STOP:
-     * игрока в этот момент не волнует ничего, кроме как поскорее его остановить, не искать
-     * нужную позицию энкодером. Вне таймера/DEAD — обычный список. setWoundStopButtonFocused
-     * (false) в обычной ветке — не столько для актуального перехода (тот отдельно триггерит
-     * refreshStatusEncoderChildren() при смене woundPhase, см. startWoundTimer() и др.),
-     * сколько подстраховка идемпотентности: кнопка должна быть не "выросшей" при любой
-     * пересборке этого списка, а не только сразу после выхода из фокуса.
+     * недостижимы энкодером совсем — не просто задизейблены: единственные узлы здесь Stop и
+     * 6 частей тела (roadmap, этап 27 — "курсор должен уметь переходить со Stop на часть тела
+     * и отмечать её CRIPPLED", повторный ENCBTN снимает отметку — то же поведение, что у
+     * тапа, см. toggleCrippled*()). Порядок листания — Stop, Голова, Левая рука, Туловище,
+     * Правая рука, Левая нога, Правая нога, снова Stop (через заворот moveCursor()). Вне
+     * таймера/DEAD — обычный список. setWoundStopButtonFocused(false)/
+     * setAllCrippledFocusesHidden() в обычной ветке — не столько для актуального перехода
+     * (тот отдельно триггерит refreshStatusEncoderChildren() при смене woundPhase, см.
+     * startWoundTimer() и др.), сколько подстраховка идемпотентности: ни один прицел не
+     * должен остаться "выросшим" при любой пересборке этого списка, а не только сразу после
+     * выхода из фокуса.
      */
     private fun statusChildrenNodes(): List<MenuNode> {
         return if (woundPhase == WoundPhase.DEAD) {
@@ -4118,9 +4153,11 @@ class MainActivity : AppCompatActivity() {
             // устанавливаться на персонажа, ENCBTN = тот же жест, что тап, воскрешает".
             // reviveCharacter() — то же самое, что зовёт тач-жест (setupFigureTouchTarget),
             // без отдельного звука: у тача его тоже нет, ENCBTN не должен придумывать новый.
-            // setWoundStopButtonFocused(false) — на случай прихода в DEAD прямо из активного
-            // таймера (killCharacter() из fireWoundTimer()), где Stop только что был в фокусе.
+            // setWoundStopButtonFocused(false)/setAllCrippledFocusesHidden() — на случай
+            // прихода в DEAD прямо из активного таймера (killCharacter() из fireWoundTimer()),
+            // где один из этих прицелов только что был в фокусе.
             setWoundStopButtonFocused(false)
+            setAllCrippledFocusesHidden()
             listOf(
                 MenuNode(
                     id = "REVIVE",
@@ -4132,7 +4169,11 @@ class MainActivity : AppCompatActivity() {
             listOf(
                 MenuNode(
                     id = "STOP",
-                    onHighlight = { setWoundStopButtonFocused(true) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setAllCrippledFocusesHidden()
+                        setWoundStopButtonFocused(true)
+                    },
                     onActivate = {
                         flashButtonPressThenRun(
                             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop,
@@ -4141,11 +4182,90 @@ class MainActivity : AppCompatActivity() {
                             stopWoundTimerEarly()
                         }
                     },
-                )
+                ),
+                MenuNode(
+                    id = "BODYPART_HEAD",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledHeadFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledHead()
+                    },
+                ),
+                MenuNode(
+                    id = "BODYPART_LEFT_ARM",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledLeftArmFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledLeftArm()
+                    },
+                ),
+                MenuNode(
+                    id = "BODYPART_TORSO",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledTorsoFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledTorso()
+                    },
+                ),
+                MenuNode(
+                    id = "BODYPART_RIGHT_ARM",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledRightArmFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledRightArm()
+                    },
+                ),
+                MenuNode(
+                    id = "BODYPART_LEFT_LEG",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledLeftLegFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledLeftLeg()
+                    },
+                ),
+                MenuNode(
+                    id = "BODYPART_RIGHT_LEG",
+                    onHighlight = {
+                        playItemSelectAudio()
+                        setWoundStopButtonFocused(false)
+                        setAllCrippledFocusesHidden()
+                        setCrippledRightLegFocused(true)
+                    },
+                    onActivate = {
+                        playCNDSelectAudio()
+                        toggleCrippledRightLeg()
+                    },
+                ),
             )
         } else {
             setWoundStopButtonFocused(false)
             setDeadReviveFocused(false)
+            setAllCrippledFocusesHidden()
             statusMeta.mapIndexed { index, meta ->
                 MenuNode(
                     id = meta.key,
@@ -6174,6 +6294,12 @@ class MainActivity : AppCompatActivity() {
         cndContentSetup.btnTabStatusWoundSkip.backgroundTintList = woundAccentTint
         cndContentSetup.viewWoundStopFocus.backgroundTintList = woundAccentTint
         cndContentSetup.viewDeadReviveFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledHeadFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledTorsoFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledLeftArmFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledRightArmFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledLeftLegFocus.backgroundTintList = woundAccentTint
+        cndContentSetup.viewCrippledRightLegFocus.backgroundTintList = woundAccentTint
 
         /*
         ////////////////////////////////////////////////////////

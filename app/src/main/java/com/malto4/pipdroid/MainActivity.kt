@@ -139,24 +139,13 @@ class MainActivity : AppCompatActivity() {
     private var dateFormat_Selector = 0
     private var languageSelector = -1
     private var selected_button = R.drawable.button_selected_green
-    // Курсор списка на STATUS (roadmap, "Редизайн STATS/Status — UX-спецификация",
-    // фидбек по итогам тестирования) — толще и заметнее selected_button, применяется на
-    // строку-контейнер целиком (fill_parent), не на сам Button, поэтому ширина рамки не
-    // зависит от длины текста пункта. Меняется вместе с selected_button при смене темы.
     private var selectedRowButton = R.drawable.status_row_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
-    // Будильник (roadmap, "Часы — UX-спецификация") — один однократный, время в стенных
-    // часах (не игровых — gameCalendar подменяет только YEAR). Сбрасывается при
-    // перезапуске процесса (не сохраняется в SharedPreferences) — согласованное решение,
-    // не полноценный AlarmManager.
     private var alarmHour = 7
     private var alarmMinute = 0
     private var alarmArmed = false
     private var clockFiredRingtonePlayer: MediaPlayer? = null
-    // Таймер (roadmap, "Часы — UX-спецификация") — один, длительность настраивается
-    // колёсами, пока IDLE. Отсчёт — по целевому времени в epoch millis, не декрементом
-    // счётчика каждый тик, чтобы не копить дрейф от джиттера 300мс-цикла.
     private enum class TimerState { IDLE, RUNNING, PAUSED }
     private var timerHours = 0
     private var timerMinutes = 5
@@ -164,16 +153,10 @@ class MainActivity : AppCompatActivity() {
     private var timerState = TimerState.IDLE
     private var timerTargetEpochMillis = 0L
     private var timerRemainingSecondsAtPause = 0
-    // Секундомер (roadmap, "Часы — UX-спецификация") — старт/пауза/сброс, без кругов.
-    // Тот же приём с epoch millis, что у таймера, только считаем вверх, а не вниз.
     private enum class StopwatchState { IDLE, RUNNING, PAUSED }
     private var stopwatchState = StopwatchState.IDLE
     private var stopwatchStartEpochMillis = 0L
     private var stopwatchElapsedMillisAtPause = 0L
-    // Мелодия звонка (roadmap, "Часы — UX-спецификация") — общий трек на будильник и
-    // таймер, один слот. В отличие от состояния будильника/таймера — это скорее настройка,
-    // чем разовое состояние, поэтому персистится в SharedPreferences (как тема/имя игрока),
-    // не сбрасывается при перезапуске.
     private val selectedRingtone_SPKey = "selectedRingtoneIndex"
     private var melodyFocusedIndex = 0
     private var melodyPreviewPlayer: MediaPlayer? = null
@@ -182,16 +165,10 @@ class MainActivity : AppCompatActivity() {
      * "Единый компонент бокового меню 3 уровня"). */
     private lateinit var melodyAdapter: SidebarMenuAdapter<Int?>
 
-
-
     /***********************************************************************************************************
      * LIST DEFINITIONS
      **********************************************************************************************************/
     private var listBottomButtons = ArrayList<Button>()
-    /** Метаданные корневого меню Clock (roadmap, "Единый компонент бокового меню
-     * 3 уровня") — тот же приём, что у skillsMeta/specialMeta/statusMeta. Без action —
-     * поведение по клику решает единственный showClockContentPanel()/openClockMelodyScreen()
-     * в onSelect адаптера (см. ниже), а не отдельный лямбда-экшн на пункт. */
     private data class ClockFeatureMeta(val key: String, val labelRes: Int)
     private val clockMeta = listOf(
         ClockFeatureMeta("TIME", R.string.clock_feature_time),
@@ -201,26 +178,18 @@ class MainActivity : AppCompatActivity() {
         ClockFeatureMeta("MELODY", R.string.clock_feature_melody),
     )
     private lateinit var clockAdapter: SidebarMenuAdapter<String>
-    /** DATA/Files (roadmap, "Единый компонент бокового меню 3 уровня") — тот же приём, что у
-     * clockMeta выше: фиксированный список, боковое меню строится из SidebarMenuAdapter. */
     private data class DataFileMeta(val key: String, val nameRes: Int, val descriptionRes: Int)
     private val dataFilesMeta = listOf(
         DataFileMeta("ENTRY1", R.string.data_misc_entry1_name, R.string.data_misc_entry1_description),
         DataFileMeta("ENTRY2", R.string.data_misc_entry2_name, R.string.data_misc_entry2_description),
     )
     private lateinit var dataFilesAdapter: SidebarMenuAdapter<String>
-    // Локальное зеркало громкости радио (roadmap, этап 23) — см. RADIO_VOLUME_* в companion
-    // object и applyRadioVolumeDelta() ниже: только для отображения шкалы на этом экране, не
-    // авторитетный источник (ESP32 не подтверждает абсолютную громкость даже на реконнекте).
     private var radioVolume = RADIO_VOLUME_DEFAULT
 
     /***********************************************************************************************************
      * MEDIA PLAYERS
      **********************************************************************************************************/
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
-    // Голосовые команды (roadmap, этап 19) — свой код запроса RECORD_AUDIO, отдельный от
-    // REQUEST_CODE_PERMISSION_RECORD_AUDIO выше (тот — для визуализатора мелодии будильника,
-    // см. startMelodyPreview(); радио своего визуализатора с этапа 23 больше не имеет).
     private val REQUEST_CODE_PERMISSION_WAKE_WORD = 24
     private var wakeWordDetector: com.malto4.pipdroid.voice.WakeWordDetector? = null
     private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
@@ -228,105 +197,49 @@ class MainActivity : AppCompatActivity() {
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
     private var mediaPlayerLightOnOffList = mutableListOf<MediaPlayer>()
-    // Фоновый эмбиент живёт дольше одного проигрывания (крутится, пока его явно не остановят) —
-    // в отличие от одноразовых UI-звуков выше, ему нужно хранить ссылку на текущий MediaPlayer,
-    // а не только список для release-по-завершении.
     private var mediaPlayerBackGround: MediaPlayer? = null
 
     /***********************************************************************************************************
-     * MAP (roadmap, этап 6, п.2) — бандл (map.png/map_bounds.json/map_roads.json)
-     * импортируется в Settings (см. MapBundleRepository), сам экран карты только читает то,
-     * что уже лежит на диске, никаких сетевых проверок/разрешений (INTERNET убран).
+     * MAP
      **********************************************************************************************************/
     private val mapBundleRepository by lazy { MapBundleRepository(this) }
-    // Голосовые команды, ч.2 (roadmap, этап 21) — модель Vosk импортируется тем же
-    // SAF-принципом, что бандл карты выше, см. VoiceModelRepository.
     private val voiceModelRepository by lazy { com.malto4.pipdroid.voice.VoiceModelRepository(this) }
     private var mapGeoReference: GeoReference? = null
     private var mapLocationListener: LocationListener? = null
-    // Автоцентрирование должно сработать один раз на свежем открытии экрана карты (по
-    // первому GPS-фиксу), а не при каждом обновлении позиции — иначе кнопка "Центр" была бы
-    // бессмысленна (карту вечно тянуло бы обратно к игроку). Сбрасывается в openMapScreen().
     private var mapHasCenteredOnUser = false
     private var pedestrianRouter: PedestrianRouter? = null
     private val markerRepository by lazy { MarkerRepository(this) }
     private var markers: MutableList<MapMarker> = mutableListOf()
     private var mapMenuState = MapMenuState.ROOT
-    // Куда ведёт "Назад" из списка отметок — корень меню (вошли через "Список меток") или
-    // подменю маршрута (вошли через "До отметки"), см. showMapMenuState().
     private var mapMenuListReturnState = MapMenuState.ROOT
     private var selectedMarkerForDetail: MapMarker? = null
-    // Точка, тапнутая в режиме расстановки/редактируемая отметка — ждёт имени во всплывающей
-    // панели (inc_layout_tab_items_map_name_popup), появляется/пропадает вместе с ней.
     private var pendingMarkerLatLon: Pair<Double, Double>? = null
-    // Не null — попап работает на переименование существующей отметки (Редактировать), не на
-    // создание новой.
     private var editingMarkerId: String? = null
-    // Тап по пустой точке карты (не по маркеру, вне режима расстановки/маршрута, бэклог
-    // этапа 18) — ждёт выбора [Route]/[Marker] в layout_map_tap_choice, см. showMapTapChoice().
     private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
-    // Журнал (этап 20) — личные записи игрока, тот же паттерн хранения/UI, что у отметок
-    // карты выше.
+    /***********************************************************************************************************
+     * JOURNAL
+     **********************************************************************************************************/
     private val journalRepository by lazy { JournalRepository(this) }
     private var journalEntries: MutableList<JournalEntry> = mutableListOf()
     private var selectedJournalEntryForDetail: JournalEntry? = null
-    // Не null — попап работает на редактирование существующей записи, не на создание новой.
     private var editingJournalEntryId: String? = null
-    // Идентификатор записи, для которой сейчас открыт редактор, JOURNAL_NEW_ENTRY_SENTINEL —
-    // для новой, null — редактор закрыт (roadmap, этап 27, п.1/3/4). Отдельно от
-    // editingJournalEntryId (тот также используется в логике Save и остаётся null и для
-    // "закрыто", и для "открыт на новую запись") — нужен, чтобы showJournalEntryEditorForNew/
-    // ForEdit() были безопасны для повторного вызова: MenuNode.onHighlight вызывается на
-    // каждое перемещение ENC, в т.ч. повторно на Mic при листании Mic/Cancel/Save, и не
-    // должен каждый раз сбрасывать уже введённый текст.
     private var journalEditorOpenFor: String? = null
-    // Дети узла New Entry / Edit дерева энкодера (Mic/Cancel/Save, roadmap этап 27) — общие
-    // и для создания, и для редактирования; разные пункты бокового меню Journal (список
-    // записей) отличают эти два состояния через это же значение payload.
     private sealed class JournalSidebarEntry {
         object NewEntry : JournalSidebarEntry()
         data class Existing(val entry: JournalEntry) : JournalSidebarEntry()
         object Menu : JournalSidebarEntry()
     }
-    // Голосовой ввод записей (этап 21 п.2) — Model держится в voiceDictationService дольше
-    // одной сессии диктовки (тяжёлый объект, см. VoiceDictationService), пересоздаётся только
-    // при первом использовании после старта приложения. journalDictationState — тап 1/тап 2
-    // (старт/стоп), не push-to-talk.
     private val voiceDictationService by lazy { com.malto4.pipdroid.voice.VoiceDictationService() }
     private enum class JournalDictationState { IDLE, LOADING, LISTENING }
     private var journalDictationState = JournalDictationState.IDLE
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
-    // Settings > Bluetooth может дойти до скана в режиме Телефон, минуя мастер PipBoy
-    // 2000/3000 (единственное место, где BLUETOOTH_SCAN обычно запрашивается заранее, см.
-    // requiredPermissionsForCurrentMode()) — свой отдельный запрос, чтобы не переиспользовать
-    // permissionRequestLauncher (тот жёстко зовёт onRequiredPermissionsGranted(), это про
-    // продолжение мастера, не про этот экран).
     private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
-    // NONE — нет построенного маршрута, BUILT — построен, ждёт [Start]/[Cancel], ACTIVE —
-    // запущено следование ([Stop]), onMapLocationUpdate() пересчитывает остаток дистанции и
-    // перестраивает маршрут при отклонении. См. updateRouteControlsVisibility().
     private var mapRouteState = MapRouteState.NONE
-    // Конечная точка активного маршрута — нужна отдельно от routePx/mapRouteLatLonPath, чтобы
-    // перестраивать маршрут (rerouteActiveNavigation()) от новой позиции игрока до той же цели.
     private var mapRouteDestination: Pair<Double, Double>? = null
-    // Путь в лат/лон (не пикселях, в отличие от MapOverlayView.routePx) — нужен для
-    // haversine-расчёта остатка дистанции и порога перестроения в onMapLocationUpdate().
     private var mapRouteLatLonPath: List<Pair<Double, Double>> = emptyList()
-    // Голосовая команда "маршрут до <имя>" (roadmap, этап 21 ч.2) переключает на карту и
-    // сразу строит маршрут — но openMapScreen() асинхронно (Dispatchers.IO — декодирует
-    // битмап/граф дорог заново при КАЖДОМ входе на экран) сбрасывает mapRouteState/
-    // mapRouteLatLonPath в NONE/пусто, и эта загрузка может закончиться ПОСЛЕ того, как
-    // routeTo() уже построил и отрисовал маршрут (route.build() быстрее, если GPS/граф уже
-    // были в памяти с прошлого визита) — маршрут на экране мелькает и тут же стирается
-    // свежим сбросом. pendingMapReadyAction откладывает routeTo() до конца именно ЭТОГО
-    // захода в openMapScreen(), а не гоняет их наперегонки.
     private var pendingMapReadyAction: (() -> Unit)? = null
     private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
-    // Взведён кнопками "Поставить отметку"/"До точки на карте" (layout_tab_items_map.xml) —
-    // следующий тап по карте выполняет действие и сам снимает взвод, а не тап-и-удержание
-    // (конфликтовало бы с собственным жестовым детектором PhotoView — двойной тап там уже
-    // зум).
     private var mapTapMode = MapTapMode.NONE
     companion object {
         // Отладочная инъекция BLE-команд без реального ESP32 (roadmap, этап 7,
@@ -340,24 +253,16 @@ class MainActivity : AppCompatActivity() {
         private const val BOOT_TERMINAL_CHAR_DELAY_MS = 30L
         private const val BOOT_TERMINAL_END_HOLD_MS = 600L
         private const val BOOT_CURSOR_CHAR = "█" // █ — блочный курсор кадра 3
-        // Флейвор-текст "стены кода" — общий терминальный лор загрузки, не привязан ни
-        // к конкретному приложению-компаньону, ни к вселенной Fallout специально (см.
-        // обсуждение визуальной дистанции от Bethesda, CLAUDE.md). Один блок повторяется
-        // много раз, чтобы гарантировать высоту текста намного больше экрана при любом
-        // размере шрифта/дисплея — иначе скролл кончится раньше, чем экран проскроллит.
+        // Флейвор-текст "стены кода"
         private const val BOOT_CODEWALL_BLOCK = "* 1 0 0x0000A4 0x0000000000000000 start memory discovery\n" +
             "0 0x0000A4 0x0000000000000000 1 0 0x000014 0x0000000000000000 CPU0 starting cell\n" +
             "relocation0 0x0000A4 0x0000000000000000 1 0 0x000009 0x0000000000000000\n" +
             "CPU0 launch EFI0 0x0000A4 0x0000000000000000 1 0 0x000009 0x00000000000E003D\n" +
             "CPU0 starting EFI0 0x0000A4 0x0000000000000000 1 0 0x0000A4 0x0000000000000000\n"
         private val BOOT_CODEWALL_TEXT = BOOT_CODEWALL_BLOCK.repeat(24)
-        // Общий баннер PIP-OS — шапка и загрузочного, и выключающего терминала (см.
-        // SHUTDOWN_HEADER_PREFIX ниже), не дублируется отдельной строкой на каждый случай.
+        // Общий баннер PIP-OS
         private const val PIP_OS_BANNER = "**************** PIP-OS(R) V7.1.0.8 ****************"
-        // Терминальная печать кадра 3 — общий узнаваемый ROBCO/PIP-OS boot-текст,
-        // разлитый по всей серии игр Fallout (не решение конкретно приложения-компаньона
-        // Bethesda) — год и "DEITRIX 303" сознательно оставлены как флейвор, не завязаны
-        // на игровой год/имя игрока из Settings (см. обсуждение спеки).
+        // Терминальная печать кадра
         private const val BOOT_TERMINAL_TEXT = PIP_OS_BANNER + "\n\n" +
             "COPYRIGHT 2075 ROBCO(R)\n" +
             "LOADER V1.1\n" +
@@ -367,25 +272,17 @@ class MainActivity : AppCompatActivity() {
             "NO HOLOTAPE FOUND\n" +
             "LOAD ROM(1): DEITRIX 303"
 
-        // Глитч-эффект — короткие импульсы искажения в случайных точках всей заставки,
-        // плюс фоновый режим на всё время работы PipBoy после загрузки (см.
-        // startContinuousGlitch()) и во время "остаёмся на экране" в начале выключения.
-        // См. scheduleGlitchPulses()/triggerGlitchPulse().
+        // Глитч-эффект
         private const val BOOT_GLITCH_MIN_PULSES = 5
         private const val BOOT_GLITCH_MAX_PULSES = 8
         private const val POST_BOOT_GLITCH_MIN_PULSES = 4
         private const val POST_BOOT_GLITCH_MAX_PULSES = 6
         private const val GLITCH_PULSE_MIN_MS = 60
         private const val GLITCH_PULSE_MAX_MS = 150
-        // Интервал между импульсами в фоновом режиме (startContinuousGlitch()) — заметно
-        // реже, чем во время самой заставки, иначе это будет мешать игре, а не быть
-        // фоновой деталью экрана.
         private const val AMBIENT_GLITCH_MIN_INTERVAL_MS = 4000
         private const val AMBIENT_GLITCH_MAX_INTERVAL_MS = 12000
 
-        // Анимация выключения (roadmap, "Видение приложения", п.11 — довесок). См.
-        // playShutdownSequence(). Тайминги/пулы глитча переиспользуют константы выше —
-        // окно по длительности близко к POST_BOOT_GLITCH_*, отдельных не заводим.
+        // Анимация выключения
         private const val SHUTDOWN_STAY_DURATION_MS = 2000L
         private const val SHUTDOWN_FADE_TO_BLACK_MS = 500L
         private const val SHUTDOWN_FINAL_FADE_MS = 500L
@@ -394,15 +291,11 @@ class MainActivity : AppCompatActivity() {
             "DUMPING MEMORY...\n" +
             "DISCONNECTING..."
 
-        // Система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
-        // UX-спецификация") — длительности BLEED/BANDAGE и STUNNED.
+        // Система ранений/кровотечения
         private const val WOUND_BLEED_BANDAGE_DURATION_SECONDS = 600
         private const val STUN_DURATION_SECONDS = 300
 
-        // Восстановление состояния после убийства процесса в фоне (roadmap, "Восстановление
-        // состояния после убийства процесса — спецификация") — ключи onSaveInstanceState()/
-        // onCreate(savedInstanceState). savedInstanceState != null — сигнал именно этого
-        // случая, не обычного холодного старта (см. спеку — Bundle, не SharedPreferences).
+        // Восстановление состояния после убийства процесса в фоне
         private const val KEY_CUR_MENU = "restore_curMenu"
         private const val KEY_ROOT_CURSOR = "restore_rootCursor"
         private const val KEY_PIPBOY_MODE = "restore_pipBoyMode"
@@ -419,57 +312,29 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
         private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
 
-        // Пункт "В меню" в боковых списках Status/SPECIAL/Skills (roadmap, этап 27 — находка
-        // "нет способа подняться из третьего уровня") — payload гарантированно не совпадает
-        // ни с одним реальным key из statusMeta/specialMeta/skillsMeta.
+        // Пункт "В меню" в боковых списках
         private const val SIDEBAR_BACK_PAYLOAD = "BACK"
 
-        // journalEditorOpenFor (roadmap, этап 27, п.1/3/4) — реальный id записи занят
-        // настоящими UUID (JournalEntry.id), эта строка с ними никогда не совпадёт.
+        // journalEditorOpenFor
         private const val JOURNAL_NEW_ENTRY_SENTINEL = "JOURNAL_NEW_ENTRY"
 
-        // Прокрутка длинной записи энкодером (roadmap, этап 27 — Files/Perks) — шаг одного
-        // деления ENC, подобран "на глаз" как пара строк текста, не привязан к реальной
-        // высоте строки (шрифт/масштаб экрана могут отличаться).
+        // Прокрутка длинной записи энкодером
         private const val SIDEBAR_RECORD_SCROLL_STEP_DP = 60f
 
-        // Карта — бэклог этапа 18 (зум, тап по маркеру/точке, следование по маршруту).
+        // Карта
         private const val MAP_ZOOM_STEP_FACTOR = 1.4f
-        // Радиус попадания тапа по маркеру — в dp, не в пикселях битмапа: сравнение идёт в
-        // экранных координатах через текущую displayMatrix PhotoView, иначе при сильном зуме
-        // радиус захвата "плавал" бы вместе с масштабом карты.
         private const val MAP_MARKER_TAP_RADIUS_DP = 28f
-        // Порог отклонения от маршрута (метры), после которого onMapLocationUpdate()
-        // перестраивает маршрут заново от текущей позиции — не 0: граф дорог даёт узлы не
-        // чаще чем через несколько метров, точное совпадение GPS-точки с узлом нереалистично.
         private const val MAP_ROUTE_REROUTE_THRESHOLD_M = 30.0
 
-        // Счётчик радиации (roadmap, этап 22; протокол, раздел 3.4) — смертельная доза,
-        // выше которой накопление фиксируется и дальше не растёт до сброса игроком.
+        // Счётчик радиации
         private const val GEIGER_LETHAL_DOSE_RAD = 1000
-        // Отметки 0 и 1000 рад на rad_scale2.png — не края картинки (0.0/1.0), а
-        // вертикальная грань каждого из двух треугольников на самом рисунке, измерено
-        // по пикселям: x=224/900 и x=857/900. Используются и для стрелки (см.
-        // updateGeigerDoseDisplay), и для bias подписей "500"/"1000" в
-        // layout_tab_items_geiger.xml — если картинку перерисуют ещё раз со сдвинутыми
-        // треугольниками, поправить нужно во всех трёх местах разом.
         private const val GEIGER_SCALE_START_BIAS = 0.2489f
         private const val GEIGER_SCALE_END_BIAS = 0.9522f
 
-        // Реальное радио (roadmap, этап 23; протокол, разделы 3.2/3.3) — громкость приходит
-        // от ESP32 только дельтами (VOLUME:±N), без абсолютного подтверждения (в отличие от
-        // RADIOPWR/RADIOFREQ у ESP32 нет пересылки текущей громкости на реконнект), поэтому
-        // диапазон и дефолт — чисто экранное представление на телефоне, не зеркало реального
-        // регистра RDA5807M.
+        // Реальное радио
         private const val RADIO_VOLUME_MIN = 0
         private const val RADIO_VOLUME_MAX = 100
         private const val RADIO_VOLUME_DEFAULT = 50
-        // RADIOPWR:1 — энкодер тюнинга даёт только дельты, у самого RDA5807M нет понятия
-        // "запомненная волна", поэтому именно телефон при включении радио решает, куда
-        // настроиться, и явно шлёт RADIOFREQ на ESP32 (см. applyRadioPowerState()): 99.9 МГц
-        // при самом первом включении за всё время, иначе — последняя волна, на которой
-        // радио реально слушали (radioLastFrequency_SPKey, обновляется в
-        // updateRadioFrequencyDisplay() при каждом подтверждённом RADIOFREQ от ESP32).
         private const val RADIO_FREQUENCY_DEFAULT = 999
     }
 
@@ -496,10 +361,7 @@ class MainActivity : AppCompatActivity() {
     }
     private var debugCommandReceiver: BroadcastReceiver? = null
     /**
-     * Пускает строки в тот же handleBleCommand(), что и реальный ESP32 по BLE — только
-     * источник команды заменён на adb broadcast с компьютера (roadmap, этап 7, "быстрая
-     * отладка логики экранов" вместо программной эмуляции самой BLE-периферии). Только
-     * debug-сборки — в релизе приёмник не регистрируется и адрес недостижим.
+     * Пускает строки в тот же handleBleCommand(), что и реальный ESP32 по BLE
      *
      * adb shell am broadcast -p com.malto4.pipdroid -a com.malto4.pipdroid.DEBUG_BLE_COMMAND --es raw "ENC:+1"
      */
@@ -524,10 +386,6 @@ class MainActivity : AppCompatActivity() {
     private val permissionRequestLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Системный диалог разрешений закрылся — убираем временный fullscreen (см.
-        // checkPermissions()), возвращаемся к области, настроенной игроком на шаге
-        // DISPLAY AREA мастера (актуально, только пока идёт мастер; вне его loadViewState()
-        // просто переприменит то же самое, что уже есть).
         loadViewState()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S){
             val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
@@ -548,12 +406,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /**
-     * Системный диалог "Разрешить приложению включить Bluetooth?" (ACTION_REQUEST_ENABLE) —
-     * roadmap, чтобы игроку не приходилось отдельно идти в системные настройки телефона,
-     * если Bluetooth выключен. Не проверяем resultCode отдельно: включился адаптер (OK) или
-     * нет (отказ/закрыл диалог) — setupBluetooth() сам перепроверит adapter.isEnabled и
-     * либо продолжит (requestIgnoreBatteryOptimizations + startAndBindBleService), либо
-     * просто залогирует и остановится, как и раньше.
+     * Системный диалог "Разрешить приложению включить Bluetooth?"
      */
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -561,10 +414,7 @@ class MainActivity : AppCompatActivity() {
         setupBluetooth()
     }
     /**
-     * Импорт бандла карты (Settings > Map, roadmap, ветка app-map) — SAF-пикер папки.
-     * Требует API 21 (minSdk поднят 19->21 именно из-за этого, см. build.gradle). Само
-     * копирование — MapBundleRepository.importFromTree() на IO-потоке, результат идёт в
-     * статус/строку ошибки раздела.
+     * Импорт бандла карты
      */
     private val openMapBundleTreeLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -584,13 +434,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /**
-     * Импорт офлайн-модели Vosk (Settings > Voice Commands, roadmap, этап 21) — SAF-пикер
-     * одного .zip-файла (не папки, в отличие от бандла карты — модель Vosk обычно
-     * распространяется уже упакованной). Само копирование/распаковка —
-     * VoiceModelRepository.importFromZip() на IO-потоке, результат идёт в статус/строку
-     * ошибки раздела. После успешного импорта заново пробуем поднять прослушивание
-     * будческого слова (startWakeWordIfPermitted()) — до этого его не было смысла слушать,
-     * см. её комментарий.
+     * Импорт офлайн-модели Vosk
      */
     private val openVoiceModelZipLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -611,9 +455,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun onRequiredPermissionsGranted() {
-        // Если разрешения выдавались с шага PERMISSIONS мастера — режим Телефон
-        // заканчивает флоу сразу (BLE-корпус не используется), PipBoy 2000/3000 ведёт
-        // дальше, к сопряжению с корпусом, не заставляя жать что-то ещё.
         val wizard = bindingMain.incLayoutPipboy2000Wizard
         val fromWizardPermissions = wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE
         if (fromWizardPermissions && pipBoyMode == PipBoyMode.PHONE) {
@@ -664,10 +505,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var filteringMenu: String
     private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
     private var selectedFilterDATAMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    // Снимок selectedFilterSTATSPerks на момент открытия экрана (roadmap, "Редизайн экрана
-    // фильтра — UX-спецификация") — чекбоксы мутируют selectedFilterSTATSPerks сразу по
-    // тапу, ещё до Save; Cancel должен откатить эти правки, иначе при повторном открытии
-    // экрана (без рестарта приложения) будут видны несохранённые правки прошлой сессии.
     private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
 
     /***********************************************************************************************************
@@ -681,10 +518,7 @@ class MainActivity : AppCompatActivity() {
     private var delayModify = 500L
 
     /***********************************************************************************************************
-     * STATUS — система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
-     * UX-спецификация"). woundPhase/woundSeverity — единый источник истины, одновременно
-     * "что сейчас с персонажем" и "на что таймер" (timerState/timerTargetEpochMillis,
-     * общий таймер, реализован на этапе "Часы" — переиспользуется, не отдельный механизм).
+     * STATUS
      **********************************************************************************************************/
     private enum class WoundPhase { NONE, BLEED, BANDAGE, STUNNED, DEAD }
     private enum class WoundSeverity { LIGHT, HEAVY }
@@ -698,9 +532,6 @@ class MainActivity : AppCompatActivity() {
     private var crippledRightLeg = false
 
     private var selectedSPECIAL = "STRENGTH"
-    // Кнопки +/- (roadmap, "Финализация STATS") — действуют на выбранный selectedSPECIAL/
-    // selectedSKILL, не на конкретную строку, поэтому один общий флаг на весь экран
-    // достаточен (в отличие от старой схемы с отдельным флагом на каждый атрибут/навык).
     private var isSPECIALValueIncreasing = false
     private var isSPECIALValueDecreasing = false
 
@@ -728,10 +559,8 @@ class MainActivity : AppCompatActivity() {
     private var isSKILLValueIncreasing = false
     private var isSKILLValueDecreasing = false
 
-    /** Метаданные 13 навыков Skills (roadmap, "Единый компонент бокового меню 3 уровня") —
-     * раньше были размазаны по XML (13 hand-copied блоков) + 13 setOnClickListener, теперь
-     * единственный источник, из которого строится SidebarMenuAdapter. Порядок совпадает с
-     * прежним порядком XML-блоков/skillsNode — дерево энкодера ожидает тот же порядок. */
+    /** Метаданные 13 навыков Skills
+     */
     private data class SkillMeta(
         val key: String,
         val labelRes: Int,
@@ -756,12 +585,7 @@ class MainActivity : AppCompatActivity() {
     )
     private lateinit var skillsAdapter: SidebarMenuAdapter<String>
 
-    // Perks (roadmap, этап 27 — энкодер-эргономика) — раньше adapter был локальным val
-    // внутри STATSPerksSetup(), пересоздавался при каждом вызове и никуда не сохранялся;
-    // теперь нужен снаружи (statsMenuRoot()), чтобы дерево энкодера могло провалиться в
-    // список перков так же, как в SPECIAL/Skills. perksRealItemCount — количество реальных
-    // перков без учёта дописанного "В меню" (список фильтруется, длина не фиксирована, в
-    // отличие от statusMeta/specialMeta/skillsMeta).
+    // Perks
     private lateinit var perksAdapter: SidebarMenuAdapter<Map<String, String>>
     private var perksRealItemCount = 0
 
@@ -769,12 +593,7 @@ class MainActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     // 300мс-тик (часы/будильник/таймер/секундомер) — заведён в onCreate(), ссылка нужна
-    // здесь, чтобы onDestroy() мог его остановить. Раньше был локальной переменной внутри
-    // onCreate() и никогда не прерывался — при пересоздании Activity (MIUI регулярно
-    // пересоздаёт её при блокировке/разблокировке экрана, подтверждено логом) старый поток
-    // продолжал тикать по отвязанному bindingMain и мог всё ещё довести таймер ранения до
-    // срабатывания: звук стартовал (MediaPlayer не привязан к View), а оверлей с [Стоп]
-    // показать было уже некому — принадлежал уничтоженному экрану.
+    // здесь, чтобы onDestroy() мог его остановить.
     private var tickThread: Thread? = null
     private val longPressRunnable = object : Runnable {
         override fun run() {
@@ -821,11 +640,7 @@ class MainActivity : AppCompatActivity() {
     private var curMenu = "STATS"
 
     /**
-     * Строка 2 новой шапки (roadmap, "Новая шапка + единый Settings", косметика по образцу
-     * референса) — [label] и [onSelect] берутся с уже существующих кнопок второго уровня
-     * (btnStatsStatus и т.д., см. statsRow2Items()/dataRow2Items()) — эти
-     * кнопки остаются в дереве навсегда GONE, реальная логика переключения экрана (их
-     * onClickListener) не трогается вообще.
+     * Строка 2 новой шапки
      */
     private data class Row2Item(val label: CharSequence, val onSelect: () -> Unit)
     private var row2Items: List<Row2Item> = emptyList()
@@ -914,30 +729,12 @@ class MainActivity : AppCompatActivity() {
     /***********************************************************************************************************
      * ГОЛОСОВЫЕ КОМАНДЫ / WAKE-WORD (roadmap, этап 19/21)
      **********************************************************************************************************/
-    /**
-     * Слушает постоянно, пока Activity жива — без сервиса/фонового режима, без привязки к
-     * режиму работы (Телефон/PipBoy) и без настройки-переключателя, это ещё не готовая фича,
-     * а тестовый конвейер (roadmap, этап 21 п.4 — первая тестовая команда "лёгкое ранение").
-     * Отдельного тумблера в Settings нет и не планируется (roadmap, "Редизайн Settings") —
-     * вместо этого слушать вообще нет смысла, пока не импортирована модель Vosk (см.
-     * startWakeWordIfPermitted()), это и есть вся "настройка".
-     */
     private fun initWakeWordDetector() {
         wakeWordDetector = com.malto4.pipdroid.voice.WakeWordDetector(this) {
             runOnUiThread { onWakeWordTriggered() }
         }
         startWakeWordIfPermitted()
     }
-    /**
-     * Без импортированной модели Vosk будческое слово всё равно не приведёт ни к чему
-     * (onWakeWordTriggered() ниже сам проверяет hasModel() и молча выходит) — раньше от
-     * этого детектор всё равно постоянно слушал микрофон вхолостую. Гейтинг здесь же, до
-     * старта потока/запроса разрешения — voiceModelRepository.hasModel() дёшев
-     * (SharedPreferences), лишний раз спрашивать RECORD_AUDIO тоже смысла нет, если слушать
-     * пока нечем. Вызывается повторно из openVoiceModelZipLauncher после успешного импорта —
-     * start() у WakeWordDetector идемпотентен (if (running) return), поэтому безопасно звать
-     * ещё раз, если что-то уже слушает.
-     */
     private fun startWakeWordIfPermitted() {
         if (!voiceModelRepository.hasModel()) return
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -946,23 +743,6 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_WAKE_WORD)
         }
     }
-    // Тестовая реализация одной команды (roadmap, этап 21 п.4) — "Пип-бой, лёгкое ранение".
-    // Список команд (п.3 плана) и разбор по словарю — следующий, более общий шаг; сейчас
-    // сознательно один захардкоженный матч, чтобы проверить весь конвейер будческое слово ->
-    // Vosk -> действие на реальном устройстве, прежде чем обобщать на несколько команд.
-    //
-    // НЕ пересоздаёт AudioRecord (см. VoiceDictationService.startCommandRecognition()) —
-    // WakeWordDetector никогда не останавливается, чанки после срабатывания идут туда же,
-    // откуда их и так читает будческое слово (armCommandSink/disarmCommandSink). Находка 1:
-    // старая версия (через startListening()/SpeechService, отдельный AudioRecord)
-    // систематически обрезала/искажала первое слово команды при слитной речи сразу после
-    // "Пип-бой" — на стыке остановки одного AudioRecord и старта другого реальное железо не
-    // успевало переключиться мгновенно. Находка 2 (уже после фикса №1, тот же симптом никуда
-    // не делся): armCommandSink() сам прогоняет pre-roll буфер WakeWordDetector (~2с) перед
-    // живым потоком — проблема была не в переключении микрофона, а в задержке самого
-    // детектора (пока классификатор наберёт контекст для уверенного срабатывания, игрок уже
-    // договаривает будческое слово и начинает следующее — эта часть звука без pre-roll
-    // никуда не попадала).
     private var awaitingVoiceCommand = false
     private val voiceCommandTimeoutHandler = Handler(Looper.getMainLooper())
     private val voiceCommandTimeoutRunnable = Runnable {
@@ -1003,10 +783,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun beginVoiceCommandListening() {
         voiceDictationService.startCommandRecognition()
-        // Дедупликация partial-лога по значению — та же строка иначе печатается на каждый
-        // чанк (каждые 80мс), пока Vosk не поменяет гипотезу, лишняя нагрузка ровно на том
-        // потоке (WakeWordCapture), который и так стараемся не перегружать (см. captureLoop()
-        // в WakeWordDetector — классификатор на время команды отключён по той же причине).
+        // Дедупликация partial-лога по значению
         var lastLoggedPartial = ""
         wakeWordDetector?.armCommandSink { chunk, len ->
             val chunkResult = voiceDictationService.feedCommandAudio(chunk, len)
@@ -1019,14 +796,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    /** Полный словарь голосовых команд (roadmap, этап 21 ч.2). Нормализация — нижний
-     * регистр + ё->е (STT нередко теряет ё). Матч по вхождению, не точному равенству —
-     * реплика может прийти с лишними словами вокруг, раздельно по стеблям (не по фразе
-     * целиком) — устойчивее к падежным окончаниям ("лёгкое"/"лёгкого", "ранение"/
-     * "ранения"), см. находку про редукцию в roadmap. Последовательные проверки, первое
-     * совпадение выигрывает — порядок важен там, где один стебель — подстрока фразы
-     * другой команды ("маршрут" внутри "отменить маршрут", "таймер" в двух разных
-     * командах).
+    /** Полный словарь голосовых команд
      */
     private fun handleVoiceCommandText(text: String) {
         if (!awaitingVoiceCommand) return
@@ -1075,10 +845,6 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text)
             return
         }
-        // Таймер ранения ничем не отличается от обычного (roadmap, этап 21 ч.2) — общий
-        // "стоп"/"пауза" на общем timerState/resetTimer()/pauseResumeTimer(), без отдельной
-        // voice-команды на именно таймер ранения. "Стоп"/"пауза" проверяются раньше "таймер
-        // N минут" — обе фразы содержат слово "таймер".
         if (normalized.contains("таймер") && (normalized.contains("стоп") || normalized.contains("останов"))) {
             playNewTabSelectAudio()
             resetTimer()
@@ -1096,10 +862,6 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text)
             return
         }
-        // Таймер с произвольным числом минут — разбор чисел из речи Vosk (parseRussianNumber(),
-        // самая сложная часть словаря). Отказ, если уже что-то тикает (в т.ч. таймер
-        // ранения) — так же, как кнопка [Старт] физически недоступна, пока видна
-        // Running-панель.
         if (normalized.contains("таймер") && normalized.contains("минут")) {
             val minutes = parseRussianNumber(normalized)
             if (minutes == null || minutes <= 0 || timerState != TimerState.IDLE) {
@@ -1111,11 +873,6 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text)
             return
         }
-        // Карта — маршрут: отмена проверяется раньше построения (обе фразы содержат
-        // "маршрут"). Имя отметки сверяется по стеблю (russianStem()), не по буквальному
-        // вхождению — имя ставит игрок в именительном падеже ("Убежище"), а называет его
-        // потом в любом другом ("до убежища") — неоднозначность (0 или больше 1
-        // совпадения) трактуется как нераспознанная команда, а не угадывается.
         if (normalized.contains("маршрут")) {
             if (normalized.contains("отмен")) {
                 playNewTabSelectAudio()
@@ -1130,10 +887,6 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     playItemSelectAudio()
                     val destination = candidates[0]
-                    // Отложено до конца ИМЕННО этого захода на экран карты — см.
-                    // pendingMapReadyAction, иначе асинхронный сброс внутри openMapScreen()
-                    // стирает только что построенный маршрут (найдено на реальном
-                    // устройстве — маршрут мелькал и тут же исчезал).
                     pendingMapReadyAction = { routeTo(destination.lat, destination.lon) }
                     navigateToItemsSection("MAP")
                 }
@@ -1141,7 +894,7 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text)
             return
         }
-        // Журнал — новая запись (проверяется раньше голой навигации на "журнал" ниже).
+        // Журнал — новая запись
         if (normalized.contains("нов") && normalized.contains("запис")) {
             playItemSelectAudio()
             navigateToItemsSection("JOURNAL")
@@ -1149,8 +902,7 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text)
             return
         }
-        // Навигация по разделам/экранам — звук уже играет сама цепочка performClick()/
-        // menuOptionClickedBLE(), отдельно вызывать не нужно (см. navigateToItemsSection()).
+        // Навигация по разделам/экранам
         if (normalized.contains("статус")) {
             menuChangeBLE("STATS"); menuNavigator.resetToRoot(statsMenuRoot())
             finishVoiceCommand(text); return
@@ -1186,12 +938,8 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text); return
         }
     }
-    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>" — текстовых меток на
-     * самой фигуре нет (только картинка), стебли придуманы с нуля под голосовую команду.
-     * Принцип зеркала (фидбек по итогам тестирования на реальном устройстве) — фигура на
-     * STATUS смотрит на игрока, поэтому "своя" правая рука игрока — это `setCrippledLeftArm`
-     * (левая часть экрана, `img_..._left_arm`, bias 0.08 в разметке) и наоборот: код-имя
-     * `Left`/`Right` — это сторона экрана, а не сторона тела, которую называет игрок. */
+    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>"
+     */
     private fun matchBodyPartSetter(normalized: String): ((Boolean) -> Unit)? = when {
         normalized.contains("голов") -> ::setCrippledHead
         normalized.contains("торс") || normalized.contains("груд") || normalized.contains("тулов") -> ::setCrippledTorso
@@ -1201,11 +949,8 @@ class MainActivity : AppCompatActivity() {
         normalized.contains("ног") && normalized.contains("прав") -> ::setCrippledLeftLeg
         else -> null
     }
-    /** Разбор произвольного числа минут из речи (roadmap, этап 21 ч.2, "самое сложное") —
-     * маленькая модель Vosk не делает inverse text normalization, числа приходят словами,
-     * не цифрами. Покрывает 1-59 (реальный диапазон значений таймера) — этого достаточно.
-     * Цифры (`\d+`) проверяются первыми на случай, если конкретная сборка модели их всё же
-     * возвращает. */
+    /** Разбор произвольного числа минут из речи
+     */
     private fun parseRussianNumber(text: String): Int? {
         Regex("\\d+").find(text)?.value?.toIntOrNull()?.let { return it }
         val units = mapOf(
@@ -1227,9 +972,7 @@ class MainActivity : AppCompatActivity() {
         return null
     }
     /** Переключение на один из top-level узлов ITEMS/МОДУЛИ по символическому id узла
-     * ([MenuNode.id] в [itemsMenuRoot]) — тот же путь, что и BLE-команды/восстановление
-     * состояния ([MenuNavigator.resetToRootAtIndex]), а не отдельный набор performClick()
-     * в обход дерева навигации (курсор энкодера иначе рассинхронизировался бы). */
+     */
     private fun navigateToItemsSection(nodeId: String) {
         val roots = itemsMenuRoot()
         val index = roots.indexOfFirst { it.id == nodeId }
@@ -1238,13 +981,7 @@ class MainActivity : AppCompatActivity() {
         menuNavigator.resetToRootAtIndex(roots, index)
     }
     private val ROUTE_FILLER_WORDS = setOf("до", "к", "на", "в")
-    /** Сопоставление имени отметки с запросом голосовой команды "маршрут до <имя>" — по
-     * стеблю ([russianStem]), не по буквальному вхождению целиком: игрок ставит имя
-     * отметки в именительном падеже ("Убежище"), а называет его потом в любом другом
-     * ("маршрут до убежищ*а*") — точное совпадение регулярно ломалось на падежных
-     * окончаниях (найдено на реальном устройстве). Каждое слово запроса должно найтись
-     * (по стеблю, в любую сторону) среди слов имени отметки — так работает и частичный
-     * запрос (одно слово из многословного имени), и запрос длиннее имени отметки.
+    /** Сопоставление имени отметки с запросом голосовой команды
      */
     private fun matchesMarkerQuery(queryTokens: List<String>, markerName: String): Boolean {
         if (queryTokens.isEmpty()) return false
@@ -1255,11 +992,8 @@ class MainActivity : AppCompatActivity() {
             markerStems.any { markerStem -> markerStem.contains(queryStem) || queryStem.contains(markerStem) }
         }
     }
-    /** Лёгкий стеммер под конкретную задачу (не полноценная морфология) — срезает самое
-     * частое падежное окончание существительного/прилагательного, если после среза
-     * остаётся не меньше 3 букв (иначе короткие слова теряют смысл, "дом"/"дым" не
-     * должны схлопнуться в одно и то же). Длинные окончания проверяются раньше коротких,
-     * чтобы не срезать только последнюю букву там, где есть более точное совпадение. */
+    /** Лёгкий стеммер
+     */
     private fun russianStem(word: String): String {
         val suffixes = listOf(
             "иями", "иях", "ями", "ами", "его", "ого", "ему", "ому", "ыми", "ими",
@@ -1285,19 +1019,11 @@ class MainActivity : AppCompatActivity() {
         if (!matched) {
             Toast.makeText(this, getString(R.string.voice_command_not_recognized), Toast.LENGTH_SHORT).show()
         }
-        // WakeWordDetector никогда не останавливался (см. класс-doc выше) — заново
-        // запускать/запрашивать разрешение здесь не нужно.
     }
 
     /***********************************************************************************************************
      * BLUETOOTH
      **********************************************************************************************************/
-    /**
-     * Список разрешений зависит от режима (roadmap, "Косметические правки мастера" — экран
-     * PERMISSIONS раньше вообще не показывался в режиме Телефон, хотя геопозиция и
-     * уведомления нужны и там). Bluetooth (SCAN/CONNECT) — только для PipBoy 2000/3000,
-     * в Телефоне BLE-корпус не используется вовсе.
-     */
     private fun requiredPermissionsForCurrentMode(): List<String> = buildList {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
         if (pipBoyMode != PipBoyMode.PHONE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1314,9 +1040,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            // Системный диалог разрешений должен физически поместиться на экране — на миг
-            // разворачиваемся на весь экран, сворачиваемся обратно в колбэке
-            // permissionRequestLauncher выше сразу после закрытия диалога.
             applyTemporaryFullScreenLayout()
             permissionRequestLauncher.launch(permissionsToRequest.toTypedArray())
         } else if (pipBoyMode != PipBoyMode.PHONE) {
@@ -1331,10 +1054,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (!adapter.isEnabled) {
-            // Просим включить Bluetooth прямо в приложении, не заставляя игрока идти в
-            // системные настройки — см. enableBluetoothLauncher. На API 31+ для показа
-            // этого диалога нужен уже выданный BLUETOOTH_CONNECT — все вызывающие
-            // setupBluetooth() места идут после подтверждения разрешений (проверено).
             enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             return
         }
@@ -1346,8 +1065,8 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, intent)
         bindService(intent, bleServiceConnection, Context.BIND_AUTO_CREATE)
     }
-    /** Не обязательное разрешение, а рекомендация системы — без него агрессивные
-     * вендоры (Xiaomi/Huawei) убивают фоновую BLE-связь за минуты (протокол, раздел 5). */
+    /** Не обязательное разрешение, а рекомендация системы
+     */
     private fun requestIgnoreBatteryOptimizations() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
@@ -1393,19 +1112,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Экран выбора режима (roadmap, "Видение приложения", п.1) — показывается первым при
-     * каждом запуске (не только на первой установке), поверх буквально всего. PipBoy 3000
-     * кликабелен только для показа описания, реально не выбирается — заглушка на будущее.
+     * Экран выбора режима
      */
     private var modeSelectHighlighted = PipBoyMode.PHONE
     private val modeSelectList = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000)
     private lateinit var modeSelectAdapter: SidebarMenuAdapter<PipBoyMode>
 
     /**
-     * Акцентный цвет текущей темы оформления (playerUIColour_SPKey — тот же ключ, что и у
-     * applyBackgroundResource()/applyTextColor() для остального интерфейса). Кнопки нового
-     * стиля тонируются им же, а не жёстко зелёным, чтобы смена темы в Settings подхватывалась
-     * и мастером/экраном выбора режима.
+     * Акцентный цвет текущей темы оформления
      */
     private fun currentWizardAccentColor(): Int {
         val colorRes = when (sharedPreferences.getInt(playerUIColour_SPKey, 0)) {
@@ -1416,20 +1130,6 @@ class MainActivity : AppCompatActivity() {
         }
         return ContextCompat.getColor(this, colorRes)
     }
-    /**
-     * Ручное управление видом кнопок нового стиля (roadmap, косметические правки —
-     * "кнопки должны быть кнопками", активна/неактивна/выбрана должны визуально
-     * отличаться). Это и есть тот переиспользуемый "класс": не State­ListDrawable — на
-     * реальном устройстве state_activated и пустой catch-all item селектора не
-     * подхватывались (проверено, см. историю правок), поэтому фон и цвет текста
-     * переключаются явно кодом при каждой смене состояния. Нажатие — отдельно, системный
-     * ripple через android:foreground в PipWizardButtonStyle, не через эти функции.
-     *
-     * backgroundTintList тут — уже не обход бага (AppCompat раньше сам тянул его от
-     * colorPrimary поверх нашего drawable, см. историю правок), а осознанное тонирование:
-     * сами drawable (pip_wizard_button_bg_*) нейтрального цвета, реальный акцент даёт этот
-     * тинт, поэтому смена темы красит и мод-селект, и мастер, без 4 копий каждого drawable.
-     */
     private fun setWizardButtonState(button: Button, selected: Boolean) {
         val accent = currentWizardAccentColor()
         button.backgroundTintList = ColorStateList.valueOf(accent)
@@ -1447,11 +1147,6 @@ class MainActivity : AppCompatActivity() {
         button.setBackgroundResource(R.drawable.pip_wizard_button_bg_disabled)
         button.setTextColor(ColorUtils.setAlphaComponent(accent, 0x4D))
     }
-    /**
-     * Кнопки в вертикальном столбце (wrap_content каждая) иначе "скачут" по ширине вслед
-     * за длиной своего текста/локали — измеряем натуральную ширину каждой (без реального
-     * layout-прохода, unspecified spec) и растягиваем все под самую широкую.
-     */
     private fun equalizeButtonWidths(vararg buttons: Button) {
         val widest = buttons.maxOf {
             it.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
@@ -1459,12 +1154,6 @@ class MainActivity : AppCompatActivity() {
         }
         buttons.forEach { it.layoutParams = it.layoutParams.apply { width = widest } }
     }
-    /**
-     * Раньше была локальной функцией внутри setupModeSelectScreen() — вынесена в метод,
-     * т.к. теперь есть второй вызывающий: openModeSelectScreen() (кнопка "Изменить" в
-     * Settings, roadmap — "Режим работы" вместо легаси Screen Resize), которому нужно
-     * заранее подсветить именно текущий активный режим, а не всегда PHONE.
-     */
     private fun showModeDescription(mode: PipBoyMode) {
         val ms = bindingMain.incLayoutTabModeSelect
         modeSelectHighlighted = mode
@@ -1473,10 +1162,6 @@ class MainActivity : AppCompatActivity() {
             PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
             PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
         }
-        // Подсветка выбранного пункта — SidebarMenuAdapter (roadmap, "Единый компонент
-        // бокового меню 3 уровня"). Молча — либо это восстановление состояния при
-        // openModeSelectScreen() (не выбор игрока), либо звук уже сыграл сам адаптер
-        // (playSelectSound) перед тем, как позвать сюда через onSelect.
         val modeIndex = modeSelectList.indexOf(mode)
         if (modeIndex >= 0) modeSelectAdapter.setSelectedPositionSilently(modeIndex)
         // PipBoy 3000 пока нельзя выбрать — можно только прочитать описание. Кнопка
@@ -1487,32 +1172,15 @@ class MainActivity : AppCompatActivity() {
             setWizardButtonDisabled(ms.btnModeSelectConfirm)
         }
     }
-    /**
-     * Человекочитаемое название режима — переиспользует те же строки, что и кнопки
-     * экрана выбора режима, чтобы подпись в Settings ("Режим работы: ...") не расходилась
-     * с тем, что игрок видит на самом экране выбора.
-     */
     private fun pipBoyModeDisplayName(mode: PipBoyMode): String = when (mode) {
         PipBoyMode.PHONE -> getString(R.string.mode_phone)
         PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_pipboy_2000)
         PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_pipboy_3000)
     }
-    /**
-     * Строка "Режим работы: <текущий режим>" в Settings (roadmap, косметические правки —
-     * заменили легаси Screen Resize) — обновляется и при первой загрузке значений
-     * настроек, и сразу после реального выбора режима в selectPipBoyMode(), чтобы не
-     * требовать перезапуска приложения для отражения смены режима.
-     */
     private fun refreshModeSettingsLabel() {
         val label = "${getString(R.string.settings_4_name)} ${pipBoyModeDisplayName(pipBoyMode)}"
         bindingMain.incLayoutSettingsGlobal.tvSettings4.text = label
     }
-    /**
-     * Точка входа в "Режим работы" из Settings (кнопка "Изменить") — по выбору пользователя
-     * (roadmap, косметические правки) весь поток идёт с самого начала, ровно как при первом
-     * запуске приложения: экран выбора режима -> (для PipBoy 2000/3000) весь мастер заново.
-     * Подсвечиваем сразу текущий активный режим, а не всегда "Телефон".
-     */
     private fun openModeSelectScreen() {
         showModeDescription(pipBoyMode)
         bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
@@ -1520,12 +1188,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
 
-        // Текст описания — тоже акцентом текущей темы, не жёстко зелёным (смысл темы —
-        // красить весь экран, не только кнопки, см. currentWizardAccentColor()).
         ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
 
-        // Список режимов — единый компонент бокового меню 3 уровня (roadmap), тот же
-        // приём, что у Perks/Status/SPECIAL/Skills/Clock/Map.
         ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
         modeSelectAdapter = SidebarMenuAdapter(
             items = modeSelectList.map { mode -> SidebarMenuItem(payload = mode, label = pipBoyModeDisplayName(mode)) },
@@ -1545,17 +1209,6 @@ class MainActivity : AppCompatActivity() {
             selectPipBoyMode(modeSelectHighlighted)
         }
     }
-    /**
-     * Разделы, которым физически требуется корпус с ESP32 (roadmap, этап 23 — обнаружено на
-     * RADIO, но касается любой BLE-зависимой фичи): RADIO целиком (RADIOPWR/RADIOFREQ/VOLUME),
-     * Гейгер (GEIGER от Wi-Fi-скана) и чтение голодисков (USB Host) в режиме Телефон никогда
-     * не получат ни одной команды — BLE там вообще не поднимается
-     * (см. checkPermissions()/setupBluetooth(), `pipBoyMode != PHONE`). Прячем их из UI
-     * полностью вместо мёртвых экранов без единого способа их наполнить. Строка 1 (RADIO) —
-     * прямая видимость View здесь; ITEMS/Гейгер и DATA/Голодиски гейтятся не здесь, а прямо
-     * в itemsMenuRoot()/itemsRow2Items()/dataMenuRoot()/dataRow2Items() (списки строятся
-     * заново при каждом входе в раздел, отдельный "применить" им не нужен).
-     */
     private fun applyModeGating() {
         val header = bindingMain.incLayoutHeaderToplevel
         val visibility = if (pipBoyMode == PipBoyMode.PHONE) View.GONE else View.VISIBLE
@@ -1563,12 +1216,6 @@ class MainActivity : AppCompatActivity() {
         header.spaceHeaderRadioGap.visibility = visibility
     }
     private fun selectPipBoyMode(mode: PipBoyMode) {
-        // Смена режима через Settings ("Изменить") может застать эмбиент уже играющим
-        // (предыдущий режим/сессия) — глушим его здесь безусловно, до входа в мастер, а не
-        // только в finishPhoneModeSetup()/finishBootSequence(): иначе он звучит через весь
-        // мастер настройки и заставку, включая состояние выключенного PipBoy до первого
-        // POWER:1, где эмбиенту быть не должно. Для Телефона он тут же запустится заново
-        // через finishPhoneModeSetup(), для PipBoy 2000/3000 — только после реального POWER.
         stopAmbientBackgroundSound()
         pipBoyMode = mode
         sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
@@ -1577,50 +1224,27 @@ class MainActivity : AppCompatActivity() {
         refreshSidebarBackItems()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
-        // Экран выбора режима можно открыть и поверх Settings (кнопка "Изменить" режима
-        // работы) — тогда после выбора режима Settings остаётся видимым под ним (просто
-        // временно перекрыт), и пользователь видит его вместо мастера/STATS, пока не
-        // закроет вручную. Мастер не должен прерываться, поэтому Settings тоже закрываем
-        // здесь — так же, как обычным Cancel (btnSettingsCancel), с тем же восстановлением
-        // нижних кнопок/свайпа, которые открытие Settings отключает.
         if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
             enableDisableBottomButtons(true, listBottomButtons)
             enableDisableTopSwipe(true)
         }
 
-        // На свежей установке ShowTutorial=true, и есть давно существующий код, который
-        // на старте прячет constraintlayoutMain и показывает вместо него Tutorial. Экран
-        // выбора режима теперь главный "первый экран" приложения — Tutorial ему больше не
-        // предшествует, а весь основной контент (STATS/ITEMS/DATA) должен быть готов под
-        // капотом сразу после выбора режима, а не оставаться скрытым.
         bindingMain.constraintlayoutTutorial.visibility = View.GONE
         bindingMain.constraintlayoutMain.visibility = View.VISIBLE
 
         when (mode) {
             PipBoyMode.PHONE -> {
-                // Раньше сразу приземлялись на STATS, вообще не спрашивая разрешения
-                // (roadmap, "Косметические правки мастера" — упущение: геопозиция и
-                // уведомления нужны и в этом режиме, не только Bluetooth). Теперь идём через
-                // тот же экран PERMISSIONS мастера — если уже выданы, showWizardStep() сам
-                // пропустит его и сразу вызовет finishPhoneModeSetup().
+
                 bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
                 showWizardStep(PipBoyWizardStep.PERMISSIONS)
             }
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
-                // PIPBOY_3000 пока ведёт себя как PIPBOY_2000 — заглушка на будущее, своя
-                // конфигурация внешнего железа появится отдельно (roadmap, видение).
-                setPowerOffInstant() // безопасный дефолт OFF, пока не пришёл первый POWER
                 bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
                 showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
             }
         }
     }
-    /**
-     * Завершение флоу режима Телефон — раньше выполнялось сразу внутри selectPipBoyMode(),
-     * теперь отложено до момента, пока не разрешится экран PERMISSIONS (уже был выдан,
-     * пропущен автоматически, или выдан только что через системный диалог).
-     */
     private fun finishPhoneModeSetup() {
         bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
         resetToFullScreen()
@@ -1630,23 +1254,11 @@ class MainActivity : AppCompatActivity() {
         stopBleService()
         menuChangeBLE("STATS")
         menuNavigator.resetToRoot(statsMenuRoot())
-        // Телефонный режим не проходит через POWER/applyPowerState() (нет ни
-        // ESP32, ни самой загрузки) — фоновый глитч иначе никогда бы не
-        // запустился. cancelBootSequence() на всякий случай гасит чужую цепочку,
-        // если до этого игрок был в режиме PipBoy 2000/3000 с уже идущим глитчем.
         cancelBootSequence()
         startContinuousGlitch()
         startAmbientBackgroundSound()
     }
 
-    /**
-     * Восстановление после убийства процесса в фоне (roadmap, "Восстановление состояния
-     * после убийства процесса — спецификация", этап 15) — вызывается из onCreate() только
-     * когда savedInstanceState != null (Android сам гарантирует, что это именно
-     * восстановление, не холодный старт). Полностью пропускает дисклеймер и мастер выбора
-     * режима/PipBoy 2000/3000 — не трогает их обычный путь показа при первом запуске,
-     * только эту отдельную ветку.
-     */
     private fun restoreAppState(savedInstanceState: Bundle) {
         bindingMain.constraintlayoutTutorial.visibility = View.GONE
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
@@ -1664,12 +1276,6 @@ class MainActivity : AppCompatActivity() {
         when (restoredMode) {
             PipBoyMode.PHONE -> finishPhoneModeSetup()
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
-                // Мастер уже был пройден в прошлой (убитой) сессии — не переоткрываем его
-                // заново. Экран состояния (ON/OFF) — во власти ESP32 (см. applyPowerState()),
-                // мы не можем знать его сейчас без реального BLE-переподключения, поэтому
-                // безопасный дефолт тот же, что и при первом входе в мастер (setPowerOffInstant()),
-                // а не попытка угадать "было включено". checkPermissions() сам либо пропустит
-                // (уже выданы) и переподключит BLE, либо покажет системный диалог.
                 bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
                 loadViewState()
                 setPowerOffInstant()
@@ -1677,20 +1283,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Раздел + вкладка (roadmap, спека, п.3) — тот же путь, что и BLE-команды STATS/
-        // ITEMS/DATA/RADIO (handleBleCommand()), но resetToRootAtIndex() вместо resetToRoot():
-        // прыжок сразу на сохранённую позицию, без проигрывания onHighlight() промежуточных
-        // пунктов, через которые пришлось бы пройти повторными moveCursor().
         val restoredMenu = savedInstanceState.getString(KEY_CUR_MENU, "STATS")
             ?.takeIf { it in setOf("STATS", "ITEMS", "DATA", "RADIO") } ?: "STATS"
         val restoredRootCursor = savedInstanceState.getInt(KEY_ROOT_CURSOR, 0)
         menuChangeBLE(restoredMenu)
         menuNavigator.resetToRootAtIndex(menuRootNodesFor(restoredMenu), restoredRootCursor)
 
-        // Система ранений (roadmap, спека, п.4) — присваиваем поля напрямую, затем
-        // переприменяем визуал уже существующими функциями. CRIPPLED-конечности —
-        // отдельно ниже, applyCrippledVisual()/applyDeathVisuals() рисуют "по известному
-        // значению", в отличие от toggleCrippled*(), которые бы его инвертировали.
         woundPhase = try {
             WoundPhase.valueOf(savedInstanceState.getString(KEY_WOUND_PHASE, WoundPhase.NONE.name))
         } catch (e: IllegalArgumentException) { WoundPhase.NONE }
@@ -1731,19 +1329,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Мастер настройки PipBoy 2000/3000 (roadmap, UX-спецификация мастера) — 5 шагов
-     * поверх тёмного экрана: Hardware Instructions -> Display Area -> Permissions ->
-     * Pairing -> подсказка про POWER. Реальный выход из POWER_HINT — только физическое
-     * нажатие POWER на корпусе (applyPowerState(true) прячет весь мастер целиком).
+     * Мастер настройки PipBoy 2000/3000
      */
     private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, PAIRING, POWER_HINT }
 
     private fun showWizardStep(step: PipBoyWizardStep) {
         val w = bindingMain.incLayoutPipboy2000Wizard
-        // Рамка (тонкие линии) — только под шагами 2-5, не под подсказкой POWER: это
-        // чёрный экран состояния OFF, а не страница мастера (roadmap "Косметические
-        // правки мастера" — рамка не должна была затрагивать этот шаг вообще, но
-        // chrome_frame раньше не прятался и оставался виден поверх/позади него).
         w.layoutWizardChromeFrame.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.GONE else View.VISIBLE
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
         w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
@@ -1765,9 +1356,6 @@ class MainActivity : AppCompatActivity() {
         // Регулировка рабочей области жестом активна только пока реально показан этот шаг.
         isResizing = (step == PipBoyWizardStep.DISPLAY_AREA)
         if (step == PipBoyWizardStep.DISPLAY_AREA) {
-            // Доп. пол на размер при пинче, чтобы собственные заголовок/подсказка/3 кнопки
-            // этого шага не могли перестать помещаться и вылезти за границы экрана (см.
-            // ScaleListener.onScale) — отчёт по живому тесту, кнопка "Отмена" уезжала.
             val displayMetrics = resources.displayMetrics
             wizardMinContentWidthPx = (displayMetrics.widthPixels * 0.6f).toInt()
             wizardMinContentHeightPx = (displayMetrics.heightPixels * 0.7f).toInt()
@@ -1781,20 +1369,10 @@ class MainActivity : AppCompatActivity() {
             wizardMinContentHeightPx = 0
             applyTemporaryFullScreenLayout()
         } else if (pipBoyMode == PipBoyMode.PHONE) {
-            // Режим Телефон не проходит через DISPLAY AREA вообще — рабочая область всегда
-            // fullscreen (это концепция только для аппаратного PipBoy 2000/3000), сохранённое
-            // loadViewState() тут ни при чём и могло бы ошибочно подставить чужой размер.
             wizardMinContentWidthPx = 0
             wizardMinContentHeightPx = 0
             resetToFullScreen()
         } else {
-            // PERMISSIONS/POWER_HINT — идут ПОСЛЕ "Готово" на шаге DISPLAY AREA, область уже
-            // настроена игроком и сохранена (см. saveViewState в ScaleListener/resetToFullScreen).
-            // Раньше здесь стоял applyTemporaryFullScreenLayout() до реального POWER от
-            // железа — из-за этого игрок в отчёте по тесту видел fullscreen сразу после
-            // "Готово" вместо настроенной области. Область нужна fullscreen только на миг
-            // реального системного диалога разрешений — это делает отдельно
-            // checkPermissions()/permissionRequestLauncher, здесь применяем сохранённое.
             wizardMinContentWidthPx = 0
             wizardMinContentHeightPx = 0
             loadViewState()
@@ -1823,19 +1401,6 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
-    /**
-     * Скан по Service UUID Nordic UART (та же константа, что дефолт bluetoothSUUID_SPKey в
-     * Settings) вместо ручного ввода MAC — общий механизм для шага PAIRING мастера И
-     * раздела Settings > Bluetooth (roadmap, "Редизайн Settings" — правки по подразделам,
-     * "продублировать пейринг из мастера"). [devicesContainer]/[statusView]/[onSelect]
-     * задают, куда класть найденные кнопки и что делать по тапу — единственное, что
-     * различается между двумя местами вызова (мастер после выбора идёт на POWER_HINT,
-     * Settings просто обновляет отображаемый MAC, см. selectPairingDevice()/
-     * selectBluetoothSettingsPairingDevice()). Пока у каждого корпуса нет уникального
-     * BLE-имени (roadmap, "Периферия" — отложено до серийного производства, сейчас только
-     * один тестовый корпус) список может показывать несколько одинаково подписанных
-     * устройств — различать по имени пока не требуется.
-     */
     private var pairingScanCallback: ScanCallback? = null
     private val pairingFoundAddresses = mutableSetOf<String>()
     private val pairingScanTimeoutRunnable = Runnable { stopPairingScan() }
@@ -1922,9 +1487,6 @@ class MainActivity : AppCompatActivity() {
         container.addView(button)
     }
 
-    /** Сохраняет MAC выбранного устройства и (пере)подключается — общая часть между
-     * мастером и Settings > Bluetooth. Тем же механизмом, что и кнопка Connect в Settings
-     * (bleService.reconnectWithCurrentSettings). */
     private fun applyPairedDevice(address: String) {
         stopPairingScan()
         sharedPreferences.edit().putString(bluetoothMAC_SPKey, address).apply()
@@ -1936,24 +1498,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Игрок выбрал свой корпус из списка на шаге PAIRING мастера — после сохранения MAC
-     * мастер идёт дальше, к подсказке про POWER. */
     private fun selectPairingDevice(address: String) {
         applyPairedDevice(address)
         showWizardStep(PipBoyWizardStep.POWER_HINT)
     }
 
-    /** То же самое, но из Settings > Bluetooth — никакого следующего шага мастера нет,
-     * просто обновляем отображаемый текущий MAC. */
     private fun selectBluetoothSettingsPairingDevice(address: String) {
         applyPairedDevice(address)
         refreshBluetoothCurrentDevice()
     }
-    /** Запускает тот же скан, что и шаг PAIRING мастера, но в раздел Settings > Bluetooth
-     * (roadmap, "Редизайн Settings" — правки по подразделам). Вызывается и при переходе на
-     * раздел (см. settingsSidebarAdapter.onSelect), и по кнопке Rescan. Проверяет
-     * BLUETOOTH_SCAN сама — в отличие от шага PAIRING мастера (там разрешения уже выданы
-     * шагом PERMISSIONS раньше по потоку), сюда можно попасть и без этого. */
     private fun startBluetoothPairingScan() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
@@ -1979,12 +1532,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupPipBoy2000Wizard() {
         val w = bindingMain.incLayoutPipboy2000Wizard
 
-        // Эти кнопки никогда не переключают background программно (setWizardButtonState/
-        // setWizardButtonDisabled их не касаются) — они лишь один раз показывают фон,
-        // заданный в style="@style/PipWizardButtonStyle" при инфлейте разметки, всегда в
-        // виде активной сплошной заливки. Тонируем акцентом текущей темы (см.
-        // currentWizardAccentColor()/setWizardButtonState) — тот же приём, что и там, чтобы
-        // мастер выглядел согласованно с выбранной темой, а не жёстко зелёным.
         val wizardAccent = currentWizardAccentColor()
         listOf(
             w.btnWizardHardwareBack,
@@ -2001,8 +1548,7 @@ class MainActivity : AppCompatActivity() {
             w.btnWizardHideHint
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(wizardAccent) }
 
-        // Заголовки и основной текст шагов мастера — тем же акцентом (смысл темы —
-        // красить весь экран, не только кнопки), не жёстко зелёным.
+        // Заголовки и основной текст шагов мастера — тем же акцентом
         listOf(
             w.tvWizardHardwareTitle,
             w.tvWizardHardwareText,
@@ -2015,8 +1561,7 @@ class MainActivity : AppCompatActivity() {
             w.tvWizardPowerHint
         ).forEach { it.setTextColor(wizardAccent) }
 
-        // Шаг 3: одна ширина у [Готово]/[Сбросить]/[Отмена] в горизонтальном ряду (roadmap,
-        // "Косметические правки мастера") — тот же приём, что и у кнопок дисклеймера.
+        // Шаг 3: одна ширина у [Готово]/[Сбросить]/[Отмена]
         equalizeButtonWidths(w.btnWizardDone, w.btnWizardReset, w.btnWizardCancel)
 
         // Шаг 2: Hardware Instructions
@@ -2053,9 +1598,7 @@ class MainActivity : AppCompatActivity() {
             showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
         }
 
-        // Шаг 4: Permissions. В режиме Телефон это первый и единственный шаг мастера
-        // (нет ни HARDWARE_INSTRUCTIONS, ни DISPLAY AREA перед ним) — [Назад] ведёт на
-        // экран выбора режима, а не на несуществующий для этого режима предыдущий шаг.
+        // Шаг 4: Permissions
         w.btnWizardPermissionsBack.setOnClickListener {
             playNewTabSelectAudio()
             if (pipBoyMode == PipBoyMode.PHONE) {
@@ -2080,10 +1623,7 @@ class MainActivity : AppCompatActivity() {
             playNewTabSelectAudio()
             startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
         }
-        // Обход пейринга в debug-сборках — без реального ESP32 иначе нельзя пройти
-        // мастер дальше этого шага вообще (roadmap, этап 7, "быстрая отладка логики
-        // экранов"). Не трогает bluetoothMAC_SPKey и не пытается подключиться — просто
-        // пропускает шаг, как будто корпус уже выбран.
+        // Обход пейринга в debug-сборках
         w.btnWizardPairingSkipDebug.visibility =
             if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
         w.btnWizardPairingSkipDebug.setOnClickListener {
@@ -2099,16 +1639,6 @@ class MainActivity : AppCompatActivity() {
             w.btnWizardHideHint.visibility = View.GONE
         }
     }
-    /**
-     * Дебаг-кнопка на шаге HARDWARE_INSTRUCTIONS мастера (roadmap, этап 27) — вместо
-     * PERMISSIONS/PAIRING/POWER_HINT и ожидания реального `POWER:1` с последующей анимацией
-     * загрузки, сразу собирает то же конечное состояние вручную — те же шаги, что
-     * `applyPowerState(true)`/`finishBootSequence()`, но без самого `playBootSequence()`.
-     * Не трогает BLE/разрешения вообще — для команд вроде `ENC`/`ENCBTN` на голом главном
-     * экране есть `dev-tools/ble_key_sim.py` (adb-broadcast напрямую, без реального BLE).
-     * `row2Views.isEmpty()` — та же защита от повторной инициализации, что в
-     * `finishBootSequence()`.
-     */
     private fun skipWizardToMainScreenDebug() {
         stopPairingScan()
         cancelBootSequence()
@@ -2175,11 +1705,6 @@ class MainActivity : AppCompatActivity() {
 
                 newWidth = max((originalWidth * 0.5).toInt(), (bindingMain.root.width * scaleX).toInt())
                 newHeight = max((originalHeight * 0.75).toInt(), (bindingMain.root.height * scaleY).toInt())
-                // Доп. пол на время шага DISPLAY AREA мастера PipBoy (roadmap, косметические
-                // правки) — без него собственный контент этого шага (заголовок, подсказка,
-                // 3 кнопки) мог перестать помещаться в уменьшенную область и вылезти за
-                // физические границы экрана телефона. В остальное время (обычная настройка
-                // области в Settings) оба порога — 0, ни на что не влияют.
                 newWidth = max(newWidth, wizardMinContentWidthPx)
                 newHeight = max(newHeight, wizardMinContentHeightPx)
 
@@ -2190,10 +1715,6 @@ class MainActivity : AppCompatActivity() {
                 val clampedWidth = min(newWidth, displayMetrics.widthPixels)
                 val clampedHeight = min(newHeight, displayMetrics.heightPixels)
 
-                // Держать центр области на месте при масштабировании, а не левый верхний
-                // угол — иначе после щипка область "уезжает" в угол экрана вместо того,
-                // чтобы сжиматься/расти от текущего положения (потом ещё и драг не мог
-                // вернуть её в удобное место, если размер уже упирался в границы экрана).
                 val widthDelta = clampedWidth - bindingMain.root.width
                 val heightDelta = clampedHeight - bindingMain.root.height
                 var newLeftMargin = layoutParams.leftMargin - widthDelta / 2
@@ -2287,14 +1808,6 @@ class MainActivity : AppCompatActivity() {
     /***********************************************************************************************************
      * MAP
      **********************************************************************************************************/
-    /**
-     * Открывает экран карты — читает уже импортированный бандл (Settings > Map Data),
-     * никаких сетевых проверок/разрешений больше нет (см. MapBundleRepository). Перекрашивает
-     * картинку под текущую тему тем же PorterDuff.MULTIPLY, каким раньше тонировались
-     * osmdroid-тайлы (loadLocalMap()) — только теперь поверх статичного PNG: map.png уже
-     * чёрно-белый (falloutize_map.py, colorize=False), цвет накладывает исключительно
-     * приложение, не сам бандл.
-     */
     private fun openMapScreen() {
         val mapScreen = bindingMain.incLayoutTabItemsMap
         if (!mapBundleRepository.hasBundle()) {
@@ -2361,10 +1874,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.btnMapRouteStop
                 ).forEach { it.backgroundTintList = mapAccent }
                 hideMapHint()
-                // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора на первый
-                // пункт (тот же принцип, что у STATS/ITEMS/DATA), не "продолжить с
-                // прошлого места", в отличие от возврата Back внутри самого экрана Map
-                // (см. showMapMenuState()).
+                // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора
                 mapRootAdapter.setSelectedPositionSilently(0)
                 showMapMenuState(MapMenuState.ROOT)
                 refreshMarkerPins()
@@ -2389,9 +1899,6 @@ class MainActivity : AppCompatActivity() {
                             armTapMode(MapTapMode.NONE)
                             routeTo(lat, lon)
                         }
-                        // Бэклог этапа 18: тап вне режима расстановки/маршрута — по маркеру
-                        // сразу открывает его карточку деталей (как из списка), по пустой
-                        // точке — предлагает выбор [Route]/[Marker] вместо жёсткого действия.
                         MapTapMode.NONE -> {
                             val tappedPx = geoReference.latLonToPixel(lat, lon)
                             val marker = findMarkerNearTap(tappedPx)
@@ -2404,18 +1911,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 startMapLocationUpdates()
-                // Голосовая команда "маршрут до <имя>" (см. pendingMapReadyAction) — только
-                // сейчас, после того как этот заход в openMapScreen() полностью отработал
-                // (иначе именно этот сброс несколькими строками выше стирает уже
-                // построенный маршрут, см. комментарий у объявления поля).
                 pendingMapReadyAction?.invoke()
                 pendingMapReadyAction = null
             }
         }
     }
-    /** Разрешение на геолокацию уже запрошено на старте приложения для всех режимов работы
-     * (см. requiredPermissionsForCurrentMode()) — здесь только защитная проверка на случай,
-     * если игрok отозвал его позже через системные настройки. */
     @SuppressLint("MissingPermission")
     private fun startMapLocationUpdates() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -2432,8 +1932,8 @@ class MainActivity : AppCompatActivity() {
         }
         (currentLocationOrNull())?.let { onMapLocationUpdate(it) }
     }
-    /** Останавливать при уходе с экрана карты на другую вкладку ITEMS — не жечь GPS без
-     * нужды, когда игрок смотрит Clock/Journal/Geiger. */
+    /** Останавливать при уходе с экрана карты
+     */
     private fun stopMapLocationUpdates() {
         val listener = mapLocationListener ?: return
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -2461,9 +1961,8 @@ class MainActivity : AppCompatActivity() {
             updateActiveNavigation(location)
         }
     }
-    /** Строит матрицу вручную (у PhotoView нет прямого "перейти к точке при том же зуме") —
-     * масштаб берётся текущий (не сбрасываем зум игрока), сдвиг подбирается так, чтобы
-     * GPS-точка (в пространстве битмапа) оказалась по центру экрана. */
+    /** Строит матрицу вручную
+     */
     private fun recenterMapOnUser() {
         val userPx = bindingMain.incLayoutTabItemsMap.viewMapOverlay.userLocationPx ?: return
         centerMapOnBitmapPoint(userPx)

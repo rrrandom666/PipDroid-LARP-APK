@@ -26,11 +26,30 @@ class ClockWheelPicker(
     private val range: IntRange,
     initialValue: Int,
     private val onValueSettled: (Int) -> Unit,
+    // Отдельно от onValueSettled (roadmap, этап 27, доработка после фидбека по Карте) — не
+    // вызывается на программные scrollToValue() (те же самые onScrollStateChanged/settleValue,
+    // которыми колесо и докручивает значение, когда крутит ENC через ValueEditor.onAdjust —
+    // без разделения тач и синхронизация курсора энкодера с тачем сбрасывала бы ValueEditor
+    // прямо во время его же собственной работы, см. syncClockEncoderPath() в MainActivity.kt).
+    // Вызывается, только когда settle стал реальным результатом свайпа пальцем.
+    private val onUserAdjusted: (() -> Unit)? = null,
 ) {
     private val rangeSize = range.last - range.first + 1
     private val itemHeightPx = (44 * recyclerView.resources.displayMetrics.density).toInt()
     private var currentValue = initialValue
     private var pendingInitialValue: Int? = initialValue
+    // Найденный баг (не programmaticScroll-флаг вокруг scrollToValue() — тот ошибочно считал
+    // "пальцем" второй settle одного и того же программного вызова: LinearSnapHelper после
+    // ЛЮБОГО smoothScrollToPosition(), включая вызванный ENC, часто досылает свою
+    // корректирующую доводку до идеального центра — это отдельный IDLE, флаг к тому моменту
+    // уже погашен первым settle, второй settle ошибочно принимался за реальный тач и звал
+    // onUserAdjusted, который через syncClockEncoderPath() сбрасывал ValueEditor энкодера
+    // прямо посреди его же работы — воспроизводилось как "второе подряд ENC:-1 перескакивает
+    // на соседний узел", см. roadmap). SCROLL_STATE_DRAGGING возникает ТОЛЬКО от реального
+    // касания пальцем — ни smoothScrollToPosition(), ни доводка SnapHelper его не порождают
+    // — поэтому это единственный надёжный признак, не зависящий от того, сколько промежуточных
+    // settle-проходов случится до полной остановки.
+    private var sawUserDrag = false
 
     private val layoutManager = LinearLayoutManager(recyclerView.context, LinearLayoutManager.VERTICAL, false)
     private val snapHelper = LinearSnapHelper()
@@ -61,7 +80,9 @@ class ClockWheelPicker(
                 applyDimming()
             }
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    sawUserDrag = true
+                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     settleValue()
                 }
             }
@@ -109,6 +130,11 @@ class ClockWheelPicker(
         if (pos == RecyclerView.NO_POSITION) return
         currentValue = range.first + (pos % rangeSize)
         onValueSettled(currentValue)
+        // sawUserDrag гасится тут же, а не в момент касания — settle того же самого жеста
+        // может прийти не с первого IDLE (доводка SnapHelper), но какой бы по счёту он ни
+        // был, он всё ещё относится к тому же реальному свайпу, пока флаг не погашен.
+        if (sawUserDrag) onUserAdjusted?.invoke()
+        sawUserDrag = false
     }
 
     /** Прокручивает колесо на конкретное значение — используется и для начальной

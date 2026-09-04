@@ -5664,6 +5664,35 @@ class MainActivity : AppCompatActivity() {
             onBeforePop = { dataFilesAdapter.flashPressAnimation(dataFilesMeta.size) },
         )
     }
+    /** Позиция пункта TIME/ALARM/TIMER/STOPWATCH/MELODY по его ключу в clockMeta — тот же
+     * приём, что mapRootIndex() у Карты, для использования в syncClockEncoderPath(). */
+    private fun clockRootIndex(key: String): Int = clockMeta.indexOfFirst { it.key == key }
+    /** Безусловная синхронизация курсора энкодера с тачем на экране Часов (roadmap, этап 27,
+     * доработка после фидбека по Карте — тот же класс бага "энкодер не следует за тапами
+     * между узлами дерева", см. doc у syncMapEncoderPath()/MenuNavigator.setPath()):
+     * menuNavigator.syncCursor() чинит курсор только ВНУТРИ уже активного уровня — если тач
+     * переключился в совсем другую ветку (например, тапнул сайдбар "Stopwatch", пока энкодер
+     * был внутри "Alarm" → HOUR), синхронизировать было нечего, курсор оставался "залипшим"
+     * в прежней ветке, а следующий поворот ENC двигал бы не то, что показано на экране.
+     * [path] — индексы от детей самого узла CLOCK (не всего дерева).
+     *
+     * Громкий `setPath()`, не `setPathSilently()` (roadmap, доработка после фидбека —
+     * найденный баг: прицел энкодера обязан рисоваться там, где реально стоит курсор, а не
+     * только внутренняя бухгалтерия стека — иначе после тача, уводящего энкодер в другую
+     * ветку, прицел либо не появлялся вовсе на новом месте, либо оставался нарисованным на
+     * старом, хотя курсор там уже не стоит). Раньше здесь был `setPathSilently()` — тогда
+     * `onHighlight` TIME/ALARM/TIMER/STOPWATCH/MELODY.TRACK_0 сами вызывали громкий
+     * `selectPosition()`, который заново вызывал этот же `onSelect` и зациклился бы; после
+     * того как эти `onHighlight` переведены на `setSelectedPositionSilently()` (см.
+     * `clockChildrenNodes()`/`melodyChildrenNodes()`), рекурсии больше нет ни у одного узла,
+     * до которого может указывать [path] — держаться этого инварианта у любого нового узла
+     * Clock: onHighlight не должен звать громкий `selectPosition()` своего же адаптера. */
+    private fun syncClockEncoderPath(path: List<Int>) {
+        val itemsRoot = itemsMenuRoot()
+        val clockIndex = itemsRoot.indexOfFirst { it.id == "CLOCK" }
+        if (clockIndex == -1) return
+        menuNavigator.setPath(itemsRoot, listOf(clockIndex) + path)
+    }
     /** ITEMS/Clock — тот же приём, что у dataFilesSidebarItems() выше: фиксированный список,
      * "В меню" — последний пункт (roadmap, этап 27). */
     private fun clockSidebarItems(): List<SidebarMenuItem<String>> {
@@ -5672,41 +5701,74 @@ class MainActivity : AppCompatActivity() {
     }
     /** Дети узла CLOCK дерева энкодера (itemsMenuRoot()) — контент следует за курсором
      * (roadmap, этап 27, п.1, фидбек по итогам тестирования — тот же приём, что у записей
-     * Journal): TIME/ALARM/TIMER/STOPWATCH показывают свою панель на КАЖДЫЙ шаг листания
-     * (`clockAdapter.selectPosition()` в onHighlight, не только по ENCBTN), у ALARM/TIMER/
-     * STOPWATCH при этом есть свои `children` — ENCBTN проваливается в них, `onActivate`
-     * никогда не понадобится. TIME — лист без children (экран часов декоративный),
-     * `onActivate = {}` — ENCBTN на нём не делает ничего (та же схема, что у записей
-     * DATA/Files: подсветка уже стоит, проваливаться/подниматься некуда).
-     * MELODY — единственное исключение, сознательно остаётся "тихим" (Recipe B): это
-     * полноэкранный оверлей, скрывающий весь сайдбар целиком (см. openClockMelodyScreen()),
-     * а не панель в правой части того же экрана — если бы онHighlight открывал его на
-     * каждый шаг листания, "Назад" из Ringtones немедленно открывал бы экран заново (тот же
-     * узел MELODY остаётся выделенным в этом списке после popLevel()). Открывается только по
-     * ENCBTN — коммит лежит в onHighlight ПЕРВОГО трека (см. melodyChildrenNodes()). */
+     * Journal): TIME/ALARM/TIMER/STOPWATCH показывают свою панель на КАЖДЫЙ шаг листания, у
+     * ALARM/TIMER/STOPWATCH при этом есть свои `children` — ENCBTN проваливается в них,
+     * `onActivate` никогда не понадобится. TIME — лист без children (экран часов
+     * декоративный), `onActivate = {}` — ENCBTN на нём не делает ничего (та же схема, что у
+     * записей DATA/Files: подсветка уже стоит, проваливаться/подниматься некуда).
+     *
+     * onHighlight вызывает `clockAdapter.setSelectedPositionSilently(index)` +
+     * `showClockContentPanel(meta.key)` НАПРЯМУЮ, не `clockAdapter.selectPosition(index)` (та
+     * же схема, что у mapRootAdapter/mapRouteSubmenuAdapter в Карте) — найденный баг
+     * (roadmap, доработка после фидбека): `selectPosition()` (не Silently) заново вызывает
+     * `onSelect` сайдбара, который после доработки touch-синхронизации (см.
+     * `syncClockEncoderPath()`) выше НЕ просто переключает панель, а безусловно ставит путь
+     * энкодера на первого ребёнка ALARM/TIMER/STOPWATCH — обычное ENC-листание, ПРОСТО
+     * проходящее через эти пункты (не проваливаясь в них), рекурсивно и молча продавливало
+     * курсор на уровень глубже, чем реально показано на экране (прицел ребёнка при этом не
+     * рисовался — путь ставился silently), что и давало весь букет находок на устройстве:
+     * первый `ENCBTN` на ALARM на самом деле попадал на УЖЕ выбранный HOUR (входя сразу в
+     * `ValueEditor` без показа прицела), второй `ENCBTN` (Back) на самом деле дублировался
+     * относительно этого чужого состояния, а простое ENC-пролистывание порождало на экране
+     * состояние на уровень глубже, чем должно быть видно курсору. */
     private fun clockChildrenNodes(): List<MenuNode> {
         return clockMeta.mapIndexed { index, meta ->
             when (meta.key) {
                 "TIME" -> MenuNode(
                     id = meta.key,
-                    onHighlight = { clockAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        clockAdapter.setSelectedPositionSilently(index)
+                        showClockContentPanel(meta.key)
+                    },
                     onActivate = {},
                 )
                 "ALARM" -> MenuNode(
                     id = meta.key,
-                    onHighlight = { clockAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        clockAdapter.setSelectedPositionSilently(index)
+                        showClockContentPanel(meta.key)
+                        // Курсор стоит НА самом ALARM (не провалился в children) — прицел
+                        // любого внутреннего узла с прошлого визита должен погаснуть,
+                        // найденный баг (roadmap, доработка после фидбека).
+                        setAllClockAlarmFocusesHidden()
+                    },
                     children = alarmChildrenNodes(),
                 )
                 "TIMER" -> MenuNode(
                     id = meta.key,
-                    onHighlight = { clockAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        clockAdapter.setSelectedPositionSilently(index)
+                        showClockContentPanel(meta.key)
+                        // Оба набора — какой из них сейчас видим, знает только timerState,
+                        // прятать оба безусловно дешевле и безопаснее, чем разветвлять.
+                        setAllClockTimerSetupFocusesHidden()
+                        setAllClockTimerRunningFocusesHidden()
+                    },
                     // childrenProvider, не статичный children — состав детей зависит от
                     // timerState, пересчитывается заново на каждый провал (см. Journal).
                     childrenProvider = { timerChildrenNodes() },
                 )
                 "STOPWATCH" -> MenuNode(
                     id = meta.key,
-                    onHighlight = { clockAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        clockAdapter.setSelectedPositionSilently(index)
+                        showClockContentPanel(meta.key)
+                        setAllClockStopwatchFocusesHidden()
+                    },
                     children = stopwatchChildrenNodes(),
                 )
                 else -> MenuNode( // "MELODY"
@@ -6007,8 +6069,16 @@ class MainActivity : AppCompatActivity() {
                     // Только первый трек коммитит панель (открывает экран Мелодии) — тот же
                     // приём, что у HOUR в alarmChildrenNodes(): провал в MELODY сразу
                     // приземляет курсор на первый трек, дальнейшее листание уже открытого
-                    // экрана коммита не требует.
-                    if (i == 0) clockAdapter.selectPosition(4) else playItemSelectAudio()
+                    // экрана коммита не требует. clockAdapter.setSelectedPositionSilently(),
+                    // не громкий selectPosition() (roadmap, доработка после фидбека) — тот
+                    // заново вызывает onSelect сайдбара, который для MELODY делает cross-
+                    // branch syncClockEncoderPath()/setPath() — зациклилось бы, раз этот путь
+                    // сам заканчивается здесь же (TRACK_0).
+                    playItemSelectAudio()
+                    if (i == 0) {
+                        clockAdapter.setSelectedPositionSilently(4)
+                        openClockMelodyScreen()
+                    }
                     melodyAdapter.setSelectedPositionSilently(i)
                     melodyFocusedIndex = i
                     startMelodyPreview(i)
@@ -6450,7 +6520,17 @@ class MainActivity : AppCompatActivity() {
         clock.layoutTabItemsClockButtonsContainer.visibility = View.GONE
         clock.layoutTabItemsClockContent.visibility = View.GONE
         clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
-        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
+        // Рамка обязана совпадать с тем, куда реально садится курсор энкодера при входе в
+        // MELODY — а это всегда первый трек (см. melodyChildrenNodes(), "провал в MELODY
+        // сразу приземляет курсор на первый трек"), не ранее ПОДТВЕРЖДЁННЫЙ Select-ом трек.
+        // Найденный баг (roadmap, доработка после фидбека): раньше здесь читался
+        // sharedPreferences.getInt(selectedRingtone_SPKey) — совпадало с курсором только
+        // случайно, пока экран открывали исключительно через ENCBTN на TRACK_0 (тот сам
+        // перезаписывал melodyFocusedIndex=0 СРАЗУ ПОСЛЕ этого вызова, см. его onHighlight),
+        // но не через тач по сайдбару "Мелодия" — тот вызывает эту функцию напрямую, без
+        // такой перезаписи следом, и рамка оставалась на прежнем/подтверждённом треке, а
+        // курсор энкодера — на первом.
+        melodyFocusedIndex = 0
         // Молча (без звука) — восстановление состояния экрана при входе, не выбор игрока.
         melodyAdapter.setSelectedPositionSilently(melodyFocusedIndex)
         updateMelodySelectedLabel()
@@ -8572,16 +8652,35 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
-                // что у SPECIAL/Skills/Status/MISC.
-                menuNavigator.syncCursor("CLOCK", position)
+                // Безусловная синхронизация курсора энкодера (roadmap, доработка после
+                // фидбека по Карте) — не menuNavigator.syncCursor(), тот чинит только позицию
+                // ВНУТРИ уже активного уровня; тут курсор должен перепрыгнуть сюда, даже если
+                // энкодер был в совсем другой ветке (см. syncClockEncoderPath()).
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    // Путь до самого узла CLOCK — тот же смысл, что и обычный popLevel() из
+                    // сайдбара CLOCK, но безусловный: не зависит от того, где раньше был курсор.
                     playCNDSelectAudio()
-                    menuNavigator.popLevel()
+                    syncClockEncoderPath(emptyList())
                     syncRow2ActiveFromNavigator()
                 } else if (item.payload == "MELODY") {
-                    openClockMelodyScreen()
+                    // "+ 0" — тап равносилен ENCBTN на MELODY: у неё есть дети (треки), курсор
+                    // садится на первый трек, не остаётся на самом пункте (тот же приём, что у
+                    // Карты, см. doc у MenuNavigator.setPath()). Громкий путь сам вызывает
+                    // onHighlight TRACK_0, который и открывает экран Мелодии — отдельно звать
+                    // openClockMelodyScreen() здесь больше не нужно (roadmap, доработка).
+                    syncClockEncoderPath(listOf(position, 0))
+                } else if (item.payload == "TIME") {
+                    // Единственный лист без children — проваливаться некуда, курсор остаётся
+                    // на самом пункте (та же схема, что у DATA/Files).
+                    syncClockEncoderPath(listOf(position))
+                    showClockContentPanel(item.payload)
                 } else {
+                    // ALARM/TIMER/STOPWATCH — тоже "+ 0", тап равносилен ENCBTN (roadmap,
+                    // доработка после фидбека по итогам теста — найденный баг: раньше курсор
+                    // оставался на самом пункте ALARM/TIMER/STOPWATCH, как у TIME, хотя
+                    // ожидание игрока — сразу оказаться на первом реальном органе управления
+                    // экрана, как и при обычном ENCBTN).
+                    syncClockEncoderPath(listOf(position, 0))
                     showClockContentPanel(item.payload)
                 }
             },
@@ -8606,21 +8705,26 @@ class MainActivity : AppCompatActivity() {
         alarm.viewClockAlarmBackFocus.backgroundTintList = clockAccentTint
         updateAlarmStatusViews()
 
-        alarmHourWheel = ClockWheelPicker(alarm.rvClockAlarmHour, 0..23, alarmHour) { value ->
-            alarmHour = value
-            updateAlarmStatusViews()
-        }
-        alarmMinuteWheel = ClockWheelPicker(alarm.rvClockAlarmMinute, 0..59, alarmMinute) { value ->
-            alarmMinute = value
-            updateAlarmStatusViews()
-        }
+        alarmHourWheel = ClockWheelPicker(
+            alarm.rvClockAlarmHour, 0..23, alarmHour,
+            onValueSettled = { value -> alarmHour = value; updateAlarmStatusViews() },
+            // Свайп по колесу должен подтягивать курсор энкодера на HOUR, даже если тот был
+            // на MINUTE/SET/BACK или в другой ветке дерева (roadmap, доработка после фидбека
+            // по Карте — тот же класс бага, что и с тачем по сайдбару/кнопкам выше).
+            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 0)) },
+        )
+        alarmMinuteWheel = ClockWheelPicker(
+            alarm.rvClockAlarmMinute, 0..59, alarmMinute,
+            onValueSettled = { value -> alarmMinute = value; updateAlarmStatusViews() },
+            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 1)) },
+        )
         alarm.btnClockAlarmToggle.setOnClickListener {
-            menuNavigator.syncCursor("ALARM", 2)
+            syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 2))
             playNewTabSelectAudio()
             toggleAlarmArmed()
         }
         alarm.btnClockAlarmBack.setOnClickListener {
-            menuNavigator.syncCursor("ALARM", 3)
+            syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 3))
             playCNDSelectAudio()
             setClockAlarmBackFocused(false)
             menuNavigator.popLevel()
@@ -8648,43 +8752,55 @@ class MainActivity : AppCompatActivity() {
             view.backgroundTintList = clockAccentTint
         }
 
-        timerHourWheel = ClockWheelPicker(timer.rvClockTimerHour, 0..23, timerHours) { timerHours = it }
-        timerMinuteWheel = ClockWheelPicker(timer.rvClockTimerMinute, 0..59, timerMinutes) { timerMinutes = it }
-        timerSecondWheel = ClockWheelPicker(timer.rvClockTimerSecond, 0..59, timerSeconds) { timerSeconds = it }
+        timerHourWheel = ClockWheelPicker(
+            timer.rvClockTimerHour, 0..23, timerHours,
+            onValueSettled = { timerHours = it },
+            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0)) },
+        )
+        timerMinuteWheel = ClockWheelPicker(
+            timer.rvClockTimerMinute, 0..59, timerMinutes,
+            onValueSettled = { timerMinutes = it },
+            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1)) },
+        )
+        timerSecondWheel = ClockWheelPicker(
+            timer.rvClockTimerSecond, 0..59, timerSeconds,
+            onValueSettled = { timerSeconds = it },
+            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2)) },
+        )
 
         timer.btnClockTimerPreset5.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 3)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 3))
             playNewTabSelectAudio()
             addTimerPresetMinutes(5)
         }
         timer.btnClockTimerPreset10.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 4)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 4))
             playNewTabSelectAudio()
             addTimerPresetMinutes(10)
         }
         timer.btnClockTimerStart.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 5)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 5))
             playNewTabSelectAudio()
             startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
         timer.btnClockTimerSetupBack.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 6)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 6))
             playCNDSelectAudio()
             setClockTimerSetupBackFocused(false)
             menuNavigator.popLevel()
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 0)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0))
             playNewTabSelectAudio()
             pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 1)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1))
             playNewTabSelectAudio()
             resetTimer()
         }
         timer.btnClockTimerRunningBack.setOnClickListener {
-            menuNavigator.syncCursor("TIMER", 2)
+            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2))
             playCNDSelectAudio()
             setClockTimerRunningBackFocused(false)
             menuNavigator.popLevel()
@@ -8706,17 +8822,17 @@ class MainActivity : AppCompatActivity() {
         stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
 
         stopwatch.btnClockStopwatchStartPause.setOnClickListener {
-            menuNavigator.syncCursor("STOPWATCH", 0)
+            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 0))
             playNewTabSelectAudio()
             toggleStopwatchStartPause()
         }
         stopwatch.btnClockStopwatchReset.setOnClickListener {
-            menuNavigator.syncCursor("STOPWATCH", 1)
+            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 1))
             playNewTabSelectAudio()
             resetStopwatch()
         }
         stopwatch.btnClockStopwatchBack.setOnClickListener {
-            menuNavigator.syncCursor("STOPWATCH", 2)
+            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 2))
             playCNDSelectAudio()
             setClockStopwatchBackFocused(false)
             menuNavigator.popLevel()
@@ -8754,12 +8870,30 @@ class MainActivity : AppCompatActivity() {
             initialSelectedPosition = melodyFocusedIndex,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                menuNavigator.syncCursor("MELODY", position)
                 val index = item.payload
                 if (index == null) {
+                    // Назад — безусловно на сам узел MELODY_LIST_BACK, тот же приём, что и
+                    // остальные Back (roadmap, доработка после фидбека по Карте): тач мог
+                    // случиться из любой ветки, включая SELECT/BACK текущего трека.
+                    syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position))
                     menuNavigator.popLevel()
                     closeClockMelodyScreen()
                 } else {
+                    // Найденный баг (доработка после фидбека) — если энкодер до тапа стоял на
+                    // SELECT/BACK ПРЕЖНЕГО трека (провалился по ENCBTN), тап по ДРУГОМУ треку
+                    // сбрасывал курсор на сам новый трек, а прицел энкодера молча оставался на
+                    // кнопке прежнего (та же панель Select/Back на экране относится теперь к
+                    // новому треку, но подсвечена кнопка, до которой курсор физически не
+                    // добрался). Читать глубину нужно ДО того, как melodyFocusedIndex ниже
+                    // укажет уже на новый трек — иначе искали бы "TRACK_<новый>" вместо
+                    // "TRACK_<прежний>".
+                    val childDepth = menuNavigator.cursorIfParent("TRACK_$melodyFocusedIndex")
+                    val path = if (childDepth != null) {
+                        listOf(clockRootIndex("MELODY"), position, childDepth)
+                    } else {
+                        listOf(clockRootIndex("MELODY"), position)
+                    }
+                    syncClockEncoderPath(path)
                     melodyFocusedIndex = index
                     if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
                 }
@@ -8769,12 +8903,12 @@ class MainActivity : AppCompatActivity() {
         melody.recyclerClockMelodyTracks.adapter = melodyAdapter
 
         melody.btnClockMelodySelect.setOnClickListener {
-            menuNavigator.syncCursor("TRACK_${melodyFocusedIndex}", 0)
+            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 0))
             playNewTabSelectAudio()
             commitMelodySelection()
         }
         melody.btnClockMelodyBack.setOnClickListener {
-            menuNavigator.syncCursor("TRACK_${melodyFocusedIndex}", 1)
+            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 1))
             playCNDSelectAudio()
             setClockMelodyBackFocused(false)
             menuNavigator.popLevel()

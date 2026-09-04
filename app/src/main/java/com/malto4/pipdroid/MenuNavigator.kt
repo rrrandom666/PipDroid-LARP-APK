@@ -327,6 +327,24 @@ class MenuNavigator {
         level.cursor = position
     }
 
+    /**
+     * Читает текущую позицию курсора ВНУТРИ уровня, порождённого узлом с id [parentId] — или
+     * `null`, если энкодер сейчас не там (обратная сторона [syncCursor]/[replaceChildrenOf]:
+     * те пишут курсор с той же защитой, эта — читает). Нужно тач-коду, которому важно не
+     * просто переставить курсор в другую ветку, а сохранить относительную "глубину" — roadmap,
+     * доработка после фидбека, найденный баг на Ringtones: `ENCBTN` на треке проваливает
+     * курсор в [SELECT, BACK] под ним; тач по ДРУГОМУ треку, пока энкодер был там, обязан
+     * перенести курсор на тот же дочерний узел (SELECT либо BACK) нового трека, а не просто
+     * сбросить курсор на сам новый трек, теряя эту глубину.
+     */
+    fun cursorIfParent(parentId: String): Int? {
+        if (stack.size < 2) return null
+        val parentLevel = stack[stack.size - 2]
+        val parentNode = parentLevel.nodes.getOrNull(parentLevel.cursor) ?: return null
+        if (parentNode.id != parentId) return null
+        return stack.last().cursor
+    }
+
     private fun activateCurrent() {
         val level = stack.lastOrNull() ?: return
         if (level.nodes.isEmpty()) return

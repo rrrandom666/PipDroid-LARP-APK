@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Стрелка-компас для кнопки центрирования карты рядом с +/- (roadmap, этап 27,
+     энкодер-карта — референс: кнопка "Моё местоположение" в Яндекс.Картах). Заливка —
+     фиксированный тёмный цвет, тот же, что у текста "+"/"−" на этих кнопках
+     (pip_button_text_dark, см. PipWizardButtonStyle) — сама кнопка тонируется акцентом
+     темы кодом (mapAccent, MainActivity.kt), а не эта иконка. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/pip_button_text_dark"
+        android:pathData="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29Z" />
+</vector>

@@ -111,6 +111,25 @@
         app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"/>
 
+    <!-- Полупрозрачная тёмная подложка под столбиком +/-/стрелка центрирования (фидбек: кнопки
+         иногда сливались с пёстрым фоном карты) — идёт в разметке ПЕРЕД кнопками, чтобы
+         рисоваться под ними (z-порядок ConstraintLayout — порядок объявления), константы
+         привязаны к первой/последней кнопке колонки, отрицательные margin дают небольшой
+         выступ подложки за края кнопок. -->
+    <View
+        android:id="@+id/view_map_controls_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-6dp"
+        android:layout_marginTop="-6dp"
+        android:layout_marginEnd="-6dp"
+        android:layout_marginBottom="-6dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_zoom_in"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in"
+        app:layout_constraintTop_toTopOf="@id/btn_map_zoom_in"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_center" />
+
     <!-- Зум +/- (бэклог этапа 18) — раньше только pinch. Плавающие кнопки поверх карты в
          правом верхнем углу, тот же приём (PipWizardButtonStyle, фиксированный dp-размер), что
          у +/- на SPECIAL/Skills. -->
@@ -142,6 +161,41 @@
         android:includeFontPadding="false"
         app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_in"
         app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in" />
+
+    <!-- Центрирование карты на игроке (роадмап, этап 27) — раньше пункт "Center" бокового
+         меню, теперь кнопка-стрелка в том же вертикальном столбике, что и +/- (референс —
+         кнопка "Моё местоположение" в Яндекс.Картах). Обработчик переиспользует
+         recenterMapOnUser(), тот же, что раньше вызывал пункт меню. -->
+    <ImageButton
+        android:id="@+id/btn_map_center"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="4dp"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_map_recenter_arrow"
+        android:contentDescription="@string/map_menu_center_button"
+        app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_out"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_out" />
+
+    <!-- Прицел энкодера (roadmap, этап 27) над отметкой, выбранной в "Список меток" —
+         переиспользует focus_corner_brackets, как и остальной энкодер-фокус в приложении
+         (см. CLAUDE.md), но позиционируется НЕ constraint-привязкой к @id (отметки рисуются
+         вручную на Canvas в MapOverlayView, своего View/id у них нет) — код выставляет
+         translationX/Y вручную (см. updateMapMarkerFocus() в MainActivity.kt). Фиксированный
+         красный, не акцент темы — дефолтный белый на пёстрой карте не виден. -->
+    <View
+        android:id="@+id/view_map_marker_focus"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:backgroundTint="@color/map_marker_focus_red"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map" />
 
     <!-- Тап по произвольной пустой точке карты (бэклог этапа 18) — вместо жёстко
          предопределённого действия предлагает выбор: построить маршрут до точки или
@@ -184,6 +238,18 @@
             android:text="@string/map_menu_place_marker_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route" />
+
+        <!-- Cancel (фидбек: панель координат при тапе по пустой точке нечем было закрыть,
+             кроме выбора Route/Marker) — просто прячет панель, hideMapTapChoice(). -->
+        <Button
+            android:id="@+id/btn_map_tap_choice_cancel"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/cancel"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_marker" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -218,6 +218,10 @@ class MainActivity : AppCompatActivity() {
     private var mapMenuState = MapMenuState.ROOT
     private var mapMenuListReturnState = MapMenuState.ROOT
     private var selectedMarkerForDetail: MapMarker? = null
+        set(value) {
+            field = value
+            updateMapMarkerFocus()
+        }
     private var pendingMarkerLatLon: Pair<Double, Double>? = null
     private var editingMarkerId: String? = null
     private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
@@ -330,6 +334,10 @@ class MainActivity : AppCompatActivity() {
         private const val MAP_ZOOM_STEP_FACTOR = 1.4f
         private const val MAP_MARKER_TAP_RADIUS_DP = 28f
         private const val MAP_ROUTE_REROUTE_THRESHOLD_M = 30.0
+        // Отступ от краёв видимой области при автоматическом центрировании на построенном
+        // маршруте (roadmap, этап 27) — начальная/конечная точка не должны прилипать к
+        // самому краю экрана.
+        private const val MAP_ROUTE_FIT_PADDING_DP = 28f
 
         // Счётчик радиации
         private const val GEIGER_LETHAL_DOSE_RAD = 1000
@@ -1873,12 +1881,21 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave,
                     mapScreen.btnMapZoomIn,
                     mapScreen.btnMapZoomOut,
+                    mapScreen.btnMapCenter,
                     mapScreen.btnMapTapChoiceRoute,
                     mapScreen.btnMapTapChoiceMarker,
+                    mapScreen.btnMapTapChoiceCancel,
                     mapScreen.btnMapRouteStart,
                     mapScreen.btnMapRouteCancel,
                     mapScreen.btnMapRouteStop
                 ).forEach { it.backgroundTintList = mapAccent }
+                // ImageButton без своего tint наследует android:tint активной темы
+                // (Theme.PipDroid.*UI) — то же самое, что уже задокументировано для
+                // ImageView/Vault-Boy в CLAUDE.md. Без явного сброса стрелка перекрашивалась
+                // в акцент темы поверх фона, тоже акцентного, и сливалась с ним — вектор
+                // должен рисоваться своим собственным fillColor (pip_button_text_dark, тот
+                // же фиксированный тёмный, что у текста "+"/"−").
+                mapScreen.btnMapCenter.imageTintList = null
                 hideMapHint()
                 // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора
                 mapRootAdapter.setSelectedPositionSilently(0)
@@ -1892,6 +1909,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.photoViewMap.getDisplayMatrix(matrix)
                     mapScreen.viewMapOverlay.displayMatrix = matrix
                     mapScreen.viewMapOverlay.invalidate()
+                    updateMapMarkerFocus()
                 }
                 mapScreen.photoViewMap.setOnPhotoTapListener { _, xPercent, yPercent ->
                     val geoReference = mapGeoReference ?: return@setOnPhotoTapListener
@@ -1973,9 +1991,25 @@ class MainActivity : AppCompatActivity() {
         val userPx = bindingMain.incLayoutTabItemsMap.viewMapOverlay.userLocationPx ?: return
         centerMapOnBitmapPoint(userPx)
     }
+    /** Нижний слот карты (карточка деталей отметки/выбор [Route]/[Marker]/управление
+     * маршрутом/полоса подсказок — см. layout_tab_items_map.xml, все четыре взаимно
+     * исключающие) может сейчас перекрывать часть экрана снизу — высота актуальной из них,
+     * иначе 0. Используется centerMapOnBitmapPoint(), чтобы не центрировать точку туда, где
+     * она тут же окажется под панелью (фидбек: центрирование на отметке из "Список меток"
+     * пряталось под открывшейся следом карточкой деталей). */
+    private fun mapBottomOverlayHeightPx(): Float {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        return listOf(
+            mapScreen.layoutMapMarkerDetail,
+            mapScreen.layoutMapTapChoice,
+            mapScreen.layoutMapRouteControls,
+            mapScreen.tvMapHint,
+        ).firstOrNull { it.visibility == View.VISIBLE }?.height?.toFloat() ?: 0f
+    }
     /** Сдвигает PhotoView так, чтобы точка в пространстве битмапа (пиксели map.png) оказалась
-     * по центру экрана, сохраняя текущий зум игрока — общий хелпер и для кнопки "Центр"
-     * (GPS-точка), и для перехода к маркеру из списка. */
+     * по центру ВИДИМОЙ полосы экрана (за вычетом нижней панели, см.
+     * mapBottomOverlayHeightPx()), сохраняя текущий зум игрока — общий хелпер и для кнопки
+     * "Центр" (GPS-точка), и для перехода к маркеру из списка. */
     private fun centerMapOnBitmapPoint(targetPx: PointF) {
         val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
         // getDisplayMatrix() отдаёт ПОЛНУЮ матрицу (базовая "вписать в экран" + supp,
@@ -1986,7 +2020,7 @@ class MainActivity : AppCompatActivity() {
         val screenPoint = floatArrayOf(targetPx.x, targetPx.y)
         fullMatrix.mapPoints(screenPoint)
         val dx = photoView.width / 2f - screenPoint[0]
-        val dy = photoView.height / 2f - screenPoint[1]
+        val dy = (photoView.height - mapBottomOverlayHeightPx()) / 2f - screenPoint[1]
         // setDisplayMatrix(), несмотря на название, пишет НЕ в полную матрицу, а напрямую в
         // supp-матрицу (см. исходники PhotoViewAttacher.setDisplayMatrix —
         // mSuppMatrix.set(finalMatrix)), после чего библиотека сама доклеивает базовую
@@ -2009,6 +2043,31 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutTabItemsMap.viewMapOverlay.markerPins =
             markers.map { it.name to geoReference.latLonToPixel(it.lat, it.lon) }
     }
+    /** Прицел энкодера (focus_corner_brackets, переиспользован — см. view_map_marker_focus)
+     * над отметкой, выбранной в "Список меток". Красный, а не белый по умолчанию: белый на
+     * пёстрой карте не виден (фидбек этапа 27). MapOverlayView рисует отметки вручную на
+     * Canvas, у них нет своего @id — привычный constraint-биндинг прицела к цели (см.
+     * CLAUDE.md) тут неприменим, поэтому позиция считается вручную из той же displayMatrix,
+     * что и у самого оверлея, и пересчитывается при каждом пане/зуме (см. вызов в
+     * setOnMatrixChangeListener). */
+    private fun updateMapMarkerFocus() {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        val focusView = mapScreen.viewMapMarkerFocus
+        val marker = selectedMarkerForDetail
+        val geoReference = mapGeoReference
+        if (marker == null || geoReference == null) {
+            focusView.visibility = View.GONE
+            return
+        }
+        val matrix = Matrix()
+        mapScreen.photoViewMap.getDisplayMatrix(matrix)
+        val screenPoint = floatArrayOf(0f, 0f)
+        geoReference.latLonToPixel(marker.lat, marker.lon).let { screenPoint[0] = it.x; screenPoint[1] = it.y }
+        matrix.mapPoints(screenPoint)
+        focusView.translationX = screenPoint[0] - focusView.width / 2f
+        focusView.translationY = screenPoint[1] - focusView.height / 2f
+        focusView.visibility = View.VISIBLE
+    }
     /** Три состояния левого меню (по образцу ITEMS/Clock — переключение видимости, не три
      * отдельных экрана): корень, подменю "Проложить маршрут", список отметок (общий для
      * корневого "Список меток" и "До отметки" — см. mapMenuListReturnState). */
@@ -2019,7 +2078,9 @@ class MainActivity : AppCompatActivity() {
     private data class MapMenuItemMeta(val key: String, val labelRes: Int, val action: () -> Unit)
     private val mapRootMeta: List<MapMenuItemMeta> by lazy {
         listOf(
-            MapMenuItemMeta("CENTER", R.string.map_menu_center_button) { recenterMapOnUser() },
+            // "Center" убран из этого списка (roadmap, этап 27, энкодер-карта) — теперь
+            // отдельная кнопка-стрелка рядом с +/- (см. btn_map_center), тот же
+            // recenterMapOnUser() переиспользован её обработчиком.
             MapMenuItemMeta("PLACE_MARKER", R.string.map_menu_place_marker_button) { armTapMode(MapTapMode.PLACE_MARKER) },
             MapMenuItemMeta("ROUTE", R.string.map_menu_route_button) {
                 // Провал вглубь — курсор подменю с индекса 0 (см. showMapMenuState()).
@@ -2051,6 +2112,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapRootAdapter: SidebarMenuAdapter<String>
     private lateinit var mapRouteSubmenuAdapter: SidebarMenuAdapter<String>
     private fun showMapMenuState(state: MapMenuState) {
+        // Навигация по сайдбар-меню (Build Route/Marker List/Back) прерывает незавершённый
+        // цикл взвода тапа (Place a marker/До точки на карте) — игрок ушёл в другую логику,
+        // подсказка "Tap the map to..." не должна продолжать висеть, а следующий тап по
+        // карте не должен неожиданно поставить отметку/точку маршрута (баг из фидбека).
+        if (mapTapMode != MapTapMode.NONE) {
+            armTapMode(MapTapMode.NONE)
+        }
         mapMenuState = state
         val menu = bindingMain.incLayoutTabItemsMap
         menu.recyclerMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
@@ -2098,7 +2166,22 @@ class MainActivity : AppCompatActivity() {
                     // Сайдбар в ROOT переводит сама routeTo() по факту построения маршрута
                     // (не сразу по выбору цели) — тот же принцип, что и у "До точки на карте".
                     mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> routeTo(marker.lat, marker.lon)
-                    else -> showMarkerDetail(marker)
+                    else -> {
+                        // Выбор из "Список меток" может указывать на отметку вне текущего
+                        // пана/зума — центрируем карту на ней (тот же centerMapOnBitmapPoint,
+                        // что и у кнопки "Центр"), иначе прицел ниже окажется за кадром и
+                        // невиден (фидбек по итогам тестирования этапа 27). Карточка деталей
+                        // открывается ПЕРЕД центрированием (не после) и центрирование отложено
+                        // до её реального layout-прохода (post{}) — mapBottomOverlayHeightPx()
+                        // читает уже актуальную высоту панели, иначе (GONE → VISIBLE ещё не
+                        // отмерена) высота была бы 0 и центр съезжал под панель.
+                        showMarkerDetail(marker)
+                        val geoReference = mapGeoReference
+                        if (geoReference != null) {
+                            val targetPx = geoReference.latLonToPixel(marker.lat, marker.lon)
+                            menu.layoutMapMarkerDetail.post { centerMapOnBitmapPoint(targetPx) }
+                        }
+                    }
                 }
             },
         )
@@ -2618,6 +2701,13 @@ class MainActivity : AppCompatActivity() {
                 // откуда бы ни был вызван routeTo().
                 showMapMenuState(MapMenuState.ROOT)
                 updateRouteControlsVisibility()
+                // Отложено до реального layout-прохода панели управления маршрутом (post{}) —
+                // тот же приём, что и у центрирования на отметке из "Список меток":
+                // mapBottomOverlayHeightPx() внутри fitMapToRoute() должна читать уже
+                // актуальную высоту панели, а не 0 от ещё не отмеренного GONE->VISIBLE.
+                bindingMain.incLayoutTabItemsMap.layoutMapRouteControls.post {
+                    fitMapToRoute(path, destLat, destLon)
+                }
             }
         }
     }
@@ -2627,6 +2717,72 @@ class MainActivity : AppCompatActivity() {
         mapRouteLatLonPath = path
         bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx =
             path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) }
+    }
+    /** Центрирует и масштабирует карту так, чтобы весь построенный маршрут (старт + все
+     * промежуточные точки + пункт назначения) попал в видимую область — раньше маршрут молча
+     * строился за пределами экрана (фидбек по итогам тестирования этапа 27), игрок видел
+     * только тот кусок карты, где был до этого. В отличие от centerMapOnBitmapPoint() (только
+     * пан на постоянном зуме) тут меняется и зум — суппматрица PhotoView пересчитывается с
+     * нуля, а не двигается дельтой от текущей.
+     *
+     * suppMatrix библиотеки работает в ЭКРАННОМ пространстве поверх базовой "впис. в экран"
+     * матрицы (drawMatrix = suppMatrix * baseMatrix, см. PhotoViewAttacher.getDrawMatrix()/
+     * комментарий в centerMapOnBitmapPoint()) — готового геттера базовой матрицы в паблик API
+     * нет, поэтому она выводится трюком: подставить suppMatrix=identity, снять
+     * получившийся drawMatrix (это и есть база), тут же поставить обратно. Дальше обычная
+     * алгебра матриц: зная желаемую АБСОЛЮТНУЮ drawMatrix (bitmap-px -> screen-px, ровно то
+     * же пространство, что и everywhere else in this file, е.g. GeoReference.latLonToPixel +
+     * matrix.mapPoints), новая suppMatrix = targetDrawMatrix * baseMatrix^-1. */
+    private fun fitMapToRoute(path: List<Pair<Double, Double>>, destLat: Double, destLon: Double) {
+        val geoReference = mapGeoReference ?: return
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
+        if (photoView.width == 0 || photoView.height == 0) return
+        val points = path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) } +
+            geoReference.latLonToPixel(destLat, destLon)
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for (p in points) {
+            minX = minOf(minX, p.x); maxX = maxOf(maxX, p.x)
+            minY = minOf(minY, p.y); maxY = maxOf(maxY, p.y)
+        }
+        val bboxWidth = (maxX - minX).coerceAtLeast(1f)
+        val bboxHeight = (maxY - minY).coerceAtLeast(1f)
+        val bboxCenterX = (minX + maxX) / 2f
+        val bboxCenterY = (minY + maxY) / 2f
+        val paddingPx = resources.displayMetrics.density * MAP_ROUTE_FIT_PADDING_DP
+        val availableWidth = (photoView.width - paddingPx * 2f).coerceAtLeast(1f)
+        val availableHeight = (photoView.height - mapBottomOverlayHeightPx() - paddingPx * 2f).coerceAtLeast(1f)
+        // Абсолютный масштаб (bitmap-px -> screen-px) нужно перевести в единицы photoView.scale
+        // (множитель НАД базовой "впис. в экран" матрицей), чтобы клэмпить в поддерживаемый
+        // библиотекой диапазон [minimumScale, maximumScale] — иначе setDisplayMatrix() продавит
+        // масштаб, который checkMatrixBounds() тут же попытается скорректировать по-своему.
+        val baseMatrix = Matrix()
+        run {
+            val savedSupp = Matrix()
+            photoView.getSuppMatrix(savedSupp)
+            photoView.setDisplayMatrix(Matrix())
+            photoView.getDisplayMatrix(baseMatrix)
+            photoView.setDisplayMatrix(savedSupp)
+        }
+        val baseMatrixValues = FloatArray(9)
+        baseMatrix.getValues(baseMatrixValues)
+        val baseScale = baseMatrixValues[Matrix.MSCALE_X]
+        if (baseScale <= 0f) return
+        val requiredAbsoluteScale = minOf(availableWidth / bboxWidth, availableHeight / bboxHeight)
+        val relativeScale = (requiredAbsoluteScale / baseScale).coerceIn(photoView.minimumScale, photoView.maximumScale)
+        val finalAbsoluteScale = relativeScale * baseScale
+        val targetMatrix = Matrix()
+        targetMatrix.setScale(finalAbsoluteScale, finalAbsoluteScale)
+        val desiredCenterX = photoView.width / 2f
+        val desiredCenterY = (photoView.height - mapBottomOverlayHeightPx()) / 2f
+        targetMatrix.postTranslate(desiredCenterX - bboxCenterX * finalAbsoluteScale, desiredCenterY - bboxCenterY * finalAbsoluteScale)
+        val baseInverse = Matrix()
+        if (!baseMatrix.invert(baseInverse)) return
+        val newSuppMatrix = Matrix(targetMatrix)
+        newSuppMatrix.preConcat(baseInverse)
+        photoView.setDisplayMatrix(newSuppMatrix)
     }
     /** [Cancel] на построенном маршруте и [Stop] на активном следовании — оба полностью
      * сбрасывают маршрут (бэклог этапа 18: "тоже сбрасывает"), а не просто ставят на паузу. */
@@ -7174,6 +7330,7 @@ class MainActivity : AppCompatActivity() {
         // управление построенным/активным маршрутом ([Start]/[Cancel]/[Stop]).
         mapMenu.btnMapZoomIn.setOnClickListener { zoomMapBy(MAP_ZOOM_STEP_FACTOR) }
         mapMenu.btnMapZoomOut.setOnClickListener { zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR) }
+        mapMenu.btnMapCenter.setOnClickListener { recenterMapOnUser() }
         mapMenu.btnMapTapChoiceRoute.setOnClickListener {
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
             hideMapTapChoice()
@@ -7184,6 +7341,7 @@ class MainActivity : AppCompatActivity() {
             hideMapTapChoice()
             showMarkerNamePopupForNewMarker(lat, lon)
         }
+        mapMenu.btnMapTapChoiceCancel.setOnClickListener { hideMapTapChoice() }
         mapMenu.btnMapRouteStart.setOnClickListener {
             mapRouteState = MapRouteState.ACTIVE
             updateRouteControlsVisibility()

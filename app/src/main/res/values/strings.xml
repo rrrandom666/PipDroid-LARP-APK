@@ -656,6 +656,7 @@ Voice commands work off the wake word \"Pip-Boy\" — say it, then your command:
     <string name="voice_model_import_error_open">Could not open the selected file</string>
     <string name="voice_model_import_error_structure">Selected file is not a valid Vosk model</string>
     <string name="map_menu_center_button">Center</string>
+    <string name="map_menu_control_button">Map Controls</string>
     <string name="map_menu_place_marker_button">Place Marker</string>
     <string name="map_menu_route_button">Build Route</string>
     <string name="map_menu_marker_list_button">Marker List</string>

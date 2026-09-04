@@ -338,6 +338,10 @@ class MainActivity : AppCompatActivity() {
         // маршруте (roadmap, этап 27) — начальная/конечная точка не должны прилипать к
         // самому краю экрана.
         private const val MAP_ROUTE_FIT_PADDING_DP = 28f
+        // Шаг панорамирования уголками энкодера (roadmap, этап 27, энкодер-эргономика
+        // карты, п.2) — в экранных dp, не в пикселях битмапа карты (то же пространство, что
+        // и panMapBy()/postTranslate — не зависит от текущего зума).
+        private const val MAP_PAN_STEP_DP = 80f
 
         // Счётчик радиации
         private const val GEIGER_LETHAL_DOSE_RAD = 1000
@@ -1872,16 +1876,19 @@ class MainActivity : AppCompatActivity() {
                 // PipWizardButtonStyle-кнопки (не CNDEFFRADButtonStyle, тот уже тематизирован
                 // через тему Activity сам) — тонируются вручную кодом, тот же приём, что у
                 // Settings (currentWizardAccentColor()).
-                val mapAccent = ColorStateList.valueOf(currentWizardAccentColor())
+                val mapAccentColor = currentWizardAccentColor()
+                val mapAccent = ColorStateList.valueOf(mapAccentColor)
                 listOf(
                     mapScreen.btnMapMarkerDetailEdit,
                     mapScreen.btnMapMarkerDetailRoute,
                     mapScreen.btnMapMarkerDetailDelete,
+                    mapScreen.btnMapMarkerDetailBack,
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupCancel,
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave,
                     mapScreen.btnMapZoomIn,
                     mapScreen.btnMapZoomOut,
                     mapScreen.btnMapCenter,
+                    mapScreen.btnMapControlBack,
                     mapScreen.btnMapTapChoiceRoute,
                     mapScreen.btnMapTapChoiceMarker,
                     mapScreen.btnMapTapChoiceCancel,
@@ -1889,6 +1896,15 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.btnMapRouteCancel,
                     mapScreen.btnMapRouteStop
                 ).forEach { it.backgroundTintList = mapAccent }
+                // Уголки панорамирования (roadmap, этап 27, п.2) — "без фона", только цвет
+                // текста, тот же приём, что и остальная тематизация вручную кодом (см.
+                // CLAUDE.md, "Архитектурный принцип: тематизация интерфейса").
+                listOf(
+                    mapScreen.btnMapPanUp,
+                    mapScreen.btnMapPanDown,
+                    mapScreen.btnMapPanLeft,
+                    mapScreen.btnMapPanRight,
+                ).forEach { it.setTextColor(mapAccentColor) }
                 // ImageButton без своего tint наследует android:tint активной темы
                 // (Theme.PipDroid.*UI) — то же самое, что уже задокументировано для
                 // ImageView/Vault-Boy в CLAUDE.md. Без явного сброса стрелка перекрашивалась
@@ -2078,10 +2094,25 @@ class MainActivity : AppCompatActivity() {
     private data class MapMenuItemMeta(val key: String, val labelRes: Int, val action: () -> Unit)
     private val mapRootMeta: List<MapMenuItemMeta> by lazy {
         listOf(
+            // "Управление картой" — первым пунктом (roadmap, этап 27, энкодер-эргономика
+            // карты, п.1) — на тач это то же самое, что провал энкодером в MAP_CONTROLS
+            // (mapRootChildrenNodes()): открывает панель Zoom/Center/Pan/Crosshair/Back
+            // поверх карты, сама панель управляется тачем как обычно (кнопки активны для
+            // обоих способов ввода). Гейт "только режимы с физическим энкодером" — НЕ
+            // здесь: mapRootMeta кешируется `by lazy` один раз, до того как pipBoyMode
+            // вообще мог стать известен (та же находка, что у dataFilesMeta/clockMeta) —
+            // видимость пересчитывается свежо в mapRootSidebarItems()/mapRootChildrenNodes().
+            MapMenuItemMeta("MAP_CONTROLS", R.string.map_menu_control_button) {
+                mapControlMode = MapControlMode.ROOT
+                setMapControlOverlayVisible(true)
+            },
             // "Center" убран из этого списка (roadmap, этап 27, энкодер-карта) — теперь
             // отдельная кнопка-стрелка рядом с +/- (см. btn_map_center), тот же
             // recenterMapOnUser() переиспользован её обработчиком.
-            MapMenuItemMeta("PLACE_MARKER", R.string.map_menu_place_marker_button) { armTapMode(MapTapMode.PLACE_MARKER) },
+            MapMenuItemMeta("PLACE_MARKER", R.string.map_menu_place_marker_button) {
+                setMapControlOverlayVisible(false)
+                armTapMode(MapTapMode.PLACE_MARKER)
+            },
             MapMenuItemMeta("ROUTE", R.string.map_menu_route_button) {
                 // Провал вглубь — курсор подменю с индекса 0 (см. showMapMenuState()).
                 mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
@@ -2100,6 +2131,8 @@ class MainActivity : AppCompatActivity() {
             // на первый уровень при выборе способа прокладки маршрута"). Сайдбар уходит в
             // ROOT только когда маршрут реально построен, см. routeTo().
             MapMenuItemMeta("TO_POINT", R.string.map_route_to_point_button) {
+                mapControlMode = MapControlMode.ROUTE_TO_POINT
+                setMapControlOverlayVisible(true)
                 armTapMode(MapTapMode.ROUTE_TO_POINT)
             },
             MapMenuItemMeta("TO_MARKER", R.string.map_route_to_marker_button) {
@@ -2109,8 +2142,30 @@ class MainActivity : AppCompatActivity() {
             MapMenuItemMeta("BACK", R.string.wizard_back) { showMapMenuState(MapMenuState.ROOT) },
         )
     }
+    /** Пункты бокового меню Map для тача — та же схема, что у dataFilesSidebarItems()/
+     * clockSidebarItems(): гейт "Управление картой" пересчитывается свежо на каждый вызов
+     * (не внутри `mapRootMeta` — та кешируется `by lazy`, см. комментарий там). Общая точка
+     * и для начальной постройки mapRootAdapter в onCreate(), и для refreshSidebarBackItems()
+     * — тот же приём, что у остальных списков. mapRootChildrenNodes() ищет позиции узлов
+     * ИМЕННО в этом списке (не в сыром mapRootMeta), чтобы индексы совпадали с адаптером
+     * независимо от режима. */
+    private fun mapRootSidebarItems(): List<SidebarMenuItem<String>> =
+        mapRootMeta.filter { it.key != "MAP_CONTROLS" || pipBoyMode != PipBoyMode.PHONE }
+            .map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) }
     private lateinit var mapRootAdapter: SidebarMenuAdapter<String>
     private lateinit var mapRouteSubmenuAdapter: SidebarMenuAdapter<String>
+    /** Список отметок — раньше локальный `val` внутри bindMarkerListAdapter() (не был нужен
+     * снаружи, пока список не читал только тач). roadmap, этап 27 — энкодер-эргономика
+     * карты: нужен полем, чтобы mapMarkerListChildrenNodes() могла звать
+     * flashPressAnimation()/setSelectedPositionSilently() на нём же, тот же приём, что у
+     * mapRootAdapter/mapRouteSubmenuAdapter/journalListAdapter. */
+    private lateinit var mapMarkerListAdapter: SidebarMenuAdapter<MapMarker?>
+    /** Какая из двух панелей делит с "Управление картой" один и тот же набор Zoom/Center/
+     * Pan/Crosshair/Back-стрелка (roadmap, этап 27, п.6 — mapControlChildrenNodes()) сейчас
+     * открыта — нужно тачу по крестику (view_map_crosshair.setOnClickListener), чтобы понять,
+     * показать ли выбор [Route]/[Marker]/[Cancel] (ROOT) или сразу построить маршрут
+     * (ROUTE_TO_POINT), тот же выбор, что уже делает CROSSHAIR.onActivate у энкодера. */
+    private var mapControlMode: MapControlMode = MapControlMode.ROOT
     private fun showMapMenuState(state: MapMenuState) {
         // Навигация по сайдбар-меню (Build Route/Marker List/Back) прерывает незавершённый
         // цикл взвода тапа (Place a marker/До точки на карте) — игрок ушёл в другую логику,
@@ -2119,6 +2174,11 @@ class MainActivity : AppCompatActivity() {
         if (mapTapMode != MapTapMode.NONE) {
             armTapMode(MapTapMode.NONE)
         }
+        // Переход в любое из трёх состояний бокового меню закрывает панель "Управление
+        // картой"/"До точки на карте" (roadmap, этап 27, п.1/6) — тот же принцип, что и
+        // сброс mapTapMode/hideMapTapChoice() выше, экран не должен показывать сразу два
+        // взаимоисключающих набора элементов управления.
+        setMapControlOverlayVisible(false)
         mapMenuState = state
         val menu = bindingMain.incLayoutTabItemsMap
         menu.recyclerMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
@@ -2159,7 +2219,13 @@ class MainActivity : AppCompatActivity() {
             items = items,
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item ->
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
+                // что у journalListAdapter/dataFilesAdapter: два возможных родителя, смотря
+                // откуда зашли (см. mapMenuListReturnState), syncCursor сам no-op на том, что
+                // не совпадает с текущим уровнем энкодера.
+                menuNavigator.syncCursor("MAP_MARKER_LIST", position)
+                menuNavigator.syncCursor("MAP_ROUTE_TO_MARKER", position)
                 val marker = item.payload
                 when {
                     marker == null -> showMapMenuState(mapMenuListReturnState)
@@ -2185,6 +2251,7 @@ class MainActivity : AppCompatActivity() {
                 }
             },
         )
+        mapMarkerListAdapter = adapter
         menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
         menu.rvMapMarkerList.adapter = adapter
     }
@@ -2700,6 +2767,12 @@ class MainActivity : AppCompatActivity() {
                 // способа/цели, см. mapRouteSubmenuMeta/bindMarkerListAdapter) — единая точка,
                 // откуда бы ни был вызван routeTo().
                 showMapMenuState(MapMenuState.ROOT)
+                // Курсор энкодера мог быть на любой глубине внутри MAP (крестик в
+                // "Управление картой"/"До точки на карте", "До отметки", кнопка [Route] в
+                // карточке отметки) — синхронно поднимаем его на уровень бокового меню Map,
+                // раз сайдбар сам уже прыгнул в ROOT визуально (roadmap, этап 27, п.6).
+                // No-op, если энкодер сейчас не в поддереве MAP вообще.
+                menuNavigator.popUntilParentIs("MAP")
                 updateRouteControlsVisibility()
                 // Отложено до реального layout-прохода панели управления маршрутом (post{}) —
                 // тот же приём, что и у центрирования на отметке из "Список меток":
@@ -3536,9 +3609,18 @@ class MainActivity : AppCompatActivity() {
             childrenProvider = { journalChildrenNodes() },
             onHighlight = { bottom.btnItemsJournal.performClick() },
         )
+        // MAP — дети mapRootChildrenNodes() (roadmap, этап 27 — энкодер-эргономика карты,
+        // п.5), childrenProvider не статичный children — тот же приём, что у JOURNAL:
+        // markers грузятся асинхронно в openMapScreen(), которую как раз запускает
+        // performClick() ниже, до того как курсор реально провалится внутрь.
+        val mapNode = MenuNode(
+            id = "MAP",
+            childrenProvider = { mapRootChildrenNodes() },
+            onHighlight = { bottom.btnItemsMap.performClick() },
+        )
         return listOfNotNull(
             if (pipBoyMode != PipBoyMode.PHONE) geigerNode else null,
-            MenuNode("MAP") { bottom.btnItemsMap.performClick() },
+            mapNode,
             journalNode,
             clockNode,
         )
@@ -3728,6 +3810,469 @@ class MainActivity : AppCompatActivity() {
                 },
             ) else null,
         )
+    }
+    /***********************************************************************************************************
+     * ITEMS - MAP, энкодер (roadmap, этап 27 — энкодер-эргономика карты). Переиспользует уже
+     * готовую тач-логику карты (zoomMapBy/recenterMapOnUser/showMapTapChoice/routeTo/
+     * bindMarkerListAdapter и т.п., см. блок выше) — здесь только дерево MenuNode и то немногое
+     * новое, чего у тача не было вовсе (панорамирование уголками, крестообразный прицел).
+     **********************************************************************************************************/
+    /** Общая панель Zoom/Center/Pan/Crosshair/Back-стрелка (mapControlChildrenNodes()) живёт в
+     * двух разных точках дерева: сам пункт бокового меню "Управление картой" (ROOT — крестик
+     * открывает выбор [Route]/[Marker]/[Cancel], тот же тач-путь, что у обычного тапа по
+     * пустой точке) и "Проложить маршрут" → "До точки на карте" (ROUTE_TO_POINT — крестик
+     * сразу строит маршрут, roadmap п.6). */
+    private enum class MapControlMode { ROOT, ROUTE_TO_POINT }
+    /** Геокоордината в центре видимой карты (roadmap, этап 27, п.3) — фиксированная ТОЧКА
+     * ЭКРАНА (центр photo_view_map), не мировая координата: карта двигается под ней при
+     * пане/зуме, не наоборот, поэтому не latLonToPixel/фиксированный translationX/Y, как у
+     * прицела над отметкой (updateMapMarkerFocus()), а инверсия ТЕКУЩЕЙ displayMatrix —
+     * пересчитывается заново на каждый вызов. null — карта ещё не готова. */
+    private fun mapCrosshairLatLon(): Pair<Double, Double>? {
+        val geoReference = mapGeoReference ?: return null
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
+        val matrix = Matrix()
+        photoView.getDisplayMatrix(matrix)
+        val inverse = Matrix()
+        if (!matrix.invert(inverse)) return null
+        val screenCenter = floatArrayOf(photoView.width / 2f, photoView.height / 2f)
+        inverse.mapPoints(screenCenter)
+        return geoReference.pixelToLatLon(screenCenter[0], screenCenter[1])
+    }
+    /** Сдвигает видимую область карты на шаг в экранных пикселях (roadmap, этап 27, п.2) —
+     * тот же приём (postTranslate по suppMatrix), что и centerMapOnBitmapPoint(), только
+     * относительным сдвигом, не абсолютным позиционированием на точку. */
+    private fun panMapBy(dxPx: Float, dyPx: Float) {
+        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
+        val suppMatrix = Matrix()
+        photoView.getSuppMatrix(suppMatrix)
+        suppMatrix.postTranslate(dxPx, dyPx)
+        photoView.setDisplayMatrix(suppMatrix)
+    }
+    /** Показывает/прячет разом всю группу "Управление картой"/"До точки на карте" (roadmap,
+     * этап 27, п.1-4): 4 уголка панорамирования с подложками, крестообразный прицел, кнопка
+     * "←" с подложкой. Прицелы энкодера (focus_corner_brackets) сюда не входят — они
+     * переключаются отдельно, per-узел (см. setAllMapControlFocusesHidden(), вызывается тут
+     * же при скрытии — идемпотентная подстраховка). false дополнительно прячет панель выбора
+     * [Route]/[Marker]/[Cancel] — крестик мог оставить её открытой (hideMapTapChoice()) и
+     * снимает armTapMode(ROUTE_TO_POINT), если панель пряталась в этом режиме. */
+    private fun setMapControlOverlayVisible(visible: Boolean) {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        val visibility = if (visible) View.VISIBLE else View.GONE
+        listOf(
+            mapScreen.btnMapPanUp, mapScreen.viewMapPanUpBg,
+            mapScreen.btnMapPanDown, mapScreen.viewMapPanDownBg,
+            mapScreen.btnMapPanLeft, mapScreen.viewMapPanLeftBg,
+            mapScreen.btnMapPanRight, mapScreen.viewMapPanRightBg,
+            mapScreen.viewMapCrosshair,
+            mapScreen.btnMapControlBack, mapScreen.viewMapControlBackBg,
+        ).forEach { it.visibility = visibility }
+        if (!visible) {
+            setAllMapControlFocusesHidden()
+            hideMapTapChoice()
+            if (mapTapMode == MapTapMode.ROUTE_TO_POINT) armTapMode(MapTapMode.NONE)
+        }
+    }
+    /** Дети "Управление картой" (ROOT) и "До точки на карте" (ROUTE_TO_POINT) — общая функция
+     * (roadmap, этап 27, п.1/6): Zoom (ValueEditor, пара +/-, один общий прицел — как
+     * SPECIAL/Skills), Center (лист), Pan-верх/низ и Pan-право/лево (ValueEditor-пары,
+     * ОТДЕЛЬНЫЙ прицел на каждой кнопке пары — явно другое поведение, чем у Zoom, см.
+     * layout_tab_items_map.xml), Crosshair (в ROOT — провал в mapCrosshairTapChoiceChildrenNodes(),
+     * в ROUTE_TO_POINT — лист, onActivate сразу строит маршрут), Back-стрелка (лист,
+     * popLevel()). Панель открывается/армится НЕ в onHighlight самого родительского пункта
+     * ("Управление картой"/"До точки на карте" в списке-родителе), а в onHighlight ПЕРВОГО
+     * ребёнка здесь (ZOOM) — тот же приём "коммит в onHighlight первого элемента", что и у
+     * MELODY (clockChildrenNodes()): иначе Back-стрелка (popLevel() поднимает курсор обратно
+     * на родительский пункт списка) немедленно открывала бы панель заново. */
+    private fun mapControlChildrenNodes(mode: MapControlMode): List<MenuNode> {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        val crosshairNode = if (mode == MapControlMode.ROOT) {
+            MenuNode(
+                id = "MAP_CTRL_CROSSHAIR",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapCrosshairFocused(true)
+                },
+                children = mapCrosshairTapChoiceChildrenNodes(),
+            )
+        } else {
+            MenuNode(
+                id = "MAP_CTRL_CROSSHAIR",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapCrosshairFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.viewMapCrosshair) {
+                        val (lat, lon) = mapCrosshairLatLon() ?: return@flashButtonPressThenRun
+                        playNewTabSelectAudio()
+                        routeTo(lat, lon)
+                    }
+                },
+            )
+        }
+        return listOf(
+            MenuNode(
+                id = "MAP_CTRL_ZOOM",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapControlMode = mode
+                    setMapControlOverlayVisible(true)
+                    if (mode == MapControlMode.ROUTE_TO_POINT) armTapMode(MapTapMode.ROUTE_TO_POINT)
+                    setAllMapControlFocusesHidden()
+                    setMapZoomFocused(true)
+                },
+                valueEditor = ValueEditor(
+                    onAdjust = { delta ->
+                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapZoomIn else mapScreen.btnMapZoomOut)
+                        zoomMapBy(if (delta > 0) MAP_ZOOM_STEP_FACTOR else 1f / MAP_ZOOM_STEP_FACTOR)
+                    },
+                    onEnter = { playCNDSelectAudio() },
+                    onExit = { playItemSelectAudio() },
+                ),
+            ),
+            MenuNode(
+                id = "MAP_CTRL_CENTER",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapCenterFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapCenter) {
+                        playNewTabSelectAudio()
+                        recenterMapOnUser()
+                    }
+                },
+            ),
+            MenuNode(
+                id = "MAP_CTRL_PAN_V",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapPanVerticalFocused(true)
+                },
+                valueEditor = ValueEditor(
+                    onAdjust = { delta ->
+                        val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
+                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanUp else mapScreen.btnMapPanDown)
+                        panMapBy(0f, if (delta > 0) stepPx else -stepPx)
+                    },
+                    onEnter = { playCNDSelectAudio() },
+                    onExit = { playItemSelectAudio() },
+                ),
+            ),
+            MenuNode(
+                id = "MAP_CTRL_PAN_H",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapPanHorizontalFocused(true)
+                },
+                valueEditor = ValueEditor(
+                    onAdjust = { delta ->
+                        val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
+                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanRight else mapScreen.btnMapPanLeft)
+                        // Право = отрицательный dx (тот же знак, что и у "бегунка"
+                        // recenterMapOnUser()/centerMapOnBitmapPoint(): чтобы показать
+                        // содержимое ПРАВЕЕ, картинка сдвигается ВЛЕВО), см. touch-обработчик
+                        // btnMapPanRight/btnMapPanLeft в onCreate() — знак обязан совпадать.
+                        panMapBy(if (delta > 0) -stepPx else stepPx, 0f)
+                    },
+                    onEnter = { playCNDSelectAudio() },
+                    onExit = { playItemSelectAudio() },
+                ),
+            ),
+            crosshairNode,
+            MenuNode(
+                id = "MAP_CTRL_BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapControlFocusesHidden()
+                    setMapControlBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapControlBack) {
+                        playCNDSelectAudio()
+                        setMapControlOverlayVisible(false)
+                        menuNavigator.popLevel()
+                    }
+                },
+            ),
+        )
+    }
+    /** Дети CROSSHAIR в режиме ROOT (roadmap, этап 27, п.3) — Route/Marker/Cancel, те же три
+     * кнопки и обработчики, что и обычная панель тач-тапа по пустой точке
+     * (layout_map_tap_choice/btnMapTapChoiceRoute/_marker/_cancel). Панель открывается не в
+     * onActivate самого CROSSHAIR (он проваливается в children, onActivate для узла с детьми
+     * не вызывается никогда — см. MenuNavigator.activateSelected()), а в onHighlight ПЕРВОГО
+     * ребёнка здесь (тот же приём, что у ZOOM/MELODY выше) — ENCBTN на крестике всегда
+     * проваливается сюда и сразу подсвечивает Route, что и открывает панель. Cancel
+     * возвращает курсор на сам крестик (popLevel()). */
+    private fun mapCrosshairTapChoiceChildrenNodes(): List<MenuNode> {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        return listOf(
+            MenuNode(
+                id = "MAP_CTRL_CROSSHAIR_ROUTE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapCrosshairLatLon()?.let { (lat, lon) -> showMapTapChoice(lat, lon) }
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapTapChoiceRoute) {
+                        val (lat, lon) = pendingTapChoiceLatLon ?: return@flashButtonPressThenRun
+                        hideMapTapChoice()
+                        routeTo(lat, lon)
+                    }
+                },
+            ),
+            MenuNode(
+                id = "MAP_CTRL_CROSSHAIR_MARKER",
+                onHighlight = { playItemSelectAudio() },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapTapChoiceMarker) {
+                        val (lat, lon) = pendingTapChoiceLatLon ?: return@flashButtonPressThenRun
+                        hideMapTapChoice()
+                        showMarkerNamePopupForNewMarker(lat, lon)
+                    }
+                },
+            ),
+            MenuNode(
+                id = "MAP_CTRL_CROSSHAIR_CANCEL",
+                onHighlight = { playItemSelectAudio() },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapTapChoiceCancel) {
+                        playCNDSelectAudio()
+                        hideMapTapChoice()
+                        menuNavigator.popLevel()
+                    }
+                },
+            ),
+        )
+    }
+    /** Дети узла MAP (roadmap, этап 27, п.5) — боковое меню Карты на энкодер: "Управление
+     * картой" первым пунктом (только не-Phone, п.1), дальше три существующих пункта
+     * mapRootMeta — порядок и гейт обязаны совпадать с ним (тот же приём, что
+     * journalChildrenNodes()/journalSidebarItems()). "Проложить маршрут"/"Список меток"
+     * НЕ открывают свою панель тут же в onHighlight — тот же приём "коммит на первом
+     * ребёнке", что у MAP_CTRL_ZOOM/MELODY выше: иначе Back из их подменю (popLevel() до
+     * этого самого уровня) немедленно открывал бы подменю заново. */
+    private fun mapRootChildrenNodes(): List<MenuNode> {
+        // Позиции ищем в mapRootSidebarItems() (уже отфильтрован по pipBoyMode), не в сыром
+        // mapRootMeta — иначе индекс "Управление картой" (если она сейчас скрыта) сдвинул бы
+        // все остальные на единицу относительно того, что реально показывает mapRootAdapter.
+        val items = mapRootSidebarItems()
+        fun indexOf(key: String) = items.indexOfFirst { it.payload == key }
+        return listOfNotNull(
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                id = "MAP_CONTROLS",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRootAdapter.setSelectedPositionSilently(indexOf("MAP_CONTROLS"))
+                },
+                children = mapControlChildrenNodes(MapControlMode.ROOT),
+            ) else null,
+            MenuNode(
+                id = "MAP_PLACE_MARKER",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRootAdapter.setSelectedPositionSilently(indexOf("PLACE_MARKER"))
+                },
+                onActivate = {
+                    mapRootAdapter.flashPressAnimation(indexOf("PLACE_MARKER"))
+                    mapRootMeta.first { it.key == "PLACE_MARKER" }.action()
+                },
+            ),
+            MenuNode(
+                id = "MAP_ROUTE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRootAdapter.setSelectedPositionSilently(indexOf("ROUTE"))
+                },
+                children = mapRouteChildrenNodes(),
+            ),
+            MenuNode(
+                id = "MAP_MARKER_LIST",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRootAdapter.setSelectedPositionSilently(indexOf("MARKER_LIST"))
+                },
+                childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROOT) },
+            ),
+        )
+    }
+    /** Дети узла MAP_ROUTE (roadmap, этап 27, п.6-7) — "До точки на карте" (та же панель
+     * Zoom/Center/Pan/Crosshair/Back, что "Управление картой", крестик сразу строит
+     * маршрут), "До отметки" (список меток, выбор сразу строит маршрут), Back (popLevel() +
+     * showMapMenuState(ROOT), тот же явный вызов, что у существующего тач-действия "BACK" в
+     * mapRouteSubmenuMeta — не полагаемся на побочный эффект onHighlight). Порядок обязан
+     * совпадать с mapRouteSubmenuMeta. "До точки на карте" — первый ребёнок, поэтому именно
+     * его onHighlight (не MAP_ROUTE выше) показывает подменю (см. комментарий
+     * mapRootChildrenNodes()). */
+    private fun mapRouteChildrenNodes(): List<MenuNode> {
+        return listOf(
+            MenuNode(
+                id = "MAP_ROUTE_TO_POINT",
+                onHighlight = {
+                    playItemSelectAudio()
+                    showMapMenuState(MapMenuState.ROUTE_SUBMENU)
+                    mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
+                },
+                children = mapControlChildrenNodes(MapControlMode.ROUTE_TO_POINT),
+            ),
+            MenuNode(
+                id = "MAP_ROUTE_TO_MARKER",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRouteSubmenuAdapter.setSelectedPositionSilently(1)
+                },
+                childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU) },
+            ),
+            MenuNode(
+                id = "MAP_ROUTE_BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    mapRouteSubmenuAdapter.setSelectedPositionSilently(2)
+                },
+                onActivate = {
+                    mapRouteSubmenuAdapter.flashPressAnimation(2)
+                    playCNDSelectAudio()
+                    showMapMenuState(MapMenuState.ROOT)
+                    menuNavigator.popLevel()
+                },
+            ),
+        )
+    }
+    /** Дети MAP_MARKER_LIST (вход из бокового меню Map) и MAP_ROUTE_TO_MARKER (вход из "До
+     * отметки") — общая функция (roadmap, этап 27, п.8-9), зеркалит уже существующее
+     * ветвление bindMarkerListAdapter(): [returnState] == ROUTE_SUBMENU — выбор отметки
+     * сразу строит маршрут (лист, onActivate); иначе — провал в карточку деталей (Edit/
+     * Route/Delete/Back, mapMarkerDetailChildrenNodes()). Открытие самой панели списка — в
+     * onHighlight ПЕРВОГО узла (реальная отметка либо, если список пуст, сам Back — тот же
+     * приём "коммит на первом ребёнке", что у ZOOM/MELODY выше), не в родителе. */
+    private fun mapMarkerListChildrenNodes(returnState: MapMenuState): List<MenuNode> {
+        fun openListIfFirst(index: Int) {
+            if (index != 0) return
+            mapMenuListReturnState = returnState
+            showMapMenuState(MapMenuState.MARKER_LIST)
+        }
+        val markerNodes = markers.mapIndexed { index, marker ->
+            MenuNode(
+                id = "MAP_MARKER_${marker.id}",
+                onHighlight = {
+                    playItemSelectAudio()
+                    openListIfFirst(index)
+                    mapMarkerListAdapter.setSelectedPositionSilently(index)
+                    if (returnState != MapMenuState.ROUTE_SUBMENU) showMarkerDetail(marker)
+                },
+                children = if (returnState == MapMenuState.ROUTE_SUBMENU) emptyList() else mapMarkerDetailChildrenNodes(marker),
+                onActivate = if (returnState == MapMenuState.ROUTE_SUBMENU) {
+                    {
+                        mapMarkerListAdapter.flashPressAnimation(index)
+                        routeTo(marker.lat, marker.lon)
+                    }
+                } else null,
+            )
+        }
+        val backIndex = markers.size
+        val backNode = MenuNode(
+            id = "MAP_MARKER_LIST_BACK",
+            onHighlight = {
+                playItemSelectAudio()
+                openListIfFirst(backIndex)
+                mapMarkerListAdapter.setSelectedPositionSilently(backIndex)
+            },
+            onActivate = {
+                mapMarkerListAdapter.flashPressAnimation(backIndex)
+                playCNDSelectAudio()
+                showMapMenuState(returnState)
+                menuNavigator.popLevel()
+            },
+        )
+        return markerNodes + backNode
+    }
+    /** Карточка деталей отметки (roadmap, этап 27, п.9) — Edit/Route/Delete/Back, по образцу
+     * journalEntryDetailChildrenNodes(). Edit сознательно БЕЗ children — попап переименования
+     * (Cancel/Save/EditText) остаётся touch-only, тот же принцип, что и у клавиатуры вообще
+     * в этом проекте (см. CLAUDE.md). Back — только режимы с физическим энкодером. */
+    private fun mapMarkerDetailChildrenNodes(marker: MapMarker): List<MenuNode> {
+        val mapScreen = bindingMain.incLayoutTabItemsMap
+        return listOfNotNull(
+            MenuNode(
+                id = "MAP_MARKER_EDIT",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapMarkerDetailFocusesHidden()
+                    setMapMarkerDetailEditFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailEdit) {
+                        showMarkerNamePopupForEdit(marker)
+                    }
+                },
+            ),
+            MenuNode(
+                id = "MAP_MARKER_ROUTE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapMarkerDetailFocusesHidden()
+                    setMapMarkerDetailRouteFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailRoute) {
+                        routeTo(marker.lat, marker.lon)
+                        hideMarkerDetail()
+                    }
+                },
+            ),
+            MenuNode(
+                id = "MAP_MARKER_DELETE",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapMarkerDetailFocusesHidden()
+                    setMapMarkerDetailDeleteFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailDelete) {
+                        playNewTabSelectAudio()
+                        performMapMarkerDelete(marker)
+                    }
+                },
+            ),
+            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
+                id = "MAP_MARKER_BACK",
+                onHighlight = {
+                    playItemSelectAudio()
+                    setAllMapMarkerDetailFocusesHidden()
+                    setMapMarkerDetailBackFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailBack) {
+                        playCNDSelectAudio()
+                        menuNavigator.popLevel()
+                    }
+                },
+            ) else null,
+        )
+    }
+    /** Удаление отметки — общая точка и для тача (btnMapMarkerDetailDelete), и для энкодера
+     * (MAP_MARKER_DELETE.onActivate), по образцу performJournalEntryDelete(): курсор
+     * энкодера, если он сейчас на карточке этой отметки, поднимается на уровень списка
+     * (menuNavigator.popLevel() всегда безопасен для вызова из onActivate — по определению
+     * вызывается, только когда энкодер уже там, см. MenuNavigator.activateSelected()), затем
+     * список пересобирается без удалённой записи — replaceChildrenOf() сам no-op на том
+     * родителе, что не совпадает с текущим (безопасно звать оба варианта родителя). */
+    private fun performMapMarkerDelete(marker: MapMarker) {
+        markerRepository.delete(marker.id)
+        markers.removeAll { it.id == marker.id }
+        refreshMarkerPins()
+        hideMarkerDetail()
+        bindMarkerListAdapter()
+        menuNavigator.popLevel()
+        menuNavigator.replaceChildrenOf("MAP_MARKER_LIST", mapMarkerListChildrenNodes(MapMenuState.ROOT))
+        menuNavigator.replaceChildrenOf("MAP_ROUTE_TO_MARKER", mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU))
     }
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
@@ -4291,6 +4836,58 @@ class MainActivity : AppCompatActivity() {
         setJournalEntryEditorMicFocused(false)
         setJournalEntryEditorCancelFocused(false)
         setJournalEntryEditorSaveFocused(false)
+    }
+    /** Тот же приём на ITEMS/Map (roadmap, этап 27, энкодер-эргономика карты) — "Управление
+     * картой"/"До точки на карте" (mapControlChildrenNodes()): Zoom/Center — один прицел на
+     * блок, как SPECIAL/Skills; Pan-верх/низ и Pan-право/лево — явно ДВА отдельных прицела
+     * одновременно на паре (отличие от SPECIAL, см. layout_tab_items_map.xml). */
+    private fun setMapZoomFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapZoomFocus, focused)
+    }
+    private fun setMapCenterFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapCenterFocus, focused)
+    }
+    private fun setMapPanVerticalFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanUpFocus, focused)
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanDownFocus, focused)
+    }
+    private fun setMapPanHorizontalFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanLeftFocus, focused)
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanRightFocus, focused)
+    }
+    private fun setMapCrosshairFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapCrosshairFocus, focused)
+    }
+    private fun setMapControlBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapControlBackFocus, focused)
+    }
+    private fun setAllMapControlFocusesHidden() {
+        setMapZoomFocused(false)
+        setMapCenterFocused(false)
+        setMapPanVerticalFocused(false)
+        setMapPanHorizontalFocused(false)
+        setMapCrosshairFocused(false)
+        setMapControlBackFocused(false)
+    }
+    /** Тот же приём на карточке деталей отметки (roadmap, этап 27, п.9) — Edit/Route/Delete/
+     * Back, по образцу setXxxJournalEntryDetailFocused() выше. */
+    private fun setMapMarkerDetailEditFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailEditFocus, focused)
+    }
+    private fun setMapMarkerDetailRouteFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailRouteFocus, focused)
+    }
+    private fun setMapMarkerDetailDeleteFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailDeleteFocus, focused)
+    }
+    private fun setMapMarkerDetailBackFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailBackFocus, focused)
+    }
+    private fun setAllMapMarkerDetailFocusesHidden() {
+        setMapMarkerDetailEditFocused(false)
+        setMapMarkerDetailRouteFocused(false)
+        setMapMarkerDetailDeleteFocused(false)
+        setMapMarkerDetailBackFocused(false)
     }
     /** Прицелы на отдельных частях тела (roadmap, этап 27 — курсор энкодера со Stop должен
      * уметь переходить на конкретную часть тела и отмечать её CRIPPLED), тот же приём, что
@@ -5034,6 +5631,12 @@ class MainActivity : AppCompatActivity() {
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
         clockAdapter.setItems(clockSidebarItems(), resetSelection = false)
+        // "Управление картой" — тоже гейт по pipBoyMode (roadmap, этап 27, энкодер-
+        // эргономика карты, п.1), тот же приём, что у остальных списков выше.
+        mapRootAdapter.setItems(
+            mapRootSidebarItems(),
+            resetSelection = false,
+        )
         // journalListAdapter, в отличие от адаптеров выше, не строится безусловно в
         // onCreate() — только при первом заходе на вкладку Journal (bindJournalListAdapter(),
         // openJournalScreen()), поэтому единственный из всех тут нуждается в проверке
@@ -5043,6 +5646,7 @@ class MainActivity : AppCompatActivity() {
         }
         refreshGeigerMenuButtonVisibility()
         refreshJournalBackButtonVisibility()
+        refreshMapMarkerDetailBackButtonVisibility()
         refreshClockAlarmBackButtonVisibility()
         refreshClockTimerBackButtonsVisibility()
         refreshClockStopwatchBackButtonVisibility()
@@ -5064,6 +5668,12 @@ class MainActivity : AppCompatActivity() {
      * в боковое меню). */
     private fun refreshJournalBackButtonVisibility() {
         bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack.visibility =
+            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    }
+    /** Back на карточке деталей отметки Карты (roadmap, этап 27, п.9) — тот же гейт/приём,
+     * что у Back на карточке записи Journal выше. */
+    private fun refreshMapMarkerDetailBackButtonVisibility() {
+        bindingMain.incLayoutTabItemsMap.btnMapMarkerDetailBack.visibility =
             if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
     }
     /** Back-кнопки ITEMS/Clock (roadmap, этап 27, п.3-4) — та же схема, что у Menu на
@@ -7294,10 +7904,15 @@ class MainActivity : AppCompatActivity() {
         }
         val mapMenu = bindingMain.incLayoutTabItemsMap
         mapRootAdapter = SidebarMenuAdapter(
-            items = mapRootMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
+            items = mapRootSidebarItems(),
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item -> mapRootMeta.first { it.key == item.payload }.action() },
+            onSelect = { position, item ->
+                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
+                // что у journalListAdapter/dataFilesAdapter.
+                menuNavigator.syncCursor("MAP", position)
+                mapRootMeta.first { it.key == item.payload }.action()
+            },
         )
         mapMenu.recyclerMapMenuRoot.layoutManager = LinearLayoutManager(this)
         mapMenu.recyclerMapMenuRoot.adapter = mapRootAdapter
@@ -7305,32 +7920,57 @@ class MainActivity : AppCompatActivity() {
             items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
-            onSelect = { _, item -> mapRouteSubmenuMeta.first { it.key == item.payload }.action() },
+            onSelect = { position, item ->
+                menuNavigator.syncCursor("MAP_ROUTE", position)
+                mapRouteSubmenuMeta.first { it.key == item.payload }.action()
+            },
         )
         mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
         mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
         mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            menuNavigator.syncCursor("MAP_MARKER_${marker.id}", 0)
             showMarkerNamePopupForEdit(marker)
         }
         mapMenu.btnMapMarkerDetailRoute.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            menuNavigator.syncCursor("MAP_MARKER_${marker.id}", 1)
             routeTo(marker.lat, marker.lon)
             hideMarkerDetail()
         }
         mapMenu.btnMapMarkerDetailDelete.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
-            markerRepository.delete(marker.id)
-            markers.removeAll { it.id == marker.id }
-            refreshMarkerPins()
-            hideMarkerDetail()
-            bindMarkerListAdapter()
+            menuNavigator.syncCursor("MAP_MARKER_${marker.id}", 2)
+            performMapMarkerDelete(marker)
         }
+        // Back — новый пункт (roadmap, этап 27, п.9), только поднимает курсор энкодера в
+        // список отметок, самой отметки не касается. Видимость — refreshSidebarBackItems()/
+        // refreshMapMarkerDetailBackButtonVisibility(), тот же гейт, что у Journal.
+        mapMenu.btnMapMarkerDetailBack.setOnClickListener {
+            val marker = selectedMarkerForDetail ?: return@setOnClickListener
+            menuNavigator.syncCursor("MAP_MARKER_${marker.id}", 3)
+            menuNavigator.popLevel()
+        }
+        refreshMapMarkerDetailBackButtonVisibility()
         // Бэклог этапа 18: зум +/-, выбор [Route]/[Marker] по тапу на пустую точку карты,
         // управление построенным/активным маршрутом ([Start]/[Cancel]/[Stop]).
         mapMenu.btnMapZoomIn.setOnClickListener { zoomMapBy(MAP_ZOOM_STEP_FACTOR) }
         mapMenu.btnMapZoomOut.setOnClickListener { zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR) }
         mapMenu.btnMapCenter.setOnClickListener { recenterMapOnUser() }
+        // Уголки панорамирования/крестообразный прицел/кнопка "←" (roadmap, этап 27,
+        // энкодер-эргономика карты, п.2-4) — та же логика, что и у энкодера
+        // (mapControlChildrenNodes()/panMapBy()), доступна тачу тоже (кнопки реально видны
+        // на экране, не только энкодеру).
+        val mapPanStepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
+        mapMenu.btnMapPanUp.setOnClickListener { panMapBy(0f, mapPanStepPx) }
+        mapMenu.btnMapPanDown.setOnClickListener { panMapBy(0f, -mapPanStepPx) }
+        mapMenu.btnMapPanLeft.setOnClickListener { panMapBy(mapPanStepPx, 0f) }
+        mapMenu.btnMapPanRight.setOnClickListener { panMapBy(-mapPanStepPx, 0f) }
+        mapMenu.viewMapCrosshair.setOnClickListener {
+            val (lat, lon) = mapCrosshairLatLon() ?: return@setOnClickListener
+            if (mapControlMode == MapControlMode.ROUTE_TO_POINT) routeTo(lat, lon) else showMapTapChoice(lat, lon)
+        }
+        mapMenu.btnMapControlBack.setOnClickListener { setMapControlOverlayVisible(false) }
         mapMenu.btnMapTapChoiceRoute.setOnClickListener {
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
             hideMapTapChoice()

@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ClaudeCodeEditorTabs">
-    <option name="activeSessionId" value="fde3c112-ad52-4096-a4ac-b275c79066bd" />
+    <option name="activeSessionId" value="b6aeb909-eeb2-4234-90f8-89025abb60b1" />
     <option name="openSessionIds">
       <list>
         <option value="cccb2262-5511-4d46-bc6a-715aa3dc2f88" />
-        <option value="fde3c112-ad52-4096-a4ac-b275c79066bd" />
+        <option value="b6aeb909-eeb2-4234-90f8-89025abb60b1" />
       </list>
     </option>
     <option name="sessionPaths">
       <map>
+        <entry key="b6aeb909-eeb2-4234-90f8-89025abb60b1" value="/sessions/b9e37dfb-45f3-49f9-9074-618b177924de" />
         <entry key="cccb2262-5511-4d46-bc6a-715aa3dc2f88" value="/sessions/7c54b3b6-f246-4006-bc5f-75bbd545a8c1" />
-        <entry key="fde3c112-ad52-4096-a4ac-b275c79066bd" value="/sessions/916bbf20-9ca2-4586-81a0-4c87012722ab" />
       </map>
     </option>
     <option name="sessionTitles">
       <map>
+        <entry key="b6aeb909-eeb2-4234-90f8-89025abb60b1" value="Подключаем карту к энкодеру. Вот что нужно сделать" />
         <entry key="cccb2262-5511-4d46-bc6a-715aa3dc2f88" value="Погнали пилить голосовой ввод. Создашь под него ве" />
-        <entry key="fde3c112-ad52-4096-a4ac-b275c79066bd" value="Подключаем к энкодеру карту. Прежде всего нужно ис" />
       </map>
     </option>
   </component>

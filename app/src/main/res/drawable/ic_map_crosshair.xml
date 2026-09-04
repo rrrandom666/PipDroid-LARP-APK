@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Крестообразный прицел в центре карты (roadmap, этап 27 — энкодер-эргономика карты, п.3)
+     — фиксированная точка экрана, не мировая координата (см. view_map_crosshair в
+     layout_tab_items_map.xml). Два тонких прямоугольника крестом, тот же layer-list приём,
+     что у focus_corner_brackets.xml — белый цвет-заглушка, реальный тон задаётся
+     android:backgroundTint на самом View. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="18dp" android:height="2dp" android:gravity="center">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+    <item android:width="2dp" android:height="18dp" android:gravity="center">
+        <shape android:shape="rectangle"><solid android:color="@android:color/white" /></shape>
+    </item>
+</layer-list>

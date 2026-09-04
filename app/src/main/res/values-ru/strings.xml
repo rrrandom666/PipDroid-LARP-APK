@@ -170,6 +170,7 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="voice_model_import_error_open">Не удалось открыть выбранный файл</string>
     <string name="voice_model_import_error_structure">Выбранный файл — не подходящая модель Vosk</string>
     <string name="map_menu_center_button">Центрировать</string>
+    <string name="map_menu_control_button">Управление картой</string>
     <string name="map_menu_place_marker_button">Поставить отметку</string>
     <string name="map_menu_route_button">Проложить маршрут</string>
     <string name="map_menu_marker_list_button">Список меток</string>

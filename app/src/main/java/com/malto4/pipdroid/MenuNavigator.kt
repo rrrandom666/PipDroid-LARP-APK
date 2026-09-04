@@ -69,7 +69,10 @@ class MenuNode(
  *   родителю, восстановив его прежнюю позицию курсора
  */
 class MenuNavigator {
-    private class Level(val nodes: List<MenuNode>, var cursor: Int)
+    // [tag] — только для уровней, запущенных через [pushLevel] (без узла-родителя в дереве,
+    // поэтому обычному syncCursor()/setPathSilently(), которые сверяются по дереву, не с
+    // чем сверяться) — см. [syncPushedCursor].
+    private class Level(val nodes: List<MenuNode>, var cursor: Int, val tag: String? = null)
 
     private var stack: MutableList<Level> = mutableListOf()
 
@@ -183,25 +186,107 @@ class MenuNavigator {
     }
 
     /**
-     * Поднимается с текущей глубины сразу к уровню, чьи узлы принадлежат родителю с [id] —
-     * не поштучно, как [popLevel] (roadmap, этап 27 — энкодер-эргономика карты). Нужен для
-     * действий, которые сами прыгают на определённый уровень визуально (построенный маршрут
-     * сбрасывает боковое меню карты в ROOT, откуда бы его ни начали строить — крестик в
-     * "Управление картой"/"До точки на карте", "До отметки", кнопка [Route] в карточке
-     * отметки), пока энкодер может быть на любой глубине внутри поддерева. No-op, если узла
-     * с таким id вообще нет в текущем стеке — энкодер сейчас не в этом поддереве, тот же
-     * защитный принцип, что у [replaceChildrenOf]/[syncCursor].
+     * Проваливается на новый уровень НАПРЯМУЮ, без узла-родителя в дереве (roadmap, этап 27
+     * — доработка) — для плавающих панелей, которые появляются программно как побочный
+     * эффект действия (построенный маршрут открывает Start/Cancel, см.
+     * mapRouteControlsChildrenNodes() в MainActivity.kt), а не как обычный провал по дереву
+     * через существующий узел-родитель. [popLevel] с этого уровня сам вернёт туда, откуда он
+     * был запушен — обычная механика стека, никакой специальной логики не требуется.
      */
-    fun popUntilParentIs(id: String) {
-        if (stack.none { level -> level.nodes.any { it.id == id } }) return
-        while (stack.size > 1) {
-            val parentLevel = stack[stack.size - 2]
-            if (parentLevel.nodes.getOrNull(parentLevel.cursor)?.id == id) {
-                activateCurrent()
-                return
-            }
-            stack.removeAt(stack.size - 1)
+    fun pushLevel(nodes: List<MenuNode>, tag: String? = null) {
+        if (nodes.isEmpty()) return
+        stack.add(Level(nodes, 0, tag))
+        activateCurrent()
+    }
+
+    /**
+     * Заменяет ТЕКУЩИЙ (верхний) уровень стека новым списком узлов на месте, безусловно —
+     * не привязано к id родителя, в отличие от [replaceChildrenOf] (тот сверяет id и
+     * безопасен для вызова "вслепую" из мест, не знающих, там ли сейчас энкодер). Для
+     * уровней, запущенных через [pushLevel] (без родителя, id сверять не с чем) — там, где
+     * вызывающий код и так точно знает, что энкодер сейчас на этом самом уровне (Start
+     * пересобирает свою же панель в Stop, см. mapRouteControlsChildrenNodes()). [tag] по
+     * умолчанию наследуется от текущего уровня (Start не обязан помнить его сам).
+     */
+    fun replaceTopLevel(nodes: List<MenuNode>, cursor: Int = 0, tag: String? = null) {
+        if (stack.isEmpty() || nodes.isEmpty()) return
+        val effectiveTag = tag ?: stack.last().tag
+        stack[stack.size - 1] = Level(nodes, cursor.coerceIn(0, nodes.size - 1), effectiveTag)
+        activateCurrent()
+    }
+
+    /**
+     * Синхронизация тача с курсором энкодера на уровне, запущенном через [pushLevel] —
+     * тот же смысл, что [syncCursor], но сверяется по [tag] самого уровня, а не по id
+     * родителя (у запушенного уровня родителя в дереве нет). No-op (и `false`), если сейчас
+     * на вершине стека не тот тег (энкодер не на этой панели) — тот же защитный принцип, что
+     * у [syncCursor]/[replaceChildrenOf]. Возвращает `true`, только если реально применена —
+     * у запушенных уровней нет узла-предка в дереве, которым можно было бы "дотянуться" до
+     * них позже (в отличие от [setPathSilently]), поэтому вызывающий код (тач по Start/
+     * Cancel/Stop в mapRouteControlsChildrenNodes()) обязан сам проверить результат перед
+     * [popLevel]/[replaceTopLevel] — иначе рисковал бы применить их не к той панели.
+     */
+    fun syncPushedCursor(tag: String, position: Int): Boolean {
+        val level = stack.lastOrNull() ?: return false
+        if (level.tag != tag) return false
+        if (position !in level.nodes.indices) return false
+        level.cursor = position
+        return true
+    }
+
+    /**
+     * Жёстко ставит курсор энкодера на конкретный путь узлов от корня всего дерева (roadmap,
+     * доработка после фидбека — найденный баг "энкодер не следует за тапами между узлами
+     * дерева": [syncCursor] чинит только позицию ВНУТРИ уже активного уровня — если тач
+     * переключился в СОВСЕМ другую ветку (с которой энкодер прежде не соприкасался вообще,
+     * напр. Map Controls -> Build Route тачем, минуя энкодер), синхронизировать нечего,
+     * старый уровень остаётся "залипшим"). [path] — индексы курсора на каждом уровне вниз от
+     * корня, ровно те же индексы, что вызывающий код (тач-обработчик) обязан посчитать сам —
+     * тап по узлу с детьми обязан указывать путь ДО его первого ребёнка (roadmap, доработка
+     * после фидбека — "тап по узлу энкодера должен устанавливать курсор энкодера на первый
+     * дочерний узел тапнутого узла", тот же исход, что и обычный ENCBTN на этом узле), а не
+     * оставаться на самом тапнутом узле.
+     *
+     * Вызывает [MenuNode.onHighlight] ТОЛЬКО последнего узла пути (не промежуточных — тот же
+     * приём, что у [resetToRootAtIndex]) — не "молча": прицел-уголки/подсветка и вся "команда
+     * открыть эту панель" (напр. mapControlChildrenNodes() — сама панель Zoom/Pan/Center
+     * открывается в onHighlight её первого ребёнка, не родителя) живут именно там, без этого
+     * вызова экран показывал бы верный курсор внутри дерева, но не рисовал бы соответствующий
+     * прицел (roadmap, доработка после фидбека — найденный баг "курсор на кнопке, а прицела
+     * не видно"). Невалидный путь (индекс вне диапазона на любом шаге) — no-op, оставляет
+     * текущее состояние как было, не ломает половину пути.
+     */
+    fun setPath(rootNodes: List<MenuNode>, path: List<Int>) {
+        val newStack = buildPathStack(rootNodes, path) ?: return
+        stack = newStack
+        activateCurrent()
+    }
+
+    /**
+     * То же самое, что [setPath], но без вызова [MenuNode.onHighlight] конечного узла —
+     * для случаев, когда сам этот вызов был бы разрушительным побочным эффектом (roadmap,
+     * доработка после фидбека — найденный баг: [setPath] на узел "MAP" внутри routeTo()
+     * вызывал его onHighlight — `btnItemsMap.performClick()` — тот заново открывает экран
+     * карты через openMapScreen(), которая сбрасывает mapRouteState и стирала только что
+     * построенный маршрут). Использовать только там, где следующим шагом и так идёт
+     * действие с собственным, безопасным эффектом (напр. [pushLevel] сразу поверх).
+     */
+    fun setPathSilently(rootNodes: List<MenuNode>, path: List<Int>) {
+        val newStack = buildPathStack(rootNodes, path) ?: return
+        stack = newStack
+    }
+
+    private fun buildPathStack(rootNodes: List<MenuNode>, path: List<Int>): MutableList<Level>? {
+        if (rootNodes.isEmpty() || path.isEmpty()) return null
+        var currentNodes = rootNodes
+        val newStack = mutableListOf<Level>()
+        for (index in path) {
+            if (index !in currentNodes.indices) return null
+            newStack.add(Level(currentNodes, index))
+            currentNodes = currentNodes[index].children
         }
+        editingNode = null
+        return newStack
     }
 
     /**

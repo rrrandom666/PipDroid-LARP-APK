@@ -9,6 +9,8 @@
     android:layout_height="wrap_content"
     android:padding="12dp"
     android:background="@color/pip_background_darker"
+    android:elevation="24dp"
+    android:clipToPadding="false"
     app:layout_constraintTop_toTopOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"
@@ -35,6 +37,27 @@
         app:layout_constraintTop_toBottomOf="@id/et_marker_name_value"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.5) — прямые сиблинги своих
+         кнопок в этом же ConstraintLayout (см. CLAUDE.md). Отрицательный отступ уходит в
+         padding контейнера (12dp, с запасом) — нужен явный android:clipToPadding="false" на
+         самом контейнере (см. выше), иначе ViewGroup по умолчанию обрезает рисование детей
+         по границе именно padded-области, не только по внешней границе (тот же баг и приём,
+         что уже был на Stop/фигуре в Status, см. layout_tab_stats_status_cnd_content.xml). -->
+    <View
+        android:id="@+id/view_marker_name_popup_cancel_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_marker_name_popup_cancel"
+        app:layout_constraintEnd_toEndOf="@id/btn_marker_name_popup_cancel"
+        app:layout_constraintTop_toTopOf="@id/btn_marker_name_popup_cancel"
+        app:layout_constraintBottom_toBottomOf="@id/btn_marker_name_popup_cancel" />
+
     <Button
         android:id="@+id/btn_marker_name_popup_save"
         style="@style/PipWizardButtonStyle"
@@ -43,5 +66,20 @@
         android:text="@string/filter_save_button"
         app:layout_constraintTop_toBottomOf="@id/et_marker_name_value"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <View
+        android:id="@+id/view_marker_name_popup_save_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_marker_name_popup_save"
+        app:layout_constraintEnd_toEndOf="@id/btn_marker_name_popup_save"
+        app:layout_constraintTop_toTopOf="@id/btn_marker_name_popup_save"
+        app:layout_constraintBottom_toBottomOf="@id/btn_marker_name_popup_save" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

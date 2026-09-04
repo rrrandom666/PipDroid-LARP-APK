@@ -528,6 +528,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
@@ -550,6 +552,28 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.2) — прямые сиблинги
+             своих кнопок в этом же ConstraintLayout (см. CLAUDE.md). Отрицательный отступ
+             уходит в padding контейнера (10dp, с запасом) — нужен явный
+             android:clipToPadding="false" на самом контейнере (см. выше), иначе ViewGroup по
+             умолчанию обрезает рисование детей по границе именно padded-области, не только
+             по внешней — тот же баг и приём, что уже был на Stop/фигуре в Status, см.
+             layout_tab_stats_status_cnd_content.xml. -->
+        <View
+            android:id="@+id/view_map_tap_choice_route_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_route" />
+
         <Button
             android:id="@+id/btn_map_tap_choice_marker"
             style="@style/PipWizardButtonStyle"
@@ -559,6 +583,21 @@
             android:text="@string/map_menu_place_marker_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route" />
+
+        <View
+            android:id="@+id/view_map_tap_choice_marker_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_marker" />
 
         <!-- Cancel (фидбек: панель координат при тапе по пустой точке нечем было закрыть,
              кроме выбора Route/Marker) — просто прячет панель, hideMapTapChoice(). -->
@@ -571,6 +610,21 @@
             android:text="@string/cancel"
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_marker" />
+
+        <View
+            android:id="@+id/view_map_tap_choice_cancel_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_cancel" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -585,6 +639,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
@@ -608,6 +664,23 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.2) — прямые сиблинги
+             своих кнопок в этом же ConstraintLayout (см. CLAUDE.md). -->
+        <View
+            android:id="@+id/view_map_route_start_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_start"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_start"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_start"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_start" />
+
         <Button
             android:id="@+id/btn_map_route_cancel"
             style="@style/PipWizardButtonStyle"
@@ -618,6 +691,21 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toEndOf="@id/btn_map_route_start" />
 
+        <View
+            android:id="@+id/view_map_route_cancel_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_cancel"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_cancel"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_cancel" />
+
         <Button
             android:id="@+id/btn_map_route_stop"
             style="@style/PipWizardButtonStyle"
@@ -626,6 +714,21 @@
             android:text="@string/map_route_stop_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toStartOf="parent" />
+
+        <View
+            android:id="@+id/view_map_route_stop_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_stop"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_stop"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_stop"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_stop" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -637,6 +740,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"

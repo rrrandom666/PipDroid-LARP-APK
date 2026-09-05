@@ -30,7 +30,7 @@
     <string name="wizard_hint_resize">Adjust the display area to fit the PipBoy screen.</string>
 
     <string name="wizard_permissions_title">PERMISSIONS</string>
-    <string name="wizard_permissions_text">PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware) and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own \u2014 the button below is only needed if the system dialog doesn\'t appear for some reason.</string>
+    <string name="wizard_permissions_text">PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware), microphone permission (voice commands and dictation), and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own \u2014 the button below is only needed if the system dialog doesn\'t appear for some reason.</string>
     <string name="wizard_grant_permissions">Grant Permissions</string>
 
     <string name="wizard_pairing_title">PAIRING</string>

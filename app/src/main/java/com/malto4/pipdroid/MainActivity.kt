@@ -1043,6 +1043,14 @@ class MainActivity : AppCompatActivity() {
      **********************************************************************************************************/
     private fun requiredPermissionsForCurrentMode(): List<String> = buildList {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
+        // Запрашивается вместе с FINE (roadmap, этап 28, найденное расхождение) — обе
+        // объявлены в манифесте безусловно, но раньше мастер просил только FINE.
+        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        // Голосовые команды/диктовка (Journal) — общая фича, не завязанная на физический
+        // режим, поэтому запрашивается всегда, не только для не-Phone (roadmap, этап 28,
+        // найденное расхождение) — раньше мастер вообще её не просил, RECORD_AUDIO
+        // запрашивался только по месту первого реального использования функции.
+        add(Manifest.permission.RECORD_AUDIO)
         if (pipBoyMode != PipBoyMode.PHONE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             add(Manifest.permission.BLUETOOTH_SCAN)
             add(Manifest.permission.BLUETOOTH_CONNECT)

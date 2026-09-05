@@ -3627,17 +3627,25 @@ class MainActivity : AppCompatActivity() {
             children = statusChildrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsStatus) }
         )
-        // SPECIAL (roadmap, этап 27 — находка "SPECIAL/Skills"): onHighlight не изменился —
-        // движение курсора по-прежнему просто обновляет превью картинки/описания. ENCBTN на
-        // пункте теперь входит в ValueEditor — крутить `ENC` значит слать дельту в те же
-        // adjustSelectedSpecial(), что дёргают кнопки +/- по тапу, повторный ENCBTN выходит
-        // обратно к списку характеристик (см. MenuNavigator.ValueEditor).
+        // SPECIAL (roadmap, этап 27 — находка "SPECIAL/Skills"): движение курсора по-прежнему
+        // просто обновляет превью картинки/описания — onHighlight зовёт setSelectedPositionSilently()
+        // + showSpecialPreview() напрямую, не громкий specialAdapter.selectPosition() (roadmap,
+        // доработка после фидбека — найденный баг: громкий selectPosition() сам вызывает
+        // onSelect адаптера, то есть простое НАВЕДЕНИЕ курсора энкодером срабатывало как
+        // ENCBTN, сразу проваливаясь в ValueEditor; тот же приём, что у showClockContentPanel()
+        // в onHighlight Clock). ENCBTN на пункте по-прежнему входит в ValueEditor — крутить
+        // `ENC` значит слать дельту в те же adjustSelectedSpecial(), что дёргают кнопки +/- по
+        // тапу, повторный ENCBTN выходит обратно к списку характеристик (см. MenuNavigator.ValueEditor).
         val specialNode = MenuNode(
             id = "SPECIAL",
             children = specialMeta.mapIndexed { index, meta ->
                 MenuNode(
                     id = meta.key,
-                    onHighlight = { specialAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        specialAdapter.setSelectedPositionSilently(index)
+                        showSpecialPreview(meta)
+                    },
                     valueEditor = ValueEditor(
                         onAdjust = { delta ->
                             val special = bindingMain.incLayoutTabStatsSpecial
@@ -3664,13 +3672,17 @@ class MainActivity : AppCompatActivity() {
             ),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsSpecial) }
         )
-        // Skills — тот же ValueEditor-приём, что у specialNode выше.
+        // Skills — тот же приём (onHighlight silently + showSkillPreview()), что у specialNode выше.
         val skillsNode = MenuNode(
             id = "SKILLS",
             children = skillsMeta.mapIndexed { index, meta ->
                 MenuNode(
                     id = meta.key,
-                    onHighlight = { skillsAdapter.selectPosition(index) },
+                    onHighlight = {
+                        playItemSelectAudio()
+                        skillsAdapter.setSelectedPositionSilently(index)
+                        showSkillPreview(meta)
+                    },
                     valueEditor = ValueEditor(
                         onAdjust = { delta ->
                             val skills = bindingMain.incLayoutTabStatsSkills
@@ -3706,6 +3718,29 @@ class MainActivity : AppCompatActivity() {
             ),
         )
     }
+    /**
+     * Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 — доработка
+     * энкодер-эргономики STATUS/SPECIAL/Skills/Perks/Files, тот же класс бага и то же
+     * решение, что у syncMapEncoderPath()/syncClockEncoderPath()): обычный
+     * menuNavigator.syncCursor() чинит курсор только ВНУТРИ уже активного уровня — если тач
+     * пришёл, пока энкодер стоял на строке нижних кнопок (ещё не провалился в список) или в
+     * совсем другой ветке, синхронизировать было нечего, курсор оставался "залипшим". [path]
+     * — индексы от детей самого узла [nodeId] (STATUS/SPECIAL/SKILLS/PERKS/MISC), не всего
+     * дерева. [loud] — вызывать ли [MenuNode.onHighlight] конечного узла: `true`, если тач
+     * сам не применил соответствующий визуальный эффект/звук (курсору просто нужно физически
+     * доехать до места, прицел должен появиться там же — см. doc у syncClockEncoderPath());
+     * `false` (silently), если вызывающий код это уже сделал сам и повторный вызов дал бы
+     * задвоенный звук либо (для узлов с адаптером в onHighlight, см. specialNode/skillsNode/
+     * perksChildrenNodes()/dataFilesChildrenNodes()) рекурсию через их же onSelect.
+     */
+    private fun syncEncoderPath(rootNodes: List<MenuNode>, nodeId: String, path: List<Int>, loud: Boolean = true) {
+        val rootIndex = rootNodes.indexOfFirst { it.id == nodeId }
+        if (rootIndex == -1) return
+        val fullPath = listOf(rootIndex) + path
+        if (loud) menuNavigator.setPath(rootNodes, fullPath) else menuNavigator.setPathSilently(rootNodes, fullPath)
+    }
+    private fun syncStatsEncoderPath(nodeId: String, path: List<Int>) = syncEncoderPath(statsMenuRoot(), nodeId, path, loud = true)
+    private fun syncStatsEncoderPathSilently(nodeId: String, path: List<Int>) = syncEncoderPath(statsMenuRoot(), nodeId, path, loud = false)
     /**
      * ITEMS (roadmap, этап 6) — Map (п.2, переехал из DATA/Local Map), Clock (п.3, переехал
      * из списка радиостанций RADIO — был попапом, теперь обычный раздел), Journal (п.4,
@@ -4737,6 +4772,10 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() } else null,
         )
     }
+    /** syncStatsEncoderPath()/syncStatsEncoderPathSilently(), только для дерева DATA (см.
+     * doc у syncEncoderPath()) — используется у "Files" (MISC), тот же приём, что у Perks. */
+    private fun syncDataEncoderPath(nodeId: String, path: List<Int>) = syncEncoderPath(dataMenuRoot(), nodeId, path, loud = true)
+    private fun syncDataEncoderPathSilently(nodeId: String, path: List<Int>) = syncEncoderPath(dataMenuRoot(), nodeId, path, loud = false)
     /**
      * RADIO — top-level раздел без второго уровня (roadmap, "Новая шапка + единый
      * Settings", п.4/таблица второго уровня) — корень дерева состоит из одного листа,
@@ -5103,6 +5142,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    /** Превью картинки/описания SPECIAL при движении курсора (ENC/тач) — вынесено из
+     * onSelect адаптера (roadmap, этап 27 — доработка энкодер-эргономики, найденный баг:
+     * onHighlight листа [statsMenuRoot] раньше звал ГРОМКИЙ specialAdapter.selectPosition(),
+     * тот сам вызывает onSelect — значит просто НАВЕДЕНИЕ курсора энкодером срабатывало как
+     * ENCBTN, сразу проваливаясь в ValueEditor. onHighlight теперь зовёт эту функцию
+     * напрямую + setSelectedPositionSilently(), не selectPosition() — тот же приём, что у
+     * showClockContentPanel()/showPerkDescription(). */
+    private fun showSpecialPreview(meta: SpecialMeta) {
+        selectedSPECIAL = meta.key
+        bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(meta.imageRes)
+        bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(meta.descriptionRes)
+    }
+    /** Тот же приём, что у showSpecialPreview() выше, для Skills. */
+    private fun showSkillPreview(meta: SkillMeta) {
+        selectedSKILL = meta.key
+        bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(meta.imageRes)
+        bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(meta.descriptionRes)
+    }
     /**
      * Кнопки +/- SPECIAL/Skills (roadmap, "Финализация STATS") — [prefKey]/[SharedPreferences]
      * и [TextView] для текущего selectedSPECIAL/selectedSKILL. Диапазоны и дефолты те же,
@@ -5119,6 +5176,15 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
         specialAdapter.updateItemValue(position, curValue.toString())
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+        // Тап по +/- переставляет курсор энкодера на редактируемую характеристику и
+        // проваливается в её ValueEditor (roadmap, этап 27 — доработка энкодер-эргономики):
+        // следующий ENC:+/-1 продолжает листать то же значение. Guard по editingNodeId() —
+        // не переигрывать звук/визуал onEnter() на каждое срабатывание при удержании кнопки
+        // (longPressRunnable), только на первое (см. doc у MenuNavigator.editingNodeId()).
+        if (menuNavigator.editingNodeId() != meta.key) {
+            syncStatsEncoderPathSilently("SPECIAL", listOf(position))
+            menuNavigator.activateSelected()
+        }
     }
     private fun adjustSelectedSkill(delta: Int) {
         val position = skillsMeta.indexOfFirst { it.key == selectedSKILL }
@@ -5129,6 +5195,11 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
         skillsAdapter.updateItemValue(position, curValue.toString())
         if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+        // Тот же приём, что у adjustSelectedSpecial() выше.
+        if (menuNavigator.editingNodeId() != meta.key) {
+            syncStatsEncoderPathSilently("SKILLS", listOf(position))
+            menuNavigator.activateSelected()
+        }
     }
     /**
      * Общий визуальный признак "энкодер сфокусирован здесь" (roadmap, этап 27) — "прицел-
@@ -5690,15 +5761,32 @@ class MainActivity : AppCompatActivity() {
         val items = dataFilesMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.nameRes)) }
         return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
     }
+    /** Превью описания записи Files при движении курсора (ENC/тач) — тот же приём, что у
+     * showSpecialPreview()/showPerkDescription() выше (roadmap, этап 27 — доработка
+     * энкодер-эргономики). */
+    private fun showDataFilePreview(meta: DataFileMeta) {
+        val files = bindingMain.incLayoutTabDataMisc
+        files.tvDataMiscHolotapeText.setText(meta.descriptionRes)
+        // Сброс прокрутки на новую запись — см. тот же приём в showPerkDescription() выше.
+        files.scrollTabDataMiscText.scrollTo(0, 0)
+    }
     /** Дети узла MISC дерева энкодера DATA (dataMenuRoot()) — та же схема, что у perksChildrenNodes():
-     * onActivate = {} (не null) на каждой записи, чтобы ENCBTN на ней просто подтверждал
-     * подсветку и не проваливался/поднимался никуда (roadmap — "нажатие ENCBTN на пункт меню
-     * не делает ничего"), "В меню" поднимает курсор обратно на строку 2 DATA (MISC/HOLOTAPES). */
+     * onHighlight обновляет описание через setSelectedPositionSilently() + showDataFilePreview(),
+     * не громкий dataFilesAdapter.selectPosition() (roadmap, доработка после фидбека — тот сам
+     * зовёт onSelect адаптера, то есть простое наведение курсора энкодером срабатывало как
+     * ENCBTN, сразу проваливаясь в прокрутку описания). onActivate = {} (не null) на каждой
+     * записи, чтобы ENCBTN на ней просто подтверждал подсветку и не проваливался/поднимался
+     * никуда (roadmap — "нажатие ENCBTN на пункт меню не делает ничего"), "В меню" поднимает
+     * курсор обратно на строку 2 DATA (MISC/HOLOTAPES). */
     private fun dataFilesChildrenNodes(): List<MenuNode> {
-        return dataFilesMeta.mapIndexed { index, _ ->
+        return dataFilesMeta.mapIndexed { index, meta ->
             MenuNode(
                 id = "FILE_$index",
-                onHighlight = { dataFilesAdapter.selectPosition(index) },
+                onHighlight = {
+                    playItemSelectAudio()
+                    dataFilesAdapter.setSelectedPositionSilently(index)
+                    showDataFilePreview(meta)
+                },
                 // ENCBTN на записи — не подъём наверх и не no-op, а вход в прокрутку её
                 // описания (roadmap, этап 27 — находка "листание длинных файлов").
                 valueEditor = recordScrollValueEditor(bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText),
@@ -7547,6 +7635,19 @@ class MainActivity : AppCompatActivity() {
      * игроком перков — в старом PerkAdapter была ещё гейтинг-проверка "perk id in
      * selectedPerkArray" внутри onBindViewHolder, но раз в список и так попадают только
      * такие перки, проверка была тавтологией (мёртвый код), не переносится. */
+    /** Превью описания/иконки Perks при движении курсора (ENC/тач) — вынесено из
+     * STATSPerksSetup() в отдельный метод (roadmap, этап 27 — доработка энкодер-эргономики,
+     * тот же баг и то же решение, что у showSpecialPreview()/showSkillPreview()): нужен и
+     * onSelect адаптера (тап), и onHighlight узла в perksChildrenNodes() (просто наведение
+     * курсора энкодером) — тот больше не зовёт громкий perksAdapter.selectPosition(). */
+    private fun showPerkDescription(perk: Map<String, String>) {
+        bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
+        bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
+        // Сброс прокрутки на новую запись (roadmap, этап 27 — "листание длинных файлов")
+        // — иначе переключение на другой перк после того, как энкодер проскроллил
+        // предыдущее описание вниз, показало бы новый текст с той же смещённой позиции.
+        bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
+    }
     private fun STATSPerksSetup(recyclerView: RecyclerView){
         val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
@@ -7559,31 +7660,27 @@ class MainActivity : AppCompatActivity() {
         val filteredPerksList = perks.filter { perk -> perk["id"] in selectedSTATSPerksArray }.map { localizePerk(it) }
         perksRealItemCount = filteredPerksList.size
 
-        fun showPerkDescription(perk: Map<String, String>) {
-            bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
-            bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
-            // Сброс прокрутки на новую запись (roadmap, этап 27 — "листание длинных файлов")
-            // — иначе переключение на другой перк после того, как энкодер проскроллил
-            // предыдущее описание вниз, показало бы новый текст с той же смещённой позиции.
-            bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
-        }
-
         val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") }
         perksAdapter = SidebarMenuAdapter(
             items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тут, а не
-                // только в onHighlight/onActivate: этот колбэк общий и для тача, и для
-                // энкодера, а тач раньше вообще не сообщал MenuNavigator, куда встал.
-                menuNavigator.syncCursor("PERKS", position)
+                // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
+                // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
+                // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload["id"] == SIDEBAR_BACK_PAYLOAD) {
                     playCNDSelectAudio()
-                    menuNavigator.popLevel()
+                    syncStatsEncoderPath("PERKS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
                     showPerkDescription(item.payload)
+                    // Тап равносилен ENCBTN на этом пункте (roadmap, этап 27 — доработка
+                    // энкодер-эргономики Perks/Files): курсор проваливается сразу в прокрутку
+                    // описания — silently, превью уже применено строкой выше,
+                    // activateSelected() входит в ValueEditor узла.
+                    syncStatsEncoderPathSilently("PERKS", listOf(position))
+                    menuNavigator.activateSelected()
                 }
             },
         )
@@ -7604,9 +7701,13 @@ class MainActivity : AppCompatActivity() {
     /** Дети узла PERKS дерева энкодера (roadmap, этап 27) — как и сам список, пересчитывается
      * заново при каждом вызове (не кэшируется), т.к. perksRealItemCount/perksAdapter уже
      * отражают текущий фильтр к моменту вызова (STATSPerksSetup() всегда обновляет их первым).
-     * Каждый перк — чистое превью (onHighlight обновляет описание/иконку), без onActivate/
-     * valueEditor: пунктам нечего "активировать", ENCBTN на них просто поднимается наверх,
-     * как и было в дереве по умолчанию до появления onActivate/valueEditor у других экранов. */
+     * Каждый перк — чистое превью (onHighlight обновляет описание/иконку через
+     * setSelectedPositionSilently() + showPerkDescription(), не громкий perksAdapter.selectPosition()
+     * — roadmap, доработка после фидбека: тот сам зовёт onSelect адаптера, то есть простое
+     * наведение курсора энкодером срабатывало как ENCBTN, сразу проваливаясь в прокрутку
+     * описания), без onActivate/valueEditor: пунктам нечего "активировать", ENCBTN на них
+     * просто поднимается наверх, как и было в дереве по умолчанию до появления onActivate/
+     * valueEditor у других экранов. */
     private fun perksChildrenNodes(): List<MenuNode> {
         return (0 until perksRealItemCount).map { index ->
             // ENCBTN на перке — не подъём наверх (лист без children/valueEditor/onActivate
@@ -7616,7 +7717,11 @@ class MainActivity : AppCompatActivity() {
             // повторный ENCBTN — назад к списку перков.
             MenuNode(
                 id = "PERK_$index",
-                onHighlight = { perksAdapter.selectPosition(index) },
+                onHighlight = {
+                    playItemSelectAudio()
+                    perksAdapter.setSelectedPositionSilently(index)
+                    perksAdapter.currentItems().getOrNull(index)?.let { showPerkDescription(it.payload) }
+                },
                 valueEditor = recordScrollValueEditor(bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText),
             )
         } + menuBackNode(
@@ -7841,17 +7946,20 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тач раньше не
-                // сообщал MenuNavigator, куда встал, следующий ENC листал с прежней позиции.
-                menuNavigator.syncCursor("SPECIAL", position)
+                // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
+                // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
+                // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    menuNavigator.popLevel()
+                    syncStatsEncoderPath("SPECIAL", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
-                    val meta = specialMeta.first { it.key == item.payload }
-                    selectedSPECIAL = meta.key
-                    bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(meta.imageRes)
-                    bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(meta.descriptionRes)
+                    showSpecialPreview(specialMeta.first { it.key == item.payload })
+                    // Тап равносилен ENCBTN на этом пункте (roadmap, этап 27 — доработка
+                    // энкодер-эргономики): курсор проваливается сразу в редактирование
+                    // значения, следующий ENC:+/-1 сразу листает его — silently, превью выше
+                    // тач уже применил сам, activateSelected() входит в ValueEditor узла.
+                    syncStatsEncoderPathSilently("SPECIAL", listOf(position))
+                    menuNavigator.activateSelected()
                 }
             },
         )
@@ -7868,15 +7976,16 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                menuNavigator.syncCursor("SKILLS", position)
+                // Безусловная синхронизация курсора энкодера с тачем — тот же приём, что у
+                // SPECIAL выше.
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    menuNavigator.popLevel()
+                    syncStatsEncoderPath("SKILLS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
-                    val meta = skillsMeta.first { it.key == item.payload }
-                    selectedSKILL = meta.key
-                    bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(meta.imageRes)
-                    bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(meta.descriptionRes)
+                    showSkillPreview(skillsMeta.first { it.key == item.payload })
+                    // Тап равносилен ENCBTN — тот же приём, что у SPECIAL выше.
+                    syncStatsEncoderPathSilently("SKILLS", listOf(position))
+                    menuNavigator.activateSelected()
                 }
             },
         )
@@ -7897,30 +8006,36 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             playSelectSound = {},
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — no-op, если
-                // сейчас в дереве не обычный список (STOP-only при активном ранении), см.
-                // MenuNavigator.syncCursor().
-                menuNavigator.syncCursor("STATUS", position)
-                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    if (woundPhase != WoundPhase.NONE) {
-                        playErrorAudio()
-                    } else {
-                        playItemSelectAudio()
-                        menuNavigator.popLevel()
-                        syncRow2ActiveFromNavigator()
-                    }
+                // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
+                // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
+                // курсор только ВНУТРИ уже активного уровня, здесь курсор должен доехать
+                // сюда, даже если энкодер был в меню 2 уровня (не провалился в STATUS вовсе)
+                // или в совсем другой ветке (см. doc у syncEncoderPath()).
+                if (woundPhase != WoundPhase.NONE) {
+                    // LIGHT/HEAVY/STUNNED и "В меню" недоступны, пока активен таймер ранения/
+                    // оглушения — курсор энкодера в это время должен быть на STOP, единственном
+                    // реальном действии в дереве (statusChildrenNodes()), а не оставаться там,
+                    // где был до тапа.
+                    playErrorAudio()
+                    syncStatsEncoderPath("STATUS", listOf(0))
+                } else if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    playItemSelectAudio()
+                    syncStatsEncoderPath("STATUS", emptyList())
+                    syncRow2ActiveFromNavigator()
                 } else {
                     val meta = statusMeta.first { it.key == item.payload }
-                    if (woundPhase != WoundPhase.NONE) {
-                        playErrorAudio()
-                    } else {
-                        // playCNDSelectAudio(), не playItemSelectAudio() — звук нажатия
-                        // (roadmap, этап 27), тот же, что у +/- в SPECIAL/Skills. Листание
-                        // (просто перемещение курсора) — playItemSelectAudio(), см. onHighlight
-                        // в statusChildrenNodes() выше.
-                        playCNDSelectAudio()
-                        meta.action()
-                    }
+                    // playCNDSelectAudio(), не playItemSelectAudio() — звук нажатия
+                    // (roadmap, этап 27), тот же, что у +/- в SPECIAL/Skills. Листание
+                    // (просто перемещение курсора) — playItemSelectAudio(), см. onHighlight
+                    // в statusChildrenNodes() выше.
+                    playCNDSelectAudio()
+                    // Silently — meta.action() (startWoundTimer()) сама тут же перестраивает
+                    // детей STATUS и громко переставляет курсор на новый STOP через
+                    // refreshStatusEncoderChildren(); здесь достаточно гарантировать, что
+                    // энкодер уже внутри ветки STATUS к этому моменту (иначе replaceChildrenOf()
+                    // там — no-op).
+                    syncStatsEncoderPathSilently("STATUS", listOf(position))
+                    meta.action()
                 }
             },
         )
@@ -8229,6 +8344,12 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop.setOnClickListener {
             playNewTabSelectAudio()
             stopWoundTimerEarly()
+            // Курсор энкодера следует за тачем (roadmap, этап 27 — доработка энкодер-
+            // эргономики): BLEED -> BANDAGE сохраняет STOP (индекс 0 нового дерева STATUS),
+            // BANDAGE/STUNNED -> здоров возвращает в боковое меню (тоже индекс 0, LIGHT) —
+            // woundPhase к этому моменту уже обновлён внутри stopWoundTimerEarly(), безусловный
+            // переход работает независимо от того, где энкодер был до тапа (см. syncEncoderPath()).
+            syncStatsEncoderPath("STATUS", listOf(0))
         }
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundSkip.setOnClickListener {
             skipWoundTimer()
@@ -8240,13 +8361,37 @@ class MainActivity : AppCompatActivity() {
         // если персонаж мёртв), 5-секундный hold откуда угодно — пасхалка (перенесена
         // сюда с прежнего tv_tab_status_cnd_name). См. setupFigureTouchTarget().
         val cndContentSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
+        // Индексы ниже — порядок узлов statusChildrenNodes() при активном ранении: STOP(0),
+        // BODYPART_HEAD(1), BODYPART_LEFT_ARM(2), BODYPART_TORSO(3), BODYPART_RIGHT_ARM(4),
+        // BODYPART_LEFT_LEG(5), BODYPART_RIGHT_LEG(6) — roadmap, этап 27, доработка энкодер-
+        // эргономики: "тап по конечности переключает курсор энкодера на тапнутую конечность".
+        // No-op вне активного ранения — этих узлов тогда в дереве STATUS вообще нет (см. doc
+        // у syncEncoderPath()), CRIPPLED всё равно переключается тапом независимо от таймера.
         setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) { toggleCrippledHead() }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) { toggleCrippledTorso() }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) { toggleCrippledLeftArm() }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) { toggleCrippledRightArm() }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) { toggleCrippledLeftLeg() }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) { toggleCrippledRightLeg() }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) {
+            toggleCrippledHead()
+            syncStatsEncoderPath("STATUS", listOf(1))
+        }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) {
+            toggleCrippledTorso()
+            syncStatsEncoderPath("STATUS", listOf(3))
+        }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) {
+            toggleCrippledLeftArm()
+            syncStatsEncoderPath("STATUS", listOf(2))
+        }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) {
+            toggleCrippledRightArm()
+            syncStatsEncoderPath("STATUS", listOf(4))
+        }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) {
+            toggleCrippledLeftLeg()
+            syncStatsEncoderPath("STATUS", listOf(5))
+        }
+        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) {
+            toggleCrippledRightLeg()
+            syncStatsEncoderPath("STATUS", listOf(6))
+        }
         cndContentSetup.incLayoutTabStatsCndPopup.btnTabStatsCndPopupClose.setOnClickListener{
             cndContentSetup.incLayoutTabStatsCndPopup.root.visibility = View.GONE
             cndContentSetup.layoutTabStatusCndContent.visibility = View.VISIBLE
@@ -9189,19 +9334,18 @@ class MainActivity : AppCompatActivity() {
             selectedBackgroundRes = selected_button,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тач раньше не
-                // сообщал MenuNavigator, куда встал, следующий ENC листал с прежней позиции.
-                menuNavigator.syncCursor("MISC", position)
+                // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
+                // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
+                // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     playCNDSelectAudio()
-                    menuNavigator.popLevel()
+                    syncDataEncoderPath("MISC", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
-                    val meta = dataFilesMeta.first { it.key == item.payload }
-                    files.tvDataMiscHolotapeText.setText(meta.descriptionRes)
-                    // Сброс прокрутки на новую запись (roadmap, этап 27 — "листание длинных
-                    // файлов") — см. тот же приём в showPerkDescription() выше.
-                    files.scrollTabDataMiscText.scrollTo(0, 0)
+                    showDataFilePreview(dataFilesMeta.first { it.key == item.payload })
+                    // Тап равносилен ENCBTN — тот же приём, что у Perks выше.
+                    syncDataEncoderPathSilently("MISC", listOf(position))
+                    menuNavigator.activateSelected()
                 }
             },
         )

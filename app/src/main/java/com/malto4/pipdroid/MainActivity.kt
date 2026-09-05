@@ -8168,6 +8168,17 @@ class MainActivity : AppCompatActivity() {
         )
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.layoutManager = LinearLayoutManager(this)
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.adapter = statusAdapter
+        // itemAnimator = null (roadmap, этап 28, баг №1, реальная причина): дефолтный
+        // DefaultItemAnimator сам анимирует View.alpha на notifyItemChanged() ("change"-
+        // анимация, кросс-фейд) и по её окончании сбрасывает alpha обратно в 1.0 —
+        // независимо от того, что выставил onBindViewHolder. SidebarMenuAdapter использует
+        // тот же View.alpha для затенения недоступных пунктов (item.enabled) — единственный
+        // экран, где это конфликтует, это Status: LIGHT/HEAVY (по которым notifyItemChanged
+        // реально вызывался — тап/setSelectedPositionSilently) оставались яркими поверх
+        // затенения, а нетронутый STUNNED затенялся верно. Остальные списки на этом
+        // компоненте (SPECIAL/Skills/Perks/Files/Map/Clock) enabled=false не используют
+        // вовсе, для них эта строка no-op.
+        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.itemAnimator = null
 
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)

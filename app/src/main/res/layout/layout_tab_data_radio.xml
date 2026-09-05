@@ -67,12 +67,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_radio_frequency" />
 
-    <!-- ProgressBar не подхватывает тему через android:tint (в отличие от ImageView) — тонируется
-         явно кодом (applyTextColor() -> progressTintList), как и фон кнопок. max=100 совпадает с
-         RADIO_VOLUME_MAX в MainActivity.kt, progress=50 — с RADIO_VOLUME_DEFAULT. -->
-    <ProgressBar
+    <!-- SeekBar (roadmap, этап 28 — шкала громкости должна реагировать на тач) — раньше был
+         ProgressBar, только отображение. Не подхватывает тему через android:tint (в отличие
+         от ImageView) — тонируется явно кодом (applyTextColor() -> progressTintList), как и
+         фон кнопок. max=100 совпадает с RADIO_VOLUME_MAX в MainActivity.kt, progress=50 — с
+         RADIO_VOLUME_DEFAULT. -->
+    <SeekBar
         android:id="@+id/radio_volume_bar"
-        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="0.0dip"
         android:layout_height="wrap_content"
         android:layout_marginTop="8.0dip"

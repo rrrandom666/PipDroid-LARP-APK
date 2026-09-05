@@ -68,6 +68,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -201,7 +202,6 @@ class MainActivity : AppCompatActivity() {
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerLightOnOffList = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
 
     /***********************************************************************************************************
@@ -543,12 +543,10 @@ class MainActivity : AppCompatActivity() {
     private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
 
     /***********************************************************************************************************
-     * LongButtonPresses - EasterEgg + FLASHLIGHT + PlayerDamage
+     * LongButtonPresses - EasterEgg + PlayerDamage
      **********************************************************************************************************/
     private var statsCndPopupIsHolding = false
     private var menuSwipeEnabled = true
-    private var isFlashlightOn = false
-    private var isFlashlightOff = false
     private var delayIterationCount = 0
     private var delayModify = 500L
 
@@ -638,22 +636,6 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutFilterModification.root.visibility = View.GONE
                 enableDisableBottomButtons(false, listBottomButtons)
                 enableDisableTopSwipe(false)
-            }
-            if (isFlashlightOn){
-                playLightOnAudio()
-                bindingMain.titleConstraintLayout.visibility = View.GONE
-                bindingMain.mainConstraintLayout.visibility = View.GONE
-                bindingMain.bottomConstraintLayout.visibility = View.GONE
-                bindingMain.flFlashlight.visibility = View.VISIBLE
-                isFlashlightOff = false
-            }
-            if (isFlashlightOff){
-                playLightOffAudio()
-                bindingMain.titleConstraintLayout.visibility = View.VISIBLE
-                bindingMain.mainConstraintLayout.visibility = View.VISIBLE
-                bindingMain.bottomConstraintLayout.visibility = View.VISIBLE
-                bindingMain.flFlashlight.visibility = View.GONE
-                isFlashlightOn = false
             }
             if(isSPECIALValueIncreasing || isSPECIALValueDecreasing){
                 adjustSelectedSpecial(if (isSPECIALValueIncreasing) 1 else -1)
@@ -850,7 +832,7 @@ class MainActivity : AppCompatActivity() {
             if (woundPhase != WoundPhase.NONE) {
                 playErrorAudio()
             } else {
-                playItemSelectAudio()
+                playTickAudio()
                 startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
                 matchBodyPartSetter(normalized)?.invoke(true)
             }
@@ -862,7 +844,7 @@ class MainActivity : AppCompatActivity() {
             if (woundPhase != WoundPhase.NONE) {
                 playErrorAudio()
             } else {
-                playItemSelectAudio()
+                playTickAudio()
                 startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
             }
             finishVoiceCommand(text)
@@ -872,7 +854,7 @@ class MainActivity : AppCompatActivity() {
         // по фигуре, см. setupFigureTouchTarget()).
         if (normalized.contains("очнул") || normalized.contains("ожил")) {
             if (woundPhase == WoundPhase.DEAD) {
-                playItemSelectAudio()
+                playTickAudio()
                 reviveCharacter()
             } else {
                 playErrorAudio()
@@ -881,7 +863,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (normalized.contains("таймер") && (normalized.contains("стоп") || normalized.contains("останов"))) {
-            playNewTabSelectAudio()
+            playButtonAudio()
             resetTimer()
             finishVoiceCommand(text)
             return
@@ -891,7 +873,7 @@ class MainActivity : AppCompatActivity() {
             if (!allowed || timerState == TimerState.IDLE) {
                 playErrorAudio()
             } else {
-                playNewTabSelectAudio()
+                playButtonAudio()
                 pauseResumeTimer()
             }
             finishVoiceCommand(text)
@@ -902,7 +884,7 @@ class MainActivity : AppCompatActivity() {
             if (minutes == null || minutes <= 0 || timerState != TimerState.IDLE) {
                 playErrorAudio()
             } else {
-                playNewTabSelectAudio()
+                playButtonAudio()
                 startPlainTimer(minutes * 60)
             }
             finishVoiceCommand(text)
@@ -910,7 +892,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (normalized.contains("маршрут")) {
             if (normalized.contains("отмен")) {
-                playNewTabSelectAudio()
+                playButtonAudio()
                 cancelActiveRoute()
             } else {
                 val queryTokens = normalized.substringAfter("маршрут").trim()
@@ -920,7 +902,7 @@ class MainActivity : AppCompatActivity() {
                 if (candidates.size != 1) {
                     playErrorAudio()
                 } else {
-                    playItemSelectAudio()
+                    playTickAudio()
                     val destination = candidates[0]
                     pendingMapReadyAction = { routeTo(destination.lat, destination.lon) }
                     navigateToItemsSection("MAP")
@@ -931,7 +913,7 @@ class MainActivity : AppCompatActivity() {
         }
         // Журнал — новая запись
         if (normalized.contains("нов") && normalized.contains("запис")) {
-            playItemSelectAudio()
+            playTickAudio()
             navigateToItemsSection("JOURNAL")
             showJournalEntryEditorForNew()
             finishVoiceCommand(text)
@@ -1229,7 +1211,7 @@ class MainActivity : AppCompatActivity() {
         modeSelectAdapter = SidebarMenuAdapter(
             items = modeSelectList.map { mode -> SidebarMenuItem(payload = mode, label = pipBoyModeDisplayName(mode)) },
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { _, item -> showModeDescription(item.payload) },
         )
         ms.recyclerModeSelect.adapter = modeSelectAdapter
@@ -1240,7 +1222,7 @@ class MainActivity : AppCompatActivity() {
                 playErrorAudio()
                 return@setOnClickListener
             }
-            playNewTabSelectAudio()
+            playButtonAudio()
             selectPipBoyMode(modeSelectHighlighted)
         }
     }
@@ -1521,7 +1503,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { bottomMargin = (12 * resources.displayMetrics.density).toInt() }
             setOnClickListener {
-                playNewTabSelectAudio()
+                playButtonAudio()
                 pairingOnSelect?.invoke(address)
             }
         }
@@ -1607,12 +1589,12 @@ class MainActivity : AppCompatActivity() {
 
         // Шаг 2: Hardware Instructions
         w.btnWizardHardwareBack.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             w.root.visibility = View.GONE
             bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
         }
         w.btnWizardHardwareNext.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
         }
         // Обход всего мастера + анимации загрузки в debug-сборках (roadmap, этап 27 — "много
@@ -1621,27 +1603,27 @@ class MainActivity : AppCompatActivity() {
         // экрана, а не просто до следующего шага мастера.
         w.btnWizardHardwareSkipDebug.visibility = if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
         w.btnWizardHardwareSkipDebug.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             skipWizardToMainScreenDebug()
         }
 
         // Шаг 3: Display Area
         w.btnWizardDone.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             showWizardStep(PipBoyWizardStep.PERMISSIONS)
         }
         w.btnWizardReset.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             resetToFullScreen()
         }
         w.btnWizardCancel.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
         }
 
         // Шаг 4: Permissions
         w.btnWizardPermissionsBack.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             if (pipBoyMode == PipBoyMode.PHONE) {
                 w.root.visibility = View.GONE
                 bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
@@ -1650,32 +1632,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
         w.btnWizardGrantPermissions.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             checkPermissions()
         }
 
         // Шаг 5: Pairing
         w.btnWizardPairingBack.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             stopPairingScan()
             showWizardStep(PipBoyWizardStep.PERMISSIONS)
         }
         w.btnWizardPairingRescan.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
         }
         // Обход пейринга в debug-сборках
         w.btnWizardPairingSkipDebug.visibility =
             if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
         w.btnWizardPairingSkipDebug.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             stopPairingScan()
             showWizardStep(PipBoyWizardStep.POWER_HINT)
         }
 
         // Шаг 6: подсказка про POWER
         w.btnWizardHideHint.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             w.tvWizardPowerHint.visibility = View.GONE
             w.btnWizardHideHint.visibility = View.GONE
         }
@@ -2305,7 +2287,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = SidebarMenuAdapter(
             items = items,
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека) — см. syncMapEncoderPath()/mapMarkerListParentPath(). Отметка в
@@ -2535,7 +2517,7 @@ class MainActivity : AppCompatActivity() {
             items = journalSidebarItems(),
             selectedBackgroundRes = selected_button,
             initialSelectedPosition = initialSelectedPosition,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, доработка после
                 // фидбека) — не menuNavigator.syncCursor(), тот чинит курсор только ВНУТРИ уже
@@ -2551,7 +2533,7 @@ class MainActivity : AppCompatActivity() {
                     is JournalSidebarEntry.NewEntry -> syncJournalEncoderPath(listOf(position, 0))
                     is JournalSidebarEntry.Existing -> syncJournalEncoderPath(listOf(position, 0))
                     is JournalSidebarEntry.Menu -> {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         syncJournalEncoderPathSilently(emptyList())
                         syncRow2ActiveFromNavigator()
                     }
@@ -3647,7 +3629,7 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         specialAdapter.setSelectedPositionSilently(index)
                         showSpecialPreview(meta)
                     },
@@ -3658,14 +3640,14 @@ class MainActivity : AppCompatActivity() {
                             adjustSelectedSpecial(delta)
                         },
                         onEnter = {
-                            playCNDSelectAudio()
+                            playConfirmAudio()
                             setSpecialValueEditorFocused(true)
                         },
                         onExit = {
-                            // playItemSelectAudio(), не playCNDSelectAudio() — звук выхода
+                            // playTickAudio(), не playConfirmAudio() — звук выхода
                             // из редактирования должен отличаться от звука входа/нажатия
                             // +/- (roadmap, этап 27).
-                            playItemSelectAudio()
+                            playTickAudio()
                             setSpecialValueEditorFocused(false)
                         },
                     ),
@@ -3684,7 +3666,7 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         skillsAdapter.setSelectedPositionSilently(index)
                         showSkillPreview(meta)
                     },
@@ -3695,11 +3677,11 @@ class MainActivity : AppCompatActivity() {
                             adjustSelectedSkill(delta)
                         },
                         onEnter = {
-                            playCNDSelectAudio()
+                            playConfirmAudio()
                             setSkillValueEditorFocused(true)
                         },
                         onExit = {
-                            playItemSelectAudio()
+                            playTickAudio()
                             setSkillValueEditorFocused(false)
                         },
                     ),
@@ -3816,7 +3798,7 @@ class MainActivity : AppCompatActivity() {
         val newEntryNode = MenuNode(
             id = "JOURNAL_NEW",
             onHighlight = {
-                playItemSelectAudio()
+                playTickAudio()
                 journalListAdapter.setSelectedPositionSilently(0)
                 showJournalEntryEditorForNew()
             },
@@ -3826,7 +3808,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_ENTRY_${entry.id}",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     journalListAdapter.setSelectedPositionSilently(index + 1)
                     showJournalEntryDetail(entry)
                 },
@@ -3850,7 +3832,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_ENTRY_EDIT",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     // Пересобирает и подсказку/детали (её и так уже показывает onHighlight
                     // родительского узла записи выше), и все три прицела — на случай
                     // возврата сюда из редактора по Cancel/Save (см. showJournalEntryDetail()).
@@ -3862,13 +3844,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_ENTRY_DELETE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllJournalEntryDetailFocusesHidden()
                     setJournalEntryDetailDeleteFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(journal.btnJournalEntryDetailDelete) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         performJournalEntryDelete(entry)
                     }
                 },
@@ -3879,13 +3861,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "JOURNAL_ENTRY_BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllJournalEntryDetailFocusesHidden()
                     setJournalEntryDetailBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(journal.btnJournalEntryDetailBack) {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         menuNavigator.popLevel()
                     }
                 },
@@ -3906,7 +3888,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_EDITOR_MIC",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     if (editingEntry != null) showJournalEntryEditorForEdit(editingEntry) else showJournalEntryEditorForNew()
                     setAllJournalEntryEditorFocusesHidden()
                     setJournalEntryEditorMicFocused(true)
@@ -3920,13 +3902,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_EDITOR_CANCEL",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllJournalEntryEditorFocusesHidden()
                     setJournalEntryEditorCancelFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnJournalEntryPopupCancel) {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         performJournalEntryCancel()
                     }
                 },
@@ -3934,13 +3916,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "JOURNAL_EDITOR_SAVE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllJournalEntryEditorFocusesHidden()
                     setJournalEntryEditorSaveFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnJournalEntryPopupSave) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         performJournalEntrySave()
                     }
                 },
@@ -3961,13 +3943,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "RESET",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setGeigerMenuFocused(false)
                     setGeigerResetFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(geiger.btnGeigerReset) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         resetGeigerDose()
                     }
                 },
@@ -3975,13 +3957,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "MENU",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setGeigerResetFocused(false)
                     setGeigerMenuFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(geiger.btnGeigerMenu) {
-                        playCNDSelectAudio()
+                        playButtonAudio()
                         setGeigerMenuFocused(false)
                         menuNavigator.popLevel()
                     }
@@ -4184,27 +4166,32 @@ class MainActivity : AppCompatActivity() {
             MapControlMode.ROOT -> MenuNode(
                 id = "MAP_CTRL_CROSSHAIR",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     openOverlayForMode()
                     setAllMapControlFocusesHidden()
                     setMapCrosshairFocused(true)
                 },
+                // Звук подтверждения на любой ENCBTN по прицелу, не только в режиме "До
+                // точки на карте" (roadmap, этап 28, доработка после фидбека) — узел всё
+                // равно проваливается в children следом, см. MenuNavigator.activateSelected().
+                onActivate = { playConfirmAudio() },
                 children = mapCrosshairTapChoiceChildrenNodes(),
             )
             MapControlMode.PLACE_MARKER -> MenuNode(
                 id = "MAP_CTRL_CROSSHAIR",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     openOverlayForMode()
                     setAllMapControlFocusesHidden()
                     setMapCrosshairFocused(true)
                 },
+                onActivate = { playConfirmAudio() },
                 children = mapMarkerPopupChildrenNodes { mapCrosshairLatLon() },
             )
             MapControlMode.ROUTE_TO_POINT -> MenuNode(
                 id = "MAP_CTRL_CROSSHAIR",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     openOverlayForMode()
                     setAllMapControlFocusesHidden()
                     setMapCrosshairFocused(true)
@@ -4212,7 +4199,7 @@ class MainActivity : AppCompatActivity() {
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.viewMapCrosshair) {
                         val (lat, lon) = mapCrosshairLatLon() ?: return@flashButtonPressThenRun
-                        playNewTabSelectAudio()
+                        playConfirmAudio()
                         routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
                     }
                 },
@@ -4223,30 +4210,32 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_CTRL_PAN_V",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapControlFocusesHidden()
                     setMapPanVerticalFocused(true)
                 },
                 valueEditor = ValueEditor(
                     onAdjust = { delta ->
                         val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
+                        playConfirmAudio()
                         flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanUp else mapScreen.btnMapPanDown)
                         panMapBy(0f, if (delta > 0) stepPx else -stepPx)
                     },
-                    onEnter = { playCNDSelectAudio() },
-                    onExit = { playItemSelectAudio() },
+                    onEnter = { playConfirmAudio() },
+                    onExit = { playTickAudio() },
                 ),
             ),
             MenuNode(
                 id = "MAP_CTRL_PAN_H",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapControlFocusesHidden()
                     setMapPanHorizontalFocused(true)
                 },
                 valueEditor = ValueEditor(
                     onAdjust = { delta ->
                         val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
+                        playConfirmAudio()
                         flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanRight else mapScreen.btnMapPanLeft)
                         // Право = отрицательный dx (тот же знак, что и у "бегунка"
                         // recenterMapOnUser()/centerMapOnBitmapPoint(): чтобы показать
@@ -4254,36 +4243,37 @@ class MainActivity : AppCompatActivity() {
                         // btnMapPanRight/btnMapPanLeft в onCreate() — знак обязан совпадать.
                         panMapBy(if (delta > 0) -stepPx else stepPx, 0f)
                     },
-                    onEnter = { playCNDSelectAudio() },
-                    onExit = { playItemSelectAudio() },
+                    onEnter = { playConfirmAudio() },
+                    onExit = { playTickAudio() },
                 ),
             ),
             MenuNode(
                 id = "MAP_CTRL_ZOOM",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapControlFocusesHidden()
                     setMapZoomFocused(true)
                 },
                 valueEditor = ValueEditor(
                     onAdjust = { delta ->
+                        playConfirmAudio()
                         flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapZoomIn else mapScreen.btnMapZoomOut)
                         zoomMapBy(if (delta > 0) MAP_ZOOM_STEP_FACTOR else 1f / MAP_ZOOM_STEP_FACTOR)
                     },
-                    onEnter = { playCNDSelectAudio() },
-                    onExit = { playItemSelectAudio() },
+                    onEnter = { playConfirmAudio() },
+                    onExit = { playTickAudio() },
                 ),
             ),
             MenuNode(
                 id = "MAP_CTRL_CENTER",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapControlFocusesHidden()
                     setMapCenterFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapCenter) {
-                        playNewTabSelectAudio()
+                        playConfirmAudio()
                         recenterMapOnUser()
                     }
                 },
@@ -4291,13 +4281,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_CTRL_BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapControlFocusesHidden()
                     setMapControlBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapControlBack) {
-                        playCNDSelectAudio()
+                        playButtonAudio()
                         setMapControlBackFocused(false)
                         setMapControlOverlayVisible(false)
                         // ROUTE_TO_POINT вложен на уровень глубже ROOT/PLACE_MARKER (сам
@@ -4336,7 +4326,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_CTRL_CROSSHAIR_ROUTE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     // Гасим прицел самого крестика — курсор только что провалился с него
                     // сюда (roadmap, доработка после фидбека, п.2 — найденный баг: прицел
                     // оставался на крестике одновременно с новым на панели).
@@ -4348,6 +4338,7 @@ class MainActivity : AppCompatActivity() {
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapTapChoiceRoute) {
                         val (lat, lon) = pendingTapChoiceLatLon ?: return@flashButtonPressThenRun
+                        playButtonAudio()
                         setMapTapChoiceRouteFocused(false)
                         hideMapTapChoice()
                         // mapCrosshairTapChoiceChildrenNodes() — только режим ROOT
@@ -4359,7 +4350,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_CTRL_CROSSHAIR_MARKER",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapTapChoiceFocusesHidden()
                     setMapTapChoiceMarkerFocused(true)
                 },
@@ -4368,13 +4359,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_CTRL_CROSSHAIR_CANCEL",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapTapChoiceFocusesHidden()
                     setMapTapChoiceCancelFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapTapChoiceCancel) {
-                        playCNDSelectAudio()
+                        playButtonAudio()
                         setMapTapChoiceCancelFocused(false)
                         hideMapTapChoice()
                         menuNavigator.popLevel()
@@ -4397,7 +4388,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_POPUP_CANCEL",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     // Координату читаем ДО hideMapTapChoice() — та сама обнуляет
                     // pendingTapChoiceLatLon (один из двух источников latLonProvider, см.
                     // MAP_CTRL_CROSSHAIR_MARKER выше). hideMapTapChoice() тут нужен, чтобы
@@ -4420,6 +4411,7 @@ class MainActivity : AppCompatActivity() {
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnMarkerNamePopupCancel) {
+                        playButtonAudio()
                         setMapMarkerPopupCancelFocused(false)
                         performMarkerNamePopupCancel()
                         menuNavigator.popLevel()
@@ -4429,14 +4421,14 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_POPUP_SAVE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapMarkerPopupFocusesHidden()
                     setMapMarkerPopupSaveFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnMarkerNamePopupSave) {
                         setMapMarkerPopupSaveFocused(false)
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         performMarkerNamePopupSave()
                         menuNavigator.popLevel()
                     }
@@ -4488,12 +4480,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "MAP_ROUTE_CTRL_STOP",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllMapRouteControlsFocusesHidden()
                         setMapRouteStopFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(mapScreen.btnMapRouteStop) {
+                            playButtonAudio()
                             setMapRouteStopFocused(false)
                             cancelActiveRoute()
                             menuNavigator.popLevel()
@@ -4506,13 +4499,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "MAP_ROUTE_CTRL_START",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllMapRouteControlsFocusesHidden()
                         setMapRouteStartFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(mapScreen.btnMapRouteStart) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             mapRouteState = MapRouteState.ACTIVE
                             updateRouteControlsVisibility()
                             menuNavigator.replaceTopLevel(mapRouteControlsChildrenNodes())
@@ -4522,12 +4515,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "MAP_ROUTE_CTRL_CANCEL",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllMapRouteControlsFocusesHidden()
                         setMapRouteCancelFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(mapScreen.btnMapRouteCancel) {
+                            playButtonAudio()
                             setMapRouteCancelFocused(false)
                             cancelActiveRoute()
                             menuNavigator.popLevel()
@@ -4554,7 +4548,7 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "MAP_CONTROLS",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRootAdapter.setSelectedPositionSilently(indexOf("MAP_CONTROLS"))
                 },
                 children = mapControlChildrenNodes(MapControlMode.ROOT),
@@ -4565,7 +4559,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_PLACE_MARKER",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRootAdapter.setSelectedPositionSilently(indexOf("PLACE_MARKER"))
                 },
                 children = mapControlChildrenNodes(MapControlMode.PLACE_MARKER),
@@ -4573,7 +4567,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_ROUTE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRootAdapter.setSelectedPositionSilently(indexOf("ROUTE"))
                 },
                 children = mapRouteChildrenNodes(),
@@ -4581,7 +4575,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_LIST",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRootAdapter.setSelectedPositionSilently(indexOf("MARKER_LIST"))
                 },
                 childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROOT) },
@@ -4605,7 +4599,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_ROUTE_TO_POINT",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     showMapMenuState(MapMenuState.ROUTE_SUBMENU)
                     mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
                 },
@@ -4614,7 +4608,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_ROUTE_TO_MARKER",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRouteSubmenuAdapter.setSelectedPositionSilently(1)
                 },
                 childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU) },
@@ -4622,12 +4616,12 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_ROUTE_BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     mapRouteSubmenuAdapter.setSelectedPositionSilently(2)
                 },
                 onActivate = {
                     mapRouteSubmenuAdapter.flashPressAnimation(2)
-                    playCNDSelectAudio()
+                    playConfirmAudio()
                     showMapMenuState(MapMenuState.ROOT)
                     menuNavigator.popLevel()
                 },
@@ -4651,7 +4645,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_${marker.id}",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     openListIfFirst(index)
                     mapMarkerListAdapter.setSelectedPositionSilently(index)
                     if (returnState != MapMenuState.ROUTE_SUBMENU) {
@@ -4675,13 +4669,13 @@ class MainActivity : AppCompatActivity() {
         val backNode = MenuNode(
             id = "MAP_MARKER_LIST_BACK",
             onHighlight = {
-                playItemSelectAudio()
+                playTickAudio()
                 openListIfFirst(backIndex)
                 mapMarkerListAdapter.setSelectedPositionSilently(backIndex)
             },
             onActivate = {
                 mapMarkerListAdapter.flashPressAnimation(backIndex)
-                playCNDSelectAudio()
+                playConfirmAudio()
                 showMapMenuState(returnState)
                 menuNavigator.popLevel()
             },
@@ -4698,12 +4692,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_EDIT",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapMarkerDetailFocusesHidden()
                     setMapMarkerDetailEditFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapMarkerDetailEdit) {
+                        playButtonAudio()
                         showMarkerNamePopupForEdit(marker)
                     }
                 },
@@ -4711,12 +4706,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_ROUTE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapMarkerDetailFocusesHidden()
                     setMapMarkerDetailRouteFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapMarkerDetailRoute) {
+                        playButtonAudio()
                         // Гасить свой прицел ПЕРЕД hideMarkerDetail(), не после — иначе он
                         // остаётся "включённым" внутри спрятанной карточки и всплывает
                         // заново, стоит карточке в следующий раз показаться (roadmap,
@@ -4734,13 +4730,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MAP_MARKER_DELETE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapMarkerDetailFocusesHidden()
                     setMapMarkerDetailDeleteFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapMarkerDetailDelete) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         performMapMarkerDelete(marker)
                     }
                 },
@@ -4748,13 +4744,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "MAP_MARKER_BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllMapMarkerDetailFocusesHidden()
                     setMapMarkerDetailBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(mapScreen.btnMapMarkerDetailBack) {
-                        playCNDSelectAudio()
+                        playButtonAudio()
                         // Гасить свой прицел ПЕРЕД popLevel(), не после (roadmap, доработка
                         // после фидбека, п.6 — найденный баг, прицел оставался висеть на
                         // кнопке после возврата в список; см. общий приём в CLAUDE.md).
@@ -4864,6 +4860,7 @@ class MainActivity : AppCompatActivity() {
      * авторитетным значением громкости.
      */
     private fun applyRadioVolumeDelta(delta: Int) {
+        playConfirmAudio()
         radioVolume = (radioVolume + delta).coerceIn(RADIO_VOLUME_MIN, RADIO_VOLUME_MAX)
         updateRadioVolumeDisplay()
     }
@@ -4888,7 +4885,7 @@ class MainActivity : AppCompatActivity() {
     }
     /** Общая логика кнопки Reset (roadmap, этап 27) — используется и тач-обработчиком, и
      * `onActivate` узла RESET дерева энкодера (см. geigerChildrenNodes()); звук
-     * (playNewTabSelectAudio(), тот же что у тача) каждый вызывающий проигрывает сам. */
+     * (playButtonAudio(), тот же что у тача) каждый вызывающий проигрывает сам. */
     private fun resetGeigerDose() {
         sharedPreferences.edit().putInt(geigerDose_SPKey, 0).apply()
         updateGeigerDoseDisplay(0)
@@ -4966,7 +4963,7 @@ class MainActivity : AppCompatActivity() {
             "ENCBTN" -> {
                 if (bindingMain.incLayoutClockFiredOverlay.root.visibility == View.VISIBLE) {
                     flashButtonPressThenRun(bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         dismissClockFiredOverlay()
                     }
                 } else {
@@ -5162,7 +5159,7 @@ class MainActivity : AppCompatActivity() {
             selectedSubMenu = button
         }
         button?.setBackgroundResource(selected_button)
-        playNewTabSelectAudio()
+        playButtonAudio()
         val it: Iterator<Button> = listArrayListButtons!!.iterator()
         while (it.hasNext()) {
             val next = it.next()
@@ -5204,7 +5201,7 @@ class MainActivity : AppCompatActivity() {
         val curValue = (prevValue + delta).coerceIn(1, 10)
         sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
         specialAdapter.updateItemValue(position, curValue.toString())
-        if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+        if (curValue == prevValue) playErrorAudio() else playConfirmAudio()
         // Тап по +/- переставляет курсор энкодера на редактируемую характеристику и
         // проваливается в её ValueEditor (roadmap, этап 27 — доработка энкодер-эргономики):
         // следующий ENC:+/-1 продолжает листать то же значение. Guard по editingNodeId() —
@@ -5223,7 +5220,7 @@ class MainActivity : AppCompatActivity() {
         val curValue = (prevValue + delta).coerceIn(10, 100)
         sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
         skillsAdapter.updateItemValue(position, curValue.toString())
-        if (curValue == prevValue) playErrorAudio() else playCNDSelectAudio()
+        if (curValue == prevValue) playErrorAudio() else playConfirmAudio()
         // Тот же приём, что у adjustSelectedSpecial() выше.
         if (menuNavigator.editingNodeId() != meta.key) {
             syncStatsEncoderPathSilently("SKILLS", listOf(position))
@@ -5571,7 +5568,7 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "STOP",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllCrippledFocusesHidden()
                         setWoundStopButtonFocused(true)
                     },
@@ -5579,7 +5576,7 @@ class MainActivity : AppCompatActivity() {
                         flashButtonPressThenRun(
                             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop,
                         ) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             stopWoundTimerEarly()
                         }
                     },
@@ -5587,78 +5584,78 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "BODYPART_HEAD",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledHeadFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledHead()
                     },
                 ),
                 MenuNode(
                     id = "BODYPART_LEFT_ARM",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledLeftArmFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledLeftArm()
                     },
                 ),
                 MenuNode(
                     id = "BODYPART_TORSO",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledTorsoFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledTorso()
                     },
                 ),
                 MenuNode(
                     id = "BODYPART_RIGHT_ARM",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledRightArmFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledRightArm()
                     },
                 ),
                 MenuNode(
                     id = "BODYPART_LEFT_LEG",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledLeftLegFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledLeftLeg()
                     },
                 ),
                 MenuNode(
                     id = "BODYPART_RIGHT_LEG",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setWoundStopButtonFocused(false)
                         setAllCrippledFocusesHidden()
                         setCrippledRightLegFocused(true)
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         toggleCrippledRightLeg()
                     },
                 ),
@@ -5670,12 +5667,12 @@ class MainActivity : AppCompatActivity() {
             statusMeta.mapIndexed { index, meta ->
                 MenuNode(
                     id = meta.key,
-                    // Звук на перемещение курсора — тот же playItemSelectAudio(), что и у
+                    // Звук на перемещение курсора — тот же playTickAudio(), что и у
                     // SPECIAL/Skills при листании (roadmap, этап 27), просто не через
                     // playSelectSound() адаптера (тот для Status специально no-op, звук
                     // решает сам onSelect — см. комментарий выше о статusAdapter ниже).
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         statusAdapter.setSelectedPositionSilently(index)
                     },
                     onActivate = {
@@ -5719,14 +5716,14 @@ class MainActivity : AppCompatActivity() {
                     id = "MENU",
                     // Звук на листание/нажатие (roadmap, этап 27 — раньше не было вообще)
                     // — тот же язык, что у остальных пунктов этих же списков:
-                    // playItemSelectAudio() на перемещение курсора, playCNDSelectAudio()
+                    // playTickAudio() на перемещение курсора, playConfirmAudio()
                     // (как у +/-) на реальное нажатие ENCBTN.
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         onHighlight()
                     },
                     onActivate = {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         onBeforePop()
                         menuNavigator.popLevel()
                     },
@@ -5748,8 +5745,8 @@ class MainActivity : AppCompatActivity() {
         val stepPx = (SIDEBAR_RECORD_SCROLL_STEP_DP * resources.displayMetrics.density).toInt()
         return ValueEditor(
             onAdjust = { delta -> scrollView.smoothScrollBy(0, delta * stepPx) },
-            onEnter = { playCNDSelectAudio() },
-            onExit = { playItemSelectAudio() },
+            onEnter = { playConfirmAudio() },
+            onExit = { playTickAudio() },
         )
     }
     private fun specialSidebarItems(): List<SidebarMenuItem<String>> {
@@ -5812,7 +5809,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "FILE_$index",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     dataFilesAdapter.setSelectedPositionSilently(index)
                     showDataFilePreview(meta)
                 },
@@ -5889,7 +5886,7 @@ class MainActivity : AppCompatActivity() {
                 "TIME" -> MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         clockAdapter.setSelectedPositionSilently(index)
                         showClockContentPanel(meta.key)
                     },
@@ -5898,7 +5895,7 @@ class MainActivity : AppCompatActivity() {
                 "ALARM" -> MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         clockAdapter.setSelectedPositionSilently(index)
                         showClockContentPanel(meta.key)
                         // Курсор стоит НА самом ALARM (не провалился в children) — прицел
@@ -5911,7 +5908,7 @@ class MainActivity : AppCompatActivity() {
                 "TIMER" -> MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         clockAdapter.setSelectedPositionSilently(index)
                         showClockContentPanel(meta.key)
                         // Оба набора — какой из них сейчас видим, знает только timerState,
@@ -5926,7 +5923,7 @@ class MainActivity : AppCompatActivity() {
                 "STOPWATCH" -> MenuNode(
                     id = meta.key,
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         clockAdapter.setSelectedPositionSilently(index)
                         showClockContentPanel(meta.key)
                         setAllClockStopwatchFocusesHidden()
@@ -5935,7 +5932,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 else -> MenuNode( // "MELODY"
                     id = meta.key,
-                    onHighlight = { playItemSelectAudio(); clockAdapter.setSelectedPositionSilently(index) },
+                    onHighlight = { playTickAudio(); clockAdapter.setSelectedPositionSilently(index) },
                     children = melodyChildrenNodes(),
                 )
             }
@@ -5954,39 +5951,39 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "HOUR",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockAlarmFocusesHidden()
                     setClockAlarmHourFocused(true)
                 },
                 valueEditor = ValueEditor(
-                    onAdjust = { delta -> alarmHourWheel.scrollToValue(alarmHourWheel.currentValue() + delta) },
-                    onEnter = { playCNDSelectAudio() },
-                    onExit = { playItemSelectAudio() },
+                    onAdjust = { delta -> playTickAudio(); alarmHourWheel.scrollToValue(alarmHourWheel.currentValue() + delta) },
+                    onEnter = { playConfirmAudio() },
+                    onExit = { playTickAudio() },
                 ),
             ),
             MenuNode(
                 id = "MINUTE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockAlarmFocusesHidden()
                     setClockAlarmMinuteFocused(true)
                 },
                 valueEditor = ValueEditor(
-                    onAdjust = { delta -> alarmMinuteWheel.scrollToValue(alarmMinuteWheel.currentValue() + delta) },
-                    onEnter = { playCNDSelectAudio() },
-                    onExit = { playItemSelectAudio() },
+                    onAdjust = { delta -> playTickAudio(); alarmMinuteWheel.scrollToValue(alarmMinuteWheel.currentValue() + delta) },
+                    onEnter = { playConfirmAudio() },
+                    onExit = { playTickAudio() },
                 ),
             ),
             MenuNode(
                 id = "SET",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockAlarmFocusesHidden()
                     setClockAlarmSetFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(alarm.btnClockAlarmToggle) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         toggleAlarmArmed()
                     }
                 },
@@ -5994,13 +5991,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockAlarmFocusesHidden()
                     setClockAlarmBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(alarm.btnClockAlarmBack) {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         setClockAlarmBackFocused(false)
                         menuNavigator.popLevel()
                     }
@@ -6019,52 +6016,52 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "HOUR",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerHourFocused(true)
                     },
                     valueEditor = ValueEditor(
-                        onAdjust = { delta -> timerHourWheel.scrollToValue(timerHourWheel.currentValue() + delta) },
-                        onEnter = { playCNDSelectAudio() },
-                        onExit = { playItemSelectAudio() },
+                        onAdjust = { delta -> playTickAudio(); timerHourWheel.scrollToValue(timerHourWheel.currentValue() + delta) },
+                        onEnter = { playConfirmAudio() },
+                        onExit = { playTickAudio() },
                     ),
                 ),
                 MenuNode(
                     id = "MINUTE",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerMinuteFocused(true)
                     },
                     valueEditor = ValueEditor(
-                        onAdjust = { delta -> timerMinuteWheel.scrollToValue(timerMinuteWheel.currentValue() + delta) },
-                        onEnter = { playCNDSelectAudio() },
-                        onExit = { playItemSelectAudio() },
+                        onAdjust = { delta -> playTickAudio(); timerMinuteWheel.scrollToValue(timerMinuteWheel.currentValue() + delta) },
+                        onEnter = { playConfirmAudio() },
+                        onExit = { playTickAudio() },
                     ),
                 ),
                 MenuNode(
                     id = "SECOND",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerSecondFocused(true)
                     },
                     valueEditor = ValueEditor(
-                        onAdjust = { delta -> timerSecondWheel.scrollToValue(timerSecondWheel.currentValue() + delta) },
-                        onEnter = { playCNDSelectAudio() },
-                        onExit = { playItemSelectAudio() },
+                        onAdjust = { delta -> playTickAudio(); timerSecondWheel.scrollToValue(timerSecondWheel.currentValue() + delta) },
+                        onEnter = { playConfirmAudio() },
+                        onExit = { playTickAudio() },
                     ),
                 ),
                 MenuNode(
                     id = "PRESET5",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerPreset5Focused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerPreset5) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             addTimerPresetMinutes(5)
                         }
                     },
@@ -6072,13 +6069,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "PRESET10",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerPreset10Focused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerPreset10) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             addTimerPresetMinutes(10)
                         }
                     },
@@ -6086,13 +6083,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "START",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerStartFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerStart) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
                         }
                     },
@@ -6100,13 +6097,13 @@ class MainActivity : AppCompatActivity() {
                 if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                     id = "BACK",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerSetupFocusesHidden()
                         setClockTimerSetupBackFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerSetupBack) {
-                            playCNDSelectAudio()
+                            playConfirmAudio()
                             setClockTimerSetupBackFocused(false)
                             menuNavigator.popLevel()
                         }
@@ -6118,13 +6115,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "PAUSE_RESUME",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerRunningFocusesHidden()
                         setClockTimerPauseResumeFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerPauseResume) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             pauseResumeTimer()
                         }
                     },
@@ -6132,13 +6129,13 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "RESET",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerRunningFocusesHidden()
                         setClockTimerResetFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerReset) {
-                            playNewTabSelectAudio()
+                            playButtonAudio()
                             resetTimer()
                         }
                     },
@@ -6146,13 +6143,13 @@ class MainActivity : AppCompatActivity() {
                 if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                     id = "BACK",
                     onHighlight = {
-                        playItemSelectAudio()
+                        playTickAudio()
                         setAllClockTimerRunningFocusesHidden()
                         setClockTimerRunningBackFocused(true)
                     },
                     onActivate = {
                         flashButtonPressThenRun(timer.btnClockTimerRunningBack) {
-                            playCNDSelectAudio()
+                            playConfirmAudio()
                             setClockTimerRunningBackFocused(false)
                             menuNavigator.popLevel()
                         }
@@ -6175,13 +6172,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "START_PAUSE",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockStopwatchFocusesHidden()
                     setClockStopwatchStartPauseFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(stopwatch.btnClockStopwatchStartPause) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         toggleStopwatchStartPause()
                     }
                 },
@@ -6189,13 +6186,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "RESET",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockStopwatchFocusesHidden()
                     setClockStopwatchResetFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(stopwatch.btnClockStopwatchReset) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         resetStopwatch()
                     }
                 },
@@ -6203,13 +6200,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setAllClockStopwatchFocusesHidden()
                     setClockStopwatchBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(stopwatch.btnClockStopwatchBack) {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         setClockStopwatchBackFocused(false)
                         menuNavigator.popLevel()
                     }
@@ -6236,7 +6233,7 @@ class MainActivity : AppCompatActivity() {
                     // заново вызывает onSelect сайдбара, который для MELODY делает cross-
                     // branch syncClockEncoderPath()/setPath() — зациклилось бы, раз этот путь
                     // сам заканчивается здесь же (TRACK_0).
-                    playItemSelectAudio()
+                    playTickAudio()
                     if (i == 0) {
                         clockAdapter.setSelectedPositionSilently(4)
                         openClockMelodyScreen()
@@ -6250,7 +6247,7 @@ class MainActivity : AppCompatActivity() {
         }
         val backNode = MenuNode(
             id = "MELODY_LIST_BACK",
-            onHighlight = { playItemSelectAudio(); melodyAdapter.setSelectedPositionSilently(ringtoneTracks.size) },
+            onHighlight = { playTickAudio(); melodyAdapter.setSelectedPositionSilently(ringtoneTracks.size) },
             // Не дублировать menuNavigator.popLevel() здесь — melodyAdapter.selectPosition()
             // уже вызывает его сам через onSelect (payload=null), см. сетап-блок onCreate().
             // Найденный баг: двойной popLevel() уводил курсор энкодера на уровень выше, чем
@@ -6271,13 +6268,13 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "SELECT",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setClockMelodyBackFocused(false)
                     setClockMelodySelectFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(melody.btnClockMelodySelect) {
-                        playNewTabSelectAudio()
+                        playButtonAudio()
                         commitMelodySelection()
                     }
                 },
@@ -6285,13 +6282,13 @@ class MainActivity : AppCompatActivity() {
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
                 id = "BACK",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     setClockMelodySelectFocused(false)
                     setClockMelodyBackFocused(true)
                 },
                 onActivate = {
                     flashButtonPressThenRun(melody.btnClockMelodyBack) {
-                        playCNDSelectAudio()
+                        playConfirmAudio()
                         setClockMelodyBackFocused(false)
                         menuNavigator.popLevel()
                     }
@@ -7019,10 +7016,10 @@ class MainActivity : AppCompatActivity() {
         menuSwipeEnabled = action
     }
     private fun menuOptionClicked(menu: String){
-        // Тот же звук (cnd_rad_eff.wav), что и playCNDSelectAudio() ниже — раньше здесь был
+        // Тот же звук (cnd_rad_eff.wav), что и playConfirmAudio() ниже — раньше здесь был
         // отдельный вечно висящий в памяти MediaPlayer (mediaPlayerCRF) под тот же файл,
         // теперь оба места используют один ленивый create-play-release путь.
-        playCNDSelectAudio()
+        playConfirmAudio()
         topLevelButtonsModify(menu)
         setupMainContent(menu)
         setupRow2(menu)
@@ -7031,7 +7028,7 @@ class MainActivity : AppCompatActivity() {
         sendBLEText(menu)
     }
     private fun menuOptionClickedBLE(menu: String){
-        playCNDSelectAudio()
+        playConfirmAudio()
         topLevelButtonsModify(menu)
         setupMainContentBLE(menu)
         setupRow2(menu)
@@ -7369,7 +7366,7 @@ class MainActivity : AppCompatActivity() {
         timerTargetEpochMillis = System.currentTimeMillis()
         checkTimerFiring()
     }
-    private fun playItemSelectAudio(){
+    private fun playTickAudio(){
         val mediaPlayerItemSelect = MediaPlayer.create(this, R.raw.item_select)
         mediaPlayerItemSelectList.add(mediaPlayerItemSelect)
         mediaPlayerItemSelect.start()
@@ -7378,7 +7375,7 @@ class MainActivity : AppCompatActivity() {
             mediaPlayerItemSelectList.remove(it)
         }
     }
-    private fun playNewTabSelectAudio(){
+    private fun playButtonAudio(){
         val mediaPlayerNewTab = MediaPlayer.create(applicationContext, R.raw.newtab)
         mediaPlayerNewTabList.add(mediaPlayerNewTab)
         mediaPlayerNewTab.start()
@@ -7396,7 +7393,7 @@ class MainActivity : AppCompatActivity() {
             mediaPlayerErrorList.remove(it)
         }
     }
-    private fun playCNDSelectAudio(){
+    private fun playConfirmAudio(){
         val mediaPlayerCndRadEff = MediaPlayer.create(applicationContext, R.raw.cnd_rad_eff)
         mediaPlayerCndRadEffList.add(mediaPlayerCndRadEff)
         mediaPlayerCndRadEff.start()
@@ -7405,25 +7402,6 @@ class MainActivity : AppCompatActivity() {
             mediaPlayerCndRadEffList.remove(it)
         }
     }
-    private fun playLightOnAudio(){
-        val mediaPlayerLightOn = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_on)
-        mediaPlayerLightOnOffList.add(mediaPlayerLightOn)
-        mediaPlayerLightOn.start()
-        mediaPlayerLightOn.setOnCompletionListener {
-            it.release()
-            mediaPlayerLightOnOffList.remove(it)
-        }
-    }
-    private fun playLightOffAudio(){
-        val mediaPlayerLightOff = MediaPlayer.create(applicationContext, R.raw.ui_pipboy_light_off)
-        mediaPlayerLightOnOffList.add(mediaPlayerLightOff)
-        mediaPlayerLightOff.start()
-        mediaPlayerLightOff.setOnCompletionListener {
-            it.release()
-            mediaPlayerLightOnOffList.remove(it)
-        }
-    }
-
 
     /***********************************************************************************************************
      * BATTERY MONITOR
@@ -7505,7 +7483,7 @@ class MainActivity : AppCompatActivity() {
                     checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
                     // Listen for CheckBox state changes to update selectedItems
                     checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        playItemSelectAudio()
+                        playTickAudio()
                         if (isChecked) {
                             selectedFilterSTATSPerks.add(itemId)  // Add item ID to selected set
                         } else {
@@ -7614,7 +7592,7 @@ class MainActivity : AppCompatActivity() {
      * сломанный долгий тап по row2-вкладке (CLAUDE.md/память).
      */
     private fun openPerksFilter() {
-        playNewTabSelectAudio()
+        playButtonAudio()
         filteringMenu = "PERKS"
         filterSelectionSnapshot = selectedFilterSTATSPerks.toMutableSet()
         listEntries(filterFrame, localizedPerks)
@@ -7693,13 +7671,13 @@ class MainActivity : AppCompatActivity() {
         perksAdapter = SidebarMenuAdapter(
             items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
                 // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload["id"] == SIDEBAR_BACK_PAYLOAD) {
-                    playCNDSelectAudio()
+                    playConfirmAudio()
                     syncStatsEncoderPath("PERKS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
@@ -7747,7 +7725,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "PERK_$index",
                 onHighlight = {
-                    playItemSelectAudio()
+                    playTickAudio()
                     perksAdapter.setSelectedPositionSilently(index)
                     perksAdapter.currentItems().getOrNull(index)?.let { showPerkDescription(it.payload) }
                 },
@@ -7958,7 +7936,7 @@ class MainActivity : AppCompatActivity() {
         // MEDIA SETUP — намеренно пусто. Все звуки/фоновый эмбиент теперь создаются лениво, в
         // момент реального использования (roadmap, "Рефакторинг кода" — память фонового
         // процесса), а не все разом здесь при каждом старте. См.
-        // playCNDSelectAudio()/playNewTabSelectAudio()/playLightOnAudio()/playLightOffAudio()
+        // playConfirmAudio()/playButtonAudio()/playLightOnAudio()/playLightOffAudio()
         // (одноразовые UI-звуки, create-play-release), startAmbientBackgroundSound()
         // (живёт дольше одного проигрывания, до явного стопа).
 
@@ -7973,7 +7951,7 @@ class MainActivity : AppCompatActivity() {
         specialAdapter = SidebarMenuAdapter(
             items = specialSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
@@ -8003,7 +7981,7 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter = SidebarMenuAdapter(
             items = skillsSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем — тот же приём, что у
                 // SPECIAL выше.
@@ -8048,16 +8026,16 @@ class MainActivity : AppCompatActivity() {
                     playErrorAudio()
                     syncStatsEncoderPath("STATUS", listOf(0))
                 } else if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playItemSelectAudio()
+                    playTickAudio()
                     syncStatsEncoderPath("STATUS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
                     val meta = statusMeta.first { it.key == item.payload }
-                    // playCNDSelectAudio(), не playItemSelectAudio() — звук нажатия
+                    // playConfirmAudio(), не playTickAudio() — звук нажатия
                     // (roadmap, этап 27), тот же, что у +/- в SPECIAL/Skills. Листание
-                    // (просто перемещение курсора) — playItemSelectAudio(), см. onHighlight
+                    // (просто перемещение курсора) — playTickAudio(), см. onHighlight
                     // в statusChildrenNodes() выше.
-                    playCNDSelectAudio()
+                    playConfirmAudio()
                     // Silently — meta.action() (startWoundTimer()) сама тут же перестраивает
                     // детей STATUS и громко переставляет курсор на новый STOP через
                     // refreshStatusEncoderChildren(); здесь достаточно гарантировать, что
@@ -8111,8 +8089,26 @@ class MainActivity : AppCompatActivity() {
             menuChangeBLE("RADIO")
             menuNavigator.resetToRoot(radioMenuRoot())
         }
+        // Шкала громкости радио — тач (roadmap, этап 28): раньше был нередактируемый
+        // ProgressBar, теперь SeekBar с перетаскиванием. radioVolume — то же самое чисто
+        // экранное представление, что и у VOLUME:±N с энкодера ESP32 (applyRadioVolumeDelta()),
+        // не авторитетное значение — тач просто выставляет его абсолютно, без похода на
+        // ESP32 (протокол не поддерживает set-громкости с телефона, см.
+        // PipBoy_BLE_Protocol_v0.2.md, раздел 5). Звук — один раз по отпусканию пальца
+        // (onStopTrackingTouch), не на каждое изменение progress во время протаскивания.
+        bindingMain.incLayoutTabDataRadio.radioVolumeBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                radioVolume = progress
+                bindingMain.incLayoutTabDataRadio.tvRadioVolumeValue.text = String.format(Locale.US, "%d%%", radioVolume)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                playConfirmAudio()
+            }
+        })
         bindingMain.incLayoutHeaderToplevel.btnHeaderSettings.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.VISIBLE
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
@@ -8222,7 +8218,7 @@ class MainActivity : AppCompatActivity() {
         // контента, кроме последней, просто листает дальше; на последней странице кнопка уже
         // переименована в [Готово] (см. showTutorialPage()) и закрывает тьюториал целиком.
         bindingMain.incLayoutTabTutorialBase.btnNextpage.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             when {
                 tutorialPageIndex == -1 -> openTutorialContent(0)
                 tutorialPageIndex < tutorialPageStringRes.lastIndex -> showTutorialPage(tutorialPageIndex + 1)
@@ -8233,7 +8229,7 @@ class MainActivity : AppCompatActivity() {
         // [Пропустить] — на любой странице (Welcome или контент) закрывает тьюториал целиком,
         // не долистывая до конца (roadmap-спека).
         bindingMain.incLayoutTabTutorialBase.btnTutorialClose.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             // Чекбокс живёт только на Welcome и инвертирован относительно чекбокса в Settings
             // ("Больше не показывать" вместо "Показывать обучение при запуске") — оба
             // читают/пишут один и тот же ключ ShowTutorial, поэтому mirror isChecked()
@@ -8251,7 +8247,7 @@ class MainActivity : AppCompatActivity() {
         // сразу с первой страницы контента, минуя Welcome/дисклеймер (тот отвечает только за
         // юридическое уведомление при первом запуске, не за сам тьюториал).
         bindingMain.incLayoutSettingsGlobal.btnSettingsOpenTutorial.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             openTutorialContent(0)
             if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
@@ -8293,7 +8289,7 @@ class MainActivity : AppCompatActivity() {
         ).forEach { it.backgroundTintList = ColorStateList.valueOf(filterAccent) }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationCancel.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             // Откатываем несохранённые правки чекбоксов (см. filterSelectionSnapshot) —
             // saveSelectedItems() не вызывается, персистентные настройки и видимый список
             // Perks не трогаются.
@@ -8304,21 +8300,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             when(filteringMenu){
                 "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, true)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationClear.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             when(filteringMenu){
                 "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, false)
             }
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationFilter.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             val filterText = bindingMain.incLayoutFilterModification.etFilterModificationValue.text.toString()
 
             when(filteringMenu){
@@ -8327,7 +8323,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         bindingMain.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
-            playNewTabSelectAudio()
+            playButtonAudio()
             when(filteringMenu){
                 "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
             }
@@ -8371,7 +8367,7 @@ class MainActivity : AppCompatActivity() {
         // Клики по LIGHT/HEAVY/STUNNED — теперь внутри SidebarMenuAdapter (statusAdapter,
         // см. выше), 3 setOnClickListener на кнопку тут больше не нужны.
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             stopWoundTimerEarly()
             // Курсор энкодера следует за тачем (roadmap, этап 27 — доработка энкодер-
             // эргономики): BLEED -> BANDAGE сохраняет STOP (индекс 0 нового дерева STATUS),
@@ -8689,7 +8685,7 @@ class MainActivity : AppCompatActivity() {
         mapRootAdapter = SidebarMenuAdapter(
             items = mapRootSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { _, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека) — не menuNavigator.syncCursor(), тот чинит только позицию ВНУТРИ
@@ -8717,7 +8713,7 @@ class MainActivity : AppCompatActivity() {
         mapRouteSubmenuAdapter = SidebarMenuAdapter(
             items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // TO_POINT/TO_MARKER (0/1) — есть дети, курсор на первого ребёнка. BACK (2) —
                 // особый случай, как и в списке отметок: его реальный эффект — popLevel()
@@ -8739,12 +8735,14 @@ class MainActivity : AppCompatActivity() {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
             if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0)
+            playButtonAudio()
             showMarkerNamePopupForEdit(marker)
         }
         mapMenu.btnMapMarkerDetailRoute.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
             if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 1)
+            playButtonAudio()
             // Карточка отметки всегда достигается через "Список меток" (см.
             // mapMarkerListChildrenNodes()).
             routeTo(marker.lat, marker.lon, listOf(mapRootIndex("MARKER_LIST")))
@@ -8754,6 +8752,7 @@ class MainActivity : AppCompatActivity() {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
             if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 2)
+            playButtonAudio()
             performMapMarkerDelete(marker)
         }
         // Back — новый пункт (roadmap, этап 27, п.9), только поднимает курсор энкодера в
@@ -8763,6 +8762,7 @@ class MainActivity : AppCompatActivity() {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
             if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 3)
+            playButtonAudio()
             setMapMarkerDetailBackFocused(false)
             menuNavigator.popLevel()
         }
@@ -8779,16 +8779,19 @@ class MainActivity : AppCompatActivity() {
         // показываем сами (roadmap, доработка после фидбека — найденный баг: курсор
         // переключался, но уголки/крестик/"←" оставались невидимы).
         mapMenu.btnMapZoomIn.setOnClickListener {
+            playConfirmAudio()
             setMapControlOverlayVisible(true)
             syncMapEncoderPath(mapControlModeRootPath() + 3)
             zoomMapBy(MAP_ZOOM_STEP_FACTOR)
         }
         mapMenu.btnMapZoomOut.setOnClickListener {
+            playConfirmAudio()
             setMapControlOverlayVisible(true)
             syncMapEncoderPath(mapControlModeRootPath() + 3)
             zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR)
         }
         mapMenu.btnMapCenter.setOnClickListener {
+            playConfirmAudio()
             setMapControlOverlayVisible(true)
             syncMapEncoderPath(mapControlModeRootPath() + 4)
             recenterMapOnUser()
@@ -8798,16 +8801,17 @@ class MainActivity : AppCompatActivity() {
         // (mapControlChildrenNodes()/panMapBy()), доступна тачу тоже (кнопки реально видны
         // на экране, не только энкодеру).
         val mapPanStepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
-        mapMenu.btnMapPanUp.setOnClickListener { syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, mapPanStepPx) }
-        mapMenu.btnMapPanDown.setOnClickListener { syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, -mapPanStepPx) }
-        mapMenu.btnMapPanLeft.setOnClickListener { syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(mapPanStepPx, 0f) }
-        mapMenu.btnMapPanRight.setOnClickListener { syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(-mapPanStepPx, 0f) }
+        mapMenu.btnMapPanUp.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, mapPanStepPx) }
+        mapMenu.btnMapPanDown.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, -mapPanStepPx) }
+        mapMenu.btnMapPanLeft.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(mapPanStepPx, 0f) }
+        mapMenu.btnMapPanRight.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(-mapPanStepPx, 0f) }
         mapMenu.viewMapCrosshair.setOnClickListener {
             // Полный путь до того, что реально окажется на экране, не только до самого
             // крестика (roadmap, доработка после фидбека) — тач по крестику равносилен
             // ENCBTN на нём, а тот у ROOT/PLACE_MARKER сразу проваливается в детей
             // (Route/Marker/Cancel или Cancel/Save попапа), не остаётся на самом крестике.
             val (lat, lon) = mapCrosshairLatLon() ?: return@setOnClickListener
+            playConfirmAudio()
             when (mapControlMode) {
                 MapControlMode.ROUTE_TO_POINT -> {
                     syncMapEncoderPath(mapControlModeRootPath() + 0)
@@ -8831,6 +8835,7 @@ class MainActivity : AppCompatActivity() {
             // входе, а его собственный onHighlight (в отличие от первого ребёнка "До точки
             // на карте") этого не отменяет сам ("приём одного открытия", см. mapRootChildrenNodes()).
             val wasRouteToPoint = mapControlMode == MapControlMode.ROUTE_TO_POINT
+            playButtonAudio()
             syncMapEncoderPath(mapSidebarRootPathForMode())
             setMapControlOverlayVisible(false)
             if (wasRouteToPoint) showMapMenuState(MapMenuState.ROOT)
@@ -8838,6 +8843,7 @@ class MainActivity : AppCompatActivity() {
         mapMenu.btnMapTapChoiceRoute.setOnClickListener {
             syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0))
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
+            playButtonAudio()
             hideMapTapChoice()
             // Панель [Route]/[Marker]/[Cancel] — только режим ROOT ("Управление картой",
             // тот же крестик и для прямого тапа по пустой точке карты).
@@ -8847,10 +8853,12 @@ class MainActivity : AppCompatActivity() {
             // "+ 0" — Marker проваливается в попап (Cancel/Save), не остаётся на себе самой.
             syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0))
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
+            playButtonAudio()
             hideMapTapChoice()
             showMarkerNamePopupForNewMarker(lat, lon)
         }
         mapMenu.btnMapTapChoiceCancel.setOnClickListener {
+            playButtonAudio()
             syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 2))
             hideMapTapChoice()
         }
@@ -8858,27 +8866,32 @@ class MainActivity : AppCompatActivity() {
             // syncPushedCursor() возвращает false, если энкодер сейчас не на этой самой
             // (запушенной, без родителя в дереве) панели — тогда replaceTopLevel() было бы
             // применять не к тому уровню (roadmap, доработка после фидбека).
+            playButtonAudio()
             val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 0)
             mapRouteState = MapRouteState.ACTIVE
             updateRouteControlsVisibility()
             if (onThisPanel) menuNavigator.replaceTopLevel(mapRouteControlsChildrenNodes())
         }
         mapMenu.btnMapRouteCancel.setOnClickListener {
+            playButtonAudio()
             val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 1)
             cancelActiveRoute()
             if (onThisPanel) menuNavigator.popLevel()
         }
         mapMenu.btnMapRouteStop.setOnClickListener {
+            playButtonAudio()
             val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 0)
             cancelActiveRoute()
             if (onThisPanel) menuNavigator.popLevel()
         }
         val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
+            playButtonAudio()
             syncMapEncoderPath(mapMarkerPopupParentPath() + 0)
             performMarkerNamePopupCancel()
         }
         markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
+            playButtonAudio()
             syncMapEncoderPath(mapMarkerPopupParentPath() + 1)
             performMarkerNamePopupSave()
         }
@@ -8910,7 +8923,7 @@ class MainActivity : AppCompatActivity() {
         clockAdapter = SidebarMenuAdapter(
             items = clockSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека по Карте) — не menuNavigator.syncCursor(), тот чинит только позицию
@@ -8919,7 +8932,7 @@ class MainActivity : AppCompatActivity() {
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     // Путь до самого узла CLOCK — тот же смысл, что и обычный popLevel() из
                     // сайдбара CLOCK, но безусловный: не зависит от того, где раньше был курсор.
-                    playCNDSelectAudio()
+                    playConfirmAudio()
                     syncClockEncoderPath(emptyList())
                     syncRow2ActiveFromNavigator()
                 } else if (item.payload == "MELODY") {
@@ -8980,12 +8993,12 @@ class MainActivity : AppCompatActivity() {
         )
         alarm.btnClockAlarmToggle.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 2))
-            playNewTabSelectAudio()
+            playButtonAudio()
             toggleAlarmArmed()
         }
         alarm.btnClockAlarmBack.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 3))
-            playCNDSelectAudio()
+            playConfirmAudio()
             setClockAlarmBackFocused(false)
             menuNavigator.popLevel()
         }
@@ -9030,38 +9043,38 @@ class MainActivity : AppCompatActivity() {
 
         timer.btnClockTimerPreset5.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 3))
-            playNewTabSelectAudio()
+            playButtonAudio()
             addTimerPresetMinutes(5)
         }
         timer.btnClockTimerPreset10.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 4))
-            playNewTabSelectAudio()
+            playButtonAudio()
             addTimerPresetMinutes(10)
         }
         timer.btnClockTimerStart.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 5))
-            playNewTabSelectAudio()
+            playButtonAudio()
             startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
         timer.btnClockTimerSetupBack.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 6))
-            playCNDSelectAudio()
+            playConfirmAudio()
             setClockTimerSetupBackFocused(false)
             menuNavigator.popLevel()
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0))
-            playNewTabSelectAudio()
+            playButtonAudio()
             pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1))
-            playNewTabSelectAudio()
+            playButtonAudio()
             resetTimer()
         }
         timer.btnClockTimerRunningBack.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2))
-            playCNDSelectAudio()
+            playConfirmAudio()
             setClockTimerRunningBackFocused(false)
             menuNavigator.popLevel()
         }
@@ -9083,17 +9096,17 @@ class MainActivity : AppCompatActivity() {
 
         stopwatch.btnClockStopwatchStartPause.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 0))
-            playNewTabSelectAudio()
+            playButtonAudio()
             toggleStopwatchStartPause()
         }
         stopwatch.btnClockStopwatchReset.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 1))
-            playNewTabSelectAudio()
+            playButtonAudio()
             resetStopwatch()
         }
         stopwatch.btnClockStopwatchBack.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 2))
-            playCNDSelectAudio()
+            playConfirmAudio()
             setClockStopwatchBackFocused(false)
             menuNavigator.popLevel()
         }
@@ -9128,7 +9141,7 @@ class MainActivity : AppCompatActivity() {
             items = melodyItems,
             selectedBackgroundRes = selected_button,
             initialSelectedPosition = melodyFocusedIndex,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 val index = item.payload
                 if (index == null) {
@@ -9164,12 +9177,12 @@ class MainActivity : AppCompatActivity() {
 
         melody.btnClockMelodySelect.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 0))
-            playNewTabSelectAudio()
+            playButtonAudio()
             commitMelodySelection()
         }
         melody.btnClockMelodyBack.setOnClickListener {
             syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 1))
-            playCNDSelectAudio()
+            playConfirmAudio()
             setClockMelodyBackFocused(false)
             menuNavigator.popLevel()
         }
@@ -9178,7 +9191,7 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
         bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus.backgroundTintList = clockAccentTint
         bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             dismissClockFiredOverlay()
         }
 
@@ -9226,13 +9239,13 @@ class MainActivity : AppCompatActivity() {
             // "+ 0, 0" — тап равносилен ENCBTN на EDIT: он сам не лист, у него есть дети
             // (Mic/Cancel/Save), курсор садится на первого — MIC, чей onHighlight сам
             // открывает редактор (showJournalEntryEditorForEdit()), отдельно звать не нужно.
-            playNewTabSelectAudio()
+            playButtonAudio()
             syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 0, 0))
         }
         journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
             syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 1))
-            playNewTabSelectAudio()
+            playButtonAudio()
             performJournalEntryDelete(entry)
         }
         // Back — новый пункт (roadmap, этап 27, п.4), только поднимает курсор энкодера в
@@ -9242,7 +9255,7 @@ class MainActivity : AppCompatActivity() {
         journalScreen.btnJournalEntryDetailBack.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
             syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 2))
-            playCNDSelectAudio()
+            playConfirmAudio()
             menuNavigator.popLevel()
         }
         refreshJournalBackButtonVisibility()
@@ -9274,12 +9287,12 @@ class MainActivity : AppCompatActivity() {
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
             syncJournalEncoderPath(journalEditorPathPrefix() + 1)
-            playCNDSelectAudio()
+            playConfirmAudio()
             performJournalEntryCancel()
         }
         journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
             syncJournalEncoderPath(journalEditorPathPrefix() + 2)
-            playNewTabSelectAudio()
+            playButtonAudio()
             performJournalEntrySave()
         }
         bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
@@ -9316,7 +9329,7 @@ class MainActivity : AppCompatActivity() {
             // у SidebarMenuAdapter.onSelect (SPECIAL/Skills/Status/PERKS/MISC), только без
             // самого адаптера: Reset/Menu — обычные кнопки экрана, не элементы списка.
             menuNavigator.syncCursor("GEIGER", 0)
-            playNewTabSelectAudio()
+            playButtonAudio()
             resetGeigerDose()
         }
         // Menu ("В меню") — любой режим с физическим энкодером, не Phone (roadmap, этап 27),
@@ -9325,7 +9338,7 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.backgroundTintList = geigerButtonAccent
         bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.setOnClickListener {
             menuNavigator.syncCursor("GEIGER", 1)
-            playCNDSelectAudio()
+            playButtonAudio()
             setGeigerMenuFocused(false)
             menuNavigator.popLevel()
             syncRow2ActiveFromNavigator()
@@ -9374,13 +9387,13 @@ class MainActivity : AppCompatActivity() {
         dataFilesAdapter = SidebarMenuAdapter(
             items = dataFilesSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
                 // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playCNDSelectAudio()
+                    playConfirmAudio()
                     syncDataEncoderPath("MISC", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
@@ -9422,7 +9435,7 @@ class MainActivity : AppCompatActivity() {
                 SidebarMenuItem(payload = panel, label = settingsSectionLabels[index])
             },
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playItemSelectAudio() },
+            playSelectSound = { playTickAudio() },
             onSelect = { _, item ->
                 settingsSectionPanels.forEach { it.visibility = if (it === item.payload) View.VISIBLE else View.GONE }
                 // Скан по эфиру идёт только пока реально виден раздел Bluetooth — та же
@@ -9458,7 +9471,7 @@ class MainActivity : AppCompatActivity() {
         // обновляет in-memory SharedPreferences сразу, на диск пишет асинхронно сам, так что
         // recreate() ниже гарантированно видит новые значения без гонки с корутиной.
         saveButtonSettings.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             stopPairingScan()
             saveValues(editSettings1.text.toString(), UIColour_Selector, dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
             sendBLEText("STATS")
@@ -9470,7 +9483,7 @@ class MainActivity : AppCompatActivity() {
         // актуальные SharedPreferences. stopPairingScan() — на случай, если раздел
         // Bluetooth сканировал в момент закрытия.
         cancelButtonSettings.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             stopPairingScan()
             if (!isResizing) {
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
@@ -9556,7 +9569,7 @@ class MainActivity : AppCompatActivity() {
         // дисциплина "не слушать эфир вхолостую", что и у мастера/wake-word).
         refreshBluetoothCurrentDevice()
         bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnBluetoothRescan.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             startBluetoothPairingScan()
         }
 
@@ -9572,7 +9585,7 @@ class MainActivity : AppCompatActivity() {
         // области теперь только через мастер PipBoy 2000/3000 (шаг DISPLAY AREA). Эта кнопка
         // вместо старого попапа заново запускает весь поток с экрана выбора режима.
         bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode.setOnClickListener {
-            playNewTabSelectAudio()
+            playButtonAudio()
             openModeSelectScreen()
         }
 
@@ -9588,42 +9601,6 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-
-        /***********************************************************************************************************
-         *
-         * LongPressFunctions
-         *
-         **********************************************************************************************************/
-        // Долгое нажатие на шапку -> фонарик. Раньше было 3 копии (по одной на
-        // tv_title_data STATS/ITEMS/DATA) — row1 теперь один общий инстанс на всё
-        // приложение (roadmap, "Новая шапка + единый Settings", п.3), достаточно одного
-        // слушателя на его корень.
-        bindingMain.incLayoutHeaderToplevel.root.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isFlashlightOn = true
-                    handler.postDelayed(longPressRunnable, 1000) // 1 seconds
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFlashlightOn = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        bindingMain.flFlashlight.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isFlashlightOff = true
-                    handler.postDelayed(longPressRunnable, 500) // 500 mseconds
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isFlashlightOff = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
 
         initWakeWordDetector()
 

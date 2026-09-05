@@ -45,7 +45,7 @@ class SidebarMenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) 
  * осознанно: не путать с `currentWizardAccentColor()`/`backgroundTintList`, другим,
  * несовместимым путём тематизации (см. CLAUDE.md).
  *
- * [playSelectSound] — прокинутый снаружи вызов уже существующего `playItemSelectAudio()`
+ * [playSelectSound] — прокинутый снаружи вызов уже существующего `playTickAudio()`
  * (MainActivity.kt) вместо копии MediaPlayer-обвязки здесь: логика "как создать и не
  * утечь MediaPlayer" остаётся в одном месте, а звук при этом гарантированно играет каждый
  * раз, когда меняется выбор — вызывающий код не может забыть его вставить, т.к. адаптер

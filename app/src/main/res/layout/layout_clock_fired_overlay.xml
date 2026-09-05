@@ -34,12 +34,41 @@
             android:textSize="48.0dip"
             android:text="@string/clock_alarm_fired_title" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_clock_fired_stop"
-            style="@style/PipWizardButtonStyle"
+        <!-- ConstraintLayout, не FrameLayout (roadmap, этап 27 — "прицел-уголки" фокуса
+             энкодера) — тот же проверенный приём, что у Stop на STATUS
+             (layout_tab_stats_status_cnd_content.xml, view_wound_stop_focus):
+             FrameLayout+match_parent+отрицательный margin давал сломанный рендер. -->
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/clock_fired_stop" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_clock_fired_stop"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/clock_fired_stop"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <View
+                android:id="@+id/view_clock_fired_stop_focus"
+                android:layout_width="0.0dip"
+                android:layout_height="0.0dip"
+                android:layout_marginStart="-4dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:layout_marginBottom="-4dp"
+                android:background="@drawable/focus_corner_brackets"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/btn_clock_fired_stop"
+                app:layout_constraintTop_toTopOf="@id/btn_clock_fired_stop"
+                app:layout_constraintEnd_toEndOf="@id/btn_clock_fired_stop"
+                app:layout_constraintBottom_toBottomOf="@id/btn_clock_fired_stop" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </LinearLayout>
 

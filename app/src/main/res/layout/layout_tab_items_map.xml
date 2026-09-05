@@ -111,6 +111,25 @@
         app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"/>
 
+    <!-- Полупрозрачная тёмная подложка под столбиком +/-/стрелка центрирования (фидбек: кнопки
+         иногда сливались с пёстрым фоном карты) — идёт в разметке ПЕРЕД кнопками, чтобы
+         рисоваться под ними (z-порядок ConstraintLayout — порядок объявления), константы
+         привязаны к первой/последней кнопке колонки, отрицательные margin дают небольшой
+         выступ подложки за края кнопок. -->
+    <View
+        android:id="@+id/view_map_controls_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-6dp"
+        android:layout_marginTop="-6dp"
+        android:layout_marginEnd="-6dp"
+        android:layout_marginBottom="-6dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_zoom_in"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in"
+        app:layout_constraintTop_toTopOf="@id/btn_map_zoom_in"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_center" />
+
     <!-- Зум +/- (бэклог этапа 18) — раньше только pinch. Плавающие кнопки поверх карты в
          правом верхнем углу, тот же приём (PipWizardButtonStyle, фиксированный dp-размер), что
          у +/- на SPECIAL/Skills. -->
@@ -143,6 +162,362 @@
         app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_in"
         app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in" />
 
+    <!-- Центрирование карты на игроке (роадмап, этап 27) — раньше пункт "Center" бокового
+         меню, теперь кнопка-стрелка в том же вертикальном столбике, что и +/- (референс —
+         кнопка "Моё местоположение" в Яндекс.Картах). Обработчик переиспользует
+         recenterMapOnUser(), тот же, что раньше вызывал пункт меню. -->
+    <ImageButton
+        android:id="@+id/btn_map_center"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="4dp"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_map_recenter_arrow"
+        android:contentDescription="@string/map_menu_center_button"
+        app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_out"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_out" />
+
+    <!-- Прицелы энкодера зума/центрирования (roadmap, этап 27, энкодер-эргономика карты,
+         п.1) — по одному общему прицелу на весь блок +/- (тот же приём, что
+         view_special_value_focus у SPECIAL/Skills — одна общая рамка на пару, не по одной
+         на кнопку) и отдельный на "Центр". -->
+    <View
+        android:id="@+id/view_map_zoom_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_zoom_in"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in"
+        app:layout_constraintTop_toTopOf="@id/btn_map_zoom_in"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_zoom_out" />
+
+    <View
+        android:id="@+id/view_map_center_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_center"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_center"
+        app:layout_constraintTop_toTopOf="@id/btn_map_center"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_center" />
+
+    <!-- Кнопки-уголки панорамирования по краям карты (roadmap, этап 27, энкодер-эргономика
+         карты, п.2) — простой текстовый глиф ">" под 4 угла поворота (android:rotation), не
+         4 отдельных дровабла. Без фона (только цвет темы, ставится кодом), под каждой —
+         отдельная тёмная полупрозрачная подложка для контраста с пёстрой картой (тот же
+         приём/цвет, что view_map_controls_bg). Подложки идут ПЕРЕД своими кнопками в
+         разметке — рисуются под ними (z-order ConstraintLayout). Все — прямые дети этого
+         ConstraintLayout (не вложены), обязательное условие для constraint-привязки
+         прицелов энкодера (см. CLAUDE.md). -->
+    <View
+        android:id="@+id/view_map_pan_up_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_up"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_up"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_up"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_up" />
+
+    <Button
+        android:id="@+id/btn_map_pan_up"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="4dp"
+        android:background="@null"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        android:gravity="center"
+        android:text=">"
+        android:textSize="18sp"
+        android:rotation="-90"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintHorizontal_bias="0.5" />
+
+    <View
+        android:id="@+id/view_map_pan_up_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_up"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_up"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_up"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_up" />
+
+    <View
+        android:id="@+id/view_map_pan_down_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_down"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_down"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_down"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_down" />
+
+    <Button
+        android:id="@+id/btn_map_pan_down"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginBottom="4dp"
+        android:background="@null"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        android:gravity="center"
+        android:text=">"
+        android:textSize="18sp"
+        android:rotation="90"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintHorizontal_bias="0.5" />
+
+    <View
+        android:id="@+id/view_map_pan_down_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_down"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_down"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_down"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_down" />
+
+    <View
+        android:id="@+id/view_map_pan_left_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_left"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_left"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_left"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_left" />
+
+    <Button
+        android:id="@+id/btn_map_pan_left"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="4dp"
+        android:background="@null"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        android:gravity="center"
+        android:text=">"
+        android:textSize="18sp"
+        android:rotation="180"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
+        app:layout_constraintVertical_bias="0.5" />
+
+    <View
+        android:id="@+id/view_map_pan_left_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_left"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_left"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_left"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_left" />
+
+    <View
+        android:id="@+id/view_map_pan_right_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_right"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_right"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_right"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_right" />
+
+    <Button
+        android:id="@+id/btn_map_pan_right"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="4dp"
+        android:background="@null"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        android:gravity="center"
+        android:text=">"
+        android:textSize="18sp"
+        android:rotation="0"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
+        app:layout_constraintVertical_bias="0.5" />
+
+    <View
+        android:id="@+id/view_map_pan_right_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_pan_right"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_pan_right"
+        app:layout_constraintTop_toTopOf="@id/btn_map_pan_right"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_right" />
+
+    <!-- Крестообразный прицел в центре карты (roadmap, этап 27, п.3) — фиксированная точка
+         экрана (constraint-центрирование на photo_view_map), не мировая координата: карта
+         двигается под ним, не он по карте. ENCBTN на нём — то же самое, что тап по центру
+         экрана (см. MainActivity.mapControlChildrenNodes()). -->
+    <View
+        android:id="@+id/view_map_crosshair"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:background="@drawable/ic_map_crosshair"
+        android:backgroundTint="@color/map_marker_focus_red"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map" />
+
+    <View
+        android:id="@+id/view_map_crosshair_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:backgroundTint="@color/map_marker_focus_red"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/view_map_crosshair"
+        app:layout_constraintEnd_toEndOf="@id/view_map_crosshair"
+        app:layout_constraintTop_toTopOf="@id/view_map_crosshair"
+        app:layout_constraintBottom_toBottomOf="@id/view_map_crosshair" />
+
+    <!-- Кнопка выхода из режима "Управление картой"/"До точки на карте" (roadmap, этап 27,
+         п.4) — правый нижний угол карты, полупрозрачная подложка для контраста, как у
+         столбика +/-. В отличие от уголков панорамирования выше — обычный
+         PipWizardButtonStyle (фон/рамка допустимы). -->
+    <View
+        android:id="@+id/view_map_control_back_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="-6dp"
+        android:layout_marginTop="-6dp"
+        android:layout_marginEnd="-6dp"
+        android:layout_marginBottom="-6dp"
+        android:background="@color/map_controls_panel_bg"
+        app:layout_constraintStart_toStartOf="@id/btn_map_control_back"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_control_back"
+        app:layout_constraintTop_toTopOf="@id/btn_map_control_back"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_control_back" />
+
+    <Button
+        android:id="@+id/btn_map_control_back"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="←"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="0dp"
+        android:includeFontPadding="false"
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map" />
+
+    <View
+        android:id="@+id/view_map_control_back_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_map_control_back"
+        app:layout_constraintEnd_toEndOf="@id/btn_map_control_back"
+        app:layout_constraintTop_toTopOf="@id/btn_map_control_back"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_control_back" />
+
+    <!-- Прицел энкодера (roadmap, этап 27) над отметкой, выбранной в "Список меток" —
+         переиспользует focus_corner_brackets, как и остальной энкодер-фокус в приложении
+         (см. CLAUDE.md), но позиционируется НЕ constraint-привязкой к @id (отметки рисуются
+         вручную на Canvas в MapOverlayView, своего View/id у них нет) — код выставляет
+         translationX/Y вручную (см. updateMapMarkerFocus() в MainActivity.kt). Фиксированный
+         красный, не акцент темы — дефолтный белый на пёстрой карте не виден. -->
+    <View
+        android:id="@+id/view_map_marker_focus"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:backgroundTint="@color/map_marker_focus_red"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintTop_toTopOf="@id/photo_view_map" />
+
     <!-- Тап по произвольной пустой точке карты (бэклог этапа 18) — вместо жёстко
          предопределённого действия предлагает выбор: построить маршрут до точки или
          поставить здесь отметку. Тот же приём позиционирования, что и у карточки деталей
@@ -153,6 +528,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
@@ -175,6 +552,28 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.2) — прямые сиблинги
+             своих кнопок в этом же ConstraintLayout (см. CLAUDE.md). Отрицательный отступ
+             уходит в padding контейнера (10dp, с запасом) — нужен явный
+             android:clipToPadding="false" на самом контейнере (см. выше), иначе ViewGroup по
+             умолчанию обрезает рисование детей по границе именно padded-области, не только
+             по внешней — тот же баг и приём, что уже был на Stop/фигуре в Status, см.
+             layout_tab_stats_status_cnd_content.xml. -->
+        <View
+            android:id="@+id/view_map_tap_choice_route_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_route" />
+
         <Button
             android:id="@+id/btn_map_tap_choice_marker"
             style="@style/PipWizardButtonStyle"
@@ -184,6 +583,48 @@
             android:text="@string/map_menu_place_marker_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route" />
+
+        <View
+            android:id="@+id/view_map_tap_choice_marker_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_marker" />
+
+        <!-- Cancel (фидбек: панель координат при тапе по пустой точке нечем было закрыть,
+             кроме выбора Route/Marker) — просто прячет панель, hideMapTapChoice(). -->
+        <Button
+            android:id="@+id/btn_map_tap_choice_cancel"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/cancel"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_marker" />
+
+        <View
+            android:id="@+id/view_map_tap_choice_cancel_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_cancel" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -198,6 +639,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
@@ -221,6 +664,23 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.2) — прямые сиблинги
+             своих кнопок в этом же ConstraintLayout (см. CLAUDE.md). -->
+        <View
+            android:id="@+id/view_map_route_start_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_start"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_start"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_start"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_start" />
+
         <Button
             android:id="@+id/btn_map_route_cancel"
             style="@style/PipWizardButtonStyle"
@@ -231,6 +691,21 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toEndOf="@id/btn_map_route_start" />
 
+        <View
+            android:id="@+id/view_map_route_cancel_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_cancel"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_cancel"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_cancel" />
+
         <Button
             android:id="@+id/btn_map_route_stop"
             style="@style/PipWizardButtonStyle"
@@ -239,6 +714,21 @@
             android:text="@string/map_route_stop_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_route_status"
             app:layout_constraintStart_toStartOf="parent" />
+
+        <View
+            android:id="@+id/view_map_route_stop_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_route_stop"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_route_stop"
+            app:layout_constraintTop_toTopOf="@id/btn_map_route_stop"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_route_stop" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -250,6 +740,8 @@
         android:layout_height="wrap_content"
         android:padding="10dp"
         android:background="@color/pip_background_darker"
+        android:elevation="24dp"
+        android:clipToPadding="false"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
@@ -281,6 +773,24 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Прицелы энкодера (roadmap, этап 27, п.9) — прямые сиблинги своих кнопок в этом
+             же ConstraintLayout (обязательное условие constraint-привязки, см. CLAUDE.md —
+             найденный баг с Cancel/Save у Journal). -->
+        <View
+            android:id="@+id/view_map_marker_detail_edit_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_marker_detail_edit"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_marker_detail_edit"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_edit"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_edit" />
+
         <Button
             android:id="@+id/btn_map_marker_detail_route"
             style="@style/PipWizardButtonStyle"
@@ -291,6 +801,21 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_edit" />
 
+        <View
+            android:id="@+id/view_map_marker_detail_route_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_marker_detail_route"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_marker_detail_route"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_route"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_route" />
+
         <Button
             android:id="@+id/btn_map_marker_detail_delete"
             style="@style/PipWizardButtonStyle"
@@ -300,6 +825,50 @@
             android:text="@string/map_marker_detail_delete_button"
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
             app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_route" />
+
+        <View
+            android:id="@+id/view_map_marker_detail_delete_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_marker_detail_delete"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_marker_detail_delete"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_delete"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_delete" />
+
+        <!-- Только режимы с физическим энкодером (roadmap, этап 27, п.9) — видимость
+             переключается refreshMapMarkerDetailBackButtonVisibility(), тот же гейт, что
+             btn_journal_entry_detail_back. -->
+        <Button
+            android:id="@+id/btn_map_marker_detail_back"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="8dp"
+            android:text="@string/wizard_back"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_delete" />
+
+        <View
+            android:id="@+id/view_map_marker_detail_back_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_map_marker_detail_back"
+            app:layout_constraintEnd_toEndOf="@id/btn_map_marker_detail_back"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_back"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_back" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

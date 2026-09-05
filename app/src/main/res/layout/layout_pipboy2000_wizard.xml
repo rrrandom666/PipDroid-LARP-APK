@@ -117,6 +117,18 @@
                 android:layout_marginEnd="12dp"
                 android:text="@string/wizard_back" />
 
+            <!-- Обход всего мастера + анимации загрузки в debug-сборках (roadmap, этап 27 —
+                 "много времени уходит на протапывание и просмотр мультика") — видимость
+                 переключается кодом в setupPipBoy2000Wizard(), в release всегда gone. Тот же
+                 приём, что и у btn_wizard_pairing_skip_debug на шаге PAIRING. -->
+            <Button
+                android:id="@+id/btn_wizard_hardware_skip_debug"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="SKIP TO MAIN (DEBUG)"
+                android:visibility="gone" />
+
             <Button
                 android:id="@+id/btn_wizard_hardware_next"
                 style="@style/PipWizardButtonStyle"

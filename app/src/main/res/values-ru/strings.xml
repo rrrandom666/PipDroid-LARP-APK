@@ -170,6 +170,7 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="voice_model_import_error_open">Не удалось открыть выбранный файл</string>
     <string name="voice_model_import_error_structure">Выбранный файл — не подходящая модель Vosk</string>
     <string name="map_menu_center_button">Центрировать</string>
+    <string name="map_menu_control_button">Управление картой</string>
     <string name="map_menu_place_marker_button">Поставить отметку</string>
     <string name="map_menu_route_button">Проложить маршрут</string>
     <string name="map_menu_marker_list_button">Список меток</string>
@@ -577,6 +578,7 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="status_wound_bandage_label">Перевязка</string>
     <string name="status_wound_stunned_label">До пробуждения</string>
     <string name="status_wound_skip">Skip</string>
+    <string name="sidebar_menu_back">В меню</string>
     <string name="status_revive_hint">Нажми на ваулт-боя, чтобы обновить</string>
     <string name="status_text_healthy">"Ура, вы здоровы!\nЕсли получите ранение, нажмите кнопку.\nМожете указать на теле ваулт-боя, куда вас ранили."</string>
     <string name="status_text_stunned">"Упс, вы оглушены!\nДо пробуждения: "</string>

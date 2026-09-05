@@ -52,6 +52,15 @@
     <color name="notification_icon_bg_color">#ff9e9e9e</color>
     <color name="pip_background">#ff0d1c11</color>
     <color name="pip_background_darker">#ff0a160d</color>
+    <!-- Тот же красный, что у точки игрока на карте (MapOverlayView.userDotFillPaint) —
+         прицел энкодера над выбранной отметкой (roadmap, этап 27, энкодер-карта):
+         дефолтный белый focus_corner_brackets не виден на пёстрой карте. -->
+    <color name="map_marker_focus_red">#FF3B30</color>
+    <!-- Полупрозрачная подложка под +/-/стрелкой центрирования (roadmap, этап 27) — кнопки
+         иногда сливались с пёстрым фоном карты (фидбек по итогам тестирования). Тот же тон,
+         что у pip_background_darker (плашки деталей отметки/маршрута), но не сплошной —
+         плавает прямо над живой картинкой карты, не над специально отведённым слотом. -->
+    <color name="map_controls_panel_bg">#CC0A160D</color>
     <color name="primary_dark_material_dark">@android:color/black</color>
     <color name="primary_dark_material_light">@color/material_grey_600</color>
     <color name="primary_material_dark">@color/material_grey_900</color>

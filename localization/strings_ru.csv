@@ -58,6 +58,7 @@ strings.xml:status_wound_bleeding_label,values/strings.xml,status_wound_bleeding
 strings.xml:status_wound_bandage_label,values/strings.xml,status_wound_bandage_label,Bandage,готово,Перевязка,,
 strings.xml:status_wound_stunned_label,values/strings.xml,status_wound_stunned_label,Waking up in,готово,До пробуждения,,подпись над таймером ITEMS/Часы
 strings.xml:status_wound_skip,values/strings.xml,status_wound_skip,Skip,готово,Skip,,debug-only кнопка
+strings.xml:sidebar_menu_back,values/strings.xml,sidebar_menu_back,Menu,готово,В меню,,пункт "В меню" в боковых списках Status/SPECIAL/Skills (только PipBoy 2000/3000)
 strings.xml:status_revive_hint,values/strings.xml,status_revive_hint,Tap the Vault Boy figure to reset,готово,"Нажми на ваулт-боя, чтобы обновить",,
 strings.xml:stats_cnd_status_dead,values/strings.xml,stats_cnd_status_dead,DEAD,готово,МЁРТВ,,
 strings.xml:status_text_healthy,values/strings.xml,status_text_healthy,"Hooray, you're healthy! If you get wounded, press a button. You can tap the Vault Boy's body to mark where you got hit.",готово,"Ура, вы здоровы! Если получите ранение, нажмите кнопку. Можете указать на теле ваулт-боя, куда вас ранили.",,правая панель STATUS

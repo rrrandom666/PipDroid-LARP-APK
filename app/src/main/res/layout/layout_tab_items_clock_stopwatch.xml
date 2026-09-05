@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ITEMS/Clock/Секундомер (roadmap, "Часы — UX-спецификация") — старт/пауза/сброс, без
      кругов. Переиспользует строки Старт/Пауза/Продолжить/Сброс из Таймера (тот же смысл,
-     дублировать не нужно). -->
+     дублировать не нужно).
+     Энкодер-эргономика (roadmap, этап 27, п.4) — StartPause/Reset/Back, прицелы-уголки.
+     Кнопки — прямые дети корневого ConstraintLayout (не LinearLayout, как раньше) — прицел
+     резолвится только между прямыми детьми одного ConstraintLayout (см. CLAUDE.md). -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_tab_items_clock_stopwatch"
@@ -18,34 +21,92 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/layout_clock_stopwatch_buttons"
+        app:layout_constraintBottom_toTopOf="@id/btn_clock_stopwatch_start_pause"
         app:layout_constraintVertical_chainStyle="packed"
         app:layout_constraintVertical_bias="0.4" />
 
-    <LinearLayout
-        android:id="@+id/layout_clock_stopwatch_buttons"
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_clock_stopwatch_start_pause"
+        style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:layout_marginTop="24dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginEnd="8dp"
+        android:text="@string/clock_timer_start"
         app:layout_constraintTop_toBottomOf="@id/tv_clock_stopwatch_elapsed"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_clock_stopwatch_reset"
+        app:layout_constraintHorizontal_chainStyle="packed" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_clock_stopwatch_start_pause"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="@string/clock_timer_start" />
+    <View
+        android:id="@+id/view_clock_stopwatch_start_pause_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintEnd_toEndOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_stopwatch_start_pause" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_clock_stopwatch_reset"
-            style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:text="@string/clock_timer_reset" />
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_clock_stopwatch_reset"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="@string/clock_timer_reset"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintStart_toEndOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintEnd_toStartOf="@id/btn_clock_stopwatch_back"
+        app:layout_goneMarginEnd="0dp" />
 
-    </LinearLayout>
+    <View
+        android:id="@+id/view_clock_stopwatch_reset_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_clock_stopwatch_reset"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_stopwatch_reset"
+        app:layout_constraintEnd_toEndOf="@id/btn_clock_stopwatch_reset"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_stopwatch_reset" />
+
+    <!-- Back — новый пункт (roadmap, этап 27, п.4), только поднимает курсор энкодера в
+         боковое меню Clock. Виден только в режимах с физическим энкодером (не Phone),
+         видимость обновляется кодом (refreshClockStopwatchBackButtonVisibility()). -->
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_clock_stopwatch_back"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:text="@string/wizard_back"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_stopwatch_start_pause"
+        app:layout_constraintStart_toEndOf="@id/btn_clock_stopwatch_reset"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <View
+        android:id="@+id/view_clock_stopwatch_back_focus"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
+        android:layout_marginStart="-4dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp"
+        android:layout_marginBottom="-4dp"
+        android:background="@drawable/focus_corner_brackets"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/btn_clock_stopwatch_back"
+        app:layout_constraintTop_toTopOf="@id/btn_clock_stopwatch_back"
+        app:layout_constraintEnd_toEndOf="@id/btn_clock_stopwatch_back"
+        app:layout_constraintBottom_toBottomOf="@id/btn_clock_stopwatch_back" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

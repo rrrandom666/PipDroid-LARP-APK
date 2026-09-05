@@ -121,11 +121,60 @@
             android:layout_width="wrap_content"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
+            android:layout_marginEnd="8dp"
             android:text="@string/mode_select_button"
             app:layout_constraintTop_toBottomOf="@id/img_clock_melody_box_bottom"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_clock_melody_back"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_goneMarginEnd="0dp" />
+
+        <!-- Прицел энкодера (roadmap, этап 27, п.2) — ENCBTN на треке переводит курсор
+             энкодера на эту кнопку (melodySelectBackChildrenNodes(), MainActivity.kt). -->
+        <View
+            android:id="@+id/view_clock_melody_select_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_clock_melody_select"
+            app:layout_constraintTop_toTopOf="@id/btn_clock_melody_select"
+            app:layout_constraintEnd_toEndOf="@id/btn_clock_melody_select"
+            app:layout_constraintBottom_toBottomOf="@id/btn_clock_melody_select" />
+
+        <!-- Back — новый пункт (roadmap, этап 27, п.2), поднимает курсор энкодера обратно к
+             листанию треков. Виден только в режимах с физическим энкодером (не Phone),
+             видимость обновляется кодом (refreshClockMelodyBackButtonVisibility()). -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_clock_melody_back"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:text="@string/wizard_back"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="@id/btn_clock_melody_select"
+            app:layout_constraintBottom_toBottomOf="@id/btn_clock_melody_select"
+            app:layout_constraintStart_toEndOf="@id/btn_clock_melody_select"
             app:layout_constraintEnd_toEndOf="parent" />
+
+        <View
+            android:id="@+id/view_clock_melody_back_focus"
+            android:layout_width="0.0dip"
+            android:layout_height="0.0dip"
+            android:layout_marginStart="-4dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:layout_marginBottom="-4dp"
+            android:background="@drawable/focus_corner_brackets"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/btn_clock_melody_back"
+            app:layout_constraintTop_toTopOf="@id/btn_clock_melody_back"
+            app:layout_constraintEnd_toEndOf="@id/btn_clock_melody_back"
+            app:layout_constraintBottom_toBottomOf="@id/btn_clock_melody_back" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

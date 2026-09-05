@@ -184,7 +184,7 @@ GPIO всегда `PipBoy_BLE_Protocol_v0.2.md`, этот файл только 
   подозревать этот механизм, чинить через явный `view.backgroundTintList = null` перед
   `setBackgroundColor()`/`setBackgroundResource()`, а не искать баг в своей логике
 
-## Ещё две находки про вёрстку/ввод (roadmap, этап 18 — карта)
+## Ещё находки про вёрстку/ввод (roadmap, этап 18 — карта; этап 27 — энкодер)
 
 - **Стили с `android:layout_height="0.0dip"`** (`SettingsButtonStyle`, `PipWizardButtonStyle`,
   `CNDEFFRADButtonStyle` — у всех трёх высота задана в самом стиле как `match_constraint`)
@@ -199,6 +199,18 @@ GPIO всегда `PipBoy_BLE_Protocol_v0.2.md`, этот файл только 
   вызывалась бы кодом — Settings/Filter (единственные экраны с `EditText`) полагаются на
   обычный тап по полю, системным поведением. Это и есть рабочий паттерн; не пытаться
   форсировать `requestFocus()`/`showSoftInput()` вручную при открытии панели с полем ввода.
+- **Прицел-уголок энкодера (`focus_corner_brackets`, отдельный `View` с отрицательным
+  margin поверх кнопки, см. `viewGeigerResetFocus` и т.п.) работает, только если он —
+  ПРЯМОЙ ребёнок того же `ConstraintLayout`, что и кнопка, на которую он ссылается через
+  `app:layout_constraintXxx_toXxxOf="@id/..."`.** `ConstraintLayout` резолвит такие ссылки
+  только среди своих непосредственных детей — если кнопка на самом деле лежит на уровень
+  глубже (например, внутри `LinearLayout`, добавленного ради `measureWithLargestChild` или
+  весов), прицел молча схлопывается в (0,0) и не виден, хотя `visibility` в коде выставляется
+  правильно (найдено на Cancel/Save в редакторе Journal, roadmap, этап 27 — у соседней Mic-
+  кнопки, лежавшей прямо в `ConstraintLayout`, тот же приём работал). Чинится не поиском бага
+  в логике `setFocusBracketsVisible()`/коде, а переносом кнопки-цели на тот же уровень
+  вложенности, что и её прицел — ценой любых удобств вложенного `LinearLayout`
+  (`measureWithLargestChild` и т.п.), которые придётся пересобирать через сами constraints.
 
 ## Текущее состояние окружения разработки
 

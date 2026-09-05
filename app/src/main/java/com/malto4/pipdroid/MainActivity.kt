@@ -455,16 +455,25 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocumentTree()
     ) { treeUri ->
         if (treeUri == null) return@registerForActivityResult
-        val resultView = bindingMain.incLayoutSettingsGlobal.tvMapBundleImportResult
+        // Обе result-строки (Settings и шаг IMPORT мастера, roadmap этап 28, п.4) — тот же
+        // приём, что и у refreshMapBundleStatus(): одна кнопка импорта может быть нажата с
+        // любого из двух экранов, обновляем оба разом.
+        val resultViews = listOf(
+            bindingMain.incLayoutSettingsGlobal.tvMapBundleImportResult,
+            bindingMain.incLayoutPipboy2000Wizard.tvWizardImportMapResult,
+        )
         lifecycleScope.launch(Dispatchers.IO) {
             val result = mapBundleRepository.importFromTree(treeUri)
             withContext(Dispatchers.Main) {
                 refreshMapBundleStatus()
-                resultView.visibility = View.VISIBLE
-                resultView.text = result.fold(
+                val text = result.fold(
                     onSuccess = { getString(R.string.map_bundle_import_success) },
                     onFailure = { it.message ?: getString(R.string.map_bundle_import_error_unknown) }
                 )
+                resultViews.forEach {
+                    it.visibility = View.VISIBLE
+                    it.text = text
+                }
             }
         }
     }
@@ -475,16 +484,23 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocument()
     ) { zipUri ->
         if (zipUri == null) return@registerForActivityResult
-        val resultView = bindingMain.incLayoutSettingsGlobal.tvVoiceModelImportResult
+        // См. openMapBundleTreeLauncher выше — тот же приём, обе result-строки разом.
+        val resultViews = listOf(
+            bindingMain.incLayoutSettingsGlobal.tvVoiceModelImportResult,
+            bindingMain.incLayoutPipboy2000Wizard.tvWizardImportVoiceResult,
+        )
         lifecycleScope.launch(Dispatchers.IO) {
             val result = voiceModelRepository.importFromZip(zipUri)
             withContext(Dispatchers.Main) {
                 refreshVoiceModelStatus()
-                resultView.visibility = View.VISIBLE
-                resultView.text = result.fold(
+                val text = result.fold(
                     onSuccess = { getString(R.string.voice_model_import_success) },
                     onFailure = { it.message ?: getString(R.string.voice_model_import_error_unknown) }
                 )
+                resultViews.forEach {
+                    it.visibility = View.VISIBLE
+                    it.text = text
+                }
                 if (result.isSuccess) startWakeWordIfPermitted()
             }
         }
@@ -492,14 +508,13 @@ class MainActivity : AppCompatActivity() {
     private fun onRequiredPermissionsGranted() {
         val wizard = bindingMain.incLayoutPipboy2000Wizard
         val fromWizardPermissions = wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE
-        if (fromWizardPermissions && pipBoyMode == PipBoyMode.PHONE) {
-            finishPhoneModeSetup()
+        // IMPORT — общий следующий шаг для обоих режимов (roadmap, этап 28, п.4), PAIRING/
+        // finishPhoneModeSetup() из него самого, см. btnWizardImportDone.
+        if (fromWizardPermissions) {
+            showWizardStep(PipBoyWizardStep.IMPORT)
             return
         }
         setupBluetooth()
-        if (fromWizardPermissions) {
-            showWizardStep(PipBoyWizardStep.PAIRING)
-        }
     }
 
     /***********************************************************************************************************
@@ -1067,8 +1082,15 @@ class MainActivity : AppCompatActivity() {
         if (permissionsToRequest.isNotEmpty()) {
             applyTemporaryFullScreenLayout()
             permissionRequestLauncher.launch(permissionsToRequest.toTypedArray())
-        } else if (pipBoyMode != PipBoyMode.PHONE) {
-            setupBluetooth()
+        } else {
+            // Уже всё выдано — тот же обработчик, что и после реального системного диалога
+            // (onRequiredPermissionsGranted() сам решает, что делать: закончить/продолжить
+            // мастер или просто поднять BLE, если сейчас вообще не мастер). roadmap, этап 28:
+            // без этого объединения "Grant Permissions" на PERMISSIONS, куда вернулись
+            // кнопкой Back с IMPORT/PAIRING (allowAutoAdvance=false), был мёртвой кнопкой —
+            // раньше сюда попадали только с уже готовым списком запросов, этой развилки не
+            // возникало.
+            onRequiredPermissionsGranted()
         }
     }
     private fun setupBluetooth() {
@@ -1373,7 +1395,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * Мастер настройки PipBoy 2000/3000
      */
-    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, PAIRING, POWER_HINT }
+    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, IMPORT, PAIRING, POWER_HINT }
 
     private fun showWizardStep(step: PipBoyWizardStep, allowAutoAdvance: Boolean = true) {
         val w = bindingMain.incLayoutPipboy2000Wizard
@@ -1381,6 +1403,7 @@ class MainActivity : AppCompatActivity() {
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
         w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
         w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE
+        w.layoutWizardImport.visibility = if (step == PipBoyWizardStep.IMPORT) View.VISIBLE else View.GONE
         w.layoutWizardPairing.visibility = if (step == PipBoyWizardStep.PAIRING) View.VISIBLE else View.GONE
         w.layoutWizardPowerHint.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.VISIBLE else View.GONE
         w.tvWizardPowerHint.visibility = View.VISIBLE
@@ -1426,12 +1449,8 @@ class MainActivity : AppCompatActivity() {
             // же отскакивал обратно на PAIRING этой же веткой (разрешения уже выданы), кнопка
             // Back выглядела нерабочей. false — только у явного возврата назад (см.
             // btnWizardPairingBack ниже), вперёд (первый вход на шаг) всегда true.
-            if (pipBoyMode == PipBoyMode.PHONE) {
-                finishPhoneModeSetup()
-            } else {
-                setupBluetooth()
-                showWizardStep(PipBoyWizardStep.PAIRING)
-            }
+            // IMPORT — общий следующий шаг для обоих режимов (roadmap, этап 28, п.4).
+            showWizardStep(PipBoyWizardStep.IMPORT)
         }
     }
     private fun applyTemporaryFullScreenLayout() {
@@ -1588,6 +1607,10 @@ class MainActivity : AppCompatActivity() {
             w.btnWizardCancel,
             w.btnWizardPermissionsBack,
             w.btnWizardGrantPermissions,
+            w.btnWizardImportBack,
+            w.btnWizardImportDone,
+            w.btnWizardImportVoice,
+            w.btnWizardImportMap,
             w.btnWizardPairingBack,
             w.btnWizardPairingRescan,
             w.btnWizardPairingSkipDebug,
@@ -1602,6 +1625,14 @@ class MainActivity : AppCompatActivity() {
             w.tvWizardHint,
             w.tvWizardPermissionsTitle,
             w.tvWizardPermissionsText,
+            w.tvWizardImportTitle,
+            w.tvWizardImportText,
+            // Статус-строки (tvWizardImportVoiceStatus/tvWizardImportMapStatus) — намеренно
+            // НЕ в этом списке: CNDEFFRADButtonStyle, тот же приём, что и у их прототипов в
+            // Settings (tvVoiceModelStatus/tvMapBundleStatus, layout_tab_settings.xml) — те
+            // тоже не подмешивают акцент темы, оставлены как есть.
+            w.tvWizardImportVoiceLabel,
+            w.tvWizardImportMapLabel,
             w.tvWizardPairingTitle,
             w.tvWizardPairingStatus,
             w.tvWizardPowerHint
@@ -1657,6 +1688,37 @@ class MainActivity : AppCompatActivity() {
         w.btnWizardGrantPermissions.setOnClickListener {
             playButtonAudio()
             checkPermissions()
+        }
+
+        // Шаг 4.5: Import (roadmap, этап 28, п.4) — voice/map кнопки переиспользуют те же
+        // лончеры/репозитории, что и Settings (openVoiceModelZipLauncher/
+        // openMapBundleTreeLauncher, см. их колбэки — обновляют оба набора view разом).
+        w.btnWizardImportBack.setOnClickListener {
+            playButtonAudio()
+            // allowAutoAdvance = false — тот же приём и по той же причине, что у
+            // btnWizardPairingBack выше: разрешения уже выданы (иначе сюда было бы не
+            // попасть), обычный showWizardStep(PERMISSIONS) отскочил бы обратно на IMPORT.
+            showWizardStep(PipBoyWizardStep.PERMISSIONS, allowAutoAdvance = false)
+        }
+        w.btnWizardImportDone.setOnClickListener {
+            playButtonAudio()
+            // Продолжает независимо от того, импортировано что-то или нет — это и есть
+            // "пропустить" (roadmap, этап 28, п.4): донастроить можно позже в Settings,
+            // отдельная кнопка Skip не нужна.
+            if (pipBoyMode == PipBoyMode.PHONE) {
+                finishPhoneModeSetup()
+            } else {
+                setupBluetooth()
+                showWizardStep(PipBoyWizardStep.PAIRING)
+            }
+        }
+        w.btnWizardImportVoice.setOnClickListener {
+            playButtonAudio()
+            openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+        }
+        w.btnWizardImportMap.setOnClickListener {
+            playButtonAudio()
+            openMapBundleTreeLauncher.launch(null)
         }
 
         // Шаг 5: Pairing
@@ -3080,37 +3142,46 @@ class MainActivity : AppCompatActivity() {
         else getString(R.string.map_route_unit_meters, meters.roundToInt())
         return getString(R.string.map_route_status_remaining, unit)
     }
-    /** Обновляет статус-строку в Settings > Map — импортирован ли бандл, когда и из какой
-     * папки. Вызывается один раз при инициализации Settings и сразу после (не)успешного
-     * импорта (раздел теперь всегда на месте, не отдельная подпанель по кнопке). */
+    /** Обрезает длинное имя файла/папки посередине, сохраняя расширение в конце (roadmap,
+     * этап 28, найденный баг — в узкой колонке шага IMPORT мастера длинное имя разъезжало
+     * кнопки за пределы экрана): "vosk-model-small-ru-0.22.zip" -> "vosk-...0.22.zip". */
+    private fun truncateFileName(name: String, keepStart: Int = 5, keepEnd: Int = 8): String {
+        if (name.length <= keepStart + keepEnd + 3) return name
+        return name.take(keepStart) + "..." + name.takeLast(keepEnd)
+    }
+    /** Обновляет статус-строку и в Settings > Map, и на шаге IMPORT мастера (roadmap, этап
+     * 28, п.4 — общий источник истины, репозиторий на диске, отрисовывается сразу в двух
+     * местах) — импортирован ли бандл, когда и из какой папки. Вызывается один раз при
+     * инициализации Settings/мастера и сразу после (не)успешного импорта. */
     private fun refreshMapBundleStatus() {
-        val statusView = bindingMain.incLayoutSettingsGlobal.tvMapBundleStatus
-        if (!mapBundleRepository.hasBundle()) {
-            statusView.text = getString(R.string.map_bundle_status_none)
-            return
+        val text = if (!mapBundleRepository.hasBundle()) {
+            getString(R.string.map_bundle_status_none)
+        } else {
+            val dateText = mapBundleRepository.importedAtEpochMillis()?.let {
+                SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
+            } ?: "?"
+            val folderName = truncateFileName(mapBundleRepository.importedSourceFolderName() ?: "?")
+            getString(R.string.map_bundle_status_imported, folderName, dateText)
         }
-        val dateText = mapBundleRepository.importedAtEpochMillis()?.let {
-            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
-        } ?: "?"
-        val folderName = mapBundleRepository.importedSourceFolderName() ?: "?"
-        statusView.text = getString(R.string.map_bundle_status_imported, folderName, dateText)
+        bindingMain.incLayoutSettingsGlobal.tvMapBundleStatus.text = text
+        bindingMain.incLayoutPipboy2000Wizard.tvWizardImportMapStatus.text = text
     }
 
-    /** Обновляет статус-строку в Settings > Voice Commands — импортирована ли модель Vosk,
-     * когда и из какого файла. Вызывается один раз при инициализации Settings и сразу после
-     * (не)успешного импорта (раздел теперь всегда на месте, не отдельная подпанель по
-     * кнопке). */
+    /** Обновляет статус-строку и в Settings > Voice Commands, и на шаге IMPORT мастера
+     * (roadmap, этап 28, п.4 — тот же приём, что у refreshMapBundleStatus() выше) —
+     * импортирована ли модель Vosk, когда и из какого файла. */
     private fun refreshVoiceModelStatus() {
-        val statusView = bindingMain.incLayoutSettingsGlobal.tvVoiceModelStatus
-        if (!voiceModelRepository.hasModel()) {
-            statusView.text = getString(R.string.voice_model_status_none)
-            return
+        val text = if (!voiceModelRepository.hasModel()) {
+            getString(R.string.voice_model_status_none)
+        } else {
+            val dateText = voiceModelRepository.importedAtEpochMillis()?.let {
+                SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
+            } ?: "?"
+            val fileName = truncateFileName(voiceModelRepository.importedSourceFileName() ?: "?")
+            getString(R.string.voice_model_status_imported, fileName, dateText)
         }
-        val dateText = voiceModelRepository.importedAtEpochMillis()?.let {
-            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(it))
-        } ?: "?"
-        val fileName = voiceModelRepository.importedSourceFileName() ?: "?"
-        statusView.text = getString(R.string.voice_model_status_imported, fileName, dateText)
+        bindingMain.incLayoutSettingsGlobal.tvVoiceModelStatus.text = text
+        bindingMain.incLayoutPipboy2000Wizard.tvWizardImportVoiceStatus.text = text
     }
 
     /***********************************************************************************************************

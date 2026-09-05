@@ -594,6 +594,8 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="wizard_hide_hint">Скрыть подсказку</string>
     <string name="wizard_hint_connect_hardware">Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.</string>
     <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран PipBoy.</string>
+    <string name="wizard_import_text">Импортируйте офлайн-бандлы или пропустите и сделайте это позже в настройках.</string>
+    <string name="wizard_import_title">ИМПОРТ</string>
     <string name="wizard_next">Далее</string>
     <string name="wizard_pairing_bluetooth_off">Bluetooth выключен.</string>
     <string name="wizard_pairing_found">Найдено устройств: %1$d. Выберите ваш PipBoy в списке.</string>

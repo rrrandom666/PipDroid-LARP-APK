@@ -318,6 +318,202 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Шаг 4.5: IMPORT (roadmap, этап 28, п.4) — импорт голосовой модели/бандла карты
+         внутри мастера, во всех режимах (включая Телефон) — оба дублируют существующие
+         блоки Settings (layout_tab_settings.xml, layout_settings_section_voice/_map)
+         виджет-в-виджет под одним заголовком в стиле мастера вместо двух отдельных вкладок.
+         MainActivity.kt (refreshVoiceModelStatus()/refreshMapBundleStatus()/
+         openVoiceModelZipLauncher/openMapBundleTreeLauncher) обновляет оба набора view
+         (Settings и этот) одновременно — общий источник истины, репозитории на диске, не
+         дублируется. [Next] продолжает независимо от того, импортировано что-то или нет —
+         это и есть "пропустить", отдельной кнопки Skip не требуется (см.
+         wizard_import_text — явно говорит, что можно донастроить позже в Settings). -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_wizard_import"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/img_wizard_line_top"
+        app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline_wizard_import_center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
+
+        <TextView
+            android:id="@+id/tv_wizard_import_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:fontFamily="@font/pipboy_mono"
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:text="@string/wizard_import_title"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_import_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:fontFamily="@font/pipboy_mono"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:text="@string/wizard_import_text"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Голосовая модель — левая колонка. Виджеты/строки — точная копия Settings >
+             Voice Commands (layout_settings_section_voice): tv_voice_model_status/
+             tv_voice_model_import_result/btn_voice_model_import, только с префиксом
+             wizard_ и без своей style-панели (тут это просто часть общего шага). -->
+        <TextView
+            android:id="@+id/tv_wizard_import_voice_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/pipboy_mono"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:text="@string/settings_section_voice_commands"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guideline_wizard_import_center" />
+
+        <TextView
+            android:id="@+id/tv_wizard_import_voice_status"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="6dp"
+            android:text="@string/voice_model_status_none"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_voice_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guideline_wizard_import_center" />
+
+        <!-- gone по умолчанию — тот же приём, что у tv_voice_model_import_result в Settings
+             (layout_tab_settings.xml): пустое место одной строки текста иначе раздвигало бы
+             кнопку ниже даже когда результата импорта ещё не было. -->
+        <TextView
+            android:id="@+id/tv_wizard_import_voice_result"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="8dp"
+            android:text=""
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_voice_status"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guideline_wizard_import_center" />
+
+        <Button
+            android:id="@+id/btn_wizard_import_voice"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="8dp"
+            app:layout_goneMarginTop="16dp"
+            android:text="@string/voice_model_import_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_voice_result" />
+
+        <!-- Бандл карты — правая колонка, зеркало левой (layout_settings_section_map). -->
+        <TextView
+            android:id="@+id/tv_wizard_import_map_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/pipboy_mono"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:text="@string/items_map"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_text"
+            app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_import_map_status"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="6dp"
+            android:text="@string/map_bundle_status_none"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_map_label"
+            app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_wizard_import_map_result"
+            style="@style/CNDEFFRADButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="8dp"
+            android:text=""
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_map_status"
+            app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/btn_wizard_import_map"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="8dp"
+            app:layout_goneMarginTop="16dp"
+            android:text="@string/map_bundle_import_button"
+            app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
+            app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_map_result" />
+
+        <!-- Единый принцип для всех шагов с кнопками (roadmap, "Косметические правки
+             мастера") — центрированный ряд прямо под содержимым, не по краям/низу экрана. -->
+        <LinearLayout
+            android:id="@+id/layout_wizard_import_buttons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="20dp"
+            app:layout_constraintTop_toBottomOf="@id/btn_wizard_import_voice"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Button
+                android:id="@+id/btn_wizard_import_back"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/wizard_back" />
+
+            <Button
+                android:id="@+id/btn_wizard_import_done"
+                style="@style/PipWizardButtonStyle"
+                android:layout_width="wrap_content"
+                android:text="@string/wizard_done" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
     <!-- Шаг 5: PAIRING — скан по Service UUID Nordic UART, список найденных корпусов вместо
          ручного ввода MAC (roadmap). Кнопки списка создаются в коде (setWizardButtonState-
          подобный тинт акцентом темы), см. startPairingScan()/addPairingDevice(). -->

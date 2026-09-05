@@ -33,6 +33,9 @@
     <string name="wizard_permissions_text">PipBoy needs Bluetooth and location permissions (to scan for and connect to the case hardware), microphone permission (voice commands and dictation), and notification permission (background connection to the case shows a persistent connection-status notification). The system usually asks for these on its own \u2014 the button below is only needed if the system dialog doesn\'t appear for some reason.</string>
     <string name="wizard_grant_permissions">Grant Permissions</string>
 
+    <string name="wizard_import_title">IMPORT</string>
+    <string name="wizard_import_text">Import offline bundles, or skip and do it later in Settings.</string>
+
     <string name="wizard_pairing_title">PAIRING</string>
     <string name="wizard_pairing_scanning">Scanning\u2026 Make sure the PipBoy case is powered on and nearby.</string>
     <string name="wizard_pairing_found">Found %1$d device(s). Select your PipBoy from the list.</string>

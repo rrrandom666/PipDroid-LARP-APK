@@ -166,8 +166,8 @@ class MainActivity : AppCompatActivity() {
     private var melodyFocusedIndex = 0
     private var melodyPreviewPlayer: MediaPlayer? = null
     private var melodyPreviewPlayingIndex: Int? = null
-    /** payload — индекс в ringtoneTracks, null — синтетический пункт [Назад] (roadmap,
-     * "Единый компонент бокового меню 3 уровня"). */
+    /** payload — индекс в ringtoneTracks
+     */
     private lateinit var melodyAdapter: SidebarMenuAdapter<Int?>
 
     /***********************************************************************************************************
@@ -2089,12 +2089,8 @@ class MainActivity : AppCompatActivity() {
         val userPx = bindingMain.incLayoutTabItemsMap.viewMapOverlay.userLocationPx ?: return
         centerMapOnBitmapPoint(userPx)
     }
-    /** Нижний слот карты (карточка деталей отметки/выбор [Route]/[Marker]/управление
-     * маршрутом/полоса подсказок — см. layout_tab_items_map.xml, все четыре взаимно
-     * исключающие) может сейчас перекрывать часть экрана снизу — высота актуальной из них,
-     * иначе 0. Используется centerMapOnBitmapPoint(), чтобы не центрировать точку туда, где
-     * она тут же окажется под панелью (фидбек: центрирование на отметке из "Список меток"
-     * пряталось под открывшейся следом карточкой деталей). */
+    /** Нижний слот карты
+     */
     private fun mapBottomOverlayHeightPx(): Float {
         val mapScreen = bindingMain.incLayoutTabItemsMap
         return listOf(
@@ -2104,10 +2100,8 @@ class MainActivity : AppCompatActivity() {
             mapScreen.tvMapHint,
         ).firstOrNull { it.visibility == View.VISIBLE }?.height?.toFloat() ?: 0f
     }
-    /** Сдвигает PhotoView так, чтобы точка в пространстве битмапа (пиксели map.png) оказалась
-     * по центру ВИДИМОЙ полосы экрана (за вычетом нижней панели, см.
-     * mapBottomOverlayHeightPx()), сохраняя текущий зум игрока — общий хелпер и для кнопки
-     * "Центр" (GPS-точка), и для перехода к маркеру из списка. */
+    /** Сдвигает PhotoView
+     */
     private fun centerMapOnBitmapPoint(targetPx: PointF) {
         val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
         // getDisplayMatrix() отдаёт ПОЛНУЮ матрицу (базовая "вписать в экран" + supp,
@@ -2543,15 +2537,22 @@ class MainActivity : AppCompatActivity() {
             initialSelectedPosition = initialSelectedPosition,
             playSelectSound = { playItemSelectAudio() },
             onSelect = { position, item ->
-                // Синхронизация курсора энкодера с тачем (roadmap, этап 27) — тот же приём,
-                // что у dataFilesAdapter/statusAdapter и т.п.
-                menuNavigator.syncCursor("JOURNAL", position)
-                when (val payload = item.payload) {
-                    is JournalSidebarEntry.NewEntry -> showJournalEntryEditorForNew()
-                    is JournalSidebarEntry.Existing -> showJournalEntryDetail(payload.entry)
+                // Безусловная синхронизация курсора энкодера с тачем (roadmap, доработка после
+                // фидбека) — не menuNavigator.syncCursor(), тот чинит курсор только ВНУТРИ уже
+                // активного уровня списка записей (см. doc у syncJournalEncoderPath()).
+                when (item.payload) {
+                    // "+ 0" — тап равносилен ENCBTN на этом пункте: и у "Новой записи", и у
+                    // любой существующей есть дети (Mic/Cancel/Save или Edit/Delete/Back),
+                    // курсор садится на первого ребёнка, не остаётся на самом пункте (тот же
+                    // приём, что у Map/Clock, см. doc у MenuNavigator.setPath()). Loud-путь сам
+                    // вызывает onHighlight первого ребёнка, который и открывает нужный экран
+                    // (showJournalEntryEditorForNew()/showJournalEntryDetail()) — отдельно
+                    // звать их здесь больше не нужно.
+                    is JournalSidebarEntry.NewEntry -> syncJournalEncoderPath(listOf(position, 0))
+                    is JournalSidebarEntry.Existing -> syncJournalEncoderPath(listOf(position, 0))
                     is JournalSidebarEntry.Menu -> {
                         playCNDSelectAudio()
-                        menuNavigator.popLevel()
+                        syncJournalEncoderPathSilently(emptyList())
                         syncRow2ActiveFromNavigator()
                     }
                 }
@@ -2781,15 +2782,19 @@ class MainActivity : AppCompatActivity() {
         val index = sorted.indexOfFirst { it.id == entryId }
         return if (index >= 0) index + 1 else 0
     }
-    /** Родитель узла Mic/Cancel/Save в дереве энкодера для текущего состояния редактора
-     * (roadmap, этап 27, п.3/4 — нужен тач-обработчикам кнопок для menuNavigator.syncCursor(),
-     * тот же приём, что у btnGeigerReset.setOnClickListener) — общий id для любой "новой"
-     * записи ("JOURNAL_NEW", ровно один такой узел в дереве) и общий id для "правки" любой
-     * записи ("JOURNAL_ENTRY_EDIT" — переиспользуется во всех journalEntryDetailChildrenNodes(),
-     * тот же принцип безопасного повтора id, что у "MENU" в menuBackNode()). Читать
-     * editingJournalEntryId нужно ДО того, как Cancel/Save его сбросят. */
-    private fun journalEditorEncoderParentId(): String =
-        if (editingJournalEntryId != null) "JOURNAL_ENTRY_EDIT" else "JOURNAL_NEW"
+    /** Путь от узла JOURNAL до Mic/Cancel/Save текущего редактора (roadmap, доработка после
+     * фидбека — тач-обработчикам кнопок Mic/Cancel/Save нужен полный путь для
+     * syncJournalEncoderPath()/syncJournalEncoderPathSilently(), не menuNavigator.syncCursor()
+     * — тот же класс бага, что и у списка записей: работал, только если энкодер уже стоял
+     * ровно на этом же редакторе, см. doc у syncJournalEncoderPath()). "Новая запись" — сразу
+     * дети Mic/Cancel/Save на первом уровне (см. journalChildrenNodes()); правка существующей
+     * — на уровень глубже, под общим для всех записей узлом EDIT (см.
+     * journalEntryDetailChildrenNodes()). Читать editingJournalEntryId нужно ДО того, как
+     * Cancel/Save его сбросят. */
+    private fun journalEditorPathPrefix(): List<Int> {
+        val editingId = editingJournalEntryId
+        return if (editingId != null) listOf(journalEntrySidebarIndex(editingId), 0) else listOf(0)
+    }
     /** Cancel — общее тело для тача и ENCBTN (roadmap, этап 27, п.3/4). Данные не меняет,
      * только закрывает редактор и поднимает курсор энкодера: для новой записи — на список
      * (боковое меню, один popLevel() — у "Новая запись" дети сразу Mic/Cancel/Save, без
@@ -4049,6 +4054,30 @@ class MainActivity : AppCompatActivity() {
         val mapIndex = itemsRoot.indexOfFirst { it.id == "MAP" }
         if (mapIndex == -1) return
         menuNavigator.setPathSilently(itemsRoot, listOf(mapIndex) + path)
+    }
+    /** [syncMapEncoderPath] на экране Journal (roadmap, доработка после фидбека — тот же класс
+     * бага "энкодер не следует за тапами между узлами дерева", здесь — тач по списку записей
+     * Journal, пока энкодер был на строке ITEMS или на дочернем узле ЛЮБОЙ записи, включая ту
+     * же самую: обычный menuNavigator.syncCursor("JOURNAL", position) чинит курсор, только
+     * если энкодер уже стоит ровно на списке записей — во всех остальных случаях no-op, и
+     * курсор "залипает" на прежней записи, прицел не отрисовывается вовсе, пока энкодер не
+     * дёрнут вручную). [path] — индексы от детей самого узла JOURNAL, как и везде у
+     * syncEncoderPath()/syncMapEncoderPath(). */
+    private fun syncJournalEncoderPath(path: List<Int>) {
+        val itemsRoot = itemsMenuRoot()
+        val journalIndex = itemsRoot.indexOfFirst { it.id == "JOURNAL" }
+        if (journalIndex == -1) return
+        menuNavigator.setPath(itemsRoot, listOf(journalIndex) + path)
+    }
+    /** [syncJournalEncoderPath] без onHighlight — для пути, останавливающегося на самом узле
+     * JOURNAL ("В меню"): его onHighlight — `btnItemsJournal.performClick()`, заново
+     * открывающий экран и перезагружающий записи с диска (см. doc у
+     * syncMapEncoderPathSilently()). */
+    private fun syncJournalEncoderPathSilently(path: List<Int>) {
+        val itemsRoot = itemsMenuRoot()
+        val journalIndex = itemsRoot.indexOfFirst { it.id == "JOURNAL" }
+        if (journalIndex == -1) return
+        menuNavigator.setPathSilently(itemsRoot, listOf(journalIndex) + path)
     }
     /** Позиция пункта бокового меню Map по его ключу — та же логика, что уже строит
      * mapRootChildrenNodes() локально, вынесена наружу для переиспользования в
@@ -9191,13 +9220,18 @@ class MainActivity : AppCompatActivity() {
         journalScreen.viewJournalEntryDetailBackFocus.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailEdit.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 0)
+            // Безусловная синхронизация (roadmap, доработка после фидбека) — не
+            // menuNavigator.syncCursor(), тот чинит курсор только если энкодер уже стоит
+            // ровно на дочернем узле ЭТОЙ ЖЕ записи (см. doc у syncJournalEncoderPath()).
+            // "+ 0, 0" — тап равносилен ENCBTN на EDIT: он сам не лист, у него есть дети
+            // (Mic/Cancel/Save), курсор садится на первого — MIC, чей onHighlight сам
+            // открывает редактор (showJournalEntryEditorForEdit()), отдельно звать не нужно.
             playNewTabSelectAudio()
-            showJournalEntryEditorForEdit(entry)
+            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 0, 0))
         }
         journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 1)
+            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 1))
             playNewTabSelectAudio()
             performJournalEntryDelete(entry)
         }
@@ -9207,7 +9241,7 @@ class MainActivity : AppCompatActivity() {
         // видимость также обновляется в refreshSidebarBackItems() при смене режима в рантайме.
         journalScreen.btnJournalEntryDetailBack.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            menuNavigator.syncCursor("JOURNAL_ENTRY_${entry.id}", 2)
+            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 2))
             playCNDSelectAudio()
             menuNavigator.popLevel()
         }
@@ -9225,18 +9259,26 @@ class MainActivity : AppCompatActivity() {
         // handleJournalMicTap() (roadmap, этап 27) — общее и для тача, и для ENCBTN (см.
         // journalEntryEditorChildrenNodes()).
         journalEntryPopup.btnJournalEntryMic.setOnClickListener {
-            menuNavigator.syncCursor(journalEditorEncoderParentId(), 0)
+            // Синхронизация ТОЛЬКО курсора и прицела (roadmap, доработка после фидбека), не
+            // syncJournalEncoderPath() — тот вызвал бы onHighlight узла MIC, а его тело
+            // (showJournalEntryEditorForNew()/ForEdit()) сбрасывает текст поля ввода на
+            // пустую строку/сохранённый текст записи, стирая то, что игрок уже надиктовал
+            // или напечатал. Тач по Mic не переключает экран — редактор уже открыт и виден,
+            // нужно только физически переставить курсор энкодера и нарисовать прицел.
+            syncJournalEncoderPathSilently(journalEditorPathPrefix() + 0)
+            setAllJournalEntryEditorFocusesHidden()
+            setJournalEntryEditorMicFocused(true)
             handleJournalMicTap()
         }
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
-            menuNavigator.syncCursor(journalEditorEncoderParentId(), 1)
+            syncJournalEncoderPath(journalEditorPathPrefix() + 1)
             playCNDSelectAudio()
             performJournalEntryCancel()
         }
         journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
-            menuNavigator.syncCursor(journalEditorEncoderParentId(), 2)
+            syncJournalEncoderPath(journalEditorPathPrefix() + 2)
             playNewTabSelectAudio()
             performJournalEntrySave()
         }

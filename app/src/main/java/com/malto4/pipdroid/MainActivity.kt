@@ -1241,10 +1241,16 @@ class MainActivity : AppCompatActivity() {
         refreshSidebarBackItems()
         bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
+        // НЕ enableDisableBottomButtons(true, ...)/enableDisableTopSwipe(true) здесь (roadmap,
+        // этап 28, найденный баг) — мастер PipBoy 2000/3000 показывается сразу следом (см.
+        // ветку when(mode) ниже), а не главный экран: раздизейбленные тут кнопки шапки/футера
+        // тут же становились кликабельны СКВОЗЬ мастер (тот сам не clickable/не перехватывает
+        // тач фоном) на любой тап мимо его собственных элементов. Кнопки/свайп остаются
+        // задизейбленными (как и были, пока было открыто Settings) до реального завершения
+        // всего потока — см. finishPhoneModeSetup()/applyPowerState(true)/
+        // skipWizardToMainScreenDebug(), единственные места, где мастер закрывается взаправду.
         if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
             bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
-            enableDisableBottomButtons(true, listBottomButtons)
-            enableDisableTopSwipe(true)
         }
 
         bindingMain.constraintlayoutTutorial.visibility = View.GONE
@@ -1265,6 +1271,11 @@ class MainActivity : AppCompatActivity() {
     }
     private fun finishPhoneModeSetup() {
         bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        // Мастер реально закрывается — вернуть кнопки шапки/футера и свайп, задизейбленные
+        // на весь мастер начиная с openModeSelectScreen() (roadmap, этап 28, см. комментарий
+        // в selectPipBoyMode()).
+        enableDisableBottomButtons(true, listBottomButtons)
+        enableDisableTopSwipe(true)
         resetToFullScreen()
         bindingMain.viewPowerOff.animate().cancel()
         bindingMain.viewPowerOff.visibility = View.GONE
@@ -1356,7 +1367,7 @@ class MainActivity : AppCompatActivity() {
      */
     private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, PAIRING, POWER_HINT }
 
-    private fun showWizardStep(step: PipBoyWizardStep) {
+    private fun showWizardStep(step: PipBoyWizardStep, allowAutoAdvance: Boolean = true) {
         val w = bindingMain.incLayoutPipboy2000Wizard
         w.layoutWizardChromeFrame.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.GONE else View.VISIBLE
         w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
@@ -1401,8 +1412,12 @@ class MainActivity : AppCompatActivity() {
             loadViewState()
         }
 
-        if (step == PipBoyWizardStep.PERMISSIONS && hasAllRequiredPermissions()) {
-            // Уже выданы раньше — не задерживаем игрока на этом экране.
+        if (step == PipBoyWizardStep.PERMISSIONS && allowAutoAdvance && hasAllRequiredPermissions()) {
+            // Уже выданы раньше — не задерживаем игрока на этом экране. allowAutoAdvance —
+            // roadmap, этап 28, найденный баг: без него Back с PAIRING на PERMISSIONS сразу
+            // же отскакивал обратно на PAIRING этой же веткой (разрешения уже выданы), кнопка
+            // Back выглядела нерабочей. false — только у явного возврата назад (см.
+            // btnWizardPairingBack ниже), вперёд (первый вход на шаг) всегда true.
             if (pipBoyMode == PipBoyMode.PHONE) {
                 finishPhoneModeSetup()
             } else {
@@ -1640,7 +1655,10 @@ class MainActivity : AppCompatActivity() {
         w.btnWizardPairingBack.setOnClickListener {
             playButtonAudio()
             stopPairingScan()
-            showWizardStep(PipBoyWizardStep.PERMISSIONS)
+            // allowAutoAdvance = false (roadmap, этап 28, найденный баг) — разрешения на
+            // этот момент уже выданы (иначе сюда, на PAIRING, было бы не попасть), обычный
+            // showWizardStep(PERMISSIONS) тут же отскакивал бы обратно на PAIRING.
+            showWizardStep(PipBoyWizardStep.PERMISSIONS, allowAutoAdvance = false)
         }
         w.btnWizardPairingRescan.setOnClickListener {
             playButtonAudio()
@@ -1666,6 +1684,10 @@ class MainActivity : AppCompatActivity() {
         stopPairingScan()
         cancelBootSequence()
         bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        // См. finishPhoneModeSetup() — тот же откат дизейбла кнопок/свайпа, этот путь тоже
+        // закрывает мастер по-настоящему (debug-обход).
+        enableDisableBottomButtons(true, listBottomButtons)
+        enableDisableTopSwipe(true)
         bindingMain.viewPowerOff.animate().cancel()
         bindingMain.viewPowerOff.visibility = View.GONE
         updateScreenGlareVisibility()
@@ -3133,7 +3155,16 @@ class MainActivity : AppCompatActivity() {
             cancelBootSequence()
             playBootSequence()
             // Мастер настройки PipBoy 2000/3000 больше не нужен — POWER реально пришёл.
+            val wizardWasOpen = bindingMain.incLayoutPipboy2000Wizard.root.visibility == View.VISIBLE
             bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+            // Мастер реально закрывается впервые — вернуть кнопки шапки/футера и свайп, см.
+            // finishPhoneModeSetup()/комментарий в selectPipBoyMode() (roadmap, этап 28).
+            // Гейт по wizardWasOpen — на обычных POWER:1/POWER:0 переключениях в игре (мастер
+            // уже закрыт) вызывать нечего, кнопки и так уже включены.
+            if (wizardWasOpen) {
+                enableDisableBottomButtons(true, listBottomButtons)
+                enableDisableTopSwipe(true)
+            }
             // Пока шли Permissions/подсказка про POWER, окно было временно fullscreen (не
             // персистентно, см. showWizardStep/applyTemporaryFullScreenLayout) — теперь
             // применяем реально настроенную на шаге DISPLAY AREA область для игры.
@@ -7891,8 +7922,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(viewMain)
         mirrorDisplayCutoutInset(viewMain)
 
-        //Load saved size and position
-        loadViewState()
+        // Полный экран на старте (roadmap, этап 28, найденный баг) — раньше здесь стоял
+        // loadViewState(), подхватывавший уменьшенный размер из прошлой сессии ДО того, как
+        // решено, какой режим вообще активен (pipBoyMode тут всегда PHONE по умолчанию — ни
+        // один путь не восстанавливает аппаратный режим из SharedPreferences при обычном
+        // холодном старте, только restoreAppState() при убийстве процесса, через Bundle). В
+        // итоге Welcome/выбор режима на каждом новом запуске могли показываться в уменьшенной
+        // рамке от прошлой настройки DISPLAY AREA, хотя сама настройка имеет смысл только
+        // внутри мастера аппаратного режима, который в этом прогоне ещё даже не открывался.
+        // resetToFullScreen() — не только визуально сбрасывает, но и сохраняет сброс в
+        // SharedPreferences, так что любой другой loadViewState() в этой же сессии
+        // (skipWizardToMainScreenDebug() и т.п.) больше не подхватит устаревшее значение.
+        resetToFullScreen()
 
         // Тема (selected_button/selectedRowButton и т.п., applyAppTheme()) должна быть
         // применена ДО setupModeSelectScreen()/setupPipBoy2000Wizard() — экран выбора
@@ -9591,10 +9632,17 @@ class MainActivity : AppCompatActivity() {
 
         // isResizing/ScaleListener/handleTouch — общий с мастером механизм (шаг DISPLAY AREA
         // сам включает isResizing на время своего показа, см. showWizardStep()), поэтому
-        // остаётся и после удаления легаси-попапа.
+        // остаётся и после удаления легаси-попапа. Слушатель — на корне САМОГО мастера, не
+        // на bindingMain.root (roadmap, этап 28, доработка после фидбека): мастер теперь
+        // обязан поглощать любой тач в своих границах сам (см. комментарий в
+        // selectPipBoyMode() про раздизейбленные кнопки под ним), а isResizing включён
+        // только пока виден мастер (единственное место, где он ставится в true) — если бы
+        // слушатель остался на bindingMain.root, он срабатывал бы только на тех тапах,
+        // которые не поглотил уже сам мастер, то есть жест ресайза на DISPLAY AREA перестал
+        // бы доезжать.
         scaleGestureDetector = ScaleGestureDetector(this, ScaleListener())
-        
-        bindingMain.root.setOnTouchListener { _, event ->
+
+        bindingMain.incLayoutPipboy2000Wizard.root.setOnTouchListener { _, event ->
             if (isResizing) {
                 handleTouch(event)
             }

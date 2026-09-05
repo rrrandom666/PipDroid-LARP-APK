@@ -184,6 +184,16 @@ class SidebarMenuAdapter<T>(
         scrollToReveal(position)
     }
 
+    /** Гасит рамку целиком, ни один пункт не выбран (roadmap, этап 27 — доработка
+     * энкодер-эргономики: курсор энкодера стоит на узле меню 2 уровня, ещё не провалился
+     * в боковое меню через `ENCBTN` — рамка не должна показывать пункт 0 как уже
+     * выбранный). Симметрично [setSelectedPositionSilently] — без звука, без [onSelect]. */
+    fun clearSelection() {
+        val previous = selectedPosition
+        selectedPosition = -1
+        if (previous in items.indices) notifyItemChanged(previous)
+    }
+
     fun selectedPosition(): Int = selectedPosition
 
     fun currentItems(): List<SidebarMenuItem<T>> = items

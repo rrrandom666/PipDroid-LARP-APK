@@ -359,6 +359,24 @@ class MainActivity : AppCompatActivity() {
      * BLUETOOTH
      **********************************************************************************************************/
     private val menuNavigator = MenuNavigator()
+    /**
+     * true — пока [simulateEncoderTabHighlight] прогоняет `performClick()` узла меню 2
+     * уровня (Status/SPECIAL/.../Map/Journal/Clock/Geiger/Files) ради его `onHighlight`
+     * (roadmap, этап 27 — доработка энкодер-эргономики: курсор `ENC` просто перебирает эти
+     * узлы, не должен при этом проваливаться в боковое меню и подсвечивать его первый
+     * пункт). Реальный тап по той же кнопке (`setOnClickListener` ниже) видит флаг false и
+     * доводит дело до конца — синхронизирует курсор энкодера и сразу проваливается на
+     * первый дочерний узел (`menuNavigator.activateSelected()`), т.к. тап равносилен
+     * `ENCBTN`. Один флаг на всё приложение — оба пути (`performClick()`/реальный тач)
+     * всегда выполняются синхронно и никогда не пересекаются.
+     */
+    private var encoderTabHighlight = false
+    /** Общий вызов для `onHighlight` узлов меню 2 уровня — см. [encoderTabHighlight]. */
+    private fun simulateEncoderTabHighlight(button: Button) {
+        encoderTabHighlight = true
+        button.performClick()
+        encoderTabHighlight = false
+    }
     private var pipBoyMode: PipBoyMode = PipBoyMode.PHONE
     private var bleService: PipBoyBleService? = null
     private var bleServiceBound = false
@@ -1272,6 +1290,11 @@ class MainActivity : AppCompatActivity() {
         stopBleService()
         menuChangeBLE("STATS")
         menuNavigator.resetToRoot(statsMenuRoot())
+        // Стартовое положение курсора энкодера при включении (roadmap, этап 27 —
+        // доработка энкодер-эргономики) — не сам узел STATUS (строка 2), а его первый
+        // дочерний пункт бокового меню (Light Wound), тот же приём, что у handleBleCommand()
+        // ("STATS" с активным ранением ниже) — Status всегда индекс 0 в statsMenuRoot().
+        menuNavigator.activateSelected()
         cancelBootSequence()
         startContinuousGlitch()
         startAmbientBackgroundSound()
@@ -1668,6 +1691,10 @@ class MainActivity : AppCompatActivity() {
         if (row2Views.isEmpty()) {
             menuChangeBLE(curMenu)
             menuNavigator.resetToRoot(menuRootNodesFor(curMenu))
+            // Стартовое положение курсора энкодера (roadmap, этап 27 — доработка энкодер-
+            // эргономики) — первый дочерний узел бокового меню, не сам узел строки 2, тот
+            // же приём, что у finishPhoneModeSetup()/finishBootSequence().
+            menuNavigator.activateSelected()
         }
         startContinuousGlitch()
         startAmbientBackgroundSound()
@@ -1941,8 +1968,16 @@ class MainActivity : AppCompatActivity() {
                 // же фиксированный тёмный, что у текста "+"/"−").
                 mapScreen.btnMapCenter.imageTintList = null
                 hideMapHint()
-                // Свежий вход в раздел с вкладки ITEMS — жёсткий сброс курсора
-                mapRootAdapter.setSelectedPositionSilently(0)
+                // Раньше здесь был безусловный mapRootAdapter.setSelectedPositionSilently(0)
+                // ("жёсткий сброс курсора" на свежий вход с вкладки ITEMS) — убран (roadmap,
+                // этап 27, доработка энкодер-эргономики): этот блок выполняется асинхронно
+                // (Dispatchers.Main после декода битмапы на IO), т.е. ПОЗЖЕ синхронного
+                // mapRootAdapter.clearSelection()/menuNavigator.activateSelected() в
+                // setOnClickListener btnItemsMap (см. ниже) — безусловный сброс здесь заново
+                // подсвечивал пункт 0, даже когда клик пришёл от ENC-перебора строки 2 (не от
+                // реального тапа), и рамка оставалась видна до явного ENCBTN (найденный баг).
+                // Кому и когда показывать рамку — решает целиком тот listener, эта функция
+                // саму подсветку больше не трогает.
                 showMapMenuState(MapMenuState.ROOT)
                 refreshMarkerPins()
                 // Оверлей рисует в пространстве экрана, но хранит точки в пространстве
@@ -3317,6 +3352,10 @@ class MainActivity : AppCompatActivity() {
         if (row2Views.isEmpty()) {
             menuChangeBLE(curMenu)
             menuNavigator.resetToRoot(menuRootNodesFor(curMenu))
+            // Стартовое положение курсора энкодера (roadmap, этап 27 — доработка энкодер-
+            // эргономики) — первый дочерний узел бокового меню, не сам узел строки 2, тот
+            // же приём, что у finishPhoneModeSetup().
+            menuNavigator.activateSelected()
         }
         // Глитч больше не ограничен коротким окном после загрузки — фоновый эффект на
         // всё время, пока PipBoy включён, см. startContinuousGlitch().
@@ -3586,7 +3625,7 @@ class MainActivity : AppCompatActivity() {
         val statusNode = MenuNode(
             id = "STATUS",
             children = statusChildrenNodes(),
-            onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsStatus.performClick() }
+            onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsStatus) }
         )
         // SPECIAL (roadmap, этап 27 — находка "SPECIAL/Skills"): onHighlight не изменился —
         // движение курсора по-прежнему просто обновляет превью картинки/описания. ENCBTN на
@@ -3623,7 +3662,7 @@ class MainActivity : AppCompatActivity() {
                 onHighlight = { specialAdapter.setSelectedPositionSilently(specialMeta.size) },
                 onBeforePop = { specialAdapter.flashPressAnimation(specialMeta.size) },
             ),
-            onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.performClick() }
+            onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsSpecial) }
         )
         // Skills — тот же ValueEditor-приём, что у specialNode выше.
         val skillsNode = MenuNode(
@@ -3653,7 +3692,7 @@ class MainActivity : AppCompatActivity() {
                 onHighlight = { skillsAdapter.setSelectedPositionSilently(skillsMeta.size) },
                 onBeforePop = { skillsAdapter.flashPressAnimation(skillsMeta.size) },
             ),
-            onHighlight = { bindingMain.incLayoutTabStatsBottom.btnStatsSkills.performClick() }
+            onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsSkills) }
         )
         val bottom = bindingMain.incLayoutTabStatsBottom
         return listOf(
@@ -3663,7 +3702,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "PERKS",
                 children = perksChildrenNodes(),
-                onHighlight = { bottom.btnStatsPerks.performClick() },
+                onHighlight = { simulateEncoderTabHighlight(bottom.btnStatsPerks) },
             ),
         )
     }
@@ -3679,7 +3718,7 @@ class MainActivity : AppCompatActivity() {
         val clockNode = MenuNode(
             id = "CLOCK",
             children = clockChildrenNodes(),
-            onHighlight = { bottom.btnItemsClock.performClick() }
+            onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsClock) }
         )
         // GEIGER требует физического корпуса (Wi-Fi-скан на ESP32) — недоступен в режиме
         // Телефон, см. applyModeGating(). Порядок должен совпадать с itemsRow2Items() ниже.
@@ -3688,7 +3727,7 @@ class MainActivity : AppCompatActivity() {
         val geigerNode = MenuNode(
             id = "GEIGER",
             children = geigerChildrenNodes(),
-            onHighlight = { bottom.btnItemsGeiger.performClick() },
+            onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsGeiger) },
         )
         // Journal — дети journalChildrenNodes() (roadmap, этап 27 — энкодер-эргономика
         // ITEMS: п.2-4), тот же приём "список + Menu в конце", что у MISC/Status.
@@ -3700,7 +3739,7 @@ class MainActivity : AppCompatActivity() {
         val journalNode = MenuNode(
             id = "JOURNAL",
             childrenProvider = { journalChildrenNodes() },
-            onHighlight = { bottom.btnItemsJournal.performClick() },
+            onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsJournal) },
         )
         // MAP — дети mapRootChildrenNodes() (roadmap, этап 27 — энкодер-эргономика карты,
         // п.5), childrenProvider не статичный children — тот же приём, что у JOURNAL:
@@ -3709,7 +3748,7 @@ class MainActivity : AppCompatActivity() {
         val mapNode = MenuNode(
             id = "MAP",
             childrenProvider = { mapRootChildrenNodes() },
-            onHighlight = { bottom.btnItemsMap.performClick() },
+            onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsMap) },
         )
         return listOfNotNull(
             if (pipBoyMode != PipBoyMode.PHONE) geigerNode else null,
@@ -3718,6 +3757,12 @@ class MainActivity : AppCompatActivity() {
             clockNode,
         )
     }
+    /** Позиция узла с данным id в [itemsMenuRoot] (roadmap, этап 27 — доработка энкодер-
+     * эргономики) — GEIGER/MAP/JOURNAL/CLOCK сдвигаются относительно друг друга в зависимости
+     * от pipBoyMode (GEIGER скрыт в Phone, см. itemsMenuRoot()), поэтому индекс для
+     * [MenuNavigator.setRootCursor] нельзя зашить константой, как у statsMenuRoot() (там
+     * состав/порядок фиксирован). */
+    private fun itemsRootIndexFor(id: String): Int = itemsMenuRoot().indexOfFirst { it.id == id }
     /** Дети узла JOURNAL (roadmap, этап 27, п.2) — "Новая запись" всегда первым пунктом,
      * дальше все существующие записи (новые сверху), "В меню" — последним пунктом только в
      * PipBoy 2000/3000 (menuBackNode()). Порядок и состав обязаны совпадать с
@@ -4687,7 +4732,7 @@ class MainActivity : AppCompatActivity() {
             MenuNode(
                 id = "MISC",
                 children = dataFilesChildrenNodes(),
-                onHighlight = { bottom.btnDataMisc.performClick() },
+                onHighlight = { simulateEncoderTabHighlight(bottom.btnDataMisc) },
             ),
             if (pipBoyMode != PipBoyMode.PHONE) MenuNode("HOLOTAPES") { bottom.btnDataHolotapes.performClick() } else null,
         )
@@ -6737,12 +6782,18 @@ class MainActivity : AppCompatActivity() {
                 ).apply { if (index > 0) marginStart = (8 * resources.displayMetrics.density).toInt() }
                 setOnClickListener {
                     row2Active = index
+                    // item.onSelect() == performClick() на самой кнопке узла меню 2 уровня
+                    // (statsRow2Items()/itemsRow2Items()/dataRow2Items()) — та сама
+                    // синхронизирует menuNavigator (setRootCursor()) и сама же сразу
+                    // проваливается на первый дочерний узел (activateSelected(), roadmap,
+                    // этап 27 — доработка энкодер-эргономики, тап равносилен ENCBTN). Больше
+                    // НЕ дублировать menuNavigator.setRootCursor(index) здесь следом — это
+                    // заново схлопывало стек до одного уровня и отменяло тот самый провал,
+                    // который onSelect() уже сделал (найденный баг: рамка на первом пункте
+                    // бокового меню показывалась, а курсор энкодера при этом оставался в
+                    // строке 2 — ENC после тапа листал соседние разделы, а не боковое меню).
                     item.onSelect()
                     renderRow2()
-                    // Обратная синхронизация к syncRow2ActiveFromNavigator(): без неё
-                    // энкодер после тача по строке 2 продолжал бы крутить от прежней
-                    // позиции курсора (roadmap, "Модель навигации энкодером").
-                    menuNavigator.setRootCursor(index)
                 }
             }
             strip.addView(tv)
@@ -8157,6 +8208,19 @@ class MainActivity : AppCompatActivity() {
             // находка, что и у строки 2 шапки выше: без этого MenuNavigator продолжал бы
             // считать курсор там, где он был до тапа). Индекс — позиция в statsMenuRoot().
             menuNavigator.setRootCursor(0)
+            // Рамка/прицел бокового меню гаснет (roadmap, этап 27 — доработка энкодер-
+            // эргономики): курсор энкодера сейчас на самом узле STATUS (строка 2), ещё не
+            // внутри списка — рамка не должна показывать пункт 0 как уже выбранный, пока
+            // мы туда явно не провалились.
+            statusAdapter.clearSelection()
+            setWoundStopButtonFocused(false)
+            setDeadReviveFocused(false)
+            setAllCrippledFocusesHidden()
+            // Реальный тап равносилен ENCBTN (roadmap, этап 27, п.3) — сразу проваливается
+            // на первый дочерний узел бокового меню. ENC-перебор строки 2 (см.
+            // simulateEncoderTabHighlight()) видит encoderTabHighlight=true и молча
+            // останавливается здесь, рамка остаётся погашенной (см. выше).
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
 
@@ -8215,6 +8279,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
             menuNavigator.setRootCursor(1)
+            specialAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
 
@@ -8275,6 +8341,8 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
             menuNavigator.setRootCursor(2)
+            skillsAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
 
@@ -8348,8 +8416,15 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.VISIBLE
             menuNavigator.setRootCursor(3)
-            syncRow2ActiveFromNavigator()
+            // STATSPerksSetup() пересобирает perksAdapter заново (roadmap, этап 27 —
+            // фильтруемый список, не фиксированной длины, как statusMeta/specialMeta/
+            // skillsMeta) — свежий адаптер всегда стартует с подсвеченным пунктом 0,
+            // clearSelection() ниже гасит эту рамку молча, пока курсор энкодера реально не
+            // провалится в список (см. ту же находку у Status/SPECIAL/Skills выше).
             STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
+            perksAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
         bindingMain.incLayoutTabStatsPerks.btnPerksFilter.setOnClickListener {
             openPerksFilter()
@@ -8427,7 +8502,14 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
+            // Синхронизация энкодера с тачем по нижним кнопкам (roadmap, этап 27 —
+            // доработка энкодер-эргономики) — тот же приём, что у STATS выше. Индекс не
+            // константа — MAP сдвигается относительно GEIGER, см. itemsRootIndexFor().
+            menuNavigator.setRootCursor(itemsRootIndexFor("MAP"))
             openMapScreen()
+            mapRootAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
         val mapMenu = bindingMain.incLayoutTabItemsMap
         mapRootAdapter = SidebarMenuAdapter(
@@ -8639,6 +8721,10 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             stopMapLocationUpdates()
+            menuNavigator.setRootCursor(itemsRootIndexFor("CLOCK"))
+            clockAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
 
         /*
@@ -8936,7 +9022,15 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             stopMapLocationUpdates()
+            menuNavigator.setRootCursor(itemsRootIndexFor("JOURNAL"))
+            // openJournalScreen() пересобирает journalListAdapter заново (roadmap, этап 27 —
+            // список записей не фиксированной длины, тот же приём, что у perksAdapter выше)
+            // — свежий адаптер стартует с подсвеченным пунктом 0, clearSelection() ниже
+            // гасит рамку молча, пока курсор энкодера не провалится в список по-настоящему.
             openJournalScreen()
+            journalListAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
         val journalScreen = bindingMain.incLayoutTabItemsJournal
         val journalAccentColor = ColorStateList.valueOf(currentWizardAccentColor())
@@ -9008,6 +9102,11 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.VISIBLE
             stopMapLocationUpdates()
+            menuNavigator.setRootCursor(itemsRootIndexFor("GEIGER"))
+            setGeigerResetFocused(false)
+            setGeigerMenuFocused(false)
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
 
         /*
@@ -9059,6 +9158,13 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabDataMisc.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabDataHolotapes.root.visibility = View.GONE
             bindingMain.incLayoutTabDataRadio.root.visibility = View.GONE
+            // MISC — всегда индекс 0 в dataMenuRoot() (roadmap, этап 27 — доработка
+            // энкодер-эргономики), в отличие от ITEMS состав/порядок здесь не зависит от
+            // pipBoyMode.
+            menuNavigator.setRootCursor(0)
+            dataFilesAdapter.clearSelection()
+            if (!encoderTabHighlight) menuNavigator.activateSelected()
+            syncRow2ActiveFromNavigator()
         }
 
         /*

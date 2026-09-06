@@ -236,17 +236,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@drawable/scanline_xml" />
 
-    <FrameLayout
-        android:id="@+id/fl_flashlight"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:background="@color/white"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <!-- POWER état-машина (протокол, раздел 3.1): по умолчанию видим — стартовое
          состояние приложения OFF, пока не пришёл первый POWER от ESP32. -->
     <View

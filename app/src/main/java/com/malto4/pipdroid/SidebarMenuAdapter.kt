@@ -45,7 +45,7 @@ class SidebarMenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) 
  * осознанно: не путать с `currentWizardAccentColor()`/`backgroundTintList`, другим,
  * несовместимым путём тематизации (см. CLAUDE.md).
  *
- * [playSelectSound] — прокинутый снаружи вызов уже существующего `playItemSelectAudio()`
+ * [playSelectSound] — прокинутый снаружи вызов уже существующего `playTickAudio()`
  * (MainActivity.kt) вместо копии MediaPlayer-обвязки здесь: логика "как создать и не
  * утечь MediaPlayer" остаётся в одном месте, а звук при этом гарантированно играет каждый
  * раз, когда меняется выбор — вызывающий код не может забыть его вставить, т.к. адаптер
@@ -126,12 +126,21 @@ class SidebarMenuAdapter<T>(
             holder.value.visibility = View.GONE
         }
 
+        // item.enabled — тоже условие рамки, не только alpha (roadmap, этап 28, баг №1):
+        // тап по недоступной сейчас кнопке всё ещё двигает selectedPosition (см.
+        // selectPosition()/doc-комментарий класса выше — это нужно, чтобы тап доехал до
+        // onSelect и дал звук ошибки), но подсвечивать её как выбранную поверх затенения
+        // нельзя — читалось как "эта кнопка ещё работает".
         holder.itemView.setBackgroundResource(
-            if (position == selectedPosition) selectedBackgroundRes else R.drawable.button_unselected
+            if (position == selectedPosition && item.enabled) selectedBackgroundRes else R.drawable.button_unselected
         )
         // Прокрутка длинного текста — только у выбранного пункта (тот же приём, что уже
         // был на Clock/Ringtones: playMelodySelectedMarqueeOnce()/highlightMelodyRow()).
-        holder.label.isSelected = position == selectedPosition
+        // item.enabled — тоже условие (roadmap, этап 28, баг №1, доп. находка): View.isSelected
+        // на кнопке сам по себе красит текст акцентом темы через дефолтный ColorStateList
+        // платформы — независимо от setBackgroundResource() выше, отдельная причина того же
+        // визуального бага, если не погасить и здесь тоже.
+        holder.label.isSelected = position == selectedPosition && item.enabled
 
         holder.itemView.setOnClickListener {
             selectPosition(holder.adapterPosition)

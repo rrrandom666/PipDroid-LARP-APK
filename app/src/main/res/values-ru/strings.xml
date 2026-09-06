@@ -594,6 +594,8 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="wizard_hide_hint">Скрыть подсказку</string>
     <string name="wizard_hint_connect_hardware">Пока PipBoy выключен, тут будет чёрный экран. Чтобы включить PipBoy, нажмите POWER.</string>
     <string name="wizard_hint_resize">Отрегулируйте рабочую область под экран PipBoy.</string>
+    <string name="wizard_import_text">Импортируйте офлайн-бандлы или пропустите и сделайте это позже в настройках.</string>
+    <string name="wizard_import_title">ИМПОРТ</string>
     <string name="wizard_next">Далее</string>
     <string name="wizard_pairing_bluetooth_off">Bluetooth выключен.</string>
     <string name="wizard_pairing_found">Найдено устройств: %1$d. Выберите ваш PipBoy в списке.</string>
@@ -602,7 +604,7 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="wizard_pairing_scan_failed">Не удалось начать сканирование, попробуйте ещё раз.</string>
     <string name="wizard_pairing_scanning">Сканирование… Убедитесь, что корпус PipBoy включён и рядом.</string>
     <string name="wizard_pairing_title">СОПРЯЖЕНИЕ</string>
-    <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
+    <string name="wizard_permissions_text">PipBoy нужны разрешения на Bluetooth и геолокацию (для поиска и подключения к периферии корпуса), на микрофон (голосовые команды и диктовка) и на уведомления (фоновая связь с корпусом показывает постоянное уведомление о статусе подключения). Обычно система спросит их сама — кнопка ниже нужна, если системный диалог почему-то не появился.</string>
     <string name="wizard_permissions_title">РАЗРЕШЕНИЯ</string>
     <string name="wizard_reset">Сбросить</string>
     <string name="settings_4_name">Режим работы:</string>

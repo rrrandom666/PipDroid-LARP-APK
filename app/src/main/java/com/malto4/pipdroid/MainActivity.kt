@@ -243,6 +243,15 @@ class MainActivity : AppCompatActivity() {
     private var journalDictationState = JournalDictationState.IDLE
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
+    // Голосовой ввод имени метки (roadmap, этап 28, п.6) — тот же voiceDictationService, что
+    // и у Journal (общий на всё приложение, одновременно только одна диктовка), отдельное
+    // состояние — экраны разные, но никогда не активны одновременно.
+    private enum class MapMarkerDictationState { IDLE, LOADING, LISTENING }
+    private var mapMarkerDictationState = MapMarkerDictationState.IDLE
+    // true — уже заменили старое имя метки первым сегментом этой сессии слушания (roadmap,
+    // этап 28, п.7) — см. beginMapMarkerListening()/replaceMapMarkerDictatedText().
+    private var mapMarkerDictationReplacedThisSession = false
+    private val REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION = 27
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     private var mapRouteState = MapRouteState.NONE
     private var mapRouteDestination: Pair<Double, Double>? = null
@@ -747,6 +756,14 @@ class MainActivity : AppCompatActivity() {
             val popupVisible = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (popupVisible) startJournalDictation()
+            } else {
+                playErrorAudio()
+            }
+        }
+        if (requestCode == REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION) {
+            val popupVisible = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility == View.VISIBLE
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (popupVisible) startMapMarkerDictation()
             } else {
                 playErrorAudio()
             }
@@ -1986,6 +2003,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.btnMapMarkerDetailBack,
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupCancel,
                     mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave,
+                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic,
                     mapScreen.btnMapZoomIn,
                     mapScreen.btnMapZoomOut,
                     mapScreen.btnMapCenter,
@@ -2033,6 +2051,7 @@ class MainActivity : AppCompatActivity() {
                     mapScreen.viewMapRouteStopFocus,
                     mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupCancelFocus,
                     mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupSaveFocus,
+                    mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupMicFocus,
                 ).forEach { it.backgroundTintList = mapFocusAccent }
                 // ImageButton без своего tint наследует android:tint активной темы
                 // (Theme.PipDroid.*UI) — то же самое, что уже задокументировано для
@@ -2041,6 +2060,10 @@ class MainActivity : AppCompatActivity() {
                 // должен рисоваться своим собственным fillColor (pip_button_text_dark, тот
                 // же фиксированный тёмный, что у текста "+"/"−").
                 mapScreen.btnMapCenter.imageTintList = null
+                // Тот же приём, что у Journal (btnJournalEntryMic, см. updateJournalMicVisual())
+                // — android:tint="@null" в XML одного недостаточно, глиф иконки сливался с
+                // акцентным фоном без явного сброса и здесь тоже.
+                ImageViewCompat.setImageTintList(mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic, null)
                 hideMapHint()
                 // Раньше здесь был безусловный mapRootAdapter.setSelectedPositionSilently(0)
                 // ("жёсткий сброс курсора" на свежий вход с вкладки ITEMS) — убран (roadmap,
@@ -2571,6 +2594,7 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText("")
         popup.root.visibility = View.VISIBLE
+        refreshMapMarkerMicAvailability()
     }
     private fun showMarkerNamePopupForEdit(marker: MapMarker) {
         editingMarkerId = marker.id
@@ -2578,11 +2602,156 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText(marker.name)
         popup.root.visibility = View.VISIBLE
+        refreshMapMarkerMicAvailability()
     }
     private fun hideMarkerNamePopup() {
         pendingMarkerLatLon = null
         editingMarkerId = null
+        stopMapMarkerDictation()
         bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
+    }
+    /** Сбрасывает кнопку-микрофон и статус-строку к состоянию покоя при каждом открытии
+     * попапа — тот же приём, что у refreshJournalMicAvailability(). */
+    private fun refreshMapMarkerMicAvailability() {
+        mapMarkerDictationState = MapMarkerDictationState.IDLE
+        setMapMarkerMicStatus("")
+        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        popup.btnMarkerNamePopupMic.alpha = if (voiceModelRepository.hasModel()) 1f else 0.4f
+        updateMapMarkerMicVisual(recording = false)
+    }
+    private fun setMapMarkerMicStatus(text: String) {
+        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.tvMarkerNamePopupMicStatus.text = text
+    }
+    private fun updateMapMarkerMicVisual(recording: Boolean) {
+        val accent = currentWizardAccentColor()
+        val tint = if (recording) ColorUtils.blendARGB(accent, Color.WHITE, 0.4f) else accent
+        val micButton = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic
+        micButton.backgroundTintList = ColorStateList.valueOf(tint)
+        micButton.setImageResource(if (recording) R.drawable.ic_stop else R.drawable.ic_mic)
+        ImageViewCompat.setImageTintList(micButton, null)
+    }
+    /** Заменяет содержимое поля целиком — только первый распознанный сегмент за сессию
+     * слушания, и только при редактировании уже существующей метки (roadmap, этап 28, п.6/7,
+     * см. mapMarkerDictationReplacedThisSession/beginMapMarkerListening()): новая диктовка
+     * должна стирать старое сохранённое имя, а не дописываться к нему. Пауза в речи внутри
+     * ТОЙ ЖЕ сессии — уже appendMapMarkerDictatedText() ниже, как и у новой метки всегда
+     * (там перезаписывать нечего, поле стартует пустым). */
+    private fun replaceMapMarkerDictatedText(text: String) {
+        if (text.isBlank()) return
+        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.etMarkerNameValue.setText(text)
+    }
+    /** Дописывает в конец — тот же приём, что у appendJournalDictatedText(). */
+    private fun appendMapMarkerDictatedText(text: String) {
+        if (text.isBlank()) return
+        val editText = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.etMarkerNameValue
+        val current = editText.text?.toString().orEmpty()
+        val separator = if (current.isNotEmpty() && !current.endsWith(" ")) " " else ""
+        editText.append(separator + text)
+    }
+    /** Тап 1 по микрофону — тот же приём, что у startJournalDictation(). */
+    private fun startMapMarkerDictation() {
+        if (voiceDictationService.isModelLoaded()) {
+            beginMapMarkerListening()
+            return
+        }
+        mapMarkerDictationState = MapMarkerDictationState.LOADING
+        setMapMarkerMicStatus(getString(R.string.journal_mic_status_loading))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
+            withContext(Dispatchers.Main) {
+                if (mapMarkerDictationState != MapMarkerDictationState.LOADING) return@withContext
+                if (result.isFailure) {
+                    mapMarkerDictationState = MapMarkerDictationState.IDLE
+                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_error))
+                    return@withContext
+                }
+                beginMapMarkerListening()
+            }
+        }
+    }
+    private fun beginMapMarkerListening() {
+        mapMarkerDictationState = MapMarkerDictationState.LISTENING
+        // Сброс на каждый НОВЫЙ старт прослушивания (не на каждый onFinalText, см. doc у
+        // replaceMapMarkerDictatedText()) — roadmap, этап 28, найденный баг п.7: пауза в
+        // речи (несколько onFinalText за одну сессию слушания) не должна каждый раз
+        // перезаписывать текст, только самый первый сегмент при редактировании существующей
+        // метки — остальные сегменты этой же сессии прибавляются, как и у Journal.
+        mapMarkerDictationReplacedThisSession = false
+        setMapMarkerMicStatus(getString(R.string.journal_mic_status_listening))
+        updateMapMarkerMicVisual(recording = true)
+        voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
+            override fun onPartialText(text: String) {
+                runOnUiThread {
+                    // Гейт по состоянию — см. тот же приём и объяснение у
+                    // beginJournalListening() (roadmap, этап 28, найденный баг).
+                    if (mapMarkerDictationState != MapMarkerDictationState.LISTENING) return@runOnUiThread
+                    setMapMarkerMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
+                }
+            }
+            override fun onFinalText(text: String) {
+                runOnUiThread {
+                    if (mapMarkerDictationState != MapMarkerDictationState.LISTENING) return@runOnUiThread
+                    if (editingMarkerId != null && !mapMarkerDictationReplacedThisSession) {
+                        replaceMapMarkerDictatedText(text)
+                        mapMarkerDictationReplacedThisSession = true
+                    } else {
+                        appendMapMarkerDictatedText(text)
+                    }
+                }
+            }
+            override fun onError(message: String) {
+                runOnUiThread {
+                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_error))
+                    stopMapMarkerDictation()
+                }
+            }
+        })
+    }
+    /** Тап 2 по микрофону (и штатное закрытие попапа, hideMarkerNamePopup()) — тот же приём,
+     * что у stopJournalDictation(). */
+    private fun stopMapMarkerDictation() {
+        if (mapMarkerDictationState == MapMarkerDictationState.LISTENING) {
+            voiceDictationService.stopListening()
+        }
+        mapMarkerDictationState = MapMarkerDictationState.IDLE
+        setMapMarkerMicStatus("")
+        updateMapMarkerMicVisual(recording = false)
+    }
+    /** Общее тело тапа по микрофону — тач и ENCBTN (MenuNode.onActivate узла MIC,
+     * mapMarkerPopupChildrenNodes()), тот же приём, что у handleJournalMicTap(). */
+    private fun handleMapMarkerMicTap() {
+        when (mapMarkerDictationState) {
+            MapMarkerDictationState.IDLE -> {
+                if (awaitingVoiceCommand) {
+                    // VoiceDictationService уже занят голосовой командой после будческого
+                    // слова — не отбирать его (тот же приём, что у handleJournalMicTap()).
+                    playErrorAudio()
+                    return
+                }
+                if (!voiceModelRepository.hasModel()) {
+                    playErrorAudio()
+                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_no_model))
+                    return
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(
+                        this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION
+                    )
+                    return
+                }
+                // playButtonAudio() только на реальный исход (старт/стоп ниже), не на ошибках
+                // выше — roadmap, этап 28, найденный баг: у кнопки не было звука вообще.
+                playButtonAudio()
+                startMapMarkerDictation()
+            }
+            MapMarkerDictationState.LOADING -> { /* повторный тап/ENCBTN во время загрузки модели игнорируется */ }
+            MapMarkerDictationState.LISTENING -> {
+                playButtonAudio()
+                stopMapMarkerDictation()
+            }
+        }
     }
     /***********************************************************************************************************
      * ITEMS - JOURNAL (roadmap, этап 20) — личные записи игрока, текстовый ввод. Тот же
@@ -2808,12 +2977,20 @@ class MainActivity : AppCompatActivity() {
             override fun onPartialText(text: String) {
                 Log.d("VoiceJournal", "partial: \"$text\"")
                 runOnUiThread {
+                    // Гейт по состоянию (roadmap, этап 28, найденный баг) — этот колбэк уже
+                    // мог быть поставлен в очередь runOnUiThread ДО тапа на Стоп; без проверки
+                    // он выполняется уже ПОСЛЕ stopJournalDictation() (которая обнулила
+                    // статус-строку) и затирает её обратно на "Слушаю…"/обрывок фразы.
+                    if (journalDictationState != JournalDictationState.LISTENING) return@runOnUiThread
                     setJournalMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
                 }
             }
             override fun onFinalText(text: String) {
                 Log.d("VoiceJournal", "final: \"$text\"")
-                runOnUiThread { appendJournalDictatedText(text) }
+                runOnUiThread {
+                    if (journalDictationState != JournalDictationState.LISTENING) return@runOnUiThread
+                    appendJournalDictatedText(text)
+                }
             }
             override fun onError(message: String) {
                 Log.d("VoiceJournal", "error: $message")
@@ -4223,9 +4400,21 @@ class MainActivity : AppCompatActivity() {
     /** Путь до попапа ввода имени отметки (Cancel/Save) — два возможных родителя, тот же
      * выбор, что уже делает mapMarkerPopupChildrenNodes()/CROSSHAIR.children в зависимости
      * от [mapControlMode] (roadmap, доработка после фидбека). */
-    private fun mapMarkerPopupParentPath(): List<Int> = when (mapControlMode) {
-        MapControlMode.PLACE_MARKER -> mapControlModeRootPath() + 0
-        else -> listOf(mapRootIndex("MAP_CONTROLS"), 0, 1) // ROOT — через "Place Marker" в панели [Route]/[Marker]/[Cancel]
+    private fun mapMarkerPopupParentPath(): List<Int> {
+        // Правка существующей отметки (Edit на карточке) — отдельная третья ветка (roadmap,
+        // этап 28, п.6/найденный баг): MAP_MARKER_EDIT теперь тоже узел с детьми (см.
+        // mapMarkerDetailChildrenNodes()), попап висит на уровень глубже, чем у простановки
+        // новой отметки — тот же приём, что у journalEditorPathPrefix(). Читать editingMarkerId
+        // нужно ДО того, как Cancel/Save его сбросят (см. doc у journalEditorPathPrefix()).
+        val editingId = editingMarkerId
+        if (editingId != null) {
+            val markerIndex = markers.indexOfFirst { it.id == editingId }
+            if (markerIndex != -1) return mapMarkerListParentPath() + markerIndex + 0
+        }
+        return when (mapControlMode) {
+            MapControlMode.PLACE_MARKER -> mapControlModeRootPath() + 0
+            else -> listOf(mapRootIndex("MAP_CONTROLS"), 0, 1) // ROOT — через "Place Marker" в панели [Route]/[Marker]/[Cancel]
+        }
     }
     /** Показывает/прячет разом всю группу "Управление картой"/"До точки на карте" (roadmap,
      * этап 27, п.1-4): 4 уголка панорамирования с подложками, крестообразный прицел, кнопка
@@ -4491,6 +4680,10 @@ class MainActivity : AppCompatActivity() {
                     setAllMapTapChoiceFocusesHidden()
                     setMapTapChoiceMarkerFocused(true)
                 },
+                // onActivate + children — звук на ENCBTN (roadmap, этап 28, найденный баг: не
+                // было вообще), сам провал в детей (MIC/Cancel/Save) отрабатывает следом как
+                // обычно, см. doc у MenuNavigator.activateSelected().
+                onActivate = { playButtonAudio() },
                 children = mapMarkerPopupChildrenNodes { pendingTapChoiceLatLon },
             ),
             MenuNode(
@@ -4519,30 +4712,55 @@ class MainActivity : AppCompatActivity() {
      * попапа — в onHighlight ПЕРВОГО ребёнка (тот же приём, что у CROSSHAIR/MELODY выше),
      * не у родителя — иначе повторный заход сюда (после Cancel/Save, popLevel()) открывал бы
      * попап заново, пока курсор ещё раз не сдвинулся с него. */
-    private fun mapMarkerPopupChildrenNodes(latLonProvider: () -> Pair<Double, Double>?): List<MenuNode> {
+    private fun mapMarkerPopupChildrenNodes(
+        editingMarker: MapMarker? = null,
+        latLonProvider: () -> Pair<Double, Double>? = { null },
+    ): List<MenuNode> {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         return listOf(
+            MenuNode(
+                id = "MAP_MARKER_POPUP_MIC",
+                onHighlight = {
+                    playTickAudio()
+                    if (editingMarker != null) {
+                        // Правка существующей отметки (roadmap, этап 28, п.6) — та же роль,
+                        // что у showMarkerNamePopupForNewMarker() ниже, другая функция.
+                        showMarkerNamePopupForEdit(editingMarker)
+                    } else {
+                        // Координату читаем ДО hideMapTapChoice() — та сама обнуляет
+                        // pendingTapChoiceLatLon (один из двух источников latLonProvider, см.
+                        // MAP_CTRL_CROSSHAIR_MARKER выше). hideMapTapChoice() тут нужен, чтобы
+                        // панель [Route]/[Marker]/[Cancel] не оставалась висеть под попапом —
+                        // тот же баг, что был в исходном тач-обработчике до факторинга
+                        // (roadmap, доработка после фидбека): для входа через режим
+                        // PLACE_MARKER это просто безопасный no-op, панель там и не была
+                        // открыта.
+                        val latLon = latLonProvider()
+                        hideMapTapChoice()
+                        latLon?.let { (lat, lon) -> showMarkerNamePopupForNewMarker(lat, lon) }
+                    }
+                    // Гасим прицелы уровней ВЫШЕ — курсор только что провалился сюда либо
+                    // прямо с крестика (режим PLACE_MARKER), либо с пункта "Place Marker" на
+                    // панели [Route]/[Marker]/[Cancel] (режим ROOT), либо с Edit на карточке
+                    // отметки — какой из трёх актуален, сама эта функция не знает, гасим все
+                    // безопасно (roadmap, доработка после фидбека, п.2 — тот же баг, что и у
+                    // Route выше).
+                    setMapCrosshairFocused(false)
+                    setAllMapTapChoiceFocusesHidden()
+                    setAllMapMarkerDetailFocusesHidden()
+                    setAllMapMarkerPopupFocusesHidden()
+                    setMapMarkerPopupMicFocused(true)
+                },
+                onActivate = {
+                    flashButtonPressThenRun(popup.btnMarkerNamePopupMic) {
+                        handleMapMarkerMicTap()
+                    }
+                },
+            ),
             MenuNode(
                 id = "MAP_MARKER_POPUP_CANCEL",
                 onHighlight = {
                     playTickAudio()
-                    // Координату читаем ДО hideMapTapChoice() — та сама обнуляет
-                    // pendingTapChoiceLatLon (один из двух источников latLonProvider, см.
-                    // MAP_CTRL_CROSSHAIR_MARKER выше). hideMapTapChoice() тут нужен, чтобы
-                    // панель [Route]/[Marker]/[Cancel] не оставалась висеть под попапом —
-                    // тот же баг, что был в исходном тач-обработчике до факторинга (roadmap,
-                    // доработка после фидбека): для входа через режим PLACE_MARKER это просто
-                    // безопасный no-op, панель там и не была открыта.
-                    val latLon = latLonProvider()
-                    hideMapTapChoice()
-                    latLon?.let { (lat, lon) -> showMarkerNamePopupForNewMarker(lat, lon) }
-                    // Гасим прицелы уровней ВЫШЕ — курсор только что провалился сюда либо
-                    // прямо с крестика (режим PLACE_MARKER), либо с пункта "Place Marker" на
-                    // панели [Route]/[Marker]/[Cancel] (режим ROOT) — какой из двух актуален,
-                    // сама эта функция не знает, гасим оба безопасно (roadmap, доработка
-                    // после фидбека, п.2 — тот же баг, что и у Route выше).
-                    setMapCrosshairFocused(false)
-                    setAllMapTapChoiceFocusesHidden()
                     setAllMapMarkerPopupFocusesHidden()
                     setMapMarkerPopupCancelFocused(true)
                 },
@@ -4550,8 +4768,10 @@ class MainActivity : AppCompatActivity() {
                     flashButtonPressThenRun(popup.btnMarkerNamePopupCancel) {
                         playButtonAudio()
                         setMapMarkerPopupCancelFocused(false)
+                        // popLevel() — уже внутри performMarkerNamePopupCancel() (roadmap,
+                        // этап 28, найденный баг — см. её doc), не здесь: количество раз
+                        // зависит от того, новая это отметка или правка существующей.
                         performMarkerNamePopupCancel()
-                        menuNavigator.popLevel()
                     }
                 },
             ),
@@ -4566,8 +4786,8 @@ class MainActivity : AppCompatActivity() {
                     flashButtonPressThenRun(popup.btnMarkerNamePopupSave) {
                         setMapMarkerPopupSaveFocused(false)
                         playButtonAudio()
+                        // popLevel() — уже внутри performMarkerNamePopupSave(), см. коммент выше.
                         performMarkerNamePopupSave()
-                        menuNavigator.popLevel()
                     }
                 },
             ),
@@ -4577,9 +4797,42 @@ class MainActivity : AppCompatActivity() {
      * (btnMarkerNamePopupCancel/Save в onCreate()), и для ENCBTN
      * (mapMarkerPopupChildrenNodes()), тот же приём, что performJournalEntryCancel()/
      * performJournalEntrySave(). */
-    private fun performMarkerNamePopupCancel() {
-        hideMarkerNamePopup()
+    /** Сколько раз нужно popLevel() от Mic/Cancel/Save попапа, чтобы курсор энкодера
+     * вернулся на СТАБИЛЬНЫЙ узел, с которого попап реально был открыт — не на одноразовый
+     * промежуточный выбор (roadmap, этап 28, найденный баг). Три разных случая, глубина
+     * разная не только по "правка/новая" (зеркалит развилку mapMarkerPopupParentPath(), но
+     * с другими числами — там путь ДО родителя попапа, тут количество уровней НАД ним):
+     * - Правка существующей отметки — 2: пропускает EDIT (mapMarkerDetailChildrenNodes()),
+     *   приземляется на саму отметку в списке (уровень выше EDIT).
+     * - "Поставить отметку" (PLACE_MARKER) через крестик/прямой тап по карте — 1: сам
+     *   крестик и есть прямой родитель попапа (mapControlChildrenNodes()).
+     * - "Управление картой" (ROOT) — крестик сначала проваливается в промежуточную панель
+     *   [Route]/[Marker]/[Cancel] (mapCrosshairTapChoiceChildrenNodes()), и уже "Marker" —
+     *   реальный родитель попапа — 2, чтобы пропустить и её тоже, приземлившись на сам
+     *   крестик, а не на одноразовый пункт "Marker". [editingId] — читать ДО того, как
+     *   hideMarkerNamePopup() обнулит editingMarkerId (см. doc у journalEditorPathPrefix()). */
+    private fun mapMarkerPopupPopLevelCount(editingId: String?): Int = when {
+        editingId != null -> 2
+        mapControlMode == MapControlMode.PLACE_MARKER -> 1
+        else -> 2
     }
+    /** Cancel — общее тело для тача и ENCBTN. */
+    private fun performMarkerNamePopupCancel() {
+        val popCount = mapMarkerPopupPopLevelCount(editingMarkerId)
+        hideMarkerNamePopup()
+        repeat(popCount) { menuNavigator.popLevel() }
+    }
+    /** Save — общее тело для тача и ENCBTN. Курсор энкодера — на уровень списка меток, на
+     * карточку сохранённой/изменённой отметки (тот же принцип, что у performJournalEntrySave()
+     * — см. её doc), для новой — на крестик, откуда её ставили (см. doc у
+     * mapMarkerPopupPopLevelCount()). Список меток и адаптер обновляются безусловно, не
+     * только при правке (roadmap, этап 28, найденный баг: новая отметка не появлялась в уже
+     * открытом "Список меток"/"До отметки", пока эти экраны не переоткрывали заново) —
+     * ПОСЛЕ popLevel(), не до (найденный баг: replaceChildrenOf() сверяет РОДИТЕЛЯ текущего
+     * верхнего уровня стека с переданным id и молча ничего не делает, если это не совпадает —
+     * курсор на момент вызова внутри самого Save стоял на 1-2 уровня глубже, чем "прямо под
+     * MAP_MARKER_LIST", вызов ДО подъёма был всегда no-op, отсюда и устаревшее имя на
+     * карточке отметки после правки). */
     private fun performMarkerNamePopupSave() {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         val name = popup.etMarkerNameValue.text.toString().ifBlank { getString(R.string.marker_name_popup_heading) }
@@ -4590,8 +4843,6 @@ class MainActivity : AppCompatActivity() {
                 val updated = existing.copy(name = name)
                 markers[markers.indexOf(existing)] = updated
                 markerRepository.update(updated)
-                showMarkerDetail(updated)
-                bindMarkerListAdapter()
             }
         } else {
             val (lat, lon) = pendingMarkerLatLon ?: return
@@ -4600,7 +4851,12 @@ class MainActivity : AppCompatActivity() {
             markers.add(marker)
         }
         refreshMarkerPins()
+        bindMarkerListAdapter()
+        val popCount = mapMarkerPopupPopLevelCount(editingId)
         hideMarkerNamePopup()
+        repeat(popCount) { menuNavigator.popLevel() }
+        menuNavigator.replaceChildrenOf("MAP_MARKER_LIST", mapMarkerListChildrenNodes(MapMenuState.ROOT))
+        menuNavigator.replaceChildrenOf("MAP_ROUTE_TO_MARKER", mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU))
     }
     /** Панель управления построенным/активным маршрутом (layout_map_route_controls) —
      * Start/Cancel (маршрут построен, ждёт запуска) либо один Stop (следование активно),
@@ -4833,12 +5089,14 @@ class MainActivity : AppCompatActivity() {
                     setAllMapMarkerDetailFocusesHidden()
                     setMapMarkerDetailEditFocused(true)
                 },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailEdit) {
-                        playButtonAudio()
-                        showMarkerNamePopupForEdit(marker)
-                    }
-                },
+                // children, не onActivate-лист (roadmap, этап 28, п.6/найденный баг) — тот
+                // же приём, что у JOURNAL_ENTRY_EDIT (journalEntryDetailChildrenNodes()):
+                // попап переименования (Mic/Cancel/Save) теперь настоящий узел дерева, а не
+                // только тач/showMarkerNamePopupForEdit() в обход него — иначе курсор
+                // энкодера после Save/Cancel не имел собственного места, откуда подниматься,
+                // и оставался на самой карточке отметки. Открытие попапа — в onHighlight
+                // первого ребёнка (MIC), тот же принцип, что у остальных мест этой функции.
+                children = mapMarkerPopupChildrenNodes(editingMarker = marker),
             ),
             MenuNode(
                 id = "MAP_MARKER_ROUTE",
@@ -5595,6 +5853,9 @@ class MainActivity : AppCompatActivity() {
     }
     /** Тот же приём на попапе ввода имени отметки — Cancel/Save (roadmap, доработка после
      * фидбека, п.5 — mapMarkerPopupChildrenNodes()). */
+    private fun setMapMarkerPopupMicFocused(focused: Boolean) {
+        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupMicFocus, focused)
+    }
     private fun setMapMarkerPopupCancelFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupCancelFocus, focused)
     }
@@ -5602,6 +5863,7 @@ class MainActivity : AppCompatActivity() {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupSaveFocus, focused)
     }
     private fun setAllMapMarkerPopupFocusesHidden() {
+        setMapMarkerPopupMicFocused(false)
         setMapMarkerPopupCancelFocused(false)
         setMapMarkerPopupSaveFocused(false)
     }
@@ -8974,7 +9236,10 @@ class MainActivity : AppCompatActivity() {
         mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0) }
+            // "+ 0, 0" — EDIT (0) теперь узел с детьми (MIC/Cancel/Save), тап проваливается
+            // сразу в первого — MIC, не остаётся на самом EDIT (roadmap, этап 28, п.6, тот же
+            // приём, что у btnJournalEntryDetailEdit).
+            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0 + 0) }
             playButtonAudio()
             showMarkerNamePopupForEdit(marker)
         }
@@ -9090,10 +9355,16 @@ class MainActivity : AppCompatActivity() {
             routeTo(lat, lon, listOf(mapRootIndex("MAP_CONTROLS")))
         }
         mapMenu.btnMapTapChoiceMarker.setOnClickListener {
-            // "+ 0" — Marker проваливается в попап (Cancel/Save), не остаётся на себе самой.
-            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0)) }
+            // Координату читаем и звук играем ДО синхронизации (roadmap, этап 28, найденный
+            // баг) — цель ("+ 0", узел MIC попапа с этапа 28, п.6) сама вызывает
+            // hideMapTapChoice() из своего onHighlight, а та обнуляет pendingTapChoiceLatLon;
+            // при обратном порядке следующая строка получала уже null и уходила в ранний
+            // return, из-за чего не срабатывали ни звук, ни повторное (уже безопасное)
+            // открытие попапа ниже.
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
             playButtonAudio()
+            // "+ 0" — Marker проваливается в попап (Cancel/Save), не остаётся на себе самой.
+            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0)) }
             hideMapTapChoice()
             showMarkerNamePopupForNewMarker(lat, lon)
         }
@@ -9125,14 +9396,29 @@ class MainActivity : AppCompatActivity() {
             if (onThisPanel) menuNavigator.popLevel()
         }
         val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
+        // Индексы — MIC(0)/CANCEL(1)/SAVE(2) в mapMarkerPopupChildrenNodes() (roadmap, этап
+        // 28, п.6 — микрофон стал первым узлом, Cancel/Save сдвинулись на 1).
+        markerNamePopup.btnMarkerNamePopupMic.setOnClickListener {
+            // Синхронизация ТОЛЬКО курсора и прицела (roadmap, этап 28, найденный баг) — не
+            // syncMapEncoderPath() (громкий): тот вызвал бы onHighlight узла MIC, а его тело
+            // (showMarkerNamePopupForNewMarker()/ForEdit()) сбрасывает поле ввода на пустую
+            // строку/сохранённое имя метки, стирая надиктованное — ровно то же самое, что
+            // уже учтено у Journal (btnJournalEntryMic.setOnClickListener, см. её комментарий).
+            // Раньше был громкий путь — тап на Стоп посреди записи выглядел как "текст
+            // обнулился вместо остановки записи".
+            syncMapEncoderPathSilently(mapMarkerPopupParentPath() + 0)
+            setAllMapMarkerPopupFocusesHidden()
+            setMapMarkerPopupMicFocused(true)
+            handleMapMarkerMicTap()
+        }
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
             playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 1) }
             performMarkerNamePopupCancel()
         }
         markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
             playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 1) }
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 2) }
             performMarkerNamePopupSave()
         }
 

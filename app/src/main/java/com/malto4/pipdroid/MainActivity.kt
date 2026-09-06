@@ -2070,15 +2070,20 @@ class MainActivity : AppCompatActivity() {
                     // Тап прямо по сырой карте (не по кнопке) — та же синхронизация курсора
                     // энкодера, что и у остальных тач-обработчиков карты (roadmap, доработка
                     // после фидбека): "любой тап должен переключать курсор энкодера".
+                    // playConfirmAudio() один раз на весь тап (roadmap, этап 28, найденный
+                    // баг) — единственный звук, независимо от того, куда попал тап; тик из
+                    // onHighlight цели глушится suppressTickAroundTouchSync(), сам onHighlight
+                    // (открыть попап/панель и т.п.) отрабатывает как обычно.
+                    playConfirmAudio()
                     when (mapTapMode) {
                         MapTapMode.PLACE_MARKER -> {
                             armTapMode(MapTapMode.NONE)
-                            syncMapEncoderPath(mapMarkerPopupParentPath() + 0)
+                            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
                             showMarkerNamePopupForNewMarker(lat, lon)
                         }
                         MapTapMode.ROUTE_TO_POINT -> {
                             armTapMode(MapTapMode.NONE)
-                            syncMapEncoderPath(mapControlModeRootPath() + 0)
+                            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 0) }
                             routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
                         }
                         MapTapMode.NONE -> {
@@ -2096,11 +2101,11 @@ class MainActivity : AppCompatActivity() {
                                 val markerIndex = markers.indexOfFirst { it.id == marker.id }
                                 if (markerIndex != -1) {
                                     mapMarkerListAdapter.setSelectedPositionSilently(markerIndex)
-                                    syncMapEncoderPath(listOf(mapRootIndex("MARKER_LIST"), markerIndex, 0))
+                                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MARKER_LIST"), markerIndex, 0)) }
                                 }
                                 showMarkerDetail(marker)
                             } else {
-                                syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0))
+                                suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
                                 showMapTapChoice(lat, lon)
                             }
                         }
@@ -2379,7 +2384,10 @@ class MainActivity : AppCompatActivity() {
         val adapter = SidebarMenuAdapter(
             items = items,
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же
+            // приём: onSelect ниже сам даёт ровно один звук (playConfirmAudio(), тик глушится
+            // на время syncMapEncoderPath() — см. suppressTickAroundTouchSync()).
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека) — см. syncMapEncoderPath()/mapMarkerListParentPath(). Отметка в
@@ -2396,7 +2404,8 @@ class MainActivity : AppCompatActivity() {
                     mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> mapMarkerListParentPath() + position
                     else -> mapMarkerListParentPath() + position + 0
                 }
-                syncMapEncoderPath(path)
+                playConfirmAudio()
+                suppressTickAroundTouchSync { syncMapEncoderPath(path) }
                 when {
                     marker == null -> showMapMenuState(mapMenuListReturnState)
                     // Сайдбар в ROOT переводит сама routeTo() по факту построения маршрута
@@ -2609,10 +2618,14 @@ class MainActivity : AppCompatActivity() {
             items = journalSidebarItems(),
             selectedBackgroundRes = selected_button,
             initialSelectedPosition = initialSelectedPosition,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28): onSelect
+            // ниже сам даёт ровно один звук, тик глушится на время громкой синхронизации
+            // (suppressTickAroundTouchSync()) там, где она нужна ради навигационного
+            // побочного эффекта onHighlight, не только звука.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, доработка после
-                // фидбека) — не menuNavigator.syncCursor(), тот чинит курсор только ВНУТРИ уже
+                // фидбека) — не menuNavigator.syncCursor() — тот чинит курсор только ВНУТРИ уже
                 // активного уровня списка записей (см. doc у syncJournalEncoderPath()).
                 when (item.payload) {
                     // "+ 0" — тап равносилен ENCBTN на этом пункте: и у "Новой записи", и у
@@ -2621,9 +2634,16 @@ class MainActivity : AppCompatActivity() {
                     // приём, что у Map/Clock, см. doc у MenuNavigator.setPath()). Loud-путь сам
                     // вызывает onHighlight первого ребёнка, который и открывает нужный экран
                     // (showJournalEntryEditorForNew()/showJournalEntryDetail()) — отдельно
-                    // звать их здесь больше не нужно.
-                    is JournalSidebarEntry.NewEntry -> syncJournalEncoderPath(listOf(position, 0))
-                    is JournalSidebarEntry.Existing -> syncJournalEncoderPath(listOf(position, 0))
+                    // звать их здесь больше не нужно; suppressTickAroundTouchSync() глушит
+                    // только звук тика, само открытие экрана остаётся как было.
+                    is JournalSidebarEntry.NewEntry -> {
+                        playConfirmAudio()
+                        suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(position, 0)) }
+                    }
+                    is JournalSidebarEntry.Existing -> {
+                        playConfirmAudio()
+                        suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(position, 0)) }
+                    }
                     is JournalSidebarEntry.Menu -> {
                         playConfirmAudio()
                         syncJournalEncoderPathSilently(emptyList())
@@ -4214,9 +4234,16 @@ class MainActivity : AppCompatActivity() {
      * же при скрытии — идемпотентная подстраховка). false дополнительно прячет панель выбора
      * [Route]/[Marker]/[Cancel] — крестик мог оставить её открытой (hideMapTapChoice()) и
      * снимает armTapMode(ROUTE_TO_POINT), если панель пряталась в этом режиме. */
+    /** Крестовидный прицел + 4 уголка панорамирования — только для режима с энкодером
+     * (roadmap, этап 28, найденный баг): панорамирование/зум в Телефоне и так работают
+     * нативными жестами PhotoView (драг/пинч), а простановка метки/маршрута — прямым тапом
+     * по карте (photoViewMap.setOnPhotoTapListener), независимо от этой группы кнопок. Кнопка
+     * "←" гасится сама следом, как побочный эффект (см. refreshMapControlBackButtonVisibility()
+     * ниже — она уже завязана на видимость viewMapCrosshair). Zoom +/-/"Моё положение" сюда не
+     * входят — видны всегда, вне этой группы (см. комментарий у их кнопок). */
     private fun setMapControlOverlayVisible(visible: Boolean) {
         val mapScreen = bindingMain.incLayoutTabItemsMap
-        val visibility = if (visible) View.VISIBLE else View.GONE
+        val visibility = if (visible && pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
         listOf(
             mapScreen.btnMapPanUp, mapScreen.viewMapPanUpBg,
             mapScreen.btnMapPanDown, mapScreen.viewMapPanDownBg,
@@ -5343,8 +5370,14 @@ class MainActivity : AppCompatActivity() {
      * отдельном View-оверлее рядом с целью, не на самой кнопке — увеличение самой кнопки на
      * 1px пробовали раньше, визуально было незаметно. Тач это состояние не видит и не меняет.
      */
+    /** Прицел-уголки энкодера (roadmap, этап 28, найденный баг) — никогда не показываются в
+     * режиме Телефон, там физически нет энкодера, курсор которого они рисуют. Тач в этом
+     * режиме всё равно "жёстко синхронизирует курсор" (см. syncEncoderPath()), проигрывая
+     * onHighlight узла-цели — единая точка входа здесь гасит именно прицел, не трогая
+     * остальные побочные эффекты onHighlight (открыть панель и т.п.), которые нужны
+     * независимо от режима. */
     private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) {
-        bracketsView.visibility = if (visible) View.VISIBLE else View.GONE
+        bracketsView.visibility = if (visible && pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
     }
     private fun setSpecialValueEditorFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus, focused)
@@ -5961,6 +5994,20 @@ class MainActivity : AppCompatActivity() {
         val clockIndex = itemsRoot.indexOfFirst { it.id == "CLOCK" }
         if (clockIndex == -1) return
         menuNavigator.setPath(itemsRoot, listOf(clockIndex) + path)
+    }
+    /** Тихий вариант — см. syncMapEncoderPathSilently()/syncJournalEncoderPathSilently() (тот
+     * же приём). Нужен ровно одному месту (roadmap, этап 28, найденный баг): тап по треку в
+     * Ringtones, когда целью оказывается сам TRACK_<i> — его onHighlight, помимо тика,
+     * запускает startMelodyPreview(), которая тут же конфликтует с явным play/stop-тумблером
+     * в melodyAdapter.onSelect() (MainActivity.kt) — трек стартовал и тут же глушился в
+     * рамках одного тапа. Остальные ветки Clock/Ringtones остаются громкими (suppressTick
+     * AroundTouchSync() глушит только звук, не весь onHighlight) — там он ещё и красит нужный
+     * прицел-фокус, который тихий путь не нарисует вовсе. */
+    private fun syncClockEncoderPathSilently(path: List<Int>) {
+        val itemsRoot = itemsMenuRoot()
+        val clockIndex = itemsRoot.indexOfFirst { it.id == "CLOCK" }
+        if (clockIndex == -1) return
+        menuNavigator.setPathSilently(itemsRoot, listOf(clockIndex) + path)
     }
     /** ITEMS/Clock — тот же приём, что у dataFilesSidebarItems() выше: фиксированный список,
      * "В меню" — последний пункт (roadmap, этап 27). */
@@ -7476,13 +7523,35 @@ class MainActivity : AppCompatActivity() {
         timerTargetEpochMillis = System.currentTimeMillis()
         checkTimerFiring()
     }
+    /** roadmap, этап 28 — задвоение звука на Map/Clock: тач по пункту списка часто зовёт
+     * "громкую" synXxxEncoderPath() ради побочных эффектов onHighlight узла-цели (открыть
+     * панель управления картой, показать крестовидный прицел и т.п.), но тот же onHighlight
+     * попутно играет тик — а тач сам по себе уже должен дать ровно один звук (confirm), тик
+     * — только от настоящего вращения энкодера. Гасить это через Silently нельзя — тот
+     * вообще не вызывает onHighlight, вместе со звуком пропали бы и нужные побочные эффекты
+     * (roadmap-баг, эргономика энкодера). Вместо этого — временная заглушка вокруг ТОЛЬКО
+     * самого вызова синхронизации: см. suppressTickAroundTouchSync(). */
+    private var suppressTickAudio = false
     private fun playTickAudio(){
+        if (suppressTickAudio) return
         val mediaPlayerItemSelect = MediaPlayer.create(this, R.raw.item_select)
         mediaPlayerItemSelectList.add(mediaPlayerItemSelect)
         mediaPlayerItemSelect.start()
         mediaPlayerItemSelect.setOnCompletionListener {
             it.release()
             mediaPlayerItemSelectList.remove(it)
+        }
+    }
+    /** Оборачивает "громкую" синхронизацию курсора энкодера, вызванную тачем (roadmap,
+     * этап 28) — глушит тик от onHighlight узла-цели на время самого вызова [block], не
+     * трогая остальное его поведение (открытие панели и т.п.). Вызывающий код сам играет
+     * свой единственный звук (обычно playConfirmAudio()) отдельно. */
+    private fun suppressTickAroundTouchSync(block: () -> Unit) {
+        suppressTickAudio = true
+        try {
+            block()
+        } finally {
+            suppressTickAudio = false
         }
     }
     private fun playButtonAudio(){
@@ -7781,7 +7850,10 @@ class MainActivity : AppCompatActivity() {
         perksAdapter = SidebarMenuAdapter(
             items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter выше (roadmap, этап 28), тот же
+            // приём: onSelect ниже уже даёт ровно один звук сам (playConfirmAudio() явно/через
+            // ValueEditor.onEnter), тик отсюда его дублировал.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
@@ -8071,12 +8143,18 @@ class MainActivity : AppCompatActivity() {
         specialAdapter = SidebarMenuAdapter(
             items = specialSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — не playTickAudio() (roadmap, этап 28, найденный баг): тач по пункту списка
+            // и так уже даёт один звук через onSelect ниже (playConfirmAudio() из
+            // ValueEditor.onEnter/явно в ветке "В меню"), тик здесь просто дублировал его.
+            // Тик остаётся только там, где его реально играет вращение энкодера (onHighlight
+            // в дереве MenuNavigator) — этот путь тача вообще не касается.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
                 // курсор только ВНУТРИ уже активного уровня (см. doc у syncEncoderPath()).
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    playConfirmAudio()
                     syncStatsEncoderPath("SPECIAL", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
@@ -8101,11 +8179,13 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter = SidebarMenuAdapter(
             items = skillsSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter выше, тот же приём.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем — тот же приём, что у
                 // SPECIAL выше.
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
+                    playConfirmAudio()
                     syncStatsEncoderPath("SKILLS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
@@ -8144,9 +8224,14 @@ class MainActivity : AppCompatActivity() {
                     // реальном действии в дереве (statusChildrenNodes()), а не оставаться там,
                     // где был до тапа.
                     playErrorAudio()
-                    syncStatsEncoderPath("STATUS", listOf(0))
+                    // suppressTickAroundTouchSync() — цель (STOP) сама играет тик в
+                    // onHighlight (roadmap, этап 28, найденный баг), дублируя playErrorAudio()
+                    // выше двумя разными звуками на один тап.
+                    suppressTickAroundTouchSync { syncStatsEncoderPath("STATUS", listOf(0)) }
                 } else if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playTickAudio()
+                    // confirm, не тик (roadmap, этап 28) — тач всегда даёт confirm, тот же
+                    // приём, что и у "В меню" на SPECIAL/Skills/Perks/Files/Clock.
+                    playConfirmAudio()
                     syncStatsEncoderPath("STATUS", emptyList())
                     syncRow2ActiveFromNavigator()
                 } else {
@@ -8505,7 +8590,9 @@ class MainActivity : AppCompatActivity() {
             // BANDAGE/STUNNED -> здоров возвращает в боковое меню (тоже индекс 0, LIGHT) —
             // woundPhase к этому моменту уже обновлён внутри stopWoundTimerEarly(), безусловный
             // переход работает независимо от того, где энкодер был до тапа (см. syncEncoderPath()).
-            syncStatsEncoderPath("STATUS", listOf(0))
+            // suppressTickAroundTouchSync() — цель сама играет тик в onHighlight (roadmap,
+            // этап 28, найденный баг), дублируя playButtonAudio() выше.
+            suppressTickAroundTouchSync { syncStatsEncoderPath("STATUS", listOf(0)) }
         }
         bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundSkip.setOnClickListener {
             skipWoundTimer()
@@ -8523,30 +8610,42 @@ class MainActivity : AppCompatActivity() {
         // эргономики: "тап по конечности переключает курсор энкодера на тапнутую конечность".
         // No-op вне активного ранения — этих узлов тогда в дереве STATUS вообще нет (см. doc
         // у syncEncoderPath()), CRIPPLED всё равно переключается тапом независимо от таймера.
+        // syncStatsEncoderPath("STATUS", listOf(N)) ниже — только пока в дереве STATUS
+        // реально есть узлы частей тела (statusChildrenNodes(), woundPhase != NONE/DEAD):
+        // индексы 1-6 там жёстко привязаны к порядку STOP/HEAD/LEFT_ARM/TORSO/RIGHT_ARM/
+        // LEFT_LEG/RIGHT_LEG. Вне таймера ранения/оглушения (NONE) дерево STATUS — обычный
+        // список LIGHT/HEAVY/STUNNED/"В меню", те же числовые индексы там указывают на
+        // случайные другие пункты (найденный баг: тап по голове/руке переставлял рамку в
+        // боковом меню на Heavy Wound/Stunned) — CRIPPLED переключается тапом всё равно
+        // (toggleCrippledXxx() ниже, независимо от таймера, как и задумано), просто без
+        // побочной синхронизации курсора туда, где для неё нет смысла. Проверка — внутри
+        // каждого колбэка, не один раз снаружи: woundPhase меняется уже после того, как эти
+        // слушатели развешаны в onCreate(), захваченное здесь значение тут же устарело бы.
+        fun hasBodyPartNodes() = woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD
         setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) {
             toggleCrippledHead()
-            syncStatsEncoderPath("STATUS", listOf(1))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(1))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) {
             toggleCrippledTorso()
-            syncStatsEncoderPath("STATUS", listOf(3))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(3))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) {
             toggleCrippledLeftArm()
-            syncStatsEncoderPath("STATUS", listOf(2))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(2))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) {
             toggleCrippledRightArm()
-            syncStatsEncoderPath("STATUS", listOf(4))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(4))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) {
             toggleCrippledLeftLeg()
-            syncStatsEncoderPath("STATUS", listOf(5))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(5))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) {
             toggleCrippledRightLeg()
-            syncStatsEncoderPath("STATUS", listOf(6))
+            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(6))
         }
         cndContentSetup.incLayoutTabStatsCndPopup.btnTabStatsCndPopupClose.setOnClickListener{
             cndContentSetup.incLayoutTabStatsCndPopup.root.visibility = View.GONE
@@ -8816,12 +8915,14 @@ class MainActivity : AppCompatActivity() {
         mapRootAdapter = SidebarMenuAdapter(
             items = mapRootSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
+            playSelectSound = {},
             onSelect = { _, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека) — не menuNavigator.syncCursor(), тот чинит только позицию ВНУТРИ
                 // уже активного уровня; тут курсор должен перепрыгнуть сюда, даже если
                 // энкодер был в совсем другой ветке (см. syncMapEncoderPath()).
+                playConfirmAudio()
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     // Молча — MAP.onHighlight = btnItemsMap.performClick(), заново открыл
                     // бы экран карты и стёр её текущее состояние (маршрут и т.п.), см.
@@ -8834,7 +8935,10 @@ class MainActivity : AppCompatActivity() {
                     // CONTROLS/PLACE_MARKER/ROUTE/MARKER_LIST) есть дети, курсор садится на
                     // первого ребёнка, не остаётся на самом пункте (roadmap, доработка после
                     // фидбека — общий принцип, см. doc у MenuNavigator.setPath()).
-                    syncMapEncoderPath(listOf(mapRootIndex(item.payload), 0))
+                    // suppressTickAroundTouchSync() — тик из onHighlight цели дублировал бы
+                    // playConfirmAudio() выше (roadmap, этап 28, найденный баг); сам onHighlight
+                    // (открыть панель управления/прицел и т.п.) отрабатывает как обычно.
+                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex(item.payload), 0)) }
                     mapRootMeta.first { it.key == item.payload }.action()
                 }
             },
@@ -8844,7 +8948,8 @@ class MainActivity : AppCompatActivity() {
         mapRouteSubmenuAdapter = SidebarMenuAdapter(
             items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // TO_POINT/TO_MARKER (0/1) — есть дети, курсор на первого ребёнка. BACK (2) —
                 // особый случай, как и в списке отметок: его реальный эффект — popLevel()
@@ -8856,23 +8961,27 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     listOf(mapRootIndex("ROUTE"), position, 0)
                 }
-                syncMapEncoderPath(path)
+                playConfirmAudio()
+                suppressTickAroundTouchSync { syncMapEncoderPath(path) }
                 mapRouteSubmenuMeta.first { it.key == item.payload }.action()
             },
         )
         mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
         mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
+        // suppressTickAroundTouchSync() везде ниже (roadmap, этап 28, найденный баг) — цель
+        // каждой из этих синхронизаций сама играет тик в своём onHighlight (плюс красит
+        // нужный прицел-фокус, это остаётся), что дублировало явный звук тут же следом.
         mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0)
+            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0) }
             playButtonAudio()
             showMarkerNamePopupForEdit(marker)
         }
         mapMenu.btnMapMarkerDetailRoute.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 1)
+            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 1) }
             playButtonAudio()
             // Карточка отметки всегда достигается через "Список меток" (см.
             // mapMarkerListChildrenNodes()).
@@ -8882,7 +8991,7 @@ class MainActivity : AppCompatActivity() {
         mapMenu.btnMapMarkerDetailDelete.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 2)
+            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 2) }
             playButtonAudio()
             performMapMarkerDelete(marker)
         }
@@ -8892,7 +9001,7 @@ class MainActivity : AppCompatActivity() {
         mapMenu.btnMapMarkerDetailBack.setOnClickListener {
             val marker = selectedMarkerForDetail ?: return@setOnClickListener
             val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 3)
+            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 3) }
             playButtonAudio()
             setMapMarkerDetailBackFocused(false)
             menuNavigator.popLevel()
@@ -8912,19 +9021,19 @@ class MainActivity : AppCompatActivity() {
         mapMenu.btnMapZoomIn.setOnClickListener {
             playConfirmAudio()
             setMapControlOverlayVisible(true)
-            syncMapEncoderPath(mapControlModeRootPath() + 3)
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 3) }
             zoomMapBy(MAP_ZOOM_STEP_FACTOR)
         }
         mapMenu.btnMapZoomOut.setOnClickListener {
             playConfirmAudio()
             setMapControlOverlayVisible(true)
-            syncMapEncoderPath(mapControlModeRootPath() + 3)
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 3) }
             zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR)
         }
         mapMenu.btnMapCenter.setOnClickListener {
             playConfirmAudio()
             setMapControlOverlayVisible(true)
-            syncMapEncoderPath(mapControlModeRootPath() + 4)
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 4) }
             recenterMapOnUser()
         }
         // Уголки панорамирования/крестообразный прицел/кнопка "←" (roadmap, этап 27,
@@ -8932,10 +9041,10 @@ class MainActivity : AppCompatActivity() {
         // (mapControlChildrenNodes()/panMapBy()), доступна тачу тоже (кнопки реально видны
         // на экране, не только энкодеру).
         val mapPanStepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
-        mapMenu.btnMapPanUp.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, mapPanStepPx) }
-        mapMenu.btnMapPanDown.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 1); panMapBy(0f, -mapPanStepPx) }
-        mapMenu.btnMapPanLeft.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(mapPanStepPx, 0f) }
-        mapMenu.btnMapPanRight.setOnClickListener { playConfirmAudio(); syncMapEncoderPath(mapControlModeRootPath() + 2); panMapBy(-mapPanStepPx, 0f) }
+        mapMenu.btnMapPanUp.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 1) }; panMapBy(0f, mapPanStepPx) }
+        mapMenu.btnMapPanDown.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 1) }; panMapBy(0f, -mapPanStepPx) }
+        mapMenu.btnMapPanLeft.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 2) }; panMapBy(mapPanStepPx, 0f) }
+        mapMenu.btnMapPanRight.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 2) }; panMapBy(-mapPanStepPx, 0f) }
         mapMenu.viewMapCrosshair.setOnClickListener {
             // Полный путь до того, что реально окажется на экране, не только до самого
             // крестика (roadmap, доработка после фидбека) — тач по крестику равносилен
@@ -8945,15 +9054,15 @@ class MainActivity : AppCompatActivity() {
             playConfirmAudio()
             when (mapControlMode) {
                 MapControlMode.ROUTE_TO_POINT -> {
-                    syncMapEncoderPath(mapControlModeRootPath() + 0)
+                    suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 0) }
                     routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
                 }
                 MapControlMode.PLACE_MARKER -> {
-                    syncMapEncoderPath(mapMarkerPopupParentPath() + 0)
+                    suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
                     showMarkerNamePopupForNewMarker(lat, lon)
                 }
                 MapControlMode.ROOT -> {
-                    syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0))
+                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
                     showMapTapChoice(lat, lon)
                 }
             }
@@ -8967,12 +9076,12 @@ class MainActivity : AppCompatActivity() {
             // на карте") этого не отменяет сам ("приём одного открытия", см. mapRootChildrenNodes()).
             val wasRouteToPoint = mapControlMode == MapControlMode.ROUTE_TO_POINT
             playButtonAudio()
-            syncMapEncoderPath(mapSidebarRootPathForMode())
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapSidebarRootPathForMode()) }
             setMapControlOverlayVisible(false)
             if (wasRouteToPoint) showMapMenuState(MapMenuState.ROOT)
         }
         mapMenu.btnMapTapChoiceRoute.setOnClickListener {
-            syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0))
+            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
             playButtonAudio()
             hideMapTapChoice()
@@ -8982,7 +9091,7 @@ class MainActivity : AppCompatActivity() {
         }
         mapMenu.btnMapTapChoiceMarker.setOnClickListener {
             // "+ 0" — Marker проваливается в попап (Cancel/Save), не остаётся на себе самой.
-            syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0))
+            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0)) }
             val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
             playButtonAudio()
             hideMapTapChoice()
@@ -8990,7 +9099,7 @@ class MainActivity : AppCompatActivity() {
         }
         mapMenu.btnMapTapChoiceCancel.setOnClickListener {
             playButtonAudio()
-            syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 2))
+            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 2)) }
             hideMapTapChoice()
         }
         mapMenu.btnMapRouteStart.setOnClickListener {
@@ -9018,12 +9127,12 @@ class MainActivity : AppCompatActivity() {
         val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
             playButtonAudio()
-            syncMapEncoderPath(mapMarkerPopupParentPath() + 0)
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
             performMarkerNamePopupCancel()
         }
         markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
             playButtonAudio()
-            syncMapEncoderPath(mapMarkerPopupParentPath() + 1)
+            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 1) }
             performMarkerNamePopupSave()
         }
 
@@ -9054,12 +9163,16 @@ class MainActivity : AppCompatActivity() {
         clockAdapter = SidebarMenuAdapter(
             items = clockSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера (roadmap, доработка после
                 // фидбека по Карте) — не menuNavigator.syncCursor(), тот чинит только позицию
                 // ВНУТРИ уже активного уровня; тут курсор должен перепрыгнуть сюда, даже если
                 // энкодер был в совсем другой ветке (см. syncClockEncoderPath()).
+                // playConfirmAudio() один раз на весь тап (roadmap, этап 28, найденный баг) —
+                // тик из onHighlight цели глушится suppressTickAroundTouchSync(), сам
+                // onHighlight (открыть нужную панель и т.п.) отрабатывает как обычно.
                 if (item.payload == SIDEBAR_BACK_PAYLOAD) {
                     // Путь до самого узла CLOCK — тот же смысл, что и обычный popLevel() из
                     // сайдбара CLOCK, но безусловный: не зависит от того, где раньше был курсор.
@@ -9072,11 +9185,13 @@ class MainActivity : AppCompatActivity() {
                     // Карты, см. doc у MenuNavigator.setPath()). Громкий путь сам вызывает
                     // onHighlight TRACK_0, который и открывает экран Мелодии — отдельно звать
                     // openClockMelodyScreen() здесь больше не нужно (roadmap, доработка).
-                    syncClockEncoderPath(listOf(position, 0))
+                    playConfirmAudio()
+                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position, 0)) }
                 } else if (item.payload == "TIME") {
                     // Единственный лист без children — проваливаться некуда, курсор остаётся
                     // на самом пункте (та же схема, что у DATA/Files).
-                    syncClockEncoderPath(listOf(position))
+                    playConfirmAudio()
+                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position)) }
                     showClockContentPanel(item.payload)
                 } else {
                     // ALARM/TIMER/STOPWATCH — тоже "+ 0", тап равносилен ENCBTN (roadmap,
@@ -9084,7 +9199,8 @@ class MainActivity : AppCompatActivity() {
                     // оставался на самом пункте ALARM/TIMER/STOPWATCH, как у TIME, хотя
                     // ожидание игрока — сразу оказаться на первом реальном органе управления
                     // экрана, как и при обычном ENCBTN).
-                    syncClockEncoderPath(listOf(position, 0))
+                    playConfirmAudio()
+                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position, 0)) }
                     showClockContentPanel(item.payload)
                 }
             },
@@ -9123,12 +9239,12 @@ class MainActivity : AppCompatActivity() {
             onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 1)) },
         )
         alarm.btnClockAlarmToggle.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 2))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 2)) }
             playButtonAudio()
             toggleAlarmArmed()
         }
         alarm.btnClockAlarmBack.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 3))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 3)) }
             playConfirmAudio()
             setClockAlarmBackFocused(false)
             menuNavigator.popLevel()
@@ -9173,38 +9289,38 @@ class MainActivity : AppCompatActivity() {
         )
 
         timer.btnClockTimerPreset5.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 3))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 3)) }
             playButtonAudio()
             addTimerPresetMinutes(5)
         }
         timer.btnClockTimerPreset10.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 4))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 4)) }
             playButtonAudio()
             addTimerPresetMinutes(10)
         }
         timer.btnClockTimerStart.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 5))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 5)) }
             playButtonAudio()
             startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
         }
         timer.btnClockTimerSetupBack.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 6))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 6)) }
             playConfirmAudio()
             setClockTimerSetupBackFocused(false)
             menuNavigator.popLevel()
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0)) }
             playButtonAudio()
             pauseResumeTimer()
         }
         timer.btnClockTimerReset.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1)) }
             playButtonAudio()
             resetTimer()
         }
         timer.btnClockTimerRunningBack.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2)) }
             playConfirmAudio()
             setClockTimerRunningBackFocused(false)
             menuNavigator.popLevel()
@@ -9226,17 +9342,17 @@ class MainActivity : AppCompatActivity() {
         stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
 
         stopwatch.btnClockStopwatchStartPause.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 0))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 0)) }
             playButtonAudio()
             toggleStopwatchStartPause()
         }
         stopwatch.btnClockStopwatchReset.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 1))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 1)) }
             playButtonAudio()
             resetStopwatch()
         }
         stopwatch.btnClockStopwatchBack.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 2))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 2)) }
             playConfirmAudio()
             setClockStopwatchBackFocused(false)
             menuNavigator.popLevel()
@@ -9272,14 +9388,18 @@ class MainActivity : AppCompatActivity() {
             items = melodyItems,
             selectedBackgroundRes = selected_button,
             initialSelectedPosition = melodyFocusedIndex,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
+            playSelectSound = {},
             onSelect = { position, item ->
                 val index = item.payload
+                playConfirmAudio()
                 if (index == null) {
                     // Назад — безусловно на сам узел MELODY_LIST_BACK, тот же приём, что и
                     // остальные Back (roadmap, доработка после фидбека по Карте): тач мог
                     // случиться из любой ветки, включая SELECT/BACK текущего трека.
-                    syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position))
+                    // suppressTickAroundTouchSync() глушит тик из onHighlight цели (roadmap,
+                    // этап 28, найденный баг) — сам onHighlight (подсветка Back) остаётся.
+                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position)) }
                     menuNavigator.popLevel()
                     closeClockMelodyScreen()
                 } else {
@@ -9292,12 +9412,25 @@ class MainActivity : AppCompatActivity() {
                     // укажет уже на новый трек — иначе искали бы "TRACK_<новый>" вместо
                     // "TRACK_<прежний>".
                     val childDepth = menuNavigator.cursorIfParent("TRACK_$melodyFocusedIndex")
-                    val path = if (childDepth != null) {
-                        listOf(clockRootIndex("MELODY"), position, childDepth)
+                    if (childDepth != null) {
+                        // Цель — SELECT/BACK нового трека: его onHighlight красит нужный
+                        // прицел-фокус, это НЕ теряем (roadmap, эргономика энкодера) — глушим
+                        // только звук, тем же suppressTickAroundTouchSync(), что и Back выше.
+                        suppressTickAroundTouchSync {
+                            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position, childDepth))
+                        }
                     } else {
-                        listOf(clockRootIndex("MELODY"), position)
+                        // Цель — сам TRACK_<i>: его onHighlight, помимо тика, сам вызывает
+                        // startMelodyPreview() — конфликтует с явным play/stop-тумблером ниже
+                        // (roadmap, этап 28, найденный баг — трек стартовал и тут же глушился
+                        // в рамках одного тапа, из-за чего казалось, что треки вообще не
+                        // играют). Полностью тихий путь — единственный корректный фикс здесь,
+                        // не только заглушка звука (см. doc у syncClockEncoderPathSilently()):
+                        // остальные его побочные эффекты либо уже сделаны этим же тапом чуть
+                        // раньше (adapter.selectPosition() уже подвинул рамку выбора), либо и
+                        // есть сам баг (startMelodyPreview()).
+                        syncClockEncoderPathSilently(listOf(clockRootIndex("MELODY"), position))
                     }
-                    syncClockEncoderPath(path)
                     melodyFocusedIndex = index
                     if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
                 }
@@ -9307,12 +9440,14 @@ class MainActivity : AppCompatActivity() {
         melody.recyclerClockMelodyTracks.adapter = melodyAdapter
 
         melody.btnClockMelodySelect.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 0))
+            // suppressTickAroundTouchSync() — цель (SELECT) сама играет тик в onHighlight
+            // (roadmap, этап 28, найденный баг), дублируя playButtonAudio() ниже.
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 0)) }
             playButtonAudio()
             commitMelodySelection()
         }
         melody.btnClockMelodyBack.setOnClickListener {
-            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 1))
+            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 1)) }
             playConfirmAudio()
             setClockMelodyBackFocused(false)
             menuNavigator.popLevel()
@@ -9371,11 +9506,11 @@ class MainActivity : AppCompatActivity() {
             // (Mic/Cancel/Save), курсор садится на первого — MIC, чей onHighlight сам
             // открывает редактор (showJournalEntryEditorForEdit()), отдельно звать не нужно.
             playButtonAudio()
-            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 0, 0))
+            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 0, 0)) }
         }
         journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 1))
+            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 1)) }
             playButtonAudio()
             performJournalEntryDelete(entry)
         }
@@ -9385,7 +9520,7 @@ class MainActivity : AppCompatActivity() {
         // видимость также обновляется в refreshSidebarBackItems() при смене режима в рантайме.
         journalScreen.btnJournalEntryDetailBack.setOnClickListener {
             val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 2))
+            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 2)) }
             playConfirmAudio()
             menuNavigator.popLevel()
         }
@@ -9417,12 +9552,12 @@ class MainActivity : AppCompatActivity() {
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
-            syncJournalEncoderPath(journalEditorPathPrefix() + 1)
+            suppressTickAroundTouchSync { syncJournalEncoderPath(journalEditorPathPrefix() + 1) }
             playConfirmAudio()
             performJournalEntryCancel()
         }
         journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
-            syncJournalEncoderPath(journalEditorPathPrefix() + 2)
+            suppressTickAroundTouchSync { syncJournalEncoderPath(journalEditorPathPrefix() + 2) }
             playButtonAudio()
             performJournalEntrySave()
         }
@@ -9518,7 +9653,8 @@ class MainActivity : AppCompatActivity() {
         dataFilesAdapter = SidebarMenuAdapter(
             items = dataFilesSidebarItems(),
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
+            playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора энкодера с тачем (roadmap, этап 27 —
                 // доработка энкодер-эргономики), не menuNavigator.syncCursor() — тот чинит
@@ -9566,7 +9702,10 @@ class MainActivity : AppCompatActivity() {
                 SidebarMenuItem(payload = panel, label = settingsSectionLabels[index])
             },
             selectedBackgroundRes = selected_button,
-            playSelectSound = { playTickAudio() },
+            // confirm, не тик (roadmap, этап 28) — этот сайдбар не завязан на дерево
+            // MenuNavigator вообще (Settings не открывается энкодером), тап тут всегда просто
+            // тап, тика тут никогда не будет ни в каком режиме.
+            playSelectSound = { playConfirmAudio() },
             onSelect = { _, item ->
                 settingsSectionPanels.forEach { it.visibility = if (it === item.payload) View.VISIBLE else View.GONE }
                 // Скан по эфиру идёт только пока реально виден раздел Bluetooth — та же

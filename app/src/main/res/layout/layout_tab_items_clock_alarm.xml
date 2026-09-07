@@ -16,9 +16,10 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_clock_alarm_hour"
-        android:layout_width="72dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         android:overScrollMode="never"
+        app:layout_constraintWidth_percent="0.065"
         app:layout_constraintHeight_percent="0.55"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/tv_clock_alarm_status"
@@ -60,9 +61,10 @@
          часов). Одно направление зависимости — гарантированно то же самое место. -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_clock_alarm_minute"
-        android:layout_width="72dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         android:overScrollMode="never"
+        app:layout_constraintWidth_percent="0.065"
         app:layout_constraintTop_toTopOf="@id/rv_clock_alarm_hour"
         app:layout_constraintBottom_toBottomOf="@id/rv_clock_alarm_hour"
         app:layout_constraintStart_toEndOf="@id/tv_clock_alarm_colon"
@@ -126,12 +128,19 @@
 
     <!-- Back — новый пункт (roadmap, этап 27, п.3), только поднимает курсор энкодера в
          боковое меню Clock. Виден только в режимах с физическим энкодером (не Phone),
-         видимость обновляется кодом (refreshClockAlarmBackButtonVisibility()). -->
-    <androidx.appcompat.widget.AppCompatButton
+         видимость обновляется кодом (refreshClockAlarmBackButtonVisibility()). Была
+         текстовая кнопка, заменена на иконку (roadmap, этап 29) — единообразно с
+         остальными Back по приложению. -->
+    <ImageButton
         android:id="@+id/btn_clock_alarm_back"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="wrap_content"
-        android:text="@string/wizard_back"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:tint="@null"
+        android:src="@drawable/ic_back_arrow"
+        android:contentDescription="@string/wizard_back"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="@id/btn_clock_alarm_toggle"
         app:layout_constraintBottom_toBottomOf="@id/btn_clock_alarm_toggle"

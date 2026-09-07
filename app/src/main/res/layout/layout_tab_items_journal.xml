@@ -89,12 +89,20 @@
 
         </ScrollView>
 
-        <Button
+        <!-- Edit/Delete/Back — были текстовыми кнопками, заменены на иконки (roadmap,
+             этап 29), тот же набор, что в карточке отметки на карте
+             (layout_tab_items_map.xml) — единообразие по всему приложению. -->
+        <ImageButton
             android:id="@+id/btn_journal_entry_detail_edit"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="8dp"
-            android:text="@string/map_marker_detail_edit_button"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_edit_pencil"
+            android:contentDescription="@string/map_marker_detail_edit_button"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -115,13 +123,18 @@
             app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_detail_edit"
             app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_detail_edit" />
 
-        <Button
+        <ImageButton
             android:id="@+id/btn_journal_entry_detail_delete"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="8dp"
             android:layout_marginStart="8dp"
-            android:text="@string/map_marker_detail_delete_button"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_delete_trash"
+            android:contentDescription="@string/map_marker_detail_delete_button"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/btn_journal_entry_detail_edit" />
 
@@ -144,13 +157,18 @@
              боковое меню, самой записи не касается. Нужна только в режимах с физическим
              энкодером — gone по умолчанию, как у btn_geiger_menu, реальная видимость
              выставляется кодом (refreshJournalBackButtonVisibility()). -->
-        <Button
+        <ImageButton
             android:id="@+id/btn_journal_entry_detail_back"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="8dp"
             android:layout_marginStart="8dp"
-            android:text="@string/wizard_back"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_back_arrow"
+            android:contentDescription="@string/wizard_back"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/btn_journal_entry_detail_delete" />

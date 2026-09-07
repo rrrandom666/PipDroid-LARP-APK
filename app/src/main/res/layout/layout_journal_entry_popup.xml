@@ -46,20 +46,34 @@
          цвет, что текст на кнопках), не эмодзи. Тап 1 — старт записи, тап 2 — стоп
          (MainActivity.kt, journalDictationState). Курсор энкодера входит в редактор сразу на
          эту кнопку (roadmap, этап 27, п.3). -->
+    <!-- Было фиксированные 44dp×44dp — Cancel/Save рядом высокие ровно настолько, насколько
+         велик их текст+паддинг (PipWizardButtonStyle, wrap_content), и при сжатии рабочей
+         области (roadmap, этап 29) уменьшаются вместе с текстом, а фиксированный Mic — нет,
+         разъезжаются по высоте (найдено на тесте). Вместо процента — высота напрямую от
+         Cancel (Top/Bottom к нему же, а не оба к parent/status-строке отдельно): Mic всегда
+         ровно той же высоты, что и соседние кнопки, на любом масштабе, без подбора числа.
+         layout_constraintDimensionRatio корректно считает ширину от высоты, только если у
+         неё самой есть парный (Start+End) якорь — с одним Start без End ширина схлопывалась
+         почти в 0 либо разъезжалась (найдено на тесте той же природы, что баг кнопок карты,
+         roadmap этап 29). End_toEndOf parent + bias 0.0 держит кнопку прижатой к левому краю
+         (визуально как раньше), но даёт ratio нормальную пару для расчёта. -->
     <ImageButton
         android:id="@+id/btn_journal_entry_mic"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_marginBottom="8dp"
-        android:padding="10dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="5dp"
         android:scaleType="fitCenter"
         android:src="@drawable/ic_mic"
         android:tint="@null"
         android:contentDescription="@null"
         android:alpha="0.4"
-        app:layout_constraintBottom_toTopOf="@id/tv_journal_entry_mic_status"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintTop_toTopOf="@id/btn_journal_entry_popup_cancel"
+        app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_popup_cancel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0" />
 
     <View
         android:id="@+id/view_journal_entry_mic_focus"
@@ -86,7 +100,7 @@
          было у Save изначально. Обратная сторона: кнопки больше не равной ширины
          (measureWithLargestChild была только у LinearLayout) — сочтено приемлемой ценой за
          рабочий прицел энкодера. -->
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_journal_entry_popup_save"
         style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"
@@ -110,7 +124,7 @@
         app:layout_constraintEnd_toEndOf="@id/btn_journal_entry_popup_save"
         app:layout_constraintBottom_toBottomOf="@id/btn_journal_entry_popup_save" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_journal_entry_popup_cancel"
         style="@style/PipWizardButtonStyle"
         android:layout_width="wrap_content"

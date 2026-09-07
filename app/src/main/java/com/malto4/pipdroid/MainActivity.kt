@@ -54,6 +54,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -539,6 +540,26 @@ class MainActivity : AppCompatActivity() {
     private var wizardMinContentHeightPx = 0
     private var lastX = 0f
     private var lastY = 0f
+
+    // Глобальный масштаб текста при сжатии рабочей области (roadmap, этап 29) — сама логика
+    // и "чертёжные" размеры живут в GlobalTextScale (синглтон, не поле активности): часть
+    // текста создаётся программно вне MainActivity.onCreate (SidebarMenuAdapter и т.п.),
+    // одноразовый обход дерева здесь эти View не увидел бы.
+    private val minTextSizeSp = 10f
+
+    // currentWidthPx/currentHeightPx — реальные текущие размеры bindingMain.root (не
+    // layoutParams.width/height, там может лежать MATCH_PARENT=-1). Масштаб — от более
+    // строгого из двух отношений к полному экрану (обычно ширина, у неё пол ниже, см.
+    // wizardMinContentWidthPx/HeightPx), чтобы текст гарантированно помещался по обеим осям.
+    private fun applyGlobalTextScale(currentWidthPx: Int, currentHeightPx: Int) {
+        if (currentWidthPx <= 0 || currentHeightPx <= 0) return
+        val displayMetrics = resources.displayMetrics
+        val widthRatio = currentWidthPx.toFloat() / displayMetrics.widthPixels
+        val heightRatio = currentHeightPx.toFloat() / displayMetrics.heightPixels
+        val scale = min(widthRatio, heightRatio).coerceIn(0f, 1f)
+        val minTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, minTextSizeSp, displayMetrics)
+        GlobalTextScale.setScale(scale, minTextSizePx)
+    }
 
     /***********************************************************************************************************
      * DISCLAIMER / TUTORIAL
@@ -1566,6 +1587,7 @@ class MainActivity : AppCompatActivity() {
                 pairingOnSelect?.invoke(address)
             }
         }
+        GlobalTextScale.register(button)
         container.addView(button)
     }
 
@@ -2064,6 +2086,17 @@ class MainActivity : AppCompatActivity() {
                 // — android:tint="@null" в XML одного недостаточно, глиф иконки сливался с
                 // акцентным фоном без явного сброса и здесь тоже.
                 ImageViewCompat.setImageTintList(mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic, null)
+                // Edit/Route/Delete/Back в карточке метки и Route/Place Marker в попапе тапа —
+                // были текстовыми кнопками (не нуждались в сбросе), заменены на иконки
+                // (roadmap, этап 29) — тот же сброс, что и у остальных ImageButton выше.
+                listOf(
+                    mapScreen.btnMapMarkerDetailEdit,
+                    mapScreen.btnMapMarkerDetailRoute,
+                    mapScreen.btnMapMarkerDetailDelete,
+                    mapScreen.btnMapMarkerDetailBack,
+                    mapScreen.btnMapTapChoiceRoute,
+                    mapScreen.btnMapTapChoiceMarker,
+                ).forEach { it.imageTintList = null }
                 hideMapHint()
                 // Раньше здесь был безусловный mapRootAdapter.setSelectedPositionSilently(0)
                 // ("жёсткий сброс курсора" на свежий вход с вкладки ITEMS) — убран (roadmap,
@@ -7329,6 +7362,7 @@ class MainActivity : AppCompatActivity() {
                     renderRow2()
                 }
             }
+            GlobalTextScale.register(tv)
             strip.addView(tv)
             row2Views.add(tv)
         }
@@ -7934,6 +7968,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            GlobalTextScale.register(textView)
+
             // Add CheckBox and TextView to a horizontal layout
             val entryLayout = LinearLayout(this)
             entryLayout.orientation = LinearLayout.HORIZONTAL
@@ -8302,6 +8338,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        GlobalTextScale.reset()
 
         //Choose APP theme
         when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
@@ -8334,6 +8371,38 @@ class MainActivity : AppCompatActivity() {
         val viewMain = bindingMain.root
         setContentView(viewMain)
         mirrorDisplayCutoutInset(viewMain)
+
+        // Снимок "чертёжных" (100%) размеров шрифта у статичного XML-дерева — один раз после
+        // первого layout, пока ничего ещё не сжато (GlobalTextScale.registerTree). Текст,
+        // создаваемый программно позже — SidebarMenuAdapter.onCreateViewHolder, setupRow2(),
+        // addPairingDevice(), listEntries() — регистрирует себя сам через
+        // GlobalTextScale.register() в момент создания, тем же синглтоном. Слушатель на
+        // изменение реальных габаритов viewMain (не layoutParams.width/height — там может
+        // лежать MATCH_PARENT=-1) ловит любой путь ресайза разом: пинч в DISPLAY AREA
+        // (ScaleListener), loadViewState(), resetToFullScreen(), applyTemporaryFullScreenLayout()
+        // — без отдельного вызова в каждом из них. Перетаскивание (handleMove) размер не
+        // меняет, только margin — сюда не попадает.
+        viewMain.post {
+            GlobalTextScale.registerTree(viewMain)
+            viewMain.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                val newW = right - left
+                val newH = bottom - top
+                val oldW = oldRight - oldLeft
+                val oldH = oldBottom - oldTop
+                if (newW > 0 && newH > 0 && (newW != oldW || newH != oldH)) {
+                    // post(), не вызов на месте — setTextSize() внутри applyGlobalTextScale()
+                    // сам просит requestLayout() на каждом зарегистрированном TextView (их
+                    // десятки, особенно на Settings — сайдбар-RecyclerView, несколько
+                    // ScrollView, guideline-строки). Вызванный синхронно прямо из колбэка
+                    // прохода лэйаута, это дёргает повторный лэйаут ПОКА текущий проход ещё не
+                    // завершён — источник редкого, невоспроизводимого стабильно бага (roadmap,
+                    // этап 29): экран Settings иногда открывался полностью пустым, без
+                    // исключений в логе. post() переносит пересчёт на следующий кадр, когда
+                    // текущий проход уже точно закончен.
+                    v.post { applyGlobalTextScale(newW, newH) }
+                }
+            }
+        }
 
         // Полный экран на старте (roadmap, этап 28, найденный баг) — раньше здесь стоял
         // loadViewState(), подхватывавший уменьшенный размер из прошлой сессии ДО того, как
@@ -9505,6 +9574,9 @@ class MainActivity : AppCompatActivity() {
         val alarm = clock.incLayoutTabItemsClockAlarm
         alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
         alarm.btnClockAlarmBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29) — тот же сброс
+        // imageTintList, что у btnMapCenter/Mic (см. там же комментарий).
+        alarm.btnClockAlarmBack.imageTintList = null
         alarm.viewClockAlarmHourFocus.backgroundTintList = clockAccentTint
         alarm.viewClockAlarmMinuteFocus.backgroundTintList = clockAccentTint
         alarm.viewClockAlarmSetFocus.backgroundTintList = clockAccentTint
@@ -9552,6 +9624,10 @@ class MainActivity : AppCompatActivity() {
             timer.btnClockTimerPauseResume, timer.btnClockTimerReset, timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)) {
             btn.backgroundTintList = clockAccentTint
         }
+        // Setup/RunningBack были текстовыми кнопками, заменены на иконки (roadmap, этап 29) —
+        // тот же сброс imageTintList, что у остальных Back по приложению.
+        timer.btnClockTimerSetupBack.imageTintList = null
+        timer.btnClockTimerRunningBack.imageTintList = null
         for (view in listOf(timer.viewClockTimerHourFocus, timer.viewClockTimerMinuteFocus, timer.viewClockTimerSecondFocus,
             timer.viewClockTimerPreset5Focus, timer.viewClockTimerPreset10Focus, timer.viewClockTimerStartFocus, timer.viewClockTimerSetupBackFocus,
             timer.viewClockTimerPauseResumeFocus, timer.viewClockTimerResetFocus, timer.viewClockTimerRunningBackFocus)) {
@@ -9623,6 +9699,8 @@ class MainActivity : AppCompatActivity() {
         stopwatch.btnClockStopwatchStartPause.backgroundTintList = clockAccentTint
         stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
         stopwatch.btnClockStopwatchBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
+        stopwatch.btnClockStopwatchBack.imageTintList = null
         stopwatch.viewClockStopwatchStartPauseFocus.backgroundTintList = clockAccentTint
         stopwatch.viewClockStopwatchResetFocus.backgroundTintList = clockAccentTint
         stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
@@ -9657,6 +9735,8 @@ class MainActivity : AppCompatActivity() {
         val melody = clock.incLayoutTabItemsClockMelody
         melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
         melody.btnClockMelodyBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
+        melody.btnClockMelodyBack.imageTintList = null
         melody.viewClockMelodySelectFocus.backgroundTintList = clockAccentTint
         melody.viewClockMelodyBackFocus.backgroundTintList = clockAccentTint
         // applyTextColor() эту LineVisualizer не красит (не входит в её список View) — без
@@ -9778,6 +9858,11 @@ class MainActivity : AppCompatActivity() {
         journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailBack.backgroundTintList = journalAccentColor
+        // Были текстовыми кнопками (не нуждались в сбросе), заменены на иконки (roadmap,
+        // этап 29) — тот же сброс imageTintList, что у btnMapCenter/Mic (см. там же комментарий).
+        journalScreen.btnJournalEntryDetailEdit.imageTintList = null
+        journalScreen.btnJournalEntryDetailDelete.imageTintList = null
+        journalScreen.btnJournalEntryDetailBack.imageTintList = null
         // Прицелы-уголки (roadmap, этап 27) — та же схема тонирования, что у Reset/Menu на
         // Гейгере (viewGeigerResetFocus/viewGeigerMenuFocus чуть выше).
         journalScreen.viewJournalEntryDetailEditFocus.backgroundTintList = journalAccentColor

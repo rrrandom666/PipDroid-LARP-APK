@@ -150,11 +150,18 @@
         <!-- Back — новый пункт (roadmap, этап 27, п.2), поднимает курсор энкодера обратно к
              листанию треков. Виден только в режимах с физическим энкодером (не Phone),
              видимость обновляется кодом (refreshClockMelodyBackButtonVisibility()). -->
-        <androidx.appcompat.widget.AppCompatButton
+        <!-- Была текстовая кнопка, заменена на иконку (roadmap, этап 29) — единообразно с
+             остальными Back по приложению. -->
+        <ImageButton
             android:id="@+id/btn_clock_melody_back"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:text="@string/wizard_back"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_back_arrow"
+            android:contentDescription="@string/wizard_back"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="@id/btn_clock_melody_select"
             app:layout_constraintBottom_toBottomOf="@id/btn_clock_melody_select"

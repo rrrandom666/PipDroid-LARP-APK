@@ -121,7 +121,7 @@
              короткий список реально занял места). Список сам капается constrainedHeight
              (см. ScrollView выше) — для длинного списка кнопка окажется у низа панели, как
              и раньше, для короткого — сразу под последним найденным устройством. -->
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_bluetooth_rescan"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"

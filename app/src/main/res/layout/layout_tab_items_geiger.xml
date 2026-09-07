@@ -199,7 +199,7 @@
         app:layout_constraintStart_toStartOf="@id/img_rad_scale"
         app:layout_constraintTop_toBottomOf="@id/img_rad_scale">
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_geiger_reset"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -224,7 +224,7 @@
             app:layout_constraintEnd_toEndOf="@id/btn_geiger_reset"
             app:layout_constraintBottom_toBottomOf="@id/btn_geiger_reset" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_geiger_menu"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"

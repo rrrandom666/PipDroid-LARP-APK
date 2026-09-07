@@ -76,6 +76,13 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/layout_filter_modification_topbuttons">
 
+            <!-- Было: у Clear ALL Start ссылался на et_filter_modification_value вместо
+                 btn_filter_modification_select (обрыв цепочки, вероятно опечатка при
+                 копировании) — теперь настоящая последовательная цепочка. layout_constraintWidth_min
+                 на поле ввода и constrainedWidth на всех трёх кнопках (roadmap, этап 29) —
+                 при сжатии рабочей области поле фильтрации не должно отжиматься кнопками до
+                 нечитаемой ширины (найдено на тесте: осталось видно только "Filte"), поле —
+                 основной элемент ввода этого экрана, кнопки — вторичные действия. -->
             <EditText
                 android:id="@+id/et_filter_modification_value"
                 style="@style/SettingsButtonStyle"
@@ -87,10 +94,18 @@
                 android:maxLength="32"
                 android:singleLine="true"
                 android:layout_marginStart="10dp"
+                app:layout_constraintWidth_min="70dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_filter"/>
-            <Button
+            <!-- constrainedWidth сюда намеренно НЕ ставится, в отличие от Select ALL/Clear
+                 ALL ниже — на первой кнопке цепочки сразу после match_constraint-поля
+                 (et_filter_modification_value) это раздувало кнопку вместо ожидаемого
+                 сжатия (найдено на тесте, тот же класс бага, что у Edit в карточке
+                 метки, layout_tab_items_map.xml). Filter и так открыта строго между
+                 полем и Select ALL — переполнение ей не грозит так же, как грозит Select/
+                 Clear ближе к правому краю. -->
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_filter_modification_filter"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -102,10 +117,11 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintVertical_bias="0.0" />
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_filter_modification_select"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
+                app:layout_constrainedWidth="true"
                 android:text="@string/filter_select_all"
                 android:layout_marginEnd="10dp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -114,14 +130,15 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintVertical_bias="0.0" />
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_filter_modification_clear"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
+                app:layout_constrainedWidth="true"
                 android:text="@string/filter_clear_all"
                 android:layout_marginEnd="10dp"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/et_filter_modification_value"
+                app:layout_constraintStart_toEndOf="@id/btn_filter_modification_select"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
@@ -173,7 +190,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_filter_modification_cancel"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -183,7 +200,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/btn_filter_modification_save" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_filter_modification_save"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"

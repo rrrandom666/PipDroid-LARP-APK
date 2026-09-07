@@ -134,10 +134,24 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintWidth_percent="0.03" />
 
+                        <!-- Guideline вместо wrap_content-цепочки label→button (roadmap, этап 29
+                             — при сжатии рабочей области динамическая подпись "Operating
+                             Mode: PipBoy 2000"/"Режим работы: PipBoy 2000" вместе с кнопкой
+                             упиралась в правый край рамки и обрезалась, т.к. ничем не была
+                             ограничена справа). Тот же приём, что уже есть у строк Game Info
+                             (guideline_settings_1_value и т.п.) — там label тоже 0dp с
+                             End_toStartOf guideline, а не wrap_content. -->
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline_settings_4_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.6" />
+
                         <TextView
                             android:id="@+id/tv_settings_4"
                             style="@style/CNDEFFRADButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0.0dip"
                             android:layout_height="fill_parent"
                             android:background="@drawable/button_unselected"
                             android:clickable="false"
@@ -147,16 +161,20 @@
                             android:text="@string/settings_4_name"
                             android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/guideline_settings_4_value"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_4_left_spacer"
                             app:layout_constraintTop_toTopOf="parent" />
 
-                        <Button
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btn_settings_change_mode"
                             style="@style/PipWizardButtonStyle"
                             android:layout_width="wrap_content"
+                            app:layout_constrainedWidth="true"
                             android:text="@string/settings_mode_change_button"
                             app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tv_settings_4"
+                            app:layout_constraintStart_toStartOf="@id/guideline_settings_4_value"
+                            app:layout_constraintEnd_toStartOf="@id/tv_settings_4_right_spacer"
+                            app:layout_constraintHorizontal_bias="0.0"
                             app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
@@ -600,7 +618,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_voice_model_status" />
 
-                <Button
+                <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btn_voice_model_import"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
@@ -653,7 +671,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_map_bundle_status" />
 
-                <Button
+                <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btn_map_bundle_import"
                     style="@style/PipWizardButtonStyle"
                     android:layout_width="wrap_content"
@@ -763,10 +781,20 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintWidth_percent="0.03" />
 
+                        <!-- Тот же guideline-приём, что у строки режима работы выше
+                             (guideline_settings_4_value) — label→button без ограничения
+                             справа обрезался при сжатии рабочей области (roadmap, этап 29). -->
+                        <androidx.constraintlayout.widget.Guideline
+                            android:id="@+id/guideline_settings_tutorial_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            app:layout_constraintGuide_percent="0.6" />
+
                         <TextView
                             android:id="@+id/tv_settings_tutorial"
                             style="@style/CNDEFFRADButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0.0dip"
                             android:layout_height="fill_parent"
                             android:background="@drawable/button_unselected"
                             android:clickable="false"
@@ -776,16 +804,20 @@
                             android:text="@string/settings_tutorial_name"
                             android:textAllCaps="false"
                             app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@id/guideline_settings_tutorial_value"
                             app:layout_constraintStart_toEndOf="@id/tv_settings_tutorial_left_spacer"
                             app:layout_constraintTop_toTopOf="parent" />
 
-                        <Button
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btn_settings_open_tutorial"
                             style="@style/PipWizardButtonStyle"
                             android:layout_width="wrap_content"
+                            app:layout_constrainedWidth="true"
                             android:text="@string/settings_tutorial_open_button"
                             app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintStart_toEndOf="@id/tv_settings_tutorial"
+                            app:layout_constraintStart_toStartOf="@id/guideline_settings_tutorial_value"
+                            app:layout_constraintEnd_toStartOf="@id/tv_settings_tutorial_right_spacer"
+                            app:layout_constraintHorizontal_bias="0.0"
                             app:layout_constraintTop_toTopOf="parent" />
 
                         <TextView
@@ -967,7 +999,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_settings_save"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -976,7 +1008,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_settings_cancel"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"

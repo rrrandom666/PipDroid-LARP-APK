@@ -10,8 +10,12 @@
      линия сверху + толстая вертикальная с градиентом справа, растягивается fitXY): все
      пять элементов в одинаковой "коробке" (первая версия оставляла имя игрока без рамки,
      как раньше LVL — заменено на общий вид по всем пяти). Коробки — spread-цепочка
-     (равномерно делят свободное место), у коробки даты — android:minWidth, чтобы хватало
-     места на полный год (Settings, Date Formats), не только на две последние цифры. -->
+     (делят свободное место по весу, app:layout_constraintHorizontal_weight), у коробки
+     даты вес 1.3 против 1 у остальных — чтобы хватало места на полный год (Settings,
+     Date Formats), не только на две последние цифры. Раньше это был жёсткий
+     android:minWidth="90dp" — при сжатии рабочей области (roadmap, этап 29) он не
+     уменьшался вместе с остальными и рвал равномерность всей строки; вес того же эффекта
+     достигает пропорционально на любом размере экрана. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_header_bottom_common"
@@ -27,6 +31,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_box_region"
         app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/img_top_link_2" />
@@ -52,6 +57,7 @@
         android:scaleType="fitXY"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_box_date"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/img_bottom_box_name"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/img_top_link_2" />
@@ -74,10 +80,10 @@
         style="@style/ColorTintStyle"
         android:layout_width="0.0dip"
         android:layout_height="0.0dip"
-        android:minWidth="90dp"
         android:scaleType="fitXY"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_box_time"
+        app:layout_constraintHorizontal_weight="1.3"
         app:layout_constraintStart_toEndOf="@id/img_bottom_box_region"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/img_top_link_2" />
@@ -103,6 +109,7 @@
         android:scaleType="fitXY"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/img_bottom_box_radiation"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/img_bottom_box_date"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/img_top_link_2" />
@@ -128,6 +135,7 @@
         android:scaleType="fitXY"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_weight="1"
         app:layout_constraintStart_toEndOf="@id/img_bottom_box_time"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/img_top_link_2" />
@@ -135,12 +143,14 @@
     <ImageView
         android:id="@+id/img_bottom_radiation_icon"
         style="@style/ColorTintStyle"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
+        android:layout_width="0.0dip"
+        android:layout_height="0.0dip"
         android:contentDescription="@string/title_bottom_common_radiation_icon_description"
         android:scaleType="fitCenter"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toStartOf="@id/tv_bottom_radiation_value"
+        app:layout_constraintHeight_percent="0.4"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toStartOf="@id/img_bottom_box_radiation"

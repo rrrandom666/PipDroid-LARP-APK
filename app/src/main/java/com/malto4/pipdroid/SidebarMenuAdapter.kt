@@ -108,7 +108,15 @@ class SidebarMenuAdapter<T>(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarMenuViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.layout_recycler_selectable_list, parent, false)
-        return SidebarMenuViewHolder(view)
+        val holder = SidebarMenuViewHolder(view)
+        // Пункты бокового/2-уровневого меню создаются рантаймом через onCreateViewHolder,
+        // не при первом layout активности — глобальный масштаб текста (roadmap, этап 29,
+        // GlobalTextScale) их иначе не увидит и не уменьшит вместе с остальным UI при
+        // сжатии рабочей области. onCreateViewHolder вызывается ровно один раз на физический
+        // View (в отличие от onBindViewHolder при каждой перепривязке во время скролла).
+        GlobalTextScale.register(holder.label)
+        GlobalTextScale.register(holder.value)
+        return holder
     }
 
     override fun onBindViewHolder(holder: SidebarMenuViewHolder, position: Int) {

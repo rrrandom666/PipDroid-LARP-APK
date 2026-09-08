@@ -221,16 +221,47 @@ class MainActivity : AppCompatActivity() {
         object Menu : JournalSidebarEntry()
     }
     private val voiceDictationService by lazy { com.malto4.pipdroid.voice.VoiceDictationService() }
-    private enum class JournalDictationState { IDLE, LOADING, LISTENING }
-    private var journalDictationState = JournalDictationState.IDLE
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
-    // Состояние диктовки имени метки; voiceDictationService общий с Журналом.
-    private enum class MapMarkerDictationState { IDLE, LOADING, LISTENING }
-    private var mapMarkerDictationState = MapMarkerDictationState.IDLE
-    // Первый сегмент сессии слушания заменяет старое имя метки, а не дописывается к нему.
-    private var mapMarkerDictationReplacedThisSession = false
     private val REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION = 27
+    /** Диктовка в редактор записи Журнала — дописывает к уже набранному тексту. */
+    private val journalDictation by lazy {
+        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
+        DictationController(
+            activity = this,
+            micButton = popup.btnJournalEntryMic,
+            statusView = popup.tvJournalEntryMicStatus,
+            editText = popup.etJournalEntryValue,
+            permissionRequestCode = REQUEST_CODE_PERMISSION_JOURNAL_DICTATION,
+            logTag = "VoiceJournal",
+            dictation = voiceDictationService,
+            models = voiceModelRepository,
+            accentColor = { currentWizardAccentColor() },
+            isVoiceCommandBusy = { awaitingVoiceCommand },
+            replaceFirstSegment = { false },
+            playButtonSound = { playButtonAudio() },
+            playErrorSound = { playErrorAudio() },
+        )
+    }
+    /** Диктовка имени отметки — при правке существующей первый сегмент затирает старое имя. */
+    private val mapMarkerDictation by lazy {
+        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
+        DictationController(
+            activity = this,
+            micButton = popup.btnMarkerNamePopupMic,
+            statusView = popup.tvMarkerNamePopupMicStatus,
+            editText = popup.etMarkerNameValue,
+            permissionRequestCode = REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION,
+            logTag = "VoiceMapMarker",
+            dictation = voiceDictationService,
+            models = voiceModelRepository,
+            accentColor = { currentWizardAccentColor() },
+            isVoiceCommandBusy = { awaitingVoiceCommand },
+            replaceFirstSegment = { editingMarkerId != null },
+            playButtonSound = { playButtonAudio() },
+            playErrorSound = { playErrorAudio() },
+        )
+    }
     private enum class MapRouteState { NONE, BUILT, ACTIVE }
     private var mapRouteState = MapRouteState.NONE
     private var mapRouteDestination: Pair<Double, Double>? = null
@@ -690,7 +721,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSION_JOURNAL_DICTATION) {
             val popupVisible = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (popupVisible) startJournalDictation()
+                if (popupVisible) journalDictation.start()
             } else {
                 playErrorAudio()
             }
@@ -698,7 +729,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION) {
             val popupVisible = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (popupVisible) startMapMarkerDictation()
+                if (popupVisible) mapMarkerDictation.start()
             } else {
                 playErrorAudio()
             }
@@ -738,7 +769,7 @@ class MainActivity : AppCompatActivity() {
     private val VOICE_COMMAND_TIMEOUT_MS = 6000L
     /** Уступает микрофон диктовке Журнала, если та уже идёт: VoiceDictationService один на оба сценария. */
     private fun onWakeWordTriggered() {
-        if (awaitingVoiceCommand || journalDictationState != JournalDictationState.IDLE) return
+        if (awaitingVoiceCommand || !journalDictation.isIdle) return
         if (!voiceModelRepository.hasModel()) return
         awaitingVoiceCommand = true
         Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()
@@ -2248,7 +2279,7 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText("")
         popup.root.visibility = View.VISIBLE
-        refreshMapMarkerMicAvailability()
+        mapMarkerDictation.refreshAvailability()
     }
     private fun showMarkerNamePopupForEdit(marker: MapMarker) {
         editingMarkerId = marker.id
@@ -2256,142 +2287,15 @@ class MainActivity : AppCompatActivity() {
         val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
         popup.etMarkerNameValue.setText(marker.name)
         popup.root.visibility = View.VISIBLE
-        refreshMapMarkerMicAvailability()
+        mapMarkerDictation.refreshAvailability()
     }
     private fun hideMarkerNamePopup() {
         pendingMarkerLatLon = null
         editingMarkerId = null
-        stopMapMarkerDictation()
+        mapMarkerDictation.stop()
         bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
     }
     /** Сбрасывает микрофон и статус-строку к покою при каждом открытии попапа. */
-    private fun refreshMapMarkerMicAvailability() {
-        mapMarkerDictationState = MapMarkerDictationState.IDLE
-        setMapMarkerMicStatus("")
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        popup.btnMarkerNamePopupMic.alpha = if (voiceModelRepository.hasModel()) 1f else 0.4f
-        updateMapMarkerMicVisual(recording = false)
-    }
-    private fun setMapMarkerMicStatus(text: String) {
-        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.tvMarkerNamePopupMicStatus.text = text
-    }
-    private fun updateMapMarkerMicVisual(recording: Boolean) {
-        val accent = currentWizardAccentColor()
-        val tint = if (recording) ColorUtils.blendARGB(accent, Color.WHITE, 0.4f) else accent
-        val micButton = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic
-        micButton.backgroundTintList = ColorStateList.valueOf(tint)
-        micButton.setImageResource(if (recording) R.drawable.ic_stop else R.drawable.ic_mic)
-        ImageViewCompat.setImageTintList(micButton, null)
-    }
-    /** Первый сегмент сессии заменяет старое имя метки целиком, последующие — дописываются. */
-    private fun replaceMapMarkerDictatedText(text: String) {
-        if (text.isBlank()) return
-        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.etMarkerNameValue.setText(text)
-    }
-    /** Дописывает в конец — тот же приём, что у appendJournalDictatedText(). */
-    private fun appendMapMarkerDictatedText(text: String) {
-        if (text.isBlank()) return
-        val editText = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.etMarkerNameValue
-        val current = editText.text?.toString().orEmpty()
-        val separator = if (current.isNotEmpty() && !current.endsWith(" ")) " " else ""
-        editText.append(separator + text)
-    }
-    /** Тап 1 по микрофону — тот же приём, что у startJournalDictation(). */
-    private fun startMapMarkerDictation() {
-        if (voiceDictationService.isModelLoaded()) {
-            beginMapMarkerListening()
-            return
-        }
-        mapMarkerDictationState = MapMarkerDictationState.LOADING
-        setMapMarkerMicStatus(getString(R.string.journal_mic_status_loading))
-        lifecycleScope.launch(Dispatchers.IO) {
-            val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
-            withContext(Dispatchers.Main) {
-                if (mapMarkerDictationState != MapMarkerDictationState.LOADING) return@withContext
-                if (result.isFailure) {
-                    mapMarkerDictationState = MapMarkerDictationState.IDLE
-                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_error))
-                    return@withContext
-                }
-                beginMapMarkerListening()
-            }
-        }
-    }
-    private fun beginMapMarkerListening() {
-        mapMarkerDictationState = MapMarkerDictationState.LISTENING
-        // Сброс на каждый новый старт прослушивания, а не на каждый onFinalText.
-        mapMarkerDictationReplacedThisSession = false
-        setMapMarkerMicStatus(getString(R.string.journal_mic_status_listening))
-        updateMapMarkerMicVisual(recording = true)
-        voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
-            override fun onPartialText(text: String) {
-                runOnUiThread {
-                    // Гейт по состоянию — см. beginJournalListening().
-                    if (mapMarkerDictationState != MapMarkerDictationState.LISTENING) return@runOnUiThread
-                    setMapMarkerMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
-                }
-            }
-            override fun onFinalText(text: String) {
-                runOnUiThread {
-                    if (mapMarkerDictationState != MapMarkerDictationState.LISTENING) return@runOnUiThread
-                    if (editingMarkerId != null && !mapMarkerDictationReplacedThisSession) {
-                        replaceMapMarkerDictatedText(text)
-                        mapMarkerDictationReplacedThisSession = true
-                    } else {
-                        appendMapMarkerDictatedText(text)
-                    }
-                }
-            }
-            override fun onError(message: String) {
-                runOnUiThread {
-                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_error))
-                    stopMapMarkerDictation()
-                }
-            }
-        })
-    }
-    /** Тап 2 по микрофону и штатное закрытие попапа. */
-    private fun stopMapMarkerDictation() {
-        if (mapMarkerDictationState == MapMarkerDictationState.LISTENING) {
-            voiceDictationService.stopListening()
-        }
-        mapMarkerDictationState = MapMarkerDictationState.IDLE
-        setMapMarkerMicStatus("")
-        updateMapMarkerMicVisual(recording = false)
-    }
-    /** Общее тело тапа по микрофону — для тача и для ENCBTN. */
-    private fun handleMapMarkerMicTap() {
-        when (mapMarkerDictationState) {
-            MapMarkerDictationState.IDLE -> {
-                if (awaitingVoiceCommand) {
-                    // VoiceDictationService занят голосовой командой — не отбирать его.
-                    playErrorAudio()
-                    return
-                }
-                if (!voiceModelRepository.hasModel()) {
-                    playErrorAudio()
-                    setMapMarkerMicStatus(getString(R.string.journal_mic_status_no_model))
-                    return
-                }
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                    != PackageManager.PERMISSION_GRANTED
-                ) {
-                    ActivityCompat.requestPermissions(
-                        this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION
-                    )
-                    return
-                }
-                // Звук только на реальный исход, не на ошибках выше.
-                playButtonAudio()
-                startMapMarkerDictation()
-            }
-            MapMarkerDictationState.LOADING -> { /* повторный тап/ENCBTN во время загрузки модели игнорируется */ }
-            MapMarkerDictationState.LISTENING -> {
-                playButtonAudio()
-                stopMapMarkerDictation()
-            }
-        }
-    }
     // ===== ITEMS: ЖУРНАЛ =====
     private fun openJournalScreen() {
         journalEntries = journalRepository.loadAll().toMutableList()
@@ -2488,7 +2392,7 @@ class MainActivity : AppCompatActivity() {
         val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText("")
         popup.root.visibility = View.VISIBLE
-        refreshJournalMicAvailability()
+        journalDictation.refreshAvailability()
     }
     /** То же, что showJournalEntryEditorForNew(), но подменяет собой карточку записи. */
     private fun showJournalEntryEditorForEdit(entry: JournalEntry) {
@@ -2502,135 +2406,17 @@ class MainActivity : AppCompatActivity() {
         val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
         popup.etJournalEntryValue.setText(entry.text)
         popup.root.visibility = View.VISIBLE
-        refreshJournalMicAvailability()
+        journalDictation.refreshAvailability()
     }
     /** Идемпотентен — зовётся защитно и тогда, когда редактор уже закрыт. */
     private fun hideJournalEntryEditor() {
         journalEditorOpenFor = null
         editingJournalEntryId = null
-        stopJournalDictation()
+        journalDictation.stop()
         setAllJournalEntryEditorFocusesHidden()
         bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
     }
     /** Сбрасывает микрофон и статус-строку к покою при каждом открытии попапа. */
-    private fun refreshJournalMicAvailability() {
-        journalDictationState = JournalDictationState.IDLE
-        setJournalMicStatus("")
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
-        popup.btnJournalEntryMic.alpha = if (voiceModelRepository.hasModel()) 1f else 0.4f
-        updateJournalMicVisual(recording = false)
-    }
-    private fun setJournalMicStatus(text: String) {
-        bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.tvJournalEntryMicStatus.text = text
-    }
-    /** Слушающее состояние — акцент темы, осветлённый блендом с белым; иконка меняется на "стоп". */
-    private fun updateJournalMicVisual(recording: Boolean) {
-        val accent = currentWizardAccentColor()
-        val tint = if (recording) ColorUtils.blendARGB(accent, Color.WHITE, 0.4f) else accent
-        val micButton = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.btnJournalEntryMic
-        micButton.backgroundTintList = ColorStateList.valueOf(tint)
-        micButton.setImageResource(if (recording) R.drawable.ic_stop else R.drawable.ic_mic)
-        ImageViewCompat.setImageTintList(micButton, null)
-    }
-    private fun appendJournalDictatedText(text: String) {
-        if (text.isBlank()) return
-        val editText = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.etJournalEntryValue
-        val current = editText.text?.toString().orEmpty()
-        val separator = if (current.isNotEmpty() && !current.endsWith(" ") && !current.endsWith("\n")) " " else ""
-        editText.append(separator + text)
-    }
-    /** Тап 1 по микрофону; состояние LOADING защищает от гонки, если попап закрыли посреди загрузки модели. */
-    private fun startJournalDictation() {
-        if (voiceDictationService.isModelLoaded()) {
-            beginJournalListening()
-            return
-        }
-        journalDictationState = JournalDictationState.LOADING
-        setJournalMicStatus(getString(R.string.journal_mic_status_loading))
-        lifecycleScope.launch(Dispatchers.IO) {
-            val result = runCatching { voiceDictationService.loadModel(voiceModelRepository.modelDir().absolutePath) }
-            withContext(Dispatchers.Main) {
-                if (journalDictationState != JournalDictationState.LOADING) return@withContext
-                if (result.isFailure) {
-                    journalDictationState = JournalDictationState.IDLE
-                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
-                    return@withContext
-                }
-                beginJournalListening()
-            }
-        }
-    }
-    private fun beginJournalListening() {
-        journalDictationState = JournalDictationState.LISTENING
-        setJournalMicStatus(getString(R.string.journal_mic_status_listening))
-        updateJournalMicVisual(recording = true)
-        voiceDictationService.startListening(object : com.malto4.pipdroid.voice.DictationListener {
-            override fun onPartialText(text: String) {
-                Log.d("VoiceJournal", "partial: \"$text\"")
-                runOnUiThread {
-                    // Гейт по состоянию: колбэк мог встать в очередь до тапа на Стоп и затереть уже обнулённую строку.
-                    if (journalDictationState != JournalDictationState.LISTENING) return@runOnUiThread
-                    setJournalMicStatus(text.ifBlank { getString(R.string.journal_mic_status_listening) })
-                }
-            }
-            override fun onFinalText(text: String) {
-                Log.d("VoiceJournal", "final: \"$text\"")
-                runOnUiThread {
-                    if (journalDictationState != JournalDictationState.LISTENING) return@runOnUiThread
-                    appendJournalDictatedText(text)
-                }
-            }
-            override fun onError(message: String) {
-                Log.d("VoiceJournal", "error: $message")
-                runOnUiThread {
-                    setJournalMicStatus(getString(R.string.journal_mic_status_error))
-                    stopJournalDictation()
-                }
-            }
-        })
-    }
-    /** Тап 2 по микрофону — SpeechService.stop() отдаёт хвост фразы до возврата управления. */
-    private fun stopJournalDictation() {
-        if (journalDictationState == JournalDictationState.LISTENING) {
-            voiceDictationService.stopListening()
-        }
-        journalDictationState = JournalDictationState.IDLE
-        setJournalMicStatus("")
-        updateJournalMicVisual(recording = false)
-    }
-    /** Общее тело тапа по микрофону — для тача и для ENCBTN. */
-    private fun handleJournalMicTap() {
-        when (journalDictationState) {
-            JournalDictationState.IDLE -> {
-                if (awaitingVoiceCommand) {
-                    // VoiceDictationService занят голосовой командой — не отбирать его.
-                    playErrorAudio()
-                    return
-                }
-                if (!voiceModelRepository.hasModel()) {
-                    playErrorAudio()
-                    setJournalMicStatus(getString(R.string.journal_mic_status_no_model))
-                    return
-                }
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                    != PackageManager.PERMISSION_GRANTED
-                ) {
-                    ActivityCompat.requestPermissions(
-                        this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_PERMISSION_JOURNAL_DICTATION
-                    )
-                    return
-                }
-                // Звук только на реальный исход, не на ошибках выше.
-                playButtonAudio()
-                startJournalDictation()
-            }
-            JournalDictationState.LOADING -> { /* повторный тап/ENCBTN во время загрузки модели игнорируется */ }
-            JournalDictationState.LISTENING -> {
-                playButtonAudio()
-                stopJournalDictation()
-            }
-        }
-    }
     /** Индекс записи со сдвигом на "Новую запись" — общая точка между Save и Delete. */
     private fun journalEntrySidebarIndex(entryId: String): Int {
         val sorted = journalEntries.sortedByDescending { it.createdAtEpochMillis }
@@ -3525,7 +3311,7 @@ class MainActivity : AppCompatActivity() {
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnJournalEntryMic) {
-                        handleJournalMicTap()
+                        journalDictation.handleMicTap()
                     }
                 },
             ),
@@ -3935,7 +3721,7 @@ class MainActivity : AppCompatActivity() {
                 },
                 onActivate = {
                     flashButtonPressThenRun(popup.btnMarkerNamePopupMic) {
-                        handleMapMarkerMicTap()
+                        mapMarkerDictation.handleMicTap()
                     }
                 },
             ),
@@ -7659,7 +7445,7 @@ class MainActivity : AppCompatActivity() {
             syncMapEncoderPathSilently(mapMarkerPopupParentPath() + 0)
             setAllMapMarkerPopupFocusesHidden()
             setMapMarkerPopupMicFocused(true)
-            handleMapMarkerMicTap()
+            mapMarkerDictation.handleMicTap()
         }
         markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
             playButtonAudio()
@@ -7991,7 +7777,7 @@ class MainActivity : AppCompatActivity() {
             syncJournalEncoderPathSilently(journalEditorPathPrefix() + 0)
             setAllJournalEntryEditorFocusesHidden()
             setJournalEntryEditorMicFocused(true)
-            handleJournalMicTap()
+            journalDictation.handleMicTap()
         }
         journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
         journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor

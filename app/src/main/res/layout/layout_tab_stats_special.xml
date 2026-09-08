@@ -13,7 +13,6 @@
         style="@style/SidebarListScrollbar"
         android:layout_width="0.0dip"
         android:layout_height="0.0dip"
-        android:overScrollMode="never"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHeight_percent="0.925"

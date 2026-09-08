@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Back (roadmap, этап 29 — замена текстовых кнопок иконками: карточка отметки на карте,
-     Журнал, Alarm/Timer/Stopwatch/Ringtones). Тот же стиль/цвет, что у ic_edit_pencil
-     (pip_button_text_dark). Не путать с "←" текстовым глифом на btn_map_control_back —
-     тот остаётся текстом, эта иконка — для отдельных Button-кнопок Back с полноценным
-     текстом "Back"/"Назад" ранее. -->
+     Журнал, Alarm/Timer/Stopwatch/Ringtones; доработка после фидбека по тесту — тем же
+     стал и btn_map_control_back, раньше единственный оставшийся текстовый "←" на карте).
+     Тот же стиль/цвет, что у ic_edit_pencil (pip_button_text_dark). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

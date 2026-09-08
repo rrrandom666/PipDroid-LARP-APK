@@ -2620,10 +2620,15 @@ class MainActivity : AppCompatActivity() {
                     )
                     return
                 }
+                // Звук только на реальный исход, не на ошибках выше.
+                playButtonAudio()
                 startJournalDictation()
             }
             JournalDictationState.LOADING -> { /* повторный тап/ENCBTN во время загрузки модели игнорируется */ }
-            JournalDictationState.LISTENING -> stopJournalDictation()
+            JournalDictationState.LISTENING -> {
+                playButtonAudio()
+                stopJournalDictation()
+            }
         }
     }
     /** Индекс записи со сдвигом на "Новую запись" — общая точка между Save и Delete. */

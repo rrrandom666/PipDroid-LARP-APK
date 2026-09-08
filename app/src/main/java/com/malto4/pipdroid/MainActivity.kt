@@ -186,12 +186,8 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_PERMISSION_RECORD_AUDIO = 23
     private val REQUEST_CODE_PERMISSION_WAKE_WORD = 24
     private var wakeWordDetector: com.malto4.pipdroid.voice.WakeWordDetector? = null
-    private var mediaPlayerCndRadEffList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerDamageList = mutableListOf<MediaPlayer>()
-    private var mediaPlayerStimpackList = mutableListOf<MediaPlayer>()
+    // Держит ссылку на играющий одноразовый звук, пока тот не доиграет, см. playSfx().
+    private val activeSfxPlayers = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
 
     // ===== КАРТА =====
@@ -6391,15 +6387,19 @@ class MainActivity : AppCompatActivity() {
     /** Тач по пункту зовёт громкую синхронизацию ради побочных эффектов onHighlight, но тик от неё лишний —
      * Silently не годится, он убрал бы и сами эффекты, поэтому глушим только звук на время вызова. */
     private var suppressTickAudio = false
-    private fun playTickAudio(){
-        if (suppressTickAudio) return
-        val mediaPlayerItemSelect = MediaPlayer.create(this, R.raw.item_select)
-        mediaPlayerItemSelectList.add(mediaPlayerItemSelect)
-        mediaPlayerItemSelect.start()
-        mediaPlayerItemSelect.setOnCompletionListener {
+    /** Одноразовый UI-звук: создаётся лениво, держится в пуле до конца проигрывания и освобождается сам. */
+    private fun playSfx(rawResId: Int) {
+        val player = MediaPlayer.create(applicationContext, rawResId) ?: return
+        activeSfxPlayers.add(player)
+        player.setOnCompletionListener {
             it.release()
-            mediaPlayerItemSelectList.remove(it)
+            activeSfxPlayers.remove(it)
         }
+        player.start()
+    }
+    private fun playTickAudio() {
+        if (suppressTickAudio) return
+        playSfx(R.raw.item_select)
     }
     /** Глушит тик от onHighlight на время [block]; свой единственный звук вызывающий играет сам. */
     private fun suppressTickAroundTouchSync(block: () -> Unit) {
@@ -6410,53 +6410,13 @@ class MainActivity : AppCompatActivity() {
             suppressTickAudio = false
         }
     }
-    private fun playButtonAudio(){
-        val mediaPlayerNewTab = MediaPlayer.create(applicationContext, R.raw.newtab)
-        mediaPlayerNewTabList.add(mediaPlayerNewTab)
-        mediaPlayerNewTab.start()
-        mediaPlayerNewTab.setOnCompletionListener {
-            it.release()
-            mediaPlayerNewTabList.remove(it)
-        }
-    }
-    private fun playErrorAudio(){
-        val mediaPlayerError = MediaPlayer.create(applicationContext, R.raw.ui_error)
-        mediaPlayerErrorList.add(mediaPlayerError)
-        mediaPlayerError.start()
-        mediaPlayerError.setOnCompletionListener {
-            it.release()
-            mediaPlayerErrorList.remove(it)
-        }
-    }
-    private fun playConfirmAudio(){
-        val mediaPlayerCndRadEff = MediaPlayer.create(applicationContext, R.raw.cnd_rad_eff)
-        mediaPlayerCndRadEffList.add(mediaPlayerCndRadEff)
-        mediaPlayerCndRadEff.start()
-        mediaPlayerCndRadEff.setOnCompletionListener {
-            it.release()
-            mediaPlayerCndRadEffList.remove(it)
-        }
-    }
+    private fun playButtonAudio() = playSfx(R.raw.newtab)
+    private fun playErrorAudio() = playSfx(R.raw.ui_error)
+    private fun playConfirmAudio() = playSfx(R.raw.cnd_rad_eff)
     /** Звук тапа или ENCBTN по здоровой части тела; выбирается по состоянию ДО переключения. */
-    private fun playDamageAudio(){
-        val mediaPlayerDamage = MediaPlayer.create(applicationContext, R.raw.damage_sfx)
-        mediaPlayerDamageList.add(mediaPlayerDamage)
-        mediaPlayerDamage.start()
-        mediaPlayerDamage.setOnCompletionListener {
-            it.release()
-            mediaPlayerDamageList.remove(it)
-        }
-    }
+    private fun playDamageAudio() = playSfx(R.raw.damage_sfx)
     /** Звук лечения части тела или revive; ENCBTN-revive этот звук сознательно не получил. */
-    private fun playStimpackAudio(){
-        val mediaPlayerStimpack = MediaPlayer.create(applicationContext, R.raw.stimpack)
-        mediaPlayerStimpackList.add(mediaPlayerStimpack)
-        mediaPlayerStimpack.start()
-        mediaPlayerStimpack.setOnCompletionListener {
-            it.release()
-            mediaPlayerStimpackList.remove(it)
-        }
-    }
+    private fun playStimpackAudio() = playSfx(R.raw.stimpack)
 
     // ===== БАТАРЕЯ =====
     private fun getBatteryPercent(): Int {

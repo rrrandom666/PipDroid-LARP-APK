@@ -3405,33 +3405,17 @@ class MainActivity : AppCompatActivity() {
     }
     /** Безусловно ставит курсор энкодера по [path] от детей узла MAP. */
     /** [path] обязан указывать до первого ребёнка тапнутого узла, если тот не лист. */
-    private fun syncMapEncoderPath(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val mapIndex = itemsRoot.indexOfFirst { it.id == "MAP" }
-        if (mapIndex == -1) return
-        menuNavigator.setPath(itemsRoot, listOf(mapIndex) + path)
-    }
+    private fun syncMapEncoderPath(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "MAP", path, loud = true)
     /** То же без onHighlight — onHighlight узла MAP заново открывает экран карты. */
-    private fun syncMapEncoderPathSilently(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val mapIndex = itemsRoot.indexOfFirst { it.id == "MAP" }
-        if (mapIndex == -1) return
-        menuNavigator.setPathSilently(itemsRoot, listOf(mapIndex) + path)
-    }
+    private fun syncMapEncoderPathSilently(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "MAP", path, loud = false)
     /** То же для экрана Journal: syncCursor() работает, только если энкодер уже стоит на списке записей. */
-    private fun syncJournalEncoderPath(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val journalIndex = itemsRoot.indexOfFirst { it.id == "JOURNAL" }
-        if (journalIndex == -1) return
-        menuNavigator.setPath(itemsRoot, listOf(journalIndex) + path)
-    }
+    private fun syncJournalEncoderPath(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = true)
     /** То же без onHighlight — onHighlight узла JOURNAL перезагружает записи с диска. */
-    private fun syncJournalEncoderPathSilently(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val journalIndex = itemsRoot.indexOfFirst { it.id == "JOURNAL" }
-        if (journalIndex == -1) return
-        menuNavigator.setPathSilently(itemsRoot, listOf(journalIndex) + path)
-    }
+    private fun syncJournalEncoderPathSilently(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = false)
     /** Позиция пункта бокового меню Map по ключу — вынесено для тач-обработчиков. */
     private fun mapRootIndex(key: String): Int = mapRootSidebarItems().indexOfFirst { it.payload == key }
     /** Путь до самого узла панели без её детей; ROUTE_TO_POINT на уровень глубже — он вложен в MAP_ROUTE. */
@@ -4927,19 +4911,11 @@ class MainActivity : AppCompatActivity() {
     /** Безусловно ставит курсор энкодера по [path] от детей узла CLOCK. */
     /** Громкий setPath(), а не Silently: прицел обязан рисоваться там, где реально стоит курсор.
      * Инвариант для любого нового узла Clock — onHighlight не должен звать громкий selectPosition() своего адаптера. */
-    private fun syncClockEncoderPath(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val clockIndex = itemsRoot.indexOfFirst { it.id == "CLOCK" }
-        if (clockIndex == -1) return
-        menuNavigator.setPath(itemsRoot, listOf(clockIndex) + path)
-    }
+    private fun syncClockEncoderPath(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "CLOCK", path, loud = true)
     /** Тихий вариант нужен ровно треку в Мелодиях: его onHighlight запускает превью, конфликтующее с тумблером в onSelect. */
-    private fun syncClockEncoderPathSilently(path: List<Int>) {
-        val itemsRoot = itemsMenuRoot()
-        val clockIndex = itemsRoot.indexOfFirst { it.id == "CLOCK" }
-        if (clockIndex == -1) return
-        menuNavigator.setPathSilently(itemsRoot, listOf(clockIndex) + path)
-    }
+    private fun syncClockEncoderPathSilently(path: List<Int>) =
+        syncEncoderPath(itemsMenuRoot(), "CLOCK", path, loud = false)
     /** ITEMS/Clock — фиксированный список, "В меню" последним пунктом. */
     private fun clockSidebarItems(): List<SidebarMenuItem<String>> {
         val items = clockMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) }
@@ -5360,39 +5336,24 @@ class MainActivity : AppCompatActivity() {
         refreshClockMelodyBackButtonVisibility()
     }
     /** Menu на Гейгере — обычная кнопка, не элемент адаптера, поэтому видимость обновляется отдельно. */
-    private fun refreshGeigerMenuButtonVisibility() {
-        bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+    /** Кнопки "назад"/"в меню" на экранах видны только в режимах с физическим энкодером. */
+    private fun setEncoderOnlyVisible(vararg views: View) {
+        val visibility = if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
+        views.forEach { it.visibility = visibility }
     }
+    private fun refreshGeigerMenuButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu)
     /** Back на карточке записи Journal — та же схема, что у Menu на Гейгере. */
-    private fun refreshJournalBackButtonVisibility() {
-        bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
+    private fun refreshJournalBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack)
     /** Back на карточке отметки — тот же гейт и приём. */
-    private fun refreshMapMarkerDetailBackButtonVisibility() {
-        bindingMain.incLayoutTabItemsMap.btnMapMarkerDetailBack.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
+    private fun refreshMapMarkerDetailBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsMap.btnMapMarkerDetailBack)
     /** Back-кнопки ITEMS/Clock — та же схема: обычные кнопки экрана, не элементы адаптера. */
-    private fun refreshClockAlarmBackButtonVisibility() {
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.btnClockAlarmBack.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
+    private fun refreshClockAlarmBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.btnClockAlarmBack)
     private fun refreshClockTimerBackButtonsVisibility() {
         val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        val visibility = if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-        timer.btnClockTimerSetupBack.visibility = visibility
-        timer.btnClockTimerRunningBack.visibility = visibility
+        setEncoderOnlyVisible(timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)
     }
-    private fun refreshClockStopwatchBackButtonVisibility() {
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.btnClockStopwatchBack.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
-    private fun refreshClockMelodyBackButtonVisibility() {
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.btnClockMelodyBack.visibility =
-            if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
+    private fun refreshClockStopwatchBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.btnClockStopwatchBack)
+    private fun refreshClockMelodyBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.btnClockMelodyBack)
     private fun bottomButtonsModify(vararg buttons: Button){
         listBottomButtons.clear()
         listBottomButtons.addAll(buttons)

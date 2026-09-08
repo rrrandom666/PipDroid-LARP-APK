@@ -587,7 +587,7 @@ packageName)`. Выглядит сломанным, но работает: `Reso
 `Int`, звать `setImageResource` напрямую), но это уборка, а не починка — на устройстве
 иконки отображаются.
 
-**Волна 2 — дедупликация и единообразие (в работе).** Сделано:
+**Волна 2 — дедупликация и единообразие (сделано).** Сделано:
 - Четыре чистые функции (`parseRussianNumber`/`russianStem`/`matchesMarkerQuery`/
   `truncateFileName`) вынесены в `TextHelpers.kt` и покрыты 12 JVM-тестами. Тесты сразу
   поймали два неверных ожидания — правились тесты, не код. Заодно удалены шаблонные
@@ -609,15 +609,27 @@ packageName)`. Выглядит сломанным, но работает: `Reso
   во время записи имени отметки на карте, перехватывал `VoiceDictationService` на голосовую
   команду
 
-Осталось в волне 2:
-- Семейства-близнецы `syncXxxEncoderPath`/`...Silently` (5 пар),
-  `refreshXxxBackButtonVisibility` (7 копий)
-- Две параллельные системы тематизации (списочная `applyAppTheme()` и
-  `currentWizardAccentColor()`, имя которой давно врёт — используется не только в мастере)
-- Именование вразнобой: `STATSPerksSetup()`, `setupSTATS()`, `bottomButtonsModify()`
-- Круг Int → String → parseInt у иконок перков (см. выше)
-- Тесты на `GeoReference`/`PedestrianRouter`/`MenuNavigator` — эти классы уже отдельные,
-  тестируются без переноса
+Дальше сделано в той же волне:
+- `syncMap/Journal/ClockEncoderPath` и их `Silently`-варианты переписывали тело общего
+  `syncEncoderPath()` заново — теперь делегируют в него, как `stats`/`data` уже делали
+- Правило «кнопка видна только в режимах с физическим энкодером» было размножено семью
+  одинаковыми тернарниками → `setEncoderOnlyVisible(vararg)`
+- Соответствие «индекс темы → ресурсы» жило в пяти `when`-блоках (стиль Activity, drawable
+  скроллбара, `selected_button`/`selectedRowButton`, цвет текста, акцент) → один
+  `enum UiTheme` с шестью полями ресурсов и `currentUiTheme()`. Пятая тема теперь
+  добавляется одной строкой. `currentWizardAccentColor()` → `themeAccentColor()`: имя врало,
+  функция используется во всех 28 местах ручной тематизации, а не только в мастере
+- Перки: `Map<String, String>` → `data class Perk(id, name, desc, iconRes: Int)`. Заодно
+  ушёл круг Int → String → parseInt у иконок и `getIdentifier` для drawable вместе с ним;
+  `Map<String, String>` в `MainActivity` не осталось вовсе
+- Пустые `setupDATA()`/`setupITEMSClock()` (после чистки комментариев в них остался только
+  комментарий) и однострочная `setupSTATS()` убраны; `bottomButtonsModify` →
+  `setBottomButtons`, `topLevelButtonsModify` → `highlightTopLevelButton`,
+  `STATSPerksSetup` → `setupStatsPerks`
+
+Не сделано в волне 2, перенесено: тесты на `GeoReference`/`PedestrianRouter`/
+`MenuNavigator` — эти классы уже отдельные и тестируются без переноса, поэтому не блокируют
+волну 3.
 
 **Что сознательно НЕ трогаем.** ~80 однострочных `setXxxFocused()` и ~15
 `setAllXxxFocusesHidden()` сперва попали в список дубликатов, но при ближайшем рассмотрении

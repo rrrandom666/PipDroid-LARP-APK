@@ -203,6 +203,8 @@ class MainActivity : AppCompatActivity() {
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerDamageList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerStimpackList = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
 
     /***********************************************************************************************************
@@ -5988,7 +5990,8 @@ class MainActivity : AppCompatActivity() {
             // roadmap, этап 27 — "когда персонаж переходит в DEAD, курсор энкодера должен
             // устанавливаться на персонажа, ENCBTN = тот же жест, что тап, воскрешает".
             // reviveCharacter() — то же самое, что зовёт тач-жест (setupFigureTouchTarget),
-            // без отдельного звука: у тача его тоже нет, ENCBTN не должен придумывать новый.
+            // playStimpackAudio() в onActivate ниже — тот же звук, что у тача (найденный баг:
+            // ENCBTN на REVIVE был единственным немым узлом дерева STATUS).
             // setWoundStopButtonFocused(false)/setAllCrippledFocusesHidden() — на случай
             // прихода в DEAD прямо из активного таймера (killCharacter() из fireWoundTimer()),
             // где один из этих прицелов только что был в фокусе.
@@ -5998,7 +6001,10 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "REVIVE",
                     onHighlight = { setDeadReviveFocused(true) },
-                    onActivate = { reviveCharacter() },
+                    onActivate = {
+                        playStimpackAudio()
+                        reviveCharacter()
+                    },
                 )
             )
         } else if (woundPhase != WoundPhase.NONE) {
@@ -6028,7 +6034,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledHeadFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledHead) playStimpackAudio() else playDamageAudio()
                         toggleCrippledHead()
                     },
                 ),
@@ -6041,7 +6047,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledLeftArmFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
                         toggleCrippledLeftArm()
                     },
                 ),
@@ -6054,7 +6060,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledTorsoFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledTorso) playStimpackAudio() else playDamageAudio()
                         toggleCrippledTorso()
                     },
                 ),
@@ -6067,7 +6073,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledRightArmFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledRightArm) playStimpackAudio() else playDamageAudio()
                         toggleCrippledRightArm()
                     },
                 ),
@@ -6080,7 +6086,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledLeftLegFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
                         toggleCrippledLeftLeg()
                     },
                 ),
@@ -6093,7 +6099,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledRightLegFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
                         toggleCrippledRightLeg()
                     },
                 ),
@@ -7800,7 +7806,12 @@ class MainActivity : AppCompatActivity() {
                     handler.removeCallbacks(longPressRunnable)
                     val popupShown = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility == View.VISIBLE
                     if (!popupShown) {
-                        if (woundPhase == WoundPhase.DEAD) reviveCharacter() else onShortTap()
+                        if (woundPhase == WoundPhase.DEAD) {
+                            playStimpackAudio()
+                            reviveCharacter()
+                        } else {
+                            onShortTap()
+                        }
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
@@ -7875,6 +7886,33 @@ class MainActivity : AppCompatActivity() {
         mediaPlayerCndRadEff.setOnCompletionListener {
             it.release()
             mediaPlayerCndRadEffList.remove(it)
+        }
+    }
+    /** Тап или ENCBTN-активация здоровой части тела фигуры на Status (roadmap, звук
+     * CND-тапов по фигуре) — см. setupFigureTouchTarget()/statusChildrenNodes()
+     * (BODYPART_* onActivate) ниже, оба места выбирают этот звук по одному и тому же
+     * принципу (состояние ДО toggleCrippledXxx()). У голосовых команд свой playTickAudio()
+     * (handleVoiceCommandText()) — туда эта функция не добавлена, отдельный путь. */
+    private fun playDamageAudio(){
+        val mediaPlayerDamage = MediaPlayer.create(applicationContext, R.raw.damage_sfx)
+        mediaPlayerDamageList.add(mediaPlayerDamage)
+        mediaPlayerDamage.start()
+        mediaPlayerDamage.setOnCompletionListener {
+            it.release()
+            mediaPlayerDamageList.remove(it)
+        }
+    }
+    /** Тап/ENCBTN по CRIPPLED-части тела (лечение обратно в здоровую) или тап по персонажу
+     * в DEAD (revive) — та же оговорка про область действия, что у playDamageAudio() выше.
+     * ENCBTN-revive (REVIVE.onActivate, statusChildrenNodes()) сознательно этот звук не
+     * получил — см. комментарий там же. */
+    private fun playStimpackAudio(){
+        val mediaPlayerStimpack = MediaPlayer.create(applicationContext, R.raw.stimpack)
+        mediaPlayerStimpackList.add(mediaPlayerStimpack)
+        mediaPlayerStimpack.start()
+        mediaPlayerStimpack.setOnCompletionListener {
+            it.release()
+            mediaPlayerStimpackList.remove(it)
         }
     }
 
@@ -8953,28 +8991,42 @@ class MainActivity : AppCompatActivity() {
         // каждого колбэка, не один раз снаружи: woundPhase меняется уже после того, как эти
         // слушатели развешаны в onCreate(), захваченное здесь значение тут же устарело бы.
         fun hasBodyPartNodes() = woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD
+        // Звук тапа по части тела — damage_sfx на здоровую (становится CRIPPLED), stimpack
+        // на уже CRIPPLED (лечится обратно) — состояние ДО toggleCrippledXxx() решает, какой
+        // из двух звучит. У ENCBTN тот же выбор звука на activate (statusChildrenNodes(),
+        // BODYPART_* onActivate) — там раньше играл общий playConfirmAudio(), заменён на тот
+        // же damage/stimpack по тому же принципу, что уже был у STOP (playButtonAudio() вместо
+        // playConfirmAudio()) и у ошибок (playErrorAudio()) — собственный звук действия вместо
+        // общего confirm, не поверх него. У голосовых команд свой playTickAudio()
+        // (handleVoiceCommandText()) — не трогаем, это отдельный, самостоятельный путь.
         setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) {
+            if (crippledHead) playStimpackAudio() else playDamageAudio()
             toggleCrippledHead()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(1))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) {
+            if (crippledTorso) playStimpackAudio() else playDamageAudio()
             toggleCrippledTorso()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(3))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) {
+            if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
             toggleCrippledLeftArm()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(2))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) {
+            if (crippledRightArm) playStimpackAudio() else playDamageAudio()
             toggleCrippledRightArm()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(4))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) {
+            if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
             toggleCrippledLeftLeg()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(5))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) {
+            if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
             toggleCrippledRightLeg()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(6))
         }

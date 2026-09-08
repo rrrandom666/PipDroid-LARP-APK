@@ -35,7 +35,15 @@ class ClockWheelPicker(
     private val onUserAdjusted: (() -> Unit)? = null,
 ) {
     private val rangeSize = range.last - range.first + 1
-    private val itemHeightPx = (44 * recyclerView.resources.displayMetrics.density).toInt()
+    // Раньше — фиксированные 44dp*density, никак не реагировали на сжатие рабочей области
+    // (roadmap, этап 29 — "едет вёрстка колёс": цифра внутри уменьшается вместе с текстом
+    // через GlobalTextScale, см. onCreateViewHolder ниже, а сам слот строки — нет,
+    // рассинхрон). Теперь — треть РЕАЛЬНОЙ высоты recyclerView (сама RecyclerView уже
+    // корректно уменьшается через layout_constraintHeight_percent в XML, ничего
+    // дополнительно на неё не завязываем) — пересчитывается в addOnLayoutChangeListener
+    // ниже при каждом изменении реальных габаритов колеса. 3 — видимых строк (пред./
+    // текущая/след.), тот же расчёт, что раньше был неявно за фиксированными 44dp.
+    private var itemHeightPx = (44 * recyclerView.resources.displayMetrics.density).toInt()
     private var currentValue = initialValue
     private var pendingInitialValue: Int? = initialValue
     // Найденный баг (не programmaticScroll-флаг вокруг scrollToValue() — тот ошибочно считал
@@ -60,12 +68,25 @@ class ClockWheelPicker(
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ValueViewHolder {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_clock_wheel_value, parent, false) as TextView
+            // Своя, отдельная от SidebarMenuAdapter реализация RecyclerView.Adapter — тот же
+            // рантайм-инфлейт после первого layout активности, глобальный масштаб текста
+            // (roadmap, этап 29, GlobalTextScale) иначе эти View не увидит (найдено на
+            // тесте: колёса Alarm/Timer оставались крупными на сжатом экране).
+            GlobalTextScale.register(view)
             return ValueViewHolder(view)
         }
         override fun getItemCount() = Int.MAX_VALUE
         override fun onBindViewHolder(holder: ValueViewHolder, position: Int) {
             val value = range.first + (position % rangeSize)
             holder.text.text = String.format("%02d", value)
+            // item_clock_wheel_value.xml задаёт 44dp только как исходное значение до первого
+            // реального измерения — дальше высота строки следует за itemHeightPx (см. его
+            // объявление выше), не фиксированным dp из XML.
+            val lp = holder.text.layoutParams
+            if (lp.height != itemHeightPx) {
+                lp.height = itemHeightPx
+                holder.text.layoutParams = lp
+            }
         }
     }
 
@@ -96,13 +117,37 @@ class ClockWheelPicker(
             override fun onGlobalLayout() {
                 if (recyclerView.height <= 0) return
                 recyclerView.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                val visiblePadding = (recyclerView.height - itemHeightPx) / 2
-                recyclerView.setPadding(0, visiblePadding, 0, visiblePadding)
+                applyHeight(recyclerView.height, resettle = false)
                 pendingInitialValue?.let { scrollToValue(it, smooth = false) }
                 pendingInitialValue = null
                 applyDimming()
             }
         })
+
+        // Сжатие/восстановление рабочей области (roadmap, этап 29) меняет реальную высоту
+        // recyclerView (она уже сама корректно ловит это через layout_constraintHeight_percent
+        // в XML) уже ПОСЛЕ первого показа экрана — тот однократный addOnGlobalLayoutListener
+        // выше к этому моменту давно снял себя. resettle=true — центрирование по padding
+        // валидно только для конкретной itemHeightPx, на которой оно было посчитано; после
+        // смены высоты нужно доскроллить текущее значение заново на новый центр, иначе
+        // видимая позиция съедет от реального currentValue.
+        recyclerView.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val newHeight = bottom - top
+            val oldHeight = oldBottom - oldTop
+            if (newHeight > 0 && newHeight != oldHeight) {
+                applyHeight(newHeight, resettle = true)
+            }
+        }
+    }
+
+    private fun applyHeight(recyclerViewHeightPx: Int, resettle: Boolean) {
+        itemHeightPx = (recyclerViewHeightPx / VISIBLE_ROWS).coerceAtLeast(1)
+        val visiblePadding = (recyclerViewHeightPx - itemHeightPx) / 2
+        recyclerView.setPadding(0, visiblePadding, 0, visiblePadding)
+        adapter.notifyDataSetChanged()
+        if (resettle) {
+            scrollToValue(currentValue, smooth = false)
+        }
     }
 
     private fun centerPosition(): Int {
@@ -151,4 +196,10 @@ class ClockWheelPicker(
     }
 
     fun currentValue(): Int = currentValue
+
+    private companion object {
+        /** Видимых строк колеса (пред./текущая/след.) — тот же расчёт, что раньше был
+         * неявно зашит в фиксированные 44dp на строку (roadmap, этап 29). */
+        const val VISIBLE_ROWS = 3
+    }
 }

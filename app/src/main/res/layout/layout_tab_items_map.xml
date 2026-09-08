@@ -125,42 +125,85 @@
         android:layout_marginEnd="-6dp"
         android:layout_marginBottom="-6dp"
         android:background="@color/map_controls_panel_bg"
-        app:layout_constraintStart_toStartOf="@id/btn_map_zoom_in"
-        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in"
-        app:layout_constraintTop_toTopOf="@id/btn_map_zoom_in"
+        app:layout_constraintStart_toStartOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintEnd_toEndOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintTop_toTopOf="@id/layout_map_zoom_buttons"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_center" />
 
     <!-- Зум +/- (бэклог этапа 18) — раньше только pinch. Плавающие кнопки поверх карты в
-         правом верхнем углу, тот же приём (PipWizardButtonStyle, фиксированный dp-размер), что
-         у +/- на SPECIAL/Skills. -->
-    <Button
-        android:id="@+id/btn_map_zoom_in"
-        style="@style/PipWizardButtonStyle"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+         правом верхнем углу, тот же приём (PipWizardButtonStyle), что у +/- на SPECIAL/Skills
+         (layout_special_value_buttons, layout_tab_stats_special.xml): узкий контейнер-обёртка
+         со своим размером, кнопки внутри 0dp/0dp (match_constraint), а не wrap_content —
+         wrap_content зависел от метрики шрифта (высота строки моноширинного шрифта у одного
+         символа "+"/"−" всегда заметно больше ширины самого символа — не квадрат ни при каком
+         паддинге, найдено дампом UI: 54×78px), плюс голый <Button> под темой
+         Theme.MaterialComponents.* рантайм-инфлейтится в MaterialButton со скрытой надбавкой
+         высоты под touch-target (общий разнобой по всему проекту, исправлено сменой тега на
+         AppCompatButton везде, не только здесь — см. остальные ~49 кнопок на
+         PipWizardButtonStyle в 11 файлах).
+
+         Сама обёртка — ширина НЕ вторым процентом, а ratio от высоты (roadmap, этап 29,
+         3 находки на тесте): (1) два независимых процента (width_percent+height_percent) дают
+         фиксированную пропорцию только на одном конкретном соотношении сторон контейнера —
+         при сжатии рабочей области ширина ужимается до 60%, высота до 75% (разные пороги),
+         пропорции контейнера между обычным и сжатым состоянием разные, а два фиксированных
+         процента этого не отслеживают. (2) ratio резолвится только если у измерения, которое
+         ИЗ него считается (тут — ширина), есть парный якорь Start+End, не один — со старой
+         версией (только End) ширина схлопывалась почти в 0. Start_toStartOf + bias 1.0
+         (прижать к правому краю) — тот же приём, что у Mic в Journal/попапе метки.
+         (3) ratio "1:2", не "1:1" — обёртка держит СРАЗУ ОБЕ кнопки одна над другой, каждая
+         из которых занимает половину высоты обёртки по ширине во всю обёртку; квадратной
+         должна быть половина обёртки, то есть сама обёртка вдвое выше, чем шире. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_map_zoom_buttons"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
-        android:text="+"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:padding="0dp"
-        android:includeFontPadding="false"
+        app:layout_constraintDimensionRatio="1:2"
+        app:layout_constraintHeight_percent="0.16"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintTop_toTopOf="@id/photo_view_map"
-        app:layout_constraintEnd_toEndOf="@id/photo_view_map" />
+        app:layout_constraintEnd_toEndOf="@id/photo_view_map">
 
-    <Button
-        android:id="@+id/btn_map_zoom_out"
-        style="@style/PipWizardButtonStyle"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:layout_marginTop="4dp"
-        android:text="−"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:padding="0dp"
-        android:includeFontPadding="false"
-        app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_in"
-        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_map_zoom_in"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:text="+"
+            android:gravity="center"
+            android:paddingLeft="2dip"
+            android:paddingRight="2dip"
+            android:paddingTop="0dip"
+            android:paddingBottom="0dip"
+            android:includeFontPadding="false"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btn_map_zoom_out"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.48" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_map_zoom_out"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:text="−"
+            android:gravity="center"
+            android:paddingLeft="2dip"
+            android:paddingRight="2dip"
+            android:paddingTop="0dip"
+            android:paddingBottom="0dip"
+            android:includeFontPadding="false"
+            app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_in"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.48" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Центрирование карты на игроке (роадмап, этап 27) — раньше пункт "Center" бокового
          меню, теперь кнопка-стрелка в том же вертикальном столбике, что и +/- (референс —
@@ -169,15 +212,17 @@
     <ImageButton
         android:id="@+id/btn_map_center"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_marginTop="4dp"
-        android:padding="7dp"
+        android:padding="4dp"
         android:scaleType="fitCenter"
         android:src="@drawable/ic_map_recenter_arrow"
         android:contentDescription="@string/map_menu_center_button"
-        app:layout_constraintTop_toBottomOf="@id/btn_map_zoom_out"
-        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_out" />
+        app:layout_constraintDimensionRatio="H,1:1"
+        app:layout_constraintTop_toBottomOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintStart_toStartOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintEnd_toEndOf="@id/layout_map_zoom_buttons" />
 
     <!-- Прицелы энкодера зума/центрирования (roadmap, этап 27, энкодер-эргономика карты,
          п.1) — по одному общему прицелу на весь блок +/- (тот же приём, что
@@ -193,10 +238,10 @@
         android:layout_marginBottom="-4dp"
         android:background="@drawable/focus_corner_brackets"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="@id/btn_map_zoom_in"
-        app:layout_constraintEnd_toEndOf="@id/btn_map_zoom_in"
-        app:layout_constraintTop_toTopOf="@id/btn_map_zoom_in"
-        app:layout_constraintBottom_toBottomOf="@id/btn_map_zoom_out" />
+        app:layout_constraintStart_toStartOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintEnd_toEndOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintTop_toTopOf="@id/layout_map_zoom_buttons"
+        app:layout_constraintBottom_toBottomOf="@id/layout_map_zoom_buttons" />
 
     <View
         android:id="@+id/view_map_center_focus"
@@ -235,21 +280,23 @@
         app:layout_constraintTop_toTopOf="@id/btn_map_pan_up"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_up" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_map_pan_up"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:background="@null"
         android:foreground="?android:attr/selectableItemBackground"
         android:minWidth="0dp"
         android:minHeight="0dp"
-        android:padding="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
         android:includeFontPadding="false"
         android:gravity="center"
         android:text=">"
-        android:textSize="18sp"
         android:rotation="-90"
         app:layout_constraintTop_toTopOf="@id/photo_view_map"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
@@ -285,21 +332,23 @@
         app:layout_constraintTop_toTopOf="@id/btn_map_pan_down"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_down" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_map_pan_down"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="4dp"
         android:background="@null"
         android:foreground="?android:attr/selectableItemBackground"
         android:minWidth="0dp"
         android:minHeight="0dp"
-        android:padding="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
         android:includeFontPadding="false"
         android:gravity="center"
         android:text=">"
-        android:textSize="18sp"
         android:rotation="90"
         app:layout_constraintBottom_toBottomOf="@id/photo_view_map"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
@@ -335,21 +384,23 @@
         app:layout_constraintTop_toTopOf="@id/btn_map_pan_left"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_left" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_map_pan_left"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:background="@null"
         android:foreground="?android:attr/selectableItemBackground"
         android:minWidth="0dp"
         android:minHeight="0dp"
-        android:padding="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
         android:includeFontPadding="false"
         android:gravity="center"
         android:text=">"
-        android:textSize="18sp"
         android:rotation="180"
         app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintTop_toTopOf="@id/photo_view_map"
@@ -385,21 +436,23 @@
         app:layout_constraintTop_toTopOf="@id/btn_map_pan_right"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_pan_right" />
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_map_pan_right"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginEnd="4dp"
         android:background="@null"
         android:foreground="?android:attr/selectableItemBackground"
         android:minWidth="0dp"
         android:minHeight="0dp"
-        android:padding="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
         android:includeFontPadding="false"
         android:gravity="center"
         android:text=">"
-        android:textSize="18sp"
         android:rotation="0"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
         app:layout_constraintTop_toTopOf="@id/photo_view_map"
@@ -470,20 +523,49 @@
         app:layout_constraintTop_toTopOf="@id/btn_map_control_back"
         app:layout_constraintBottom_toBottomOf="@id/btn_map_control_back" />
 
-    <Button
+    <!-- Эталон высоты (доработка после фидбека по тесту) — невидимая ТЕКСТОВАЯ кнопка того
+         же стиля (PipWizardButtonStyle), см. подробный комментарий у аналогичного эталона в
+         Journal (layout_tab_items_journal.xml, btn_journal_entry_detail_height_ref) — та же
+         причина и та же схема: угловая кнопка тут совсем одна, без соседней текстовой
+         кнопки в этом же ряду. -->
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_map_control_back_height_ref"
+        style="@style/PipWizardButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text=""
+        android:visibility="invisible"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
+        app:layout_constraintBottom_toBottomOf="@id/photo_view_map" />
+
+    <!-- Была текстовая "←" (см. ic_back_arrow.xml — там до этой правки объяснялось, почему
+         эта кнопка НЕ переведена на иконку вместе с остальными Back по приложению; теперь
+         переведена для единообразия). Высота — 0dp с ratio "1:1" от эталона выше, не
+         фиксированные 36dp (доработка после фидбека по тесту) — фиксированный размер не
+         совпадал по высоте с текстовыми кнопками того же стиля на сжатом экране (см.
+         подробный комментарий у btn_clock_alarm_back, layout_tab_items_clock_alarm.xml).
+         Start+End (не только End, как раньше) — ratio нужна ПАРА якорей на оси, которую
+         считает (см. тот же комментарий); bias 1.0 держит кнопку прижатой к правому краю,
+         как и раньше — тот же приём, что у layout_map_zoom_buttons (см. её комментарий). -->
+    <ImageButton
         android:id="@+id/btn_map_control_back"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp"
-        android:text="←"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:padding="0dp"
-        android:includeFontPadding="false"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:tint="@null"
+        android:src="@drawable/ic_back_arrow"
+        android:contentDescription="@string/wizard_back"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintTop_toTopOf="@id/btn_map_control_back_height_ref"
+        app:layout_constraintBottom_toBottomOf="@id/btn_map_control_back_height_ref"
+        app:layout_constraintStart_toStartOf="@id/photo_view_map"
         app:layout_constraintEnd_toEndOf="@id/photo_view_map"
-        app:layout_constraintBottom_toBottomOf="@id/photo_view_map" />
+        app:layout_constraintHorizontal_bias="1.0" />
 
     <View
         android:id="@+id/view_map_control_back_focus"
@@ -543,14 +625,35 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <Button
+        <!-- Route/Place Marker — были текстовыми кнопками, заменены на иконки (roadmap,
+             этап 29 — тесно трём текстовым кнопкам+координатам в одну строку на сжатом
+             экране; иконка — фиксированный компактный квадрат, той же проблеме не
+             подвержена). Cancel сознательно остаётся текстом — не входит в список замены.
+             Высота — 0dp с ratio "1:1", не фиксированные 36dp (доработка после фидбека по
+             тесту) — см. подробный комментарий у btn_clock_alarm_back
+             (layout_tab_items_clock_alarm.xml). Top/Bottom теперь напрямую к Cancel (той же
+             строки текстовая кнопка), не к coords — 0dp-высота между Top/Bottom резолвится
+             точным совпадением с Cancel, а не рассчитывается заново от coords с тем же
+             marginTop (marginTop убран — он уже заложен в позицию Cancel). End добавлен
+             (Start+End нужны ratio парой, см. тот же комментарий) — Start_toStartOf=marker
+             уже страховал цепочку до этой правки, теперь она разомкнута явным End. -->
+        <ImageButton
             android:id="@+id/btn_map_tap_choice_route"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/map_marker_detail_route_button"
-            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
-            app:layout_constraintStart_toStartOf="parent" />
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_route"
+            android:contentDescription="@string/map_marker_detail_route_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintHorizontal_bias="0.0" />
 
         <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.2) — прямые сиблинги
              своих кнопок в этом же ConstraintLayout (см. CLAUDE.md). Отрицательный отступ
@@ -574,15 +677,24 @@
             app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_route"
             app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_route" />
 
-        <Button
+        <!-- Высота — 0dp с ratio "1:1" от Cancel, не фиксированные 36dp (доработка после
+             фидбека по тесту) — тот же приём, что у btn_map_tap_choice_route выше. -->
+        <ImageButton
             android:id="@+id/btn_map_tap_choice_marker"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:layout_marginStart="8dp"
-            android:text="@string/map_menu_place_marker_button"
-            app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
-            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route" />
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_marker_pin"
+            android:contentDescription="@string/map_menu_place_marker_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_tap_choice_cancel"
+            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_route"
+            app:layout_constraintEnd_toStartOf="@id/btn_map_tap_choice_cancel" />
 
         <View
             android:id="@+id/view_map_tap_choice_marker_focus"
@@ -601,7 +713,7 @@
 
         <!-- Cancel (фидбек: панель координат при тапе по пустой точке нечем было закрыть,
              кроме выбора Route/Marker) — просто прячет панель, hideMapTapChoice(). -->
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_map_tap_choice_cancel"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -609,7 +721,8 @@
             android:layout_marginStart="8dp"
             android:text="@string/cancel"
             app:layout_constraintTop_toBottomOf="@id/tv_map_tap_choice_coords"
-            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_marker" />
+            app:layout_constraintStart_toEndOf="@id/btn_map_tap_choice_marker"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <View
             android:id="@+id/view_map_tap_choice_cancel_focus"
@@ -655,7 +768,7 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_map_route_start"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -681,7 +794,7 @@
             app:layout_constraintTop_toTopOf="@id/btn_map_route_start"
             app:layout_constraintBottom_toBottomOf="@id/btn_map_route_start" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_map_route_cancel"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -706,7 +819,7 @@
             app:layout_constraintTop_toTopOf="@id/btn_map_route_cancel"
             app:layout_constraintBottom_toBottomOf="@id/btn_map_route_cancel" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_map_route_stop"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -764,14 +877,55 @@
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_name"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <Button
-            android:id="@+id/btn_map_marker_detail_edit"
+        <!-- Эталон высоты для Edit/Route/Delete/Back ниже (доработка после фидбека по
+             тесту) — невидимая ТЕКСТОВАЯ кнопка того же стиля (PipWizardButtonStyle), см.
+             подробный комментарий у аналогичного эталона в Journal
+             (layout_tab_items_journal.xml, btn_journal_entry_detail_height_ref) — та же
+             причина и та же схема. Top — тот же якорь, что раньше был у самих иконок
+             (coords), не parent — контейнер здесь wrap_content, привязка к parent.bottom
+             дала бы циклическую зависимость (высота контейнера сама зависит от детей). -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_map_marker_detail_height_ref"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/map_marker_detail_edit_button"
+            android:text=""
+            android:visibility="invisible"
+            android:focusable="false"
+            android:importantForAccessibility="no"
             app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
             app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Edit/Route/Delete/Back — были текстовыми кнопками, заменены на иконки
+             (roadmap, этап 29 — идея пользователя: тесно четырём текстовым кнопкам+полю в
+             одну строку на сжатом экране, у иконок это не проблема). Высота — 0dp с ratio
+             "1:1" от эталона выше, не фиксированные 36dp (доработка после фидбека по
+             тесту) — фиксированный размер не совпадал по высоте с текстовыми кнопками того
+             же стиля на сжатом экране (см. подробный комментарий у btn_clock_alarm_back,
+             layout_tab_items_clock_alarm.xml). Раньше у Edit не было End вообще
+             (фиксированный размер в нём не нуждался) — ratio требует парный Start+End на
+             считаемой оси (см. тот же комментарий), но четыре кнопки с End друг на друга
+             случайно замкнулись в полноценную цепочку parent-to-parent, которая без
+             chainStyle по умолчанию "spread" — раздвинула бы иконки лишними промежутками
+             вместо плотной группы слева. chainStyle="packed" на первом элементе цепочки
+             (Edit) возвращает прежнее плотное выравнивание. -->
+        <ImageButton
+            android:id="@+id/btn_map_marker_detail_edit"
+            style="@style/PipWizardButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_edit_pencil"
+            android:contentDescription="@string/map_marker_detail_edit_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_map_marker_detail_route"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintHorizontal_bias="0.0" />
 
         <!-- Прицелы энкодера (roadmap, этап 27, п.9) — прямые сиблинги своих кнопок в этом
              же ConstraintLayout (обязательное условие constraint-привязки, см. CLAUDE.md —
@@ -791,15 +945,22 @@
             app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_edit"
             app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_edit" />
 
-        <Button
+        <ImageButton
             android:id="@+id/btn_map_marker_detail_route"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:layout_marginStart="8dp"
-            android:text="@string/map_marker_detail_route_button"
-            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
-            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_edit" />
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_route"
+            android:contentDescription="@string/map_marker_detail_route_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_edit"
+            app:layout_constraintEnd_toStartOf="@id/btn_map_marker_detail_delete" />
 
         <View
             android:id="@+id/view_map_marker_detail_route_focus"
@@ -816,15 +977,23 @@
             app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_route"
             app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_route" />
 
-        <Button
+        <ImageButton
             android:id="@+id/btn_map_marker_detail_delete"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:layout_marginStart="8dp"
-            android:text="@string/map_marker_detail_delete_button"
-            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
-            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_route" />
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_delete_trash"
+            android:contentDescription="@string/map_marker_detail_delete_button"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_route"
+            app:layout_constraintEnd_toStartOf="@id/btn_map_marker_detail_back"
+            app:layout_goneMarginEnd="0dp" />
 
         <View
             android:id="@+id/view_map_marker_detail_delete_focus"
@@ -844,16 +1013,23 @@
         <!-- Только режимы с физическим энкодером (roadmap, этап 27, п.9) — видимость
              переключается refreshMapMarkerDetailBackButtonVisibility(), тот же гейт, что
              btn_journal_entry_detail_back. -->
-        <Button
+        <ImageButton
             android:id="@+id/btn_map_marker_detail_back"
             style="@style/PipWizardButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:layout_marginStart="8dp"
-            android:text="@string/wizard_back"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:tint="@null"
+            android:src="@drawable/ic_back_arrow"
+            android:contentDescription="@string/wizard_back"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tv_map_marker_detail_coords"
-            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_delete" />
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintTop_toTopOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintBottom_toBottomOf="@id/btn_map_marker_detail_height_ref"
+            app:layout_constraintStart_toEndOf="@id/btn_map_marker_detail_delete"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <View
             android:id="@+id/view_map_marker_detail_back_focus"

@@ -68,11 +68,21 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Было фиксированные 160dp×160dp — не масштабировалось вместе с рамкой шага при
+             сжатии рабочей области (roadmap, этап 29), в отличие от текста вокруг (тот уже
+             ужимается глобальным коэффициентом, MainActivity.kt/applyGlobalTextScale()).
+             Процент — от контейнера шага (layout_wizard_hardware), не от щели между
+             заголовком и текстом ниже: та щель сама зависит от положения картинки
+             (Bottom_toTopOf), закольцевать 0dp-высоту на неё нельзя. 0.32 подобрано так,
+             чтобы примерно сохранить исходный визуальный размер на полном экране — проверить
+             на устройстве и поправить при необходимости. -->
         <ImageView
             android:id="@+id/img_wizard_vaultboy"
-            android:layout_width="160dp"
-            android:layout_height="160dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:src="@drawable/pipboy_3nv"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintHeight_percent="0.32"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_hardware_title"
             app:layout_constraintBottom_toTopOf="@id/tv_wizard_hardware_text"
             app:layout_constraintStart_toStartOf="parent"
@@ -110,7 +120,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_hardware_back"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -121,7 +131,7 @@
                  "много времени уходит на протапывание и просмотр мультика") — видимость
                  переключается кодом в setupPipBoy2000Wizard(), в release всегда gone. Тот же
                  приём, что и у btn_wizard_pairing_skip_debug на шаге PAIRING. -->
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_hardware_skip_debug"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -129,7 +139,7 @@
                 android:text="SKIP TO MAIN (DEBUG)"
                 android:visibility="gone" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_hardware_next"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -218,21 +228,21 @@
                  логика "слева назад, справа вперёд", что и на остальных экранах (roadmap,
                  "Косметические правки мастера" — при переходе на горизонтальный ряд порядок
                  сбился, Done и Cancel были перепутаны местами). -->
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_cancel"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_marginEnd="12dp"
                 android:text="@string/wizard_cancel" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_reset"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_marginEnd="12dp"
                 android:text="@string/wizard_reset" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_done"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -301,14 +311,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_permissions_back"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_marginEnd="12dp"
                 android:text="@string/wizard_back" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_grant_permissions"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -337,6 +347,25 @@
         app:layout_constraintBottom_toTopOf="@id/img_wizard_line_bottom"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Самый насыщенный по контенту шаг мастера (заголовок+текст+две колонки+кнопки) —
+             при сжатии рабочей области (roadmap, этап 29) не помещался по высоте, ряд кнопок
+             обрезался нижней границей рамки (найдено на тесте). ScrollView вместо попытки
+             утрамбовать всё в фиксированную высоту — при нехватке места контент скроллится,
+             а не обрезается/наезжает. Остальные шаги мастера короче и в скролле не нуждаются. -->
+        <ScrollView
+            android:id="@+id/scroll_wizard_import"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
         <androidx.constraintlayout.widget.Guideline
             android:id="@+id/guideline_wizard_import_center"
@@ -420,7 +449,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@id/guideline_wizard_import_center" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_wizard_import_voice"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -471,7 +500,7 @@
             app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_wizard_import_map"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"
@@ -482,6 +511,16 @@
             app:layout_constraintStart_toStartOf="@id/guideline_wizard_import_center"
             app:layout_constraintTop_toBottomOf="@id/tv_wizard_import_map_result" />
 
+        <!-- Нижняя граница более длинной из двух колонок (было — привязка только к
+             голосовой колонке слева; при более длинном переводе/содержимом карты справа
+             ряд кнопок мог наехать на неё, найдено при подготовке к этапу 29). -->
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/barrier_wizard_import_columns_bottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="btn_wizard_import_voice,btn_wizard_import_map" />
+
         <!-- Единый принцип для всех шагов с кнопками (roadmap, "Косметические правки
              мастера") — центрированный ряд прямо под содержимым, не по краям/низу экрана. -->
         <LinearLayout
@@ -491,26 +530,29 @@
             android:orientation="horizontal"
             android:gravity="center"
             android:layout_marginTop="20dp"
-            app:layout_constraintTop_toBottomOf="@id/btn_wizard_import_voice"
+            app:layout_constraintTop_toBottomOf="@id/barrier_wizard_import_columns_bottom"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintVertical_bias="0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_import_back"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_marginEnd="12dp"
                 android:text="@string/wizard_back" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_import_done"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:text="@string/wizard_done" />
 
         </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+        </ScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -598,7 +640,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_pairing_back"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -608,7 +650,7 @@
             <!-- Обход реального сопряжения в debug-сборках (roadmap, этап 7, "быстрая
                  отладка логики экранов") — видимость переключается кодом в
                  setupPipBoy2000Wizard(), в release всегда gone. -->
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_pairing_skip_debug"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -616,7 +658,7 @@
                 android:text="SKIP (DEBUG)"
                 android:visibility="gone" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_wizard_pairing_rescan"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
@@ -672,7 +714,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_wizard_hide_hint"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"

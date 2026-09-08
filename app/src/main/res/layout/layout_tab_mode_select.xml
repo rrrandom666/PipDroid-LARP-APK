@@ -99,7 +99,7 @@
             app:layout_constraintStart_toEndOf="@id/recycler_mode_select"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_mode_select_confirm"
             style="@style/PipWizardButtonStyle"
             android:layout_width="wrap_content"

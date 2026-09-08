@@ -16,6 +16,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
+        <!-- Диаграмма тела считает свою ширину от высоты (ratio 1.1:1) — при сжатии рабочей
+             области (roadmap, этап 29) высота уменьшается меньше (пол 75%), чем ширина
+             экрана (пол 60%), поэтому диаграмма относительно "разбухала" и отжимала
+             tv_tab_status_wound_text справа в узкую колонку (найдено на тесте). Было 0.8,
+             уменьшено до 0.6 — освобождает горизонтальное место тексту на любом размере
+             экрана, не только сжатом. Проверить на устройстве, что фигура не стала мала. -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layout_tab_status_cnd_pipboy"
             android:layout_width="0.0dip"
@@ -24,7 +30,7 @@
             android:clipChildren="false"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintDimensionRatio="1.1:1"
-            app:layout_constraintHeight_percent="0.8"
+            app:layout_constraintHeight_percent="0.6"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.4">

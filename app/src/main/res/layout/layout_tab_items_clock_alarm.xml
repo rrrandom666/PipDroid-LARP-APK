@@ -14,6 +14,20 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent">
 
+    <!-- Ширина — фиксированные 72dp, не процент (roadmap, этап 29, доработка после фидбека
+         по тесту) — было два разных провала подряд: (1) сам по себе процент 0.065 даёт на
+         обычном экране ~20-25dp, двузначное "00" в это не помещается и переносится по
+         символам на вторую строку, обрезанную высотой строки 44dp (видна только ведущая
+         цифра каждого числа); (2) добавленный следом app:layout_constraintWidth_min="72dp"
+         как страховка от переноса неожиданно раздувал именно ПЕРВОЕ колесо цепочки
+         (hour) на огромную ширину и выталкивал остальные колёса к правому краю экрана —
+         сочетание constraintWidth_percent + constraintWidth_min на MATCH_CONSTRAINT-ширине
+         в packed-цепочке ведёт себя не так, как расчёт "процент, зажатый минимумом"
+         подсказывает по документации. Простое фиксированное значение — то же самое, что
+         было ДО перевода колеса на процент в этом же коммите, и тогда работало корректно;
+         высота строки внутри колеса всё равно уже отдельно адаптивна через реальные размеры
+         RecyclerView (ClockWheelPicker.kt, itemHeightPx), фиксированная ширина колонки этому
+         не мешает. -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_clock_alarm_hour"
         android:layout_width="72dp"
@@ -126,13 +140,29 @@
 
     <!-- Back — новый пункт (roadmap, этап 27, п.3), только поднимает курсор энкодера в
          боковое меню Clock. Виден только в режимах с физическим энкодером (не Phone),
-         видимость обновляется кодом (refreshClockAlarmBackButtonVisibility()). -->
-    <androidx.appcompat.widget.AppCompatButton
+         видимость обновляется кодом (refreshClockAlarmBackButtonVisibility()). Была
+         текстовая кнопка, заменена на иконку (roadmap, этап 29) — единообразно с
+         остальными Back по приложению.
+         Высота — 0dp с ratio "1:1", не фиксированные 36dp (доработка после фидбека по
+         тесту) — фиксированный размер не менялся вместе с соседней ТЕКСТОВОЙ кнопкой
+         (btn_clock_alarm_toggle, высота которой зависит от масштаба шрифта), на сжатом
+         экране переставал совпадать по высоте. Top/Bottom уже были привязаны к toggle —
+         этого достаточно, чтобы 0dp-высота резолвилась В ТОЧНОСТИ равной его высоте; ratio
+         досчитывает ширину от неё же, тот же приём, что у btn_journal_entry_mic (см.
+         layout_journal_entry_popup.xml) — Start+End уже есть парой, ratio без них
+         схлопывался бы в 0 (см. комментарий там же). -->
+    <ImageButton
         android:id="@+id/btn_clock_alarm_back"
         style="@style/PipWizardButtonStyle"
-        android:layout_width="wrap_content"
-        android:text="@string/wizard_back"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:tint="@null"
+        android:src="@drawable/ic_back_arrow"
+        android:contentDescription="@string/wizard_back"
         android:visibility="gone"
+        app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintTop_toTopOf="@id/btn_clock_alarm_toggle"
         app:layout_constraintBottom_toBottomOf="@id/btn_clock_alarm_toggle"
         app:layout_constraintStart_toEndOf="@id/btn_clock_alarm_toggle"

@@ -89,14 +89,14 @@
             app:layout_constraintBottom_toTopOf="@id/img_tutorial_line_bottom"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_nextpage"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:text="@string/wizard_next" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_tutorial_close"
                 style="@style/PipWizardButtonStyle"
                 android:layout_width="wrap_content"

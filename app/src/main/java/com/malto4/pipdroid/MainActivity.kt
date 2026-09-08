@@ -54,6 +54,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -202,6 +203,8 @@ class MainActivity : AppCompatActivity() {
     private var mediaPlayerNewTabList = mutableListOf<MediaPlayer>()
     private var mediaPlayerItemSelectList = mutableListOf<MediaPlayer>()
     private var mediaPlayerErrorList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerDamageList = mutableListOf<MediaPlayer>()
+    private var mediaPlayerStimpackList = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
 
     /***********************************************************************************************************
@@ -278,10 +281,16 @@ class MainActivity : AppCompatActivity() {
             "CPU0 launch EFI0 0x0000A4 0x0000000000000000 1 0 0x000009 0x00000000000E003D\n" +
             "CPU0 starting EFI0 0x0000A4 0x0000000000000000 1 0 0x0000A4 0x0000000000000000\n"
         private val BOOT_CODEWALL_TEXT = BOOT_CODEWALL_BLOCK.repeat(24)
-        // Общий баннер PIP-OS
-        private const val PIP_OS_BANNER = "**************** PIP-OS(R) V7.1.0.8 ****************"
-        // Терминальная печать кадра
-        private const val BOOT_TERMINAL_TEXT = PIP_OS_BANNER + "\n\n" +
+        // Общий баннер PIP-OS — только название/версия, без звёздочек: их число теперь
+        // считается под фактическую ширину терминала (roadmap, доработка после фидбека —
+        // раньше было жёстко зашитое число, 16 с каждой стороны, на других экранах либо не
+        // доставало до края, либо вылезало за него), см. buildPipOsBanner() в конце файла
+        // (секция BOOT SEQUENCE).
+        private const val PIP_OS_LABEL = " PIP-OS(R) V7.1.0.8 "
+        // Текст терминальной печати кадра ПОСЛЕ баннера — сам баннер собирается отдельно
+        // buildBootTerminalText(), т.к. зависит от реальной ширины экрана (недоступна в
+        // constant-контексте companion object).
+        private const val BOOT_TERMINAL_INFO_TEXT =
             "COPYRIGHT 2075 ROBCO(R)\n" +
             "LOADER V1.1\n" +
             "EXEC VERSION 41.10\n" +
@@ -304,7 +313,8 @@ class MainActivity : AppCompatActivity() {
         private const val SHUTDOWN_STAY_DURATION_MS = 2000L
         private const val SHUTDOWN_FADE_TO_BLACK_MS = 500L
         private const val SHUTDOWN_FINAL_FADE_MS = 500L
-        private val SHUTDOWN_HEADER_PREFIX = "$PIP_OS_BANNER\n\n"
+        // Префикс шапки терминала выключения — тоже собирается динамически,
+        // buildShutdownHeaderPrefix(), та же причина, что у BOOT_TERMINAL_INFO_TEXT выше.
         private const val SHUTDOWN_BODY_TEXT = "STOPPING ALL PROCESSES...\n" +
             "DUMPING MEMORY...\n" +
             "DISCONNECTING..."
@@ -539,6 +549,26 @@ class MainActivity : AppCompatActivity() {
     private var wizardMinContentHeightPx = 0
     private var lastX = 0f
     private var lastY = 0f
+
+    // Глобальный масштаб текста при сжатии рабочей области (roadmap, этап 29) — сама логика
+    // и "чертёжные" размеры живут в GlobalTextScale (синглтон, не поле активности): часть
+    // текста создаётся программно вне MainActivity.onCreate (SidebarMenuAdapter и т.п.),
+    // одноразовый обход дерева здесь эти View не увидел бы.
+    private val minTextSizeSp = 10f
+
+    // currentWidthPx/currentHeightPx — реальные текущие размеры bindingMain.root (не
+    // layoutParams.width/height, там может лежать MATCH_PARENT=-1). Масштаб — от более
+    // строгого из двух отношений к полному экрану (обычно ширина, у неё пол ниже, см.
+    // wizardMinContentWidthPx/HeightPx), чтобы текст гарантированно помещался по обеим осям.
+    private fun applyGlobalTextScale(currentWidthPx: Int, currentHeightPx: Int) {
+        if (currentWidthPx <= 0 || currentHeightPx <= 0) return
+        val displayMetrics = resources.displayMetrics
+        val widthRatio = currentWidthPx.toFloat() / displayMetrics.widthPixels
+        val heightRatio = currentHeightPx.toFloat() / displayMetrics.heightPixels
+        val scale = min(widthRatio, heightRatio).coerceIn(0f, 1f)
+        val minTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, minTextSizeSp, displayMetrics)
+        GlobalTextScale.setScale(scale, minTextSizePx)
+    }
 
     /***********************************************************************************************************
      * DISCLAIMER / TUTORIAL
@@ -1566,6 +1596,7 @@ class MainActivity : AppCompatActivity() {
                 pairingOnSelect?.invoke(address)
             }
         }
+        GlobalTextScale.register(button)
         container.addView(button)
     }
 
@@ -2064,6 +2095,17 @@ class MainActivity : AppCompatActivity() {
                 // — android:tint="@null" в XML одного недостаточно, глиф иконки сливался с
                 // акцентным фоном без явного сброса и здесь тоже.
                 ImageViewCompat.setImageTintList(mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic, null)
+                // Edit/Route/Delete/Back в карточке метки и Route/Place Marker в попапе тапа —
+                // были текстовыми кнопками (не нуждались в сбросе), заменены на иконки
+                // (roadmap, этап 29) — тот же сброс, что и у остальных ImageButton выше.
+                listOf(
+                    mapScreen.btnMapMarkerDetailEdit,
+                    mapScreen.btnMapMarkerDetailRoute,
+                    mapScreen.btnMapMarkerDetailDelete,
+                    mapScreen.btnMapMarkerDetailBack,
+                    mapScreen.btnMapTapChoiceRoute,
+                    mapScreen.btnMapTapChoiceMarker,
+                ).forEach { it.imageTintList = null }
                 hideMapHint()
                 // Раньше здесь был безусловный mapRootAdapter.setSelectedPositionSilently(0)
                 // ("жёсткий сброс курсора" на свежий вход с вкладки ITEMS) — убран (roadmap,
@@ -3537,10 +3579,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Суммарная длительность всей заставки (кадр 1 + 2 + печать кадра 3 + пауза на
      * блочном курсоре) — считается, а не хардкодится отдельной константой, чтобы не
-     * разъезжаться с реальным временем печати при правке BOOT_TERMINAL_TEXT. */
+     * разъезжаться с реальным временем печати при правке текста терминала. Длина теперь
+     * зависит от ширины экрана (buildBootTerminalText() — динамическое число звёздочек
+     * в баннере), поэтому не константа, а вызов той же функции, что и сама печать. */
     private val bootTotalDurationMs: Long
         get() = BOOT_FRAME_LOGO_DURATION_MS + BOOT_FRAME_CODEWALL_DURATION_MS +
-            BOOT_TERMINAL_TEXT.length * BOOT_TERMINAL_CHAR_DELAY_MS + BOOT_TERMINAL_END_HOLD_MS
+            buildBootTerminalText().length * BOOT_TERMINAL_CHAR_DELAY_MS + BOOT_TERMINAL_END_HOLD_MS
 
     private fun startBootCodewall() {
         val boot = bindingMain.incLayoutBootSequence
@@ -3571,15 +3615,56 @@ class MainActivity : AppCompatActivity() {
         boot.tvBootCodewall.animate().cancel()
         boot.layoutBootFrameCodewall.visibility = View.GONE
         boot.layoutBootFrameTerminal.visibility = View.VISIBLE
-        typeTerminalText("", BOOT_TERMINAL_TEXT, 0, boot.tvBootTerminal) {
+        typeTerminalText("", buildBootTerminalText(), 0, boot.tvBootTerminal) {
             bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishBootSequence() }
         }
     }
 
+    /** Баннер "PIP-OS(R) V7.1.0.8" с числом звёздочек по фактической ширине терминала
+     * загрузки/выключения (roadmap, доработка после фидбека по тесту) — раньше было жёстко
+     * зашитое число (16 с каждой стороны), на экранах шире/уже эталонного либо не доставало
+     * до края, либо вылезало за него. tv_boot_terminal — моноширинный шрифт (pipboy_mono,
+     * layout_boot_sequence.xml). bindingMain.root.width — реальная (не 0 из-за
+     * visibility=gone, как было бы у самого tv_boot_terminal/его контейнера, оба скрыты до
+     * нужного кадра) ширина всего активного окна: обе точки вызова этой функции — глубоко
+     * после onCreate/первого layout-прохода, к этому моменту уже гарантированно измерена.
+     * paddingLeft/Right — на случай выреза камеры (mirrorDisplayCutoutInset() отражает его
+     * отступ на противоположную сторону паддингом root, у него самого нет констрейнтов,
+     * которые это учли бы). 32dp — те же margin'ы, что заданы в XML на tv_boot_terminal
+     * (layout_marginStart/End), считаются здесь же, а не читаются из LayoutParams, чтобы не
+     * тащить сюда сам View раньше времени.
+     * Первая прикидка числа символов — по ширине одного "*" (быстро, обычно уже верно), но
+     * не окончательная: измерение одного символа Paint.measureText() иногда чуть расходится
+     * с реальной шириной уже собранной строки той же длины (найдено на тесте — с виду
+     * "лишняя" звезда справа переносилась на вторую строку). Донадёжный источник истины —
+     * измерить СОБРАННУЮ строку целиком и подрезать, пока она реально не влезет. */
+    private fun buildPipOsBanner(): String {
+        val boot = bindingMain.incLayoutBootSequence
+        val paint = boot.tvBootTerminal.paint
+        val marginsPx = 2 * TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32f, resources.displayMetrics)
+        val availableWidthPx = (
+            bindingMain.root.width - bindingMain.root.paddingLeft - bindingMain.root.paddingRight - marginsPx
+        ).coerceAtLeast(0f)
+        fun assemble(totalChars: Int): String {
+            val starsTotal = (totalChars - PIP_OS_LABEL.length).coerceAtLeast(0)
+            val starsLeft = starsTotal / 2
+            val starsRight = starsTotal - starsLeft
+            return "*".repeat(starsLeft) + PIP_OS_LABEL + "*".repeat(starsRight)
+        }
+        val charWidthPx = paint.measureText("*").coerceAtLeast(1f)
+        var totalChars = (availableWidthPx / charWidthPx).toInt().coerceAtLeast(PIP_OS_LABEL.length)
+        while (totalChars > PIP_OS_LABEL.length && paint.measureText(assemble(totalChars)) > availableWidthPx) {
+            totalChars--
+        }
+        return assemble(totalChars)
+    }
+    private fun buildBootTerminalText(): String = buildPipOsBanner() + "\n\n" + BOOT_TERMINAL_INFO_TEXT
+    private fun buildShutdownHeaderPrefix(): String = buildPipOsBanner() + "\n\n"
+
     /** Посимвольная печать с блочным курсором — курсор всегда сразу за последним
      * напечатанным символом, включая перевод строки как обычный "символ" темпа печати.
      * [prefix] выводится целиком сразу, без анимации (шапка терминала выключения — тот
-     * же приём, что и полностью типизированный [BOOT_TERMINAL_TEXT] для загрузки, где
+     * же приём, что и полностью типизированный [buildBootTerminalText] для загрузки, где
      * [prefix] пустой), печатается только [body]. [onDone] — что делать после того, как
      * курсор допечатал последний символ. */
     private fun typeTerminalText(prefix: String, body: String, charIndex: Int, tv: TextView, onDone: () -> Unit) {
@@ -3738,7 +3823,7 @@ class MainActivity : AppCompatActivity() {
         boot.layoutBootFrameTerminal.visibility = View.VISIBLE
 
         startBootSound()
-        typeTerminalText(SHUTDOWN_HEADER_PREFIX, SHUTDOWN_BODY_TEXT, 0, boot.tvBootTerminal) {
+        typeTerminalText(buildShutdownHeaderPrefix(), SHUTDOWN_BODY_TEXT, 0, boot.tvBootTerminal) {
             stopBootSound()
             bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishShutdownSequence() }
         }
@@ -5955,7 +6040,8 @@ class MainActivity : AppCompatActivity() {
             // roadmap, этап 27 — "когда персонаж переходит в DEAD, курсор энкодера должен
             // устанавливаться на персонажа, ENCBTN = тот же жест, что тап, воскрешает".
             // reviveCharacter() — то же самое, что зовёт тач-жест (setupFigureTouchTarget),
-            // без отдельного звука: у тача его тоже нет, ENCBTN не должен придумывать новый.
+            // playStimpackAudio() в onActivate ниже — тот же звук, что у тача (найденный баг:
+            // ENCBTN на REVIVE был единственным немым узлом дерева STATUS).
             // setWoundStopButtonFocused(false)/setAllCrippledFocusesHidden() — на случай
             // прихода в DEAD прямо из активного таймера (killCharacter() из fireWoundTimer()),
             // где один из этих прицелов только что был в фокусе.
@@ -5965,7 +6051,10 @@ class MainActivity : AppCompatActivity() {
                 MenuNode(
                     id = "REVIVE",
                     onHighlight = { setDeadReviveFocused(true) },
-                    onActivate = { reviveCharacter() },
+                    onActivate = {
+                        playStimpackAudio()
+                        reviveCharacter()
+                    },
                 )
             )
         } else if (woundPhase != WoundPhase.NONE) {
@@ -5995,7 +6084,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledHeadFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledHead) playStimpackAudio() else playDamageAudio()
                         toggleCrippledHead()
                     },
                 ),
@@ -6008,7 +6097,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledLeftArmFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
                         toggleCrippledLeftArm()
                     },
                 ),
@@ -6021,7 +6110,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledTorsoFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledTorso) playStimpackAudio() else playDamageAudio()
                         toggleCrippledTorso()
                     },
                 ),
@@ -6034,7 +6123,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledRightArmFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledRightArm) playStimpackAudio() else playDamageAudio()
                         toggleCrippledRightArm()
                     },
                 ),
@@ -6047,7 +6136,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledLeftLegFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
                         toggleCrippledLeftLeg()
                     },
                 ),
@@ -6060,7 +6149,7 @@ class MainActivity : AppCompatActivity() {
                         setCrippledRightLegFocused(true)
                     },
                     onActivate = {
-                        playConfirmAudio()
+                        if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
                         toggleCrippledRightLeg()
                     },
                 ),
@@ -7329,6 +7418,7 @@ class MainActivity : AppCompatActivity() {
                     renderRow2()
                 }
             }
+            GlobalTextScale.register(tv)
             strip.addView(tv)
             row2Views.add(tv)
         }
@@ -7766,7 +7856,12 @@ class MainActivity : AppCompatActivity() {
                     handler.removeCallbacks(longPressRunnable)
                     val popupShown = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility == View.VISIBLE
                     if (!popupShown) {
-                        if (woundPhase == WoundPhase.DEAD) reviveCharacter() else onShortTap()
+                        if (woundPhase == WoundPhase.DEAD) {
+                            playStimpackAudio()
+                            reviveCharacter()
+                        } else {
+                            onShortTap()
+                        }
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
@@ -7841,6 +7936,33 @@ class MainActivity : AppCompatActivity() {
         mediaPlayerCndRadEff.setOnCompletionListener {
             it.release()
             mediaPlayerCndRadEffList.remove(it)
+        }
+    }
+    /** Тап или ENCBTN-активация здоровой части тела фигуры на Status (roadmap, звук
+     * CND-тапов по фигуре) — см. setupFigureTouchTarget()/statusChildrenNodes()
+     * (BODYPART_* onActivate) ниже, оба места выбирают этот звук по одному и тому же
+     * принципу (состояние ДО toggleCrippledXxx()). У голосовых команд свой playTickAudio()
+     * (handleVoiceCommandText()) — туда эта функция не добавлена, отдельный путь. */
+    private fun playDamageAudio(){
+        val mediaPlayerDamage = MediaPlayer.create(applicationContext, R.raw.damage_sfx)
+        mediaPlayerDamageList.add(mediaPlayerDamage)
+        mediaPlayerDamage.start()
+        mediaPlayerDamage.setOnCompletionListener {
+            it.release()
+            mediaPlayerDamageList.remove(it)
+        }
+    }
+    /** Тап/ENCBTN по CRIPPLED-части тела (лечение обратно в здоровую) или тап по персонажу
+     * в DEAD (revive) — та же оговорка про область действия, что у playDamageAudio() выше.
+     * ENCBTN-revive (REVIVE.onActivate, statusChildrenNodes()) сознательно этот звук не
+     * получил — см. комментарий там же. */
+    private fun playStimpackAudio(){
+        val mediaPlayerStimpack = MediaPlayer.create(applicationContext, R.raw.stimpack)
+        mediaPlayerStimpackList.add(mediaPlayerStimpack)
+        mediaPlayerStimpack.start()
+        mediaPlayerStimpack.setOnCompletionListener {
+            it.release()
+            mediaPlayerStimpackList.remove(it)
         }
     }
 
@@ -7933,6 +8055,8 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+
+            GlobalTextScale.register(textView)
 
             // Add CheckBox and TextView to a horizontal layout
             val entryLayout = LinearLayout(this)
@@ -8302,6 +8426,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        GlobalTextScale.reset()
 
         //Choose APP theme
         when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
@@ -8334,6 +8459,38 @@ class MainActivity : AppCompatActivity() {
         val viewMain = bindingMain.root
         setContentView(viewMain)
         mirrorDisplayCutoutInset(viewMain)
+
+        // Снимок "чертёжных" (100%) размеров шрифта у статичного XML-дерева — один раз после
+        // первого layout, пока ничего ещё не сжато (GlobalTextScale.registerTree). Текст,
+        // создаваемый программно позже — SidebarMenuAdapter.onCreateViewHolder, setupRow2(),
+        // addPairingDevice(), listEntries() — регистрирует себя сам через
+        // GlobalTextScale.register() в момент создания, тем же синглтоном. Слушатель на
+        // изменение реальных габаритов viewMain (не layoutParams.width/height — там может
+        // лежать MATCH_PARENT=-1) ловит любой путь ресайза разом: пинч в DISPLAY AREA
+        // (ScaleListener), loadViewState(), resetToFullScreen(), applyTemporaryFullScreenLayout()
+        // — без отдельного вызова в каждом из них. Перетаскивание (handleMove) размер не
+        // меняет, только margin — сюда не попадает.
+        viewMain.post {
+            GlobalTextScale.registerTree(viewMain)
+            viewMain.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                val newW = right - left
+                val newH = bottom - top
+                val oldW = oldRight - oldLeft
+                val oldH = oldBottom - oldTop
+                if (newW > 0 && newH > 0 && (newW != oldW || newH != oldH)) {
+                    // post(), не вызов на месте — setTextSize() внутри applyGlobalTextScale()
+                    // сам просит requestLayout() на каждом зарегистрированном TextView (их
+                    // десятки, особенно на Settings — сайдбар-RecyclerView, несколько
+                    // ScrollView, guideline-строки). Вызванный синхронно прямо из колбэка
+                    // прохода лэйаута, это дёргает повторный лэйаут ПОКА текущий проход ещё не
+                    // завершён — источник редкого, невоспроизводимого стабильно бага (roadmap,
+                    // этап 29): экран Settings иногда открывался полностью пустым, без
+                    // исключений в логе. post() переносит пересчёт на следующий кадр, когда
+                    // текущий проход уже точно закончен.
+                    v.post { applyGlobalTextScale(newW, newH) }
+                }
+            }
+        }
 
         // Полный экран на старте (roadmap, этап 28, найденный баг) — раньше здесь стоял
         // loadViewState(), подхватывавший уменьшенный размер из прошлой сессии ДО того, как
@@ -8884,28 +9041,42 @@ class MainActivity : AppCompatActivity() {
         // каждого колбэка, не один раз снаружи: woundPhase меняется уже после того, как эти
         // слушатели развешаны в onCreate(), захваченное здесь значение тут же устарело бы.
         fun hasBodyPartNodes() = woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD
+        // Звук тапа по части тела — damage_sfx на здоровую (становится CRIPPLED), stimpack
+        // на уже CRIPPLED (лечится обратно) — состояние ДО toggleCrippledXxx() решает, какой
+        // из двух звучит. У ENCBTN тот же выбор звука на activate (statusChildrenNodes(),
+        // BODYPART_* onActivate) — там раньше играл общий playConfirmAudio(), заменён на тот
+        // же damage/stimpack по тому же принципу, что уже был у STOP (playButtonAudio() вместо
+        // playConfirmAudio()) и у ошибок (playErrorAudio()) — собственный звук действия вместо
+        // общего confirm, не поверх него. У голосовых команд свой playTickAudio()
+        // (handleVoiceCommandText()) — не трогаем, это отдельный, самостоятельный путь.
         setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) {
+            if (crippledHead) playStimpackAudio() else playDamageAudio()
             toggleCrippledHead()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(1))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) {
+            if (crippledTorso) playStimpackAudio() else playDamageAudio()
             toggleCrippledTorso()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(3))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) {
+            if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
             toggleCrippledLeftArm()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(2))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) {
+            if (crippledRightArm) playStimpackAudio() else playDamageAudio()
             toggleCrippledRightArm()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(4))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) {
+            if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
             toggleCrippledLeftLeg()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(5))
         }
         setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) {
+            if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
             toggleCrippledRightLeg()
             if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(6))
         }
@@ -9505,6 +9676,9 @@ class MainActivity : AppCompatActivity() {
         val alarm = clock.incLayoutTabItemsClockAlarm
         alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
         alarm.btnClockAlarmBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29) — тот же сброс
+        // imageTintList, что у btnMapCenter/Mic (см. там же комментарий).
+        alarm.btnClockAlarmBack.imageTintList = null
         alarm.viewClockAlarmHourFocus.backgroundTintList = clockAccentTint
         alarm.viewClockAlarmMinuteFocus.backgroundTintList = clockAccentTint
         alarm.viewClockAlarmSetFocus.backgroundTintList = clockAccentTint
@@ -9552,6 +9726,10 @@ class MainActivity : AppCompatActivity() {
             timer.btnClockTimerPauseResume, timer.btnClockTimerReset, timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)) {
             btn.backgroundTintList = clockAccentTint
         }
+        // Setup/RunningBack были текстовыми кнопками, заменены на иконки (roadmap, этап 29) —
+        // тот же сброс imageTintList, что у остальных Back по приложению.
+        timer.btnClockTimerSetupBack.imageTintList = null
+        timer.btnClockTimerRunningBack.imageTintList = null
         for (view in listOf(timer.viewClockTimerHourFocus, timer.viewClockTimerMinuteFocus, timer.viewClockTimerSecondFocus,
             timer.viewClockTimerPreset5Focus, timer.viewClockTimerPreset10Focus, timer.viewClockTimerStartFocus, timer.viewClockTimerSetupBackFocus,
             timer.viewClockTimerPauseResumeFocus, timer.viewClockTimerResetFocus, timer.viewClockTimerRunningBackFocus)) {
@@ -9623,6 +9801,8 @@ class MainActivity : AppCompatActivity() {
         stopwatch.btnClockStopwatchStartPause.backgroundTintList = clockAccentTint
         stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
         stopwatch.btnClockStopwatchBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
+        stopwatch.btnClockStopwatchBack.imageTintList = null
         stopwatch.viewClockStopwatchStartPauseFocus.backgroundTintList = clockAccentTint
         stopwatch.viewClockStopwatchResetFocus.backgroundTintList = clockAccentTint
         stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
@@ -9657,6 +9837,8 @@ class MainActivity : AppCompatActivity() {
         val melody = clock.incLayoutTabItemsClockMelody
         melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
         melody.btnClockMelodyBack.backgroundTintList = clockAccentTint
+        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
+        melody.btnClockMelodyBack.imageTintList = null
         melody.viewClockMelodySelectFocus.backgroundTintList = clockAccentTint
         melody.viewClockMelodyBackFocus.backgroundTintList = clockAccentTint
         // applyTextColor() эту LineVisualizer не красит (не входит в её список View) — без
@@ -9778,6 +9960,11 @@ class MainActivity : AppCompatActivity() {
         journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailBack.backgroundTintList = journalAccentColor
+        // Были текстовыми кнопками (не нуждались в сбросе), заменены на иконки (roadmap,
+        // этап 29) — тот же сброс imageTintList, что у btnMapCenter/Mic (см. там же комментарий).
+        journalScreen.btnJournalEntryDetailEdit.imageTintList = null
+        journalScreen.btnJournalEntryDetailDelete.imageTintList = null
+        journalScreen.btnJournalEntryDetailBack.imageTintList = null
         // Прицелы-уголки (roadmap, этап 27) — та же схема тонирования, что у Reset/Menu на
         // Гейгере (viewGeigerResetFocus/viewGeigerMenuFocus чуть выше).
         journalScreen.viewJournalEntryDetailEditFocus.backgroundTintList = journalAccentColor

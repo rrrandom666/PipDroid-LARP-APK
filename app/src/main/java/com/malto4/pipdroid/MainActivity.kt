@@ -236,7 +236,7 @@ class MainActivity : AppCompatActivity() {
             logTag = "VoiceJournal",
             dictation = voiceDictationService,
             models = voiceModelRepository,
-            accentColor = { currentWizardAccentColor() },
+            accentColor = { themeAccentColor() },
             isVoiceCommandBusy = { awaitingVoiceCommand },
             replaceFirstSegment = { false },
             playButtonSound = { playButtonAudio() },
@@ -255,7 +255,7 @@ class MainActivity : AppCompatActivity() {
             logTag = "VoiceMapMarker",
             dictation = voiceDictationService,
             models = voiceModelRepository,
-            accentColor = { currentWizardAccentColor() },
+            accentColor = { themeAccentColor() },
             isVoiceCommandBusy = { awaitingVoiceCommand },
             replaceFirstSegment = { editingMarkerId != null },
             playButtonSound = { playButtonAudio() },
@@ -1073,17 +1073,32 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modeSelectAdapter: SidebarMenuAdapter<PipBoyMode>
 
     /** Акцентный цвет текущей темы оформления. */
-    private fun currentWizardAccentColor(): Int {
-        val colorRes = when (sharedPreferences.getInt(playerUIColour_SPKey, 0)) {
-            1 -> R.color.themeAmber
-            2 -> R.color.themeWhite
-            3 -> R.color.themeBlue
-            else -> R.color.themeGreen
-        }
-        return ContextCompat.getColor(this, colorRes)
+    /** Все ресурсы одной темы оформления в одном месте — раньше это же соответствие было
+     * размножено по пяти when-блокам, привязанным к playerUIColour_SPKey. */
+    private enum class UiTheme(
+        val styleRes: Int,
+        val accentColorRes: Int,
+        val scrollbarRes: Int,
+        val boxBackgroundRes: Int,
+        val selectedButtonRes: Int,
+        val selectedRowRes: Int,
+    ) {
+        GREEN(R.style.Theme_PipDroid_GreenUI, R.color.themeGreen, R.drawable.scrollbar_custom_green,
+            R.drawable.settings_menu_background_green, R.drawable.button_selected_green, R.drawable.status_row_selected_green),
+        AMBER(R.style.Theme_PipDroid_AmberUI, R.color.themeAmber, R.drawable.scrollbar_custom_amber,
+            R.drawable.settings_menu_background_amber, R.drawable.button_selected_amber, R.drawable.status_row_selected_amber),
+        WHITE(R.style.Theme_PipDroid_WhiteUI, R.color.themeWhite, R.drawable.scrollbar_custom_white,
+            R.drawable.settings_menu_background_white, R.drawable.button_selected_white, R.drawable.status_row_selected_white),
+        BLUE(R.style.Theme_PipDroid_BlueUI, R.color.themeBlue, R.drawable.scrollbar_custom_blue,
+            R.drawable.settings_menu_background_blue, R.drawable.button_selected_blue, R.drawable.status_row_selected_blue),
     }
+    /** Тема, выбранная игроком в Settings. */
+    private fun currentUiTheme(): UiTheme =
+        UiTheme.values().getOrElse(sharedPreferences.getInt(playerUIColour_SPKey, 0)) { UiTheme.GREEN }
+    /** Акцентный цвет текущей темы оформления. */
+    private fun themeAccentColor(): Int = ContextCompat.getColor(this, currentUiTheme().accentColorRes)
     private fun setWizardButtonState(button: Button, selected: Boolean) {
-        val accent = currentWizardAccentColor()
+        val accent = themeAccentColor()
         button.backgroundTintList = ColorStateList.valueOf(accent)
         if (selected) {
             button.setBackgroundResource(R.drawable.pip_wizard_button_bg_selected)
@@ -1094,7 +1109,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun setWizardButtonDisabled(button: Button) {
-        val accent = currentWizardAccentColor()
+        val accent = themeAccentColor()
         button.backgroundTintList = ColorStateList.valueOf(accent)
         button.setBackgroundResource(R.drawable.pip_wizard_button_bg_disabled)
         button.setTextColor(ColorUtils.setAlphaComponent(accent, 0x4D))
@@ -1139,7 +1154,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupModeSelectScreen() {
         val ms = bindingMain.incLayoutTabModeSelect
 
-        ms.tvModeSelectDescription.setTextColor(currentWizardAccentColor())
+        ms.tvModeSelectDescription.setTextColor(themeAccentColor())
 
         ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
         modeSelectAdapter = SidebarMenuAdapter(
@@ -1420,7 +1435,7 @@ class MainActivity : AppCompatActivity() {
         statusView.text = getString(R.string.wizard_pairing_found, pairingFoundAddresses.size)
         val button = Button(this, null, 0, R.style.PipWizardButtonStyle).apply {
             text = name ?: address
-            backgroundTintList = ColorStateList.valueOf(currentWizardAccentColor())
+            backgroundTintList = ColorStateList.valueOf(themeAccentColor())
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1479,7 +1494,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupPipBoy2000Wizard() {
         val w = bindingMain.incLayoutPipboy2000Wizard
 
-        val wizardAccent = currentWizardAccentColor()
+        val wizardAccent = themeAccentColor()
         listOf(
             w.btnWizardHardwareBack,
             w.btnWizardHardwareSkipDebug,
@@ -1827,7 +1842,7 @@ class MainActivity : AppCompatActivity() {
                 mapScreen.layoutMapRouteControls.visibility = View.GONE
                 markers = markerRepository.loadAll().toMutableList()
                 mapScreen.photoViewMap.setImageBitmap(bitmap)
-                mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(currentWizardAccentColor(), PorterDuff.Mode.MULTIPLY)
+                mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(themeAccentColor(), PorterDuff.Mode.MULTIPLY)
                 mapScreen.photoViewMap.visibility = View.VISIBLE
                 mapScreen.tvPermissionsCheckResult.visibility = View.GONE
                 mapScreen.viewMapOverlay.visibility = View.VISIBLE
@@ -1835,7 +1850,7 @@ class MainActivity : AppCompatActivity() {
                 mapScreen.layoutMapMenuContainer.visibility = View.VISIBLE
                 mapScreen.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
                 // PipWizardButtonStyle-кнопки тонируются вручную кодом, как в Settings.
-                val mapAccentColor = currentWizardAccentColor()
+                val mapAccentColor = themeAccentColor()
                 val mapAccent = ColorStateList.valueOf(mapAccentColor)
                 listOf(
                     mapScreen.btnMapMarkerDetailEdit,
@@ -2255,7 +2270,7 @@ class MainActivity : AppCompatActivity() {
         // backgroundTintList = null обязателен: иначе AppCompat подмешает акцент темы поверх любого фона.
         hintView.backgroundTintList = null
         hintView.setBackgroundColor(ContextCompat.getColor(this, R.color.pip_background_darker))
-        hintView.setTextColor(currentWizardAccentColor())
+        hintView.setTextColor(themeAccentColor())
         hintView.visibility = View.VISIBLE
     }
     private fun hideMapHint() {
@@ -2750,7 +2765,7 @@ class MainActivity : AppCompatActivity() {
     private fun playBootSequence() {
         playBootSwitchSound()
         val boot = bindingMain.incLayoutBootSequence
-        val accent = currentWizardAccentColor()
+        val accent = themeAccentColor()
         // Лого кадра 1 — PNG с альфа-маской, своей раскраски кодом не требует.
         boot.tvBootCodewall.setTextColor(accent)
         boot.tvBootTerminal.setTextColor(accent)
@@ -2954,7 +2969,7 @@ class MainActivity : AppCompatActivity() {
     /** Шапка PIP-OS выводится сразу, тело печатается посимвольно под тот же звук набора. */
     private fun startShutdownTerminal() {
         val boot = bindingMain.incLayoutBootSequence
-        boot.tvBootTerminal.setTextColor(currentWizardAccentColor())
+        boot.tvBootTerminal.setTextColor(themeAccentColor())
         boot.root.alpha = 1f
         boot.root.visibility = View.VISIBLE
         boot.layoutBootFrameLogo.visibility = View.GONE
@@ -4252,35 +4267,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyAppTheme(Colour: Int, scrollbarDrawable: Drawable?){
-        applyBackgroundResource(Colour)
-        applyTextColor(Colour)
-        applyScrollBar(scrollbarDrawable)
+    private fun applyAppTheme(uiTheme: UiTheme) {
+        applyBackgroundResource(uiTheme)
+        applyTextColor(uiTheme)
+        applyScrollBar(getDrawableCompat(this, uiTheme.scrollbarRes))
     }
-    private fun applyBackgroundResource(Colour: Int) {
+    private fun applyBackgroundResource(uiTheme: UiTheme) {
         // Apply background to relevant views
         val backgrounds = listOf(
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.layoutTabStatsCndPopup
             // Часы, Settings, фильтр и Bluetooth убраны из списка: их корни больше не используют этот бокс-drawable.
         )
-        var backgroundRes = R.drawable.settings_menu_background_green
-        when(Colour){
-            0 -> {backgroundRes = R.drawable.settings_menu_background_green
-                selected_button = R.drawable.button_selected_green
-                selectedRowButton = R.drawable.status_row_selected_green}
-            1 -> {backgroundRes = R.drawable.settings_menu_background_amber
-                selected_button = R.drawable.button_selected_amber
-                selectedRowButton = R.drawable.status_row_selected_amber}
-            2 -> {backgroundRes = R.drawable.settings_menu_background_white
-                selected_button = R.drawable.button_selected_white
-                selectedRowButton = R.drawable.status_row_selected_white}
-            3 -> {backgroundRes = R.drawable.settings_menu_background_blue
-                selected_button = R.drawable.button_selected_blue
-                selectedRowButton = R.drawable.status_row_selected_blue}
-        }
-        backgrounds.forEach { it.setBackgroundResource(backgroundRes) }
+        selected_button = uiTheme.selectedButtonRes
+        selectedRowButton = uiTheme.selectedRowRes
+        backgrounds.forEach { it.setBackgroundResource(uiTheme.boxBackgroundRes) }
     }
-    private fun applyTextColor(Colour: Int){
+    private fun applyTextColor(uiTheme: UiTheme) {
         // Apply text colors to relevant radio buttons and checkboxes
         val primaryTextViews = listOf(
             bindingMain.incLayoutSettingsGlobal.rbSettingsDateformat1,
@@ -4296,18 +4298,9 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutSettingsGlobal.cboxAmbientSoundSettings
             // Add other radio buttons and text views as needed
         )
-        var primaryColor = R.color.themeGreen
-        when(Colour){
-            0 -> {primaryColor = R.color.themeGreen}
-            1 -> {primaryColor = R.color.themeAmber}
-            2 -> {primaryColor = R.color.themeWhite}
-            3 -> {primaryColor = R.color.themeBlue}
-        }
-
-        @Suppress("ResourceAsColor")
-        primaryTextViews.forEach { it.setTextColor(resources.getColor(primaryColor)) }
+        val accentColor = ContextCompat.getColor(this, uiTheme.accentColorRes)
+        primaryTextViews.forEach { it.setTextColor(accentColor) }
         // ProgressBar не подхватывает android:tint темы — тонируется явно, как и фон кнопок.
-        val accentColor = resources.getColor(primaryColor)
         bindingMain.incLayoutTabDataRadio.radioVolumeBar.progressTintList = ColorStateList.valueOf(accentColor)
     }
     private fun applyScrollBar(scrollbarDrawable: Drawable?){
@@ -6225,7 +6218,7 @@ class MainActivity : AppCompatActivity() {
         for (item in items) {
             val checkBox = CheckBox(this)
             // Чекбокс тонируется акцентом: Material-дефолт на тёмном фоне почти не виден.
-            CompoundButtonCompat.setButtonTintList(checkBox, ColorStateList.valueOf(currentWizardAccentColor()))
+            CompoundButtonCompat.setButtonTintList(checkBox, ColorStateList.valueOf(themeAccentColor()))
             val textView = TextView(this).apply {
                 // Set the text for the TextView to the "name" value
                 text = item["name"]
@@ -6491,7 +6484,7 @@ class MainActivity : AppCompatActivity() {
         tutorialPageIndex = index
         val page = bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialPage
         page.tvTutorialPage.text = getString(tutorialPageStringRes[index])
-        page.tvTutorialPage.setTextColor(currentWizardAccentColor())
+        page.tvTutorialPage.setTextColor(themeAccentColor())
         val isLastPage = index == tutorialPageStringRes.lastIndex
         val nextButton = bindingMain.incLayoutTabTutorialBase.btnNextpage
         val closeButton = bindingMain.incLayoutTabTutorialBase.btnTutorialClose
@@ -6529,12 +6522,7 @@ class MainActivity : AppCompatActivity() {
         GlobalTextScale.reset()
 
         //Choose APP theme
-        when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
-            0 -> {theme.applyStyle(R.style.Theme_PipDroid_GreenUI, true)}
-            1 -> {theme.applyStyle(R.style.Theme_PipDroid_AmberUI, true)}
-            2 -> {theme.applyStyle(R.style.Theme_PipDroid_WhiteUI, true)}
-            3 -> {theme.applyStyle(R.style.Theme_PipDroid_BlueUI, true)}
-        }
+        theme.applyStyle(currentUiTheme().styleRes, true)
 
         val displayMetrics = DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -6583,28 +6571,7 @@ class MainActivity : AppCompatActivity() {
 
         // Тема должна примениться ДО построения экрана выбора режима: тот строит адаптер с текущим
         // selected_button сразу, а не лениво при показе.
-        when(sharedPreferences.getInt(playerUIColour_SPKey, 0)){
-            //GREEN
-            0 -> {
-                val scrollBarDrawable = getDrawableCompat(this, R.drawable.scrollbar_custom_green)
-                applyAppTheme(0, scrollBarDrawable)
-            }
-            //AMBER
-            1 -> {
-                val scrollBarDrawable = getDrawableCompat(this, R.drawable.scrollbar_custom_amber)
-                applyAppTheme(1, scrollBarDrawable)
-            }
-            //WHITE
-            2 -> {
-                val scrollBarDrawable = getDrawableCompat(this, R.drawable.scrollbar_custom_white)
-                applyAppTheme(2, scrollBarDrawable)
-            }
-            //BLUE
-            3 -> {
-                val scrollBarDrawable = getDrawableCompat(this, R.drawable.scrollbar_custom_blue)
-                applyAppTheme(3, scrollBarDrawable)
-            }
-        }
+        applyAppTheme(currentUiTheme())
 
         // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
         setupModeSelectScreen()
@@ -6837,7 +6804,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.constraintlayoutTutorial.visibility = View.GONE
         }
 
-        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.tvTutorialWelcome.setTextColor(currentWizardAccentColor())
+        bindingMain.incLayoutTabTutorialBase.incLayoutTabTutorialWelcome.tvTutorialWelcome.setTextColor(themeAccentColor())
         setWizardButtonState(bindingMain.incLayoutTabTutorialBase.btnNextpage, selected = false)
         setWizardButtonState(bindingMain.incLayoutTabTutorialBase.btnTutorialClose, selected = false)
         equalizeButtonWidths(
@@ -6887,11 +6854,11 @@ class MainActivity : AppCompatActivity() {
 
         // Плейсхолдер красится акцентом с тем же затенением, что у соседних пунктов row2 — дефолтный hint слишком блёклый.
         bindingMain.incLayoutFilterModification.etFilterModificationValue.setHintTextColor(
-            ColorUtils.setAlphaComponent(currentWizardAccentColor(), (0.55f * 255).toInt())
+            ColorUtils.setAlphaComponent(themeAccentColor(), (0.55f * 255).toInt())
         )
 
         // Пять кнопок экрана: нейтральная заливка из стиля, акцент темы — backgroundTintList кодом.
-        val filterAccent = currentWizardAccentColor()
+        val filterAccent = themeAccentColor()
         listOf(
             bindingMain.incLayoutFilterModification.btnFilterModificationCancel,
             bindingMain.incLayoutFilterModification.btnFilterModificationFilter,
@@ -7018,7 +6985,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Кнопки таймера ранения тонируются текущим акцентом темы.
-        val woundAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        val woundAccentTint = ColorStateList.valueOf(themeAccentColor())
         cndContentSetup.btnTabStatusWoundStop.backgroundTintList = woundAccentTint
         cndContentSetup.btnTabStatusWoundSkip.backgroundTintList = woundAccentTint
         cndContentSetup.viewWoundStopFocus.backgroundTintList = woundAccentTint
@@ -7078,7 +7045,7 @@ class MainActivity : AppCompatActivity() {
             }
             false
         }
-        val specialValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        val specialValueButtonsAccentTint = ColorStateList.valueOf(themeAccentColor())
         bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.backgroundTintList = specialValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.backgroundTintList = specialValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus.backgroundTintList = specialValueButtonsAccentTint
@@ -7137,7 +7104,7 @@ class MainActivity : AppCompatActivity() {
             }
             false
         }
-        val skillValueButtonsAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        val skillValueButtonsAccentTint = ColorStateList.valueOf(themeAccentColor())
         bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.backgroundTintList = skillValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.backgroundTintList = skillValueButtonsAccentTint
         bindingMain.incLayoutTabStatsSkills.viewSkillValueFocus.backgroundTintList = skillValueButtonsAccentTint
@@ -7166,7 +7133,7 @@ class MainActivity : AppCompatActivity() {
 
 
         // Кнопки Settings: нейтральная заливка из стиля, акцент темы — backgroundTintList кодом.
-        val settingsAccent = currentWizardAccentColor()
+        val settingsAccent = themeAccentColor()
         listOf(
             bindingMain.incLayoutSettingsGlobal.btnSettingsCancel,
             bindingMain.incLayoutSettingsGlobal.btnSettingsSave,
@@ -7468,7 +7435,7 @@ class MainActivity : AppCompatActivity() {
         clock.incLayoutTabItemsClockButtons.recyclerTabItemsClockButtons.adapter = clockAdapter
 
         // ===== ITEMS: ЧАСЫ — БУДИЛЬНИК =====
-        val clockAccentTint = ColorStateList.valueOf(currentWizardAccentColor())
+        val clockAccentTint = ColorStateList.valueOf(themeAccentColor())
         val alarm = clock.incLayoutTabItemsClockAlarm
         alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
         alarm.btnClockAlarmBack.backgroundTintList = clockAccentTint
@@ -7613,7 +7580,7 @@ class MainActivity : AppCompatActivity() {
         melody.viewClockMelodySelectFocus.backgroundTintList = clockAccentTint
         melody.viewClockMelodyBackFocus.backgroundTintList = clockAccentTint
         // applyTextColor() эту LineVisualizer не красит — без явного setColor() линия сливается с фоном.
-        melody.melodyWave.setColor(currentWizardAccentColor())
+        melody.melodyWave.setColor(themeAccentColor())
         melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
 
         // [Назад] — обычный последний пункт того же списка, не отдельная кнопка.
@@ -7691,9 +7658,9 @@ class MainActivity : AppCompatActivity() {
             syncRow2ActiveFromNavigator()
         }
         val journalScreen = bindingMain.incLayoutTabItemsJournal
-        val journalAccentColor = ColorStateList.valueOf(currentWizardAccentColor())
-        journalScreen.tvJournalHint.setTextColor(currentWizardAccentColor())
-        journalScreen.tvJournalEntryDetailDate.setTextColor(currentWizardAccentColor())
+        val journalAccentColor = ColorStateList.valueOf(themeAccentColor())
+        journalScreen.tvJournalHint.setTextColor(themeAccentColor())
+        journalScreen.tvJournalEntryDetailDate.setTextColor(themeAccentColor())
         journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
         journalScreen.btnJournalEntryDetailBack.backgroundTintList = journalAccentColor
@@ -7768,7 +7735,7 @@ class MainActivity : AppCompatActivity() {
 
         // ===== ITEMS: ГЕЙГЕР =====
         updateGeigerDoseDisplay(sharedPreferences.getInt(geigerDose_SPKey, 0))
-        val geigerButtonAccent = ColorStateList.valueOf(currentWizardAccentColor())
+        val geigerButtonAccent = ColorStateList.valueOf(themeAccentColor())
         bindingMain.incLayoutTabItemsGeiger.btnGeigerReset.backgroundTintList = geigerButtonAccent
         // В drawable прицела белая заглушка — реальный акцент темы ставится только кодом.
         bindingMain.incLayoutTabItemsGeiger.viewGeigerResetFocus.backgroundTintList = geigerButtonAccent

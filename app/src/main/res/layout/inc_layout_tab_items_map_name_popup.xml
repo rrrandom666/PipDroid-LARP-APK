@@ -76,7 +76,15 @@
 
     <!-- Явный Start от Mic (раньше не было вообще — только End_toStartOf Save, ширина сама
          по себе wrap_content) — без него при сжатии рабочей области нечем было помешать
-         кнопке начаться раньше конца Mic (см. комментарий у btn_marker_name_popup_mic выше). -->
+         кнопке начаться раньше конца Mic (см. комментарий у btn_marker_name_popup_mic выше).
+         Побочный эффект того фикса (доработка после фидбека) — Start+End без bias
+         укладывают wrap_content-кнопку строго ПОСЕРЕДИНЕ span'а между Mic и Save, вместо
+         "прибитой" к Save, как у того же Cancel в Журнале (layout_journal_entry_popup.xml,
+         btn_journal_entry_popup_cancel — там вообще нет Start, только End). Здесь Start
+         убирать нельзя (см. абзац выше), поэтому bias="1.0" — прижимает кнопку к концу
+         span'а (к Save, с тем же marginEnd) при достаточном месте, а Start остаётся жёсткой
+         левой границей и не даёт наехать на Mic, если места не хватает
+         (app:layout_constrainedWidth уже было). -->
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_marker_name_popup_cancel"
         style="@style/PipWizardButtonStyle"
@@ -89,7 +97,8 @@
         app:layout_constraintTop_toBottomOf="@id/et_marker_name_value"
         app:layout_constraintBottom_toBottomOf="@id/btn_marker_name_popup_save"
         app:layout_constraintStart_toEndOf="@id/btn_marker_name_popup_mic"
-        app:layout_constraintEnd_toStartOf="@id/btn_marker_name_popup_save" />
+        app:layout_constraintEnd_toStartOf="@id/btn_marker_name_popup_save"
+        app:layout_constraintHorizontal_bias="1.0" />
 
     <!-- Прицелы энкодера (roadmap, доработка после фидбека, п.5) — прямые сиблинги своих
          кнопок в этом же ConstraintLayout (см. CLAUDE.md). Отрицательный отступ уходит в

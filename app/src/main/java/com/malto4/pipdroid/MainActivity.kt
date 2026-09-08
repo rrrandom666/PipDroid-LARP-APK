@@ -767,9 +767,9 @@ class MainActivity : AppCompatActivity() {
         if (awaitingVoiceCommand) cancelVoiceCommandListening(matched = false)
     }
     private val VOICE_COMMAND_TIMEOUT_MS = 6000L
-    /** Уступает микрофон диктовке Журнала, если та уже идёт: VoiceDictationService один на оба сценария. */
+    /** Уступает микрофон любой уже идущей диктовке: VoiceDictationService один на все сценарии. */
     private fun onWakeWordTriggered() {
-        if (awaitingVoiceCommand || !journalDictation.isIdle) return
+        if (awaitingVoiceCommand || !journalDictation.isIdle || !mapMarkerDictation.isIdle) return
         if (!voiceModelRepository.hasModel()) return
         awaitingVoiceCommand = true
         Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()

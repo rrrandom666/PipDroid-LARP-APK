@@ -142,13 +142,6 @@ val perks = listOf(
     mapOf("id" to "146", "name" to "Wild Wasteland", "desc" to "Wild Wasteland unleashes the most bizarre and silly elements of post-apocalyptic America. Not for the faint of heart or the serious of temperament.", "icon" to R.drawable.perk_wild_wasteland.toString())
 )
 
-val dmiscs = listOf(
-    mapOf("id" to "1", "name" to "peach", "type" to "fruit"),
-    mapOf("id" to "2", "name" to "pear", "type" to "fruit"),
-    mapOf("id" to "3", "name" to "peanut", "type" to "nut"),
-    mapOf("id" to "4", "name" to "apple", "type" to "fruit"),
-    mapOf("id" to "5", "name" to "peacock", "type" to "bird")
-)
 
 /** ITEMS/Clock/Мелодия звонка (roadmap, "Часы — UX-спецификация") — треки вселенной
  * Fallout, извлечённые из архивов игр (Git LFS, см. .gitattributes). */

@@ -7524,18 +7524,6 @@ class MainActivity : AppCompatActivity() {
     private fun enableDisableTopSwipe(action: Boolean){
         menuSwipeEnabled = action
     }
-    private fun menuOptionClicked(menu: String){
-        // Тот же звук (cnd_rad_eff.wav), что и playConfirmAudio() ниже — раньше здесь был
-        // отдельный вечно висящий в памяти MediaPlayer (mediaPlayerCRF) под тот же файл,
-        // теперь оба места используют один ленивый create-play-release путь.
-        playConfirmAudio()
-        topLevelButtonsModify(menu)
-        setupMainContent(menu)
-        setupRow2(menu)
-        enableDisableBottomButtons(false, listBottomButtons)
-        enableDisableTopSwipe(false)
-        sendBLEText(menu)
-    }
     private fun menuOptionClickedBLE(menu: String){
         playConfirmAudio()
         topLevelButtonsModify(menu)

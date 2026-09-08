@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PipDroid</string>
-    <string name="app_version">version 2.0.12</string>
     <string name="cancel">Cancel</string>
-    <string name="exit">Exit</string>
-    <string name="info_dialog_close_link"><a href="https://www.reddit.com/user/malto4">Reddit</a></string>
-    <string name="search_menu_title">Search</string>
 
     <!-- Экран выбора режима и мастер PipBoy 2000 (roadmap, "Видение приложения") —
          рабочий текст, взят из roadmap как есть. Финальные RU/EN тексты — отдельная
@@ -47,17 +43,12 @@
     <string name="wizard_hint_connect_hardware">While the PipBoy is off, this screen stays black. To turn on the PipBoy, press POWER.</string>
     <string name="wizard_hide_hint">Hide Hint</string>
 
-    <string name="current_rad_value">0</string>
-    <string name="max">MAX</string>
-    <string name="power_off">Power Off</string>
     <string name="geiger_reset_button">Reset</string>
     <string name="geiger_status_ok">You\'re fine</string>
     <string name="geiger_status_mild">Mild radiation sickness\nYou should see a doctor</string>
     <string name="geiger_status_moderate">Radiation sickness\nSee a doctor as soon as possible</string>
     <string name="geiger_status_severe">Severe radiation sickness\nHopefully a doctor reaches you in time</string>
     <string name="geiger_status_critical">Extremely critical damage\nAre you still alive?</string>
-    <string name="rad_cur_value">0</string>
-    <string name="radio">Radio</string>
     <!-- Реальное радио (roadmap, этап 23) — статус-строка на экране RADIO, см.
          applyRadioPowerState() в MainActivity.kt. Заглавные буквы намеренно — та же
          конвенция, что у bluetooth_status_connected/_disconnected (статус-индикатор, не
@@ -74,7 +65,6 @@
 
     <string name="title_stats">STATS</string>
     <string name="title_stats_status">Status</string>
-    <string name="title_stats_status_lvl">1</string>
 
     <!-- STATUS — система ранений/кровотечения (roadmap, "Редизайн STATS/Status —
          UX-спецификация") -->
@@ -96,7 +86,6 @@
     <string name="title_items">ITEMS</string>
 
     <string name="title_data">DATA</string>
-    <string name="title_data_location">Megaton</string>
     <string name="title_data_date">10.21.81</string>
     <string name="title_data_time">11:35</string>
 
@@ -115,66 +104,46 @@
     <string name="stats_special">SPECIAL</string>
     <string name="stats_special_strength">Strength</string>
     <string name="special_strength_description">Strength is a measure of your raw physical power. It affects how much you can carry, the power of all melee attacks, and your effectiveness with many heavy weapons.</string>
-    <string name="special_strength_value">10</string>
     <string name="special_perception">Perception</string>
     <string name="special_perception_description">A high Perception grants a bonus to the Explosives, Lockpick and Energy Weapons skills, and determines when red compass markings appear (which indicate threats).</string>
-    <string name="special_perception_value">10</string>
     <string name="special_endurance">Endurance</string>
     <string name="special_endurance_description">Endurance is a measure of your overall physical fitness. A high Endurance gives bonuses to health, environmental resistances, and the Survival and Unarmed skills.</string>
-    <string name="special_endurance_value">9</string>
     <string name="special_charisma">Charisma</string>
     <string name="special_charisma_description">"Having a high Charisma will improve people's disposition toward you, and give bonuses to both the Barter and Speech skills."</string>
-    <string name="special_charisma_value">10</string>
     <string name="special_intelligence">Intelligence</string>
     <string name="special_intelligence_description">"Intelligence affects the Science, Repair and medicine skills. The higher your Intelligence, the more Skill Points you'll be able to distribute when you level up."</string>
-    <string name="special_intelligence_value">9</string>
     <string name="special_agility">Agility</string>
     <string name="special_agility_description">Agility affects your Guns and Sneak skills, and the number of Action Points available for V.A.T.S.</string>
-    <string name="special_agility_value">9</string>
     <string name="special_luck">Luck</string>
     <string name="special_luck_description">Raising your Luck will raise all of your skills a little. Having a high Luck will also improve your critical chance with all weapons.</string>
-    <string name="special_luck_value">10</string>
 
     <string name="stats_skills">Skills</string>
     <string name="skill_barter">Barter</string>
     <string name="skill_barter_description">The Barter skill affects the prices you get for buying and selling items. In general, the higher your Barter skill, the lower your prices on purchased items.</string>
-    <string name="skill_barter_value">100</string>
     <string name="skill_big_guns">Big Guns</string>
     <string name="skill_big_guns_description">The Big Guns skill determines your combat effectiveness with all oversized weapons such as the Fat Man, Missile Launcher, Flamer, Minigun and Gatling Laser.</string>
-    <string name="skill_big_guns_value">100</string>
     <string name="skill_energy_weapons">Energy Weapons</string>
     <string name="skill_energy_weapons_description">The Energy Weapons skill determines your effectiveness with any weapon that uses Small Energy Cells, Micro Fusion Cells, EC Packs, or Flamer Fuel as ammunition.</string>
-    <string name="skill_energy_weapons_value">100</string>
     <string name="skill_explosives">Explosives</string>
     <string name="skill_explosives_description">The Explosives skill determines the ease of disarming any hostile mines and the effectiveness of any explosive weapon (all mines, all grenades, Missile Launcher, Fat Man, etc.).</string>
-    <string name="skill_explosives_value">80</string>
     <string name="skill_lockpick">Lockpick</string>
     <string name="skill_lockpick_description">The Lockpick skill is used to open locked doors and containers.</string>
-    <string name="skill_lockpick_value">100</string>
     <string name="skill_medicine">Medicine</string>
     <string name="skill_medicine_description">"The Medicine skill determines how many hit points you'll replenish upon using a Stimpak, and the effectiveness of Rad-X and RadAway."</string>
-    <string name="skill_medicine_value">70</string>
     <string name="skill_melee_weapons">Melee Weapons</string>
     <string name="skill_melee_weapons_description">The Melee Weapons skill determines your effectiveness with any melee weapon, from the simple lead pipe all the way up to the high-tech Super Sledge.</string>
-    <string name="skill_melee_weapons_value">40</string>
     <string name="skill_repair">Repair</string>
     <string name="skill_repair_description">The Repair skill allows you to maintain your weapons and apparel. In addition, Repair allows you to create items and Guns ammunition at reloading benches.</string>
-    <string name="skill_repair_value">100</string>
     <string name="skill_science">Science</string>
     <string name="skill_science_description">The Science skill represents your combined scientific knowledge, and is primarily used to hack restricted computer terminals. It can also be used to recycle Energy Weapon ammunition at workbenches.</string>
-    <string name="skill_science_value">100</string>
     <string name="skill_small_guns">Small Guns</string>
     <string name="skill_small_guns_description">The Small Guns determines your effectiveness with all conventional projectile weapons, such as 10mm pistol, BB Gun, Assault Rifle, and Combat Shotgun.</string>
-    <string name="skill_small_guns_value">100</string>
     <string name="skill_sneak">Sneak</string>
     <string name="skill_sneak_description">"The higher your Sneak skill, the easier it is to remain undetected, steal an item, or pick someone's pocket. Successfully attacking while undetected grants an automatic critical hit."</string>
-    <string name="skill_sneak_value">80</string>
     <string name="skill_speech">Speech</string>
     <string name="skill_speech_description">The Speech skill governs how much you can influence someone through dialogue, and gain access to information they might otherwise not want to share.</string>
-    <string name="skill_speech_value">100</string>
     <string name="skill_unarmed">Unarmed</string>
     <string name="skill_unarmed_description">The Unarmed skill is used for fighting without a weapon, or with weapons designed for hand-to-hand combat, like Brass Knuckles, Power Fists, and Displacer Gloves.</string>
-    <string name="skill_unarmed_value">50</string>
 
     <string name="stats_perks">Perks</string>
     <string name="perks_filter_button">Filter perks</string>
@@ -532,7 +501,6 @@ A player's caravan is considered sold when the value of its cards is over 20 and
 
     <string name="data_holotapes">Holotapes</string>
 
-    <string name="data_radio">Radio</string>
 
     <string name="settings">SETTINGS</string>
     <!-- Разделы бокового меню Settings (roadmap, "Редизайн Settings", этап 26) — Map
@@ -556,7 +524,6 @@ A player's caravan is considered sold when the value of its cards is over 20 and
     <string name="settings_6_value_4">DD/MM/YYYY</string>
     <string name="settings_6_value_5">YYYY/MM/DD</string>
 
-    <string name="settings_7_name">PLACEHOLDER</string>
 
     <string name="settings_language_name">Interface Language</string>
     <!-- Названия языков не переводятся — Русский/English показываются одинаково

@@ -33,6 +33,11 @@ snapshot() {
     sed -E -e 's/#[0-9]+/#N/g' -e 's|// int [0-9]+|// int N|g' -e 's|// String [0-9]+|// String N|g' \
         "$out/bytecode.txt" > "$out/bytecode-norm.txt"
 
+    # Только объявления членов: при удалении кода смещения в байткоде плывут по всему
+    # методу, а этот список меняется ровно на то, что действительно убрали.
+    grep -E '^(public|final|abstract| {2}(public|private|protected|final|static)).*(\(|;)$' \
+        "$out/bytecode.txt" | sed 's/^ *//' | sort > "$out/members.txt"
+
     echo "==> Ресурсы: файлы"
     (cd "$ROOT/app/src/main/res" && find . -type f | sort) > "$out/res-files.txt"
 
@@ -57,7 +62,7 @@ snapshot() {
 
 compare() {
     local a="$SNAPDIR/$1" b="$SNAPDIR/$2" rc=0
-    for f in bytecode.txt bytecode-norm.txt res-files.txt res-names.txt dynamic-names.txt; do
+    for f in bytecode.txt bytecode-norm.txt members.txt res-files.txt res-names.txt dynamic-names.txt; do
         if [ ! -s "$a/$f" ] || [ ! -s "$b/$f" ]; then
             echo "ПУСТО    $f — слепок неполный, сверка недействительна"; rc=1; continue
         fi

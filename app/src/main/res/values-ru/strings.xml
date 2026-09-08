@@ -5,7 +5,6 @@
      оригинал, дублировать их здесь не нужно. -->
 <resources>
     <string name="action_save">Сохранить</string>
-    <string name="app_version">версия 2.0.12</string>
     <string name="bluetooth_field_mac_address">MAC-адрес</string>
     <string name="bluetooth_mac_not_set">Не выбрано</string>
     <string name="bluetooth_status_disconnected">НЕ ПОДКЛЮЧЕНО</string>
@@ -53,7 +52,6 @@
     <string name="data_misc_entry1_name">Как играть в Караван</string>
     <string name="data_misc_entry2_description">"Вы скачали координаты и коды доступа к Убежищам 87, 92, 101, 106 и 108.</string>
     <string name="data_misc_entry2_name">Сведения об убежищах Vault-Tec</string>
-    <string name="data_radio">Радио</string>
     <string name="disclaimer_dont_show_again">Больше не показывать</string>
     <string name="disclaimer_skip_button">Пропустить</string>
     <string name="disclaimer_text">"PipDroid LARP — некоммерческий фанатский проект по вселенной Fallout, созданный для полигонных ролевых игр на основе PipDroid от Malto4. Приложение не связано с Bethesda Softworks и не одобрено правообладателями. Все товарные знаки и права на вселенную Fallout принадлежат их владельцам. Приложение распространяется бесплатно, без коммерческой цели."</string>
@@ -116,7 +114,6 @@ Holotapes — интерфейс чтения голодисков. Вставл
 
 Голосовые команды работают по вейк-слову «Пип-бой» — скажите его, затем команду: «Пип-бой, лёгкое ранение»; «Пип-бой, маршрут до логова гекконов»; «Пип-бой, статус». Распознавание работает офлайн, без интернета. Включается отдельно в Settings → Voice Commands. Полный список команд — в README проекта на GitHub."</string>
 
-    <string name="exit">Выход</string>
     <string name="filter_cancel_button">" Отмена "</string>
     <string name="filter_clear_all">Очистить всё</string>
     <string name="filter_modification_title">Модификация</string>
@@ -202,20 +199,16 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="voice_command_listening">Слушаю команду…</string>
     <string name="voice_command_recognized">Команда: %1$s</string>
     <string name="voice_command_not_recognized">Команда не распознана</string>
-    <string name="max">МАКС</string>
     <string name="mode_description_phone">Приложение работает в полноэкранном режиме и управляется через тачскрин, без взаимодействия с периферией. Радио, счётчик Гейгера и чтение голодисков требуют корпуса PipBoy и недоступны в этом режиме.</string>
     <string name="mode_description_pipboy_2000">Рабочая область приложения задаётся вручную. Приложение управляется периферией PipBoy 2000. Управление через тачскрин сохранено, но является опциональным.</string>
     <string name="mode_description_pipboy_3000">Режим находится в разработке.</string>
     <string name="mode_phone">Телефон</string>
     <string name="mode_select_button">Выбрать</string>
     <string name="placeholder_in_development">Раздел находится в разработке.</string>
-    <string name="power_off">Выключить питание</string>
-    <string name="radio">Радио</string>
     <string name="radio_status_on">В ЭФИРЕ</string>
     <string name="radio_status_off">НЕ В ЭФИРЕ</string>
     <string name="radio_volume_label">Громкость</string>
     <string name="recycler_list_header">СПИСОК</string>
-    <string name="search_menu_title">Поиск</string>
     <string name="settings">НАСТРОЙКИ</string>
     <string name="settings_section_main">Основное</string>
     <string name="settings_section_game_info">Игровая информация</string>
@@ -566,7 +559,6 @@ Holotapes — интерфейс чтения голодисков. Вставл
     <string name="title_bottom_common_radiation_icon_description">Радиация</string>
     <string name="title_bottom_common_region_placeholder">РИЧМОНД</string>
     <string name="title_data">ДАННЫЕ</string>
-    <string name="title_data_location">Мегатонна</string>
     <string name="title_items">МОДУЛИ</string>
     <string name="title_radio">РАДИО</string>
     <string name="title_stats">ХАР-КИ</string>

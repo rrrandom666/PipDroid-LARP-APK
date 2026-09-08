@@ -1160,6 +1160,7 @@ class MainActivity : AppCompatActivity() {
         modeSelectAdapter = SidebarMenuAdapter(
             items = modeSelectList.map { mode -> SidebarMenuItem(payload = mode, label = pipBoyModeDisplayName(mode)) },
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             playSelectSound = { playTickAudio() },
             onSelect = { _, item -> showModeDescription(item.payload) },
         )
@@ -2157,6 +2158,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = SidebarMenuAdapter(
             items = items,
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // Звук даёт onSelect ниже — ровно один на тап, тик глушится на время синхронизации.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -2336,6 +2338,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = SidebarMenuAdapter(
             items = journalSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             initialSelectedPosition = initialSelectedPosition,
             // Звук даёт onSelect ниже — ровно один на тап.
             playSelectSound = {},
@@ -4243,29 +4246,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
     @SuppressLint("DiscouragedPrivateApi")
-    private fun setScrollbarThumbDrawable(view: View, drawable: Drawable) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            view.verticalScrollbarThumbDrawable = drawable
-        } else {
-            try {
-                val scrollCacheField = View::class.java.getDeclaredField("mScrollCache")
-                scrollCacheField.isAccessible = true
-                val scrollCache = scrollCacheField.get(view)
-
-                val scrollBarField = scrollCache.javaClass.getDeclaredField("scrollBar")
-                scrollBarField.isAccessible = true
-                val scrollBar = scrollBarField.get(scrollCache)
-
-                val method = scrollBar.javaClass.getDeclaredMethod(
-                    "setVerticalThumbDrawable", Drawable::class.java
-                )
-                method.isAccessible = true
-                method.invoke(scrollBar, drawable)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
 
     private fun applyAppTheme(uiTheme: UiTheme) {
         applyBackgroundResource(uiTheme)
@@ -4305,14 +4285,9 @@ class MainActivity : AppCompatActivity() {
     }
     private fun applyScrollBar(scrollbarDrawable: Drawable?){
         scrollbarDrawable?.let {
-            // Apply scrollbar drawable to relevant scroll views
+            // Только обычные ScrollView: у боковых меню ползунок ставит SidebarMenuAdapter.
             val scrollViews = listOf(
-                bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial,
-                bindingMain.incLayoutTabStatsSkills.scrollTabSkills,
-                bindingMain.incLayoutTabStatsPerks.recyclerTabPerks,
-                bindingMain.incLayoutTabDataMisc.recyclerTabDataMisc,
                 bindingMain.incLayoutTabDataMisc.scrollTabDataMiscText,
-                bindingMain.incLayoutSettingsGlobal.recyclerSettingsSidebar,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsMain,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsGameInfo,
                 bindingMain.incLayoutSettingsGlobal.scrollSettingsPreferences,
@@ -4322,7 +4297,7 @@ class MainActivity : AppCompatActivity() {
                 bindingMain.incLayoutFilterModification.scrollFilterModification
                 // Add other scroll views as necessary
             )
-            scrollViews.forEach { setScrollbarThumbDrawable(it, scrollbarDrawable) }
+            scrollViews.forEach { setScrollbarThumb(it, scrollbarDrawable) }
         }
     }
 
@@ -6375,6 +6350,7 @@ class MainActivity : AppCompatActivity() {
         perksAdapter = SidebarMenuAdapter(
             items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // Звук даёт onSelect ниже — тик отсюда его дублировал.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -6574,6 +6550,7 @@ class MainActivity : AppCompatActivity() {
         specialAdapter = SidebarMenuAdapter(
             items = specialSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // Звук даёт onSelect ниже; тик остаётся только там, где его играет реальное вращение энкодера.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -6597,6 +6574,7 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter = SidebarMenuAdapter(
             items = skillsSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // {} — см. подробный комментарий у specialAdapter выше, тот же приём.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -6621,6 +6599,7 @@ class MainActivity : AppCompatActivity() {
         statusAdapter = SidebarMenuAdapter(
             items = statusSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора: он должен доехать сюда, даже если энкодер был в другой ветке.
@@ -7180,6 +7159,7 @@ class MainActivity : AppCompatActivity() {
         mapRootAdapter = SidebarMenuAdapter(
             items = mapRootSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
             playSelectSound = {},
             onSelect = { _, item ->
@@ -7201,6 +7181,7 @@ class MainActivity : AppCompatActivity() {
         mapRouteSubmenuAdapter = SidebarMenuAdapter(
             items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -7387,6 +7368,7 @@ class MainActivity : AppCompatActivity() {
         clockAdapter = SidebarMenuAdapter(
             items = clockSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -7572,6 +7554,7 @@ class MainActivity : AppCompatActivity() {
         melodyAdapter = SidebarMenuAdapter(
             items = melodyItems,
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             initialSelectedPosition = melodyFocusedIndex,
             // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
             playSelectSound = {},
@@ -7767,6 +7750,7 @@ class MainActivity : AppCompatActivity() {
         dataFilesAdapter = SidebarMenuAdapter(
             items = dataFilesSidebarItems(),
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
             playSelectSound = {},
             onSelect = { position, item ->
@@ -7810,6 +7794,7 @@ class MainActivity : AppCompatActivity() {
                 SidebarMenuItem(payload = panel, label = settingsSectionLabels[index])
             },
             selectedBackgroundRes = selected_button,
+            scrollbarThumbRes = currentUiTheme().scrollbarRes,
             // confirm, а не тик: этот сайдбар вообще не завязан на дерево энкодера.
             playSelectSound = { playConfirmAudio() },
             onSelect = { _, item ->

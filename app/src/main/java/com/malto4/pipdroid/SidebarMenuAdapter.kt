@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 /** Длительность имитации тач-нажатия для ENCBTN — общая для пунктов меню и отдельных кнопок. */
@@ -25,12 +26,15 @@ class SidebarMenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) 
 }
 
 /** Общий адаптер бокового меню 3 уровня — замена шести копий подсветки и трёх адаптеров. */
-/** [selectedBackgroundRes] — уже тема-зависимый ресурс, адаптер его не резолвит сам. */
+/** [selectedBackgroundRes] и [scrollbarThumbRes] — уже тема-зависимые ресурсы, адаптер их не
+ * резолвит сам. Ползунок объявлен один раз здесь и в стиле SidebarListScrollbar, а не копией
+ * атрибутов в каждой разметке — появляется сам, когда списку есть куда прокручиваться. */
 /** [selectPosition] — единая точка входа для тапа и для энкодера; экраны, где наведение и
  * подтверждение должны различаться, зовут [setSelectedPositionSilently] отдельно. */
 class SidebarMenuAdapter<T>(
     private var items: List<SidebarMenuItem<T>>,
     private val selectedBackgroundRes: Int,
+    private val scrollbarThumbRes: Int,
     initialSelectedPosition: Int = 0,
     private val playSelectSound: () -> Unit,
     private val onSelect: (position: Int, item: SidebarMenuItem<T>) -> Unit,
@@ -45,6 +49,7 @@ class SidebarMenuAdapter<T>(
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
+        setScrollbarThumb(recyclerView, ContextCompat.getDrawable(recyclerView.context, scrollbarThumbRes))
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
@@ -151,4 +156,26 @@ class SidebarMenuAdapter<T>(
     fun selectedPosition(): Int = selectedPosition
 
     fun currentItems(): List<SidebarMenuItem<T>> = items
+}
+
+/** Ставит drawable ползунка: с API 29 штатным сеттером, ниже — через приватный mScrollCache. */
+internal fun setScrollbarThumb(view: android.view.View, drawable: android.graphics.drawable.Drawable?) {
+    if (drawable == null) return
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        view.verticalScrollbarThumbDrawable = drawable
+        return
+    }
+    runCatching {
+        val scrollCacheField = android.view.View::class.java.getDeclaredField("mScrollCache")
+        scrollCacheField.isAccessible = true
+        val scrollCache = scrollCacheField.get(view) ?: return
+        val scrollBarField = scrollCache.javaClass.getDeclaredField("scrollBar")
+        scrollBarField.isAccessible = true
+        val scrollBar = scrollBarField.get(scrollCache) ?: return
+        val method = scrollBar.javaClass.getDeclaredMethod(
+            "setVerticalThumbDrawable", android.graphics.drawable.Drawable::class.java
+        )
+        method.isAccessible = true
+        method.invoke(scrollBar, drawable)
+    }
 }

@@ -24,12 +24,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import java.util.UUID
 
-/**
- * Держит BLE-соединение с PipBoy живым в фоне (протокол PipBoy_BLE_Protocol_v0.2.md,
- * раздел 5) — постоянное уведомление, foreground service, иначе Android рвёт связь при
- * сворачивании приложения. MainActivity привязывается к сервису биндингом и никогда сама
- * не трогает BluetoothGatt — вся физическая связь только здесь.
- */
+/** Держит BLE-соединение в фоне: foreground service, иначе Android рвёт связь при сворачивании. */
+/** MainActivity ходит только через биндинг и сама BluetoothGatt не трогает. */
 class PipBoyBleService : Service() {
 
     companion object {
@@ -38,9 +34,7 @@ class PipBoyBleService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val RECONNECT_DELAY_MS = 3000L
 
-        // TX-характеристика NUS — используется и как read-характеристика по умолчанию,
-        // и как UUID дескриптора нотификации (совпадение зафиксировано ещё в исходном
-        // коде PipDroid, см. отчёт разведки перед этим шагом — не трогаем).
+        // TX-характеристика NUS служит и read-характеристикой по умолчанию, и UUID дескриптора нотификации.
         private const val NUS_TX_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
         private const val PREFS_NAME = "PipDroid_Preferences"
@@ -67,8 +61,7 @@ class PipBoyBleService : Service() {
 
     private var userRequestedDisconnect = false
 
-    /** Последнее известное состояние POWER от ESP32 — источник истины ESP32, не телефон
-     * (протокол, раздел 3.1). */
+    /** Последнее известное состояние POWER; источник истины — ESP32, не телефон. */
     var powerState: Boolean = false
         private set
 
@@ -84,8 +77,7 @@ class PipBoyBleService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification("Подключение..."))
-        // Идемпотентно: повторный старт (например, по клику Connect в настройках) не
-        // должен рвать уже живое соединение — для форс-реконнекта есть отдельный метод.
+        // Идемпотентно: повторный старт не должен рвать уже живое соединение.
         if (bluetoothGatt == null) {
             userRequestedDisconnect = false
             loadConnectionSettings()

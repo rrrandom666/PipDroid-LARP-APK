@@ -2,16 +2,10 @@ package com.malto4.pipdroid
 
 import java.util.PriorityQueue
 
-/**
- * Пеший маршрут по графу дорог/троп из бандла (map_roads.json, см. MapBundleRepository) —
- * A* с haversine-эвристикой. Чистый Kotlin-класс без Android-зависимостей (только
- * распарсенный RoadGraph + GeoReference для дистанций) — юнит-тестируем в изоляции, хотя
- * тестовой инфраструктуры в проекте пока нет.
- */
+/** Пеший маршрут по графу дорог из бандла — A* с haversine-эвристикой, без Android-зависимостей. */
 class PedestrianRouter(private val graph: RoadGraph) {
 
-    /** Линейный перебор — для масштаба полигона (сотни-низкие тысячи узлов) спейшл-индекс
-     * не нужен. */
+    /** Линейный перебор: для масштаба полигона пространственный индекс не нужен. */
     fun nearestNode(lat: Double, lon: Double): String? {
         var bestId: String? = null
         var bestDist = Double.MAX_VALUE

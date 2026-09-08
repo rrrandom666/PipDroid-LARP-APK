@@ -13,11 +13,7 @@ data class JournalEntry(
 
 private data class JournalEntryListFile(val entries: List<JournalEntry>)
 
-/**
- * Личные записи Журнала (этап 20) — та же схема хранения, что и у отметок карты
- * (MarkerRepository): один JSON-файл в filesDir через Gson, полная перезапись при
- * каждой мутации. Голосовой ввод (Vosk) — отдельный, более поздний шаг, сюда не входит.
- */
+/** Записи Журнала: один JSON в filesDir через Gson, полная перезапись при каждой мутации. */
 class JournalRepository(private val context: Context) {
 
     private val gson = Gson()

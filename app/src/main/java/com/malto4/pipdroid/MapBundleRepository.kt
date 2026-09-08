@@ -7,12 +7,8 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.io.File
 
-/**
- * Привязка map.png к координатам — линейная интерполяция по прямоугольнику
- * min/max lat/lon, готовится скриптом falloutize_map.py (build_road_graph/
- * extract_map_from_osm, save_bounds_json). Ключи в JSON — snake_case (питоновская
- * сторона), поля класса — camelCase (котлиновская конвенция).
- */
+/** Привязка map.png к координатам — линейная интерполяция по прямоугольнику min/max lat/lon. */
+/** Ключи в JSON snake_case (питоновская сторона), поля класса camelCase. */
 data class MapBounds(
     @SerializedName("min_lat") val minLat: Double,
     @SerializedName("max_lat") val maxLat: Double,
@@ -23,12 +19,7 @@ data class MapBounds(
     @SerializedName("zoom_level") val zoomLevel: Double
 )
 
-/**
- * Граф пешеходных дорог/троп — готов для Dijkstra/A* как есть, без
- * дополнительной обработки. nodes: id узла -> [lat, lon]. adjacency: id узла ->
- * {id соседа -> расстояние в метрах}, уже неориентированный (рёбра в обе
- * стороны), см. build_road_graph() в falloutize_map.py.
- */
+/** Граф пешеходных дорог — готов для A* как есть, рёбра уже в обе стороны. */
 data class RoadGraph(
     val nodes: Map<String, List<Double>>,
     val adjacency: Map<String, Map<String, Double>>
@@ -39,14 +30,8 @@ private data class MapBundleImportMeta(
     val sourceFolderName: String
 )
 
-/**
- * Бандл карты (map.png + map_bounds.json + map_roads.json, фиксированные
- * имена) — готовится заранее вне телефона скриптом falloutize_map.py и
- * импортируется игроком через SAF-пикер папки в Settings. Один активный
- * бандл за раз: новый импорт полностью заменяет предыдущий. Никаких сетевых
- * запросов приложение для карты не делает — весь смысл бандла в том, чтобы
- * карта работала на полигоне без интернета.
- */
+/** Бандл готовится вне телефона и импортируется SAF-пикером; один активный бандл за раз. */
+/** Сетевых запросов для карты приложение не делает — весь смысл бандла в работе без интернета. */
 class MapBundleRepository(private val context: Context) {
 
     private val gson = Gson()
@@ -76,12 +61,7 @@ class MapBundleRepository(private val context: Context) {
 
     fun importedSourceFolderName(): String? = importMeta()?.sourceFolderName
 
-    /**
-     * Копирует map.png/map_bounds.json/map_roads.json из папки, выбранной SAF-пикером.
-     * Валидирует наличие и парсимость всех трёх файлов ДО того, как трогает уже
-     * рабочий бандл — так плохая папка никогда не портит то, что уже было
-     * импортировано. Вызывать вне главного потока (файловый и JSON I/O).
-     */
+    /** Валидирует все три файла ДО того, как трогает рабочий бандл; звать вне главного потока. */
     fun importFromTree(treeUri: Uri): Result<Unit> = runCatching {
         val tree = DocumentFile.fromTreeUri(context, treeUri)
             ?: throw IllegalArgumentException(context.getString(R.string.map_bundle_import_error_folder))
@@ -131,9 +111,7 @@ class MapBundleRepository(private val context: Context) {
 
         bundleDir.deleteRecursively()
         if (!tmpDir.renameTo(bundleDir)) {
-            // renameTo может не сработать между разными точками монтирования —
-            // на filesDir/* этого не бывает на практике, но на всякий случай
-            // подстраховываемся явным копированием вместо тихого молчания.
+            // renameTo может не сработать между точками монтирования — подстраховываемся копированием.
             bundleDir.mkdirs()
             tmpDir.listFiles()?.forEach { it.copyTo(File(bundleDir, it.name), overwrite = true) }
             tmpDir.deleteRecursively()

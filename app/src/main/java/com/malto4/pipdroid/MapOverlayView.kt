@@ -11,14 +11,9 @@ import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.View
 
-/**
- * Рисуется поверх PhotoView с картой (layout_tab_items_map.xml) — GPS-точка игрока
- * (Фаза D), отметки игрока (Фаза E), линия маршрута (Фаза F). Координаты хранятся в
- * пространстве битмапа (пиксели map.png), а не экрана: displayMatrix (текущий пан/зум
- * PhotoView, см. PhotoView.getDisplayMatrix()) применяется к точкам вручную перед
- * отрисовкой — так толщина не плавает при зуме, в отличие от canvas.concat(matrix), который
- * отмасштабировал бы и сам Paint.strokeWidth.
- */
+/** Рисуется поверх PhotoView: точка игрока, отметки, линия маршрута. */
+/** Точки хранятся в пространстве битмапа, матрица применяется вручную — canvas.concat()
+ * отмасштабировал бы и толщину линий. */
 class MapOverlayView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -30,8 +25,7 @@ class MapOverlayView @JvmOverloads constructor(
             field = value
             invalidate()
         }
-    // Имя + позиция — подпись рисуется прямо на карте (не только в списках), с подложкой,
-    // иначе на пёстром фоне карты нечитаемо.
+    // Подпись рисуется прямо на карте, с подложкой — на пёстром фоне иначе нечитаемо.
     var markerPins: List<Pair<String, PointF>> = emptyList()
         set(value) {
             field = value
@@ -43,10 +37,7 @@ class MapOverlayView @JvmOverloads constructor(
             invalidate()
         }
 
-    // GPS-точка игрока — фиксированный красный, не акцент темы: на White-теме акцент сам
-    // белый и точка сливалась бы с картой. Не переиспользуем этот же цвет для маршрута —
-    // игрок идёт ПО маршруту, точка и линия постоянно оказывались бы рядом/друг на друге,
-    // одинаковый цвет значил бы, что они сливаются именно тогда, когда это важнее всего.
+    // Точка игрока — фиксированный красный, не акцент: на White-теме акцент сам белый.
     private val userDotFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF3B30")
         style = Paint.Style.FILL
@@ -56,9 +47,7 @@ class MapOverlayView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeWidth = 3f
     }
-    // Отметки — тоже фиксированный цвет, не акцент темы: акцентом уже красится сама карта
-    // (дороги/объекты на тайле), отметка того же цвета сливалась бы с ней. Жёлтый не
-    // конфликтует ни с одной из 4 тем и отличается от красной точки игрока.
+    // Отметки — фиксированный жёлтый: акцентом уже красится сама карта.
     private val markerFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FFD400")
         style = Paint.Style.FILL
@@ -76,13 +65,8 @@ class MapOverlayView @JvmOverloads constructor(
         color = Color.argb(190, 0, 0, 0)
         style = Paint.Style.FILL
     }
-    // Маршрут — тоже фиксированный цвет, не акцент темы: тем же акцентом уже красится сама
-    // карта (дороги на тайле), линия того же цвета сливалась бы с ними. Не красный (точка
-    // игрока идёт ПО маршруту — сливались бы) и не жёлтый (отметки). Пурпурный/маджента не
-    // конфликтует ни с одной из 4 тем (в т.ч. с приглушённым Blue) — стандартный цвет именно
-    // для маршрутов в навигационных интерфейсах, почти нигде больше не используется. Тёмный
-    // halo под линией — читаемость на светлых (Amber/White-тонированных) участках карты, тот
-    // же приём, что у точки/отметок.
+    // Маршрут — фиксированный пурпурный: не сливается ни с картой, ни с точкой игрока, ни с отметками.
+    // Тёмный halo под линией — читаемость на светлых участках карты.
     private val routeHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(200, 0, 0, 0)
         style = Paint.Style.STROKE

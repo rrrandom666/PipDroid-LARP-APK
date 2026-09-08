@@ -14,20 +14,9 @@ private data class VoiceModelImportMeta(
     val sourceFileName: String
 )
 
-/**
- * Офлайн-модель Vosk (STT-слой голосовых команд после будческого слова, roadmap этап 21) —
- * доставляется тем же принципом, что и бандл карты (MapBundleRepository): не через assets
- * APK (лишние ~50 МБ у каждого игрока, даже если голосовые команды ему не нужны), а
- * SAF-выбором одного .zip-файла (vosk-model-small-ru и подобные) в Settings, с распаковкой
- * во внутреннее хранилище. Один активный набор моделей за раз, новый импорт полностью
- * заменяет предыдущий.
- *
- * В отличие от бандла карты (плоские 3 файла) модель Vosk — это дерево подпапок
- * (am/conf/graph/ivector), и архив обычно оборачивает их ещё одной папкой с именем модели
- * (vosk-model-small-ru-0.22/...) — importFromZip() определяет фактический корень модели
- * внутри распакованного дерева (сам tmp-каталог либо один из его прямых подкаталогов) и
- * разворачивает его на уровень modelDir/, а не хранит лишнюю обёртку.
- */
+/** Модель Vosk доставляется SAF-импортом .zip, а не в assets: иначе лишние ~50 МБ у каждого игрока. */
+/** Архив обычно оборачивает дерево модели ещё одной папкой — импорт разворачивает фактический
+ * корень на уровень modelDir, а не хранит обёртку. */
 class VoiceModelRepository(private val context: Context) {
 
     private val gson = Gson()
@@ -46,12 +35,8 @@ class VoiceModelRepository(private val context: Context) {
 
     fun importedSourceFileName(): String? = importMeta()?.sourceFileName
 
-    /**
-     * Распаковывает выбранный .zip во временный каталог, ищет в нём корень модели (по
-     * наличию am/final.mdl, conf/mfcc.conf, .fst-файлов в graph/), затем атомарно подменяет им
-     * modelDir. Валидация — ДО подмены рабочей модели, так плохой .zip никогда не портит
-     * то, что уже было импортировано. Вызывать вне главного потока (файловый и zip I/O).
-     */
+    /** Валидация — ДО подмены рабочей модели, так плохой .zip не портит уже импортированное;
+     * звать вне главного потока. */
     fun importFromZip(zipUri: Uri): Result<Unit> = runCatching {
         val sourceFileName = DocumentFile.fromSingleUri(context, zipUri)?.name ?: "?"
 
@@ -71,14 +56,8 @@ class VoiceModelRepository(private val context: Context) {
             if (modelRoot == unzipDir) {
                 unzipDir.renameTo(stagingDir)
             } else {
-                // renameTo для каждого подкаталога (am/conf/graph/...), не copyRecursively —
-                // источник и назначение на одном и том же filesystem (оба под filesDir), а
-                // rename() каталога на POSIX — мгновенная смена записи в родителе, НЕ копирование
-                // содержимого, независимо от размера. Раньше здесь стоял copyRecursively —
-                // на модели в ~2 ГБ это означало ВТОРОЕ полное копирование поверх уже сделанного
-                // при распаковке (первое — zip-энтри в unzipDir), что на практике удваивало
-                // время импорта и было прямой причиной находки ниже (импорт с большой моделью
-                // не укладывался в терпение игрока и обрывался до конца).
+                // renameTo подкаталогов, а не copyRecursively: источник и назначение на одной файловой системе,
+                // и rename каталога мгновенен — copyRecursively на большой модели удваивал время импорта.
                 stagingDir.mkdirs()
                 modelRoot.listFiles()?.forEach { child ->
                     if (!child.renameTo(File(stagingDir, child.name))) {
@@ -90,24 +69,13 @@ class VoiceModelRepository(private val context: Context) {
                 gson.toJson(VoiceModelImportMeta(System.currentTimeMillis(), sourceFileName))
             )
 
-            // Подмена — переименованием старой модели в сторону, а не предварительным
-            // deleteRecursively() рабочей modelDir (как было раньше): между удалением и
-            // гарантированной готовностью замены есть окно, и для GB-модели это не
-            // теоретический риск — процесс/корутина вполне может быть прервана посреди
-            // многоминутного явного копирования (Activity ушла в фон, ОС порезала процесс
-            // по памяти и т.п.), и тогда старая модель уже удалена, а новая не успела
-            // встать на место — NO модели вообще. renameTo() каталога, как и выше, —
-            // мгновенная операция независимо от размера, а не копирование, так что
-            // "переложить старое в сторону, положить новое на место, удалить старое" стоит
-            // примерно как deleteRecursively(), просто без окна беззащитности между ними.
+            // Старую модель уводим в сторону, а не удаляем заранее: между удалением и готовностью замены
+            // есть окно, в котором прерванный процесс оставил бы игрока вообще без модели.
             val oldModelDir = File(context.filesDir, "vosk_model_old")
             oldModelDir.deleteRecursively()
             val hadOldModel = modelDir.exists() && modelDir.renameTo(oldModelDir)
             if (!stagingDir.renameTo(modelDir)) {
-                // renameTo может не сработать между разными точками монтирования — на
-                // filesDir/* этого не бывает на практике, но на всякий случай подстраховываемся
-                // явным копированием. Сначала возвращаем старую модель на место (если уводили),
-                // чтобы она не потерялась, даже если fallback-копирование тоже не сработает.
+                // renameTo может не сработать между точками монтирования — сначала возвращаем старую модель на место.
                 if (hadOldModel) oldModelDir.renameTo(modelDir)
                 modelDir.mkdirs()
                 stagingDir.listFiles()?.forEach { it.copyRecursively(File(modelDir, it.name), overwrite = true) }
@@ -128,8 +96,7 @@ class VoiceModelRepository(private val context: Context) {
         return hasAcousticModel && hasConfig && hasGraph
     }
 
-    /** Ищет корень модели в распакованном дереве — либо сам каталог, либо один из его
-     * прямых подкаталогов (архив с папкой-обёрткой вида vosk-model-small-ru-0.22/). */
+    /** Ищет корень модели: либо сам каталог, либо один из его прямых подкаталогов. */
     private fun findModelRoot(dir: File): File? {
         if (isValidModelRoot(dir)) return dir
         dir.listFiles { file -> file.isDirectory }?.forEach { child ->
@@ -138,9 +105,7 @@ class VoiceModelRepository(private val context: Context) {
         return null
     }
 
-    /** Распаковка с защитой от zip-slip — путь каждой записи проверяется на выход за
-     * пределы targetDir ДО записи на диск (мало ли архив с подделанными именами вида
-     * "../../etc/..."). */
+    /** Распаковка с защитой от zip-slip — путь каждой записи проверяется до записи на диск. */
     private fun unzip(input: InputStream, targetDir: File) {
         val canonicalTargetPath = targetDir.canonicalPath + File.separator
         ZipInputStream(input).use { zis ->

@@ -624,7 +624,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var skillsAdapter: SidebarMenuAdapter<String>
 
     // Perks
-    private lateinit var perksAdapter: SidebarMenuAdapter<Map<String, String>>
+    private lateinit var perksAdapter: SidebarMenuAdapter<Perk>
     private var perksRealItemCount = 0
 
     private lateinit var selectedSubMenu: Button
@@ -4212,23 +4212,23 @@ class MainActivity : AppCompatActivity() {
         when(menu){
             "STATS" -> {
                 curMenu = "STATS"
-                bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
+                setBottomButtons(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
                 menuOptionClickedBLE("STATS")
             }
             "ITEMS" -> {
                 curMenu = "ITEMS"
-                bottomButtonsModify(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsJournal, bindingMain.incLayoutTabItemsBottom.btnItemsClock)
+                setBottomButtons(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, bindingMain.incLayoutTabItemsBottom.btnItemsMap, bindingMain.incLayoutTabItemsBottom.btnItemsJournal, bindingMain.incLayoutTabItemsBottom.btnItemsClock)
                 menuOptionClickedBLE("ITEMS")
             }
             "DATA" -> {
                 curMenu = "DATA"
-                bottomButtonsModify(bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataHolotapes)
+                setBottomButtons(bindingMain.incLayoutTabDataBottom.btnDataMisc, bindingMain.incLayoutTabDataBottom.btnDataHolotapes)
                 menuOptionClickedBLE("DATA")
             }
             "RADIO" -> {
                 curMenu = "RADIO"
                 // У RADIO нет второго уровня — listBottomButtons пуст, вызов отработает на пустом списке.
-                bottomButtonsModify()
+                setBottomButtons()
                 menuOptionClickedBLE("RADIO")
             }
         }
@@ -5347,20 +5347,9 @@ class MainActivity : AppCompatActivity() {
     }
     private fun refreshClockStopwatchBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.btnClockStopwatchBack)
     private fun refreshClockMelodyBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.btnClockMelodyBack)
-    private fun bottomButtonsModify(vararg buttons: Button){
+    private fun setBottomButtons(vararg buttons: Button){
         listBottomButtons.clear()
         listBottomButtons.addAll(buttons)
-    }
-    private fun setupSTATS(){
-        // Здоров по умолчанию — ни одна из трёх кнопок статуса не выделена.
-        updateWoundButtonsUI()
-        // Первый пункт подсвечивается сам, initialSelectedPosition по умолчанию 0.
-    }
-    private fun setupDATA(){
-        // Первый пункт подсвечивается сам, initialSelectedPosition по умолчанию 0.
-    }
-    private fun setupITEMSClock(){
-        // Первый пункт подсвечивается сам, initialSelectedPosition по умолчанию 0.
     }
     /** Проверка будильника из того же 300мс-цикла, что и часы; совпадение сразу разоружает его. */
     private fun updateAlarmStatusViews() {
@@ -5636,7 +5625,7 @@ class MainActivity : AppCompatActivity() {
             String.format("%02d:%02d:%02d", h, m, s)
     }
     /** Строка 1 шапки — подсветка активного верхнего раздела закрашенным фоном. */
-    private fun topLevelButtonsModify(menu: String){
+    private fun highlightTopLevelButton(menu: String){
         findViewById<Button>(R.id.btn_header_stats).setBackgroundResource(R.drawable.button_unselected)
         findViewById<Button>(R.id.btn_header_items).setBackgroundResource(R.drawable.button_unselected)
         findViewById<Button>(R.id.btn_header_data).setBackgroundResource(R.drawable.button_unselected)
@@ -5722,7 +5711,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
     private fun itemsRow2Items(): List<Row2Item> {
-        // Порядок должен совпадать с itemsMenuRoot() и bottomButtonsModify().
+        // Порядок должен совпадать с itemsMenuRoot() и setBottomButtons().
         val bottom = bindingMain.incLayoutTabItemsBottom
         return listOfNotNull(
             if (pipBoyMode != PipBoyMode.PHONE) Row2Item(bottom.btnItemsGeiger.text) { bottom.btnItemsGeiger.performClick() } else null,
@@ -5732,7 +5721,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
     private fun dataRow2Items(): List<Row2Item> {
-        // Порядок должен совпадать с dataMenuRoot() и bottomButtonsModify().
+        // Порядок должен совпадать с dataMenuRoot() и setBottomButtons().
         val bottom = bindingMain.incLayoutTabDataBottom
         return listOfNotNull(
             Row2Item(bottom.btnDataMisc.text) { bottom.btnDataMisc.performClick() },
@@ -5852,7 +5841,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun menuOptionClickedBLE(menu: String){
         playConfirmAudio()
-        topLevelButtonsModify(menu)
+        highlightTopLevelButton(menu)
         setupMainContentBLE(menu)
         setupRow2(menu)
         enableDisableBottomButtons(true, listBottomButtons)
@@ -6206,7 +6195,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ===== ЭКРАН ФИЛЬТРА =====
-    private fun listEntries(frameLayout: FrameLayout, items: List<Map<String, String>>){
+    private fun listEntries(frameLayout: FrameLayout, items: List<Perk>){
 
         frameLayout.removeAllViews()
 
@@ -6221,13 +6210,13 @@ class MainActivity : AppCompatActivity() {
             CompoundButtonCompat.setButtonTintList(checkBox, ColorStateList.valueOf(themeAccentColor()))
             val textView = TextView(this).apply {
                 // Set the text for the TextView to the "name" value
-                text = item["name"]
+                text = item.name
                 // Set custom font to button
                 typeface = TypefaceCache.getPipboyTypeface(context) // Set the loaded typeface
             }
 
             // Set the CheckBox checked state based on whether the item ID is in selectedItems
-            val itemId = item["id"] ?: ""
+            val itemId = item.id
             when(filteringMenu){
                 "PERKS" -> {
                     checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
@@ -6259,7 +6248,7 @@ class MainActivity : AppCompatActivity() {
         frameLayout.addView(linearLayout)
     }
 
-    private fun selectClearAllCheckBoxes(frameLayout: FrameLayout, items: List<Map<String, String>>, action: Boolean) {
+    private fun selectClearAllCheckBoxes(frameLayout: FrameLayout, items: List<Perk>, action: Boolean) {
         val linearLayout = frameLayout.getChildAt(0) as? LinearLayout ?: return
         for (i in 0 until linearLayout.childCount) {
             val entryLayout = linearLayout.getChildAt(i) as? LinearLayout
@@ -6269,7 +6258,7 @@ class MainActivity : AppCompatActivity() {
                     if (action){
                         if (!it.isChecked) {
                             it.isChecked = true
-                            val itemId = items[i]["id"] ?: ""
+                            val itemId = items[i].id
                             when(filteringMenu){
                                 "PERKS" -> {
                                     selectedFilterSTATSPerks.add(itemId)
@@ -6279,7 +6268,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         if (it.isChecked) {
                             it.isChecked = false
-                            val itemId = items[i]["id"] ?: ""
+                            val itemId = items[i].id
                             when(filteringMenu){
                                 "PERKS" -> {
                                     selectedFilterSTATSPerks.remove(itemId)
@@ -6292,14 +6281,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun filterList(items: List<Map<String, String>>, searchText: String) {
-        // Filter the items list based on searchText, excluding the "id" key
+    private fun filterList(items: List<Perk>, searchText: String) {
         val filteredItems = items.filter { item ->
-            item.any { (key, value) ->
-                key == "name" && value.split(" ").any { word ->
-                    word.contains(searchText, ignoreCase = true)
-                }
-            }
+            item.name.split(" ").any { word -> word.contains(searchText, ignoreCase = true) }
         }
 
         // Display the filtered items in the FrameLayout
@@ -6323,7 +6307,7 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putString(filterModificationItems, selectedItemsString).apply()
         when(filterModificationItems){
             "selectedSTATSPerksArray" -> {
-                STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
+                setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
             }
         }
     }
@@ -6362,33 +6346,32 @@ class MainActivity : AppCompatActivity() {
     }
     /** Локализация перка: Data.kt хранит только английский, перевод резолвится через perk_<id>_name/_desc. */
     /** Считается один раз: язык меняется только полным рестартом Activity. */
-    private fun localizePerk(perk: Map<String, String>): Map<String, String> {
-        val id = perk["id"]
-        val nameResId = resources.getIdentifier("perk_${id}_name", "string", packageName)
-        val descResId = resources.getIdentifier("perk_${id}_desc", "string", packageName)
-        return perk + mapOf(
-            "name" to if (nameResId != 0) getString(nameResId) else perk["name"].orEmpty(),
-            "desc" to if (descResId != 0) getString(descResId) else perk["desc"].orEmpty(),
+    private fun localizePerk(perk: Perk): Perk {
+        val nameResId = resources.getIdentifier("perk_${perk.id}_name", "string", packageName)
+        val descResId = resources.getIdentifier("perk_${perk.id}_desc", "string", packageName)
+        return perk.copy(
+            name = if (nameResId != 0) getString(nameResId) else perk.name,
+            desc = if (descResId != 0) getString(descResId) else perk.desc,
         )
     }
-    private val localizedPerks: List<Map<String, String>> by lazy {
+    private val localizedPerks: List<Perk> by lazy {
         perks.map { perk -> localizePerk(perk) }
     }
     /** Превью описания и иконки Perks при движении курсора — общее для тапа и для наведения энкодером. */
-    private fun showPerkDescription(perk: Map<String, String>) {
-        bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk["desc"] ?: "No description available"
-        bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(resources.getIdentifier(perk["icon"], "drawable", packageName))
+    private fun showPerkDescription(perk: Perk) {
+        bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk.desc
+        bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(perk.iconRes)
         // Сброс прокрутки на новую запись, иначе новый текст покажется со смещения предыдущего.
         bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
     }
-    private fun STATSPerksSetup(recyclerView: RecyclerView){
+    private fun setupStatsPerks(recyclerView: RecyclerView){
         val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
         // Фильтруем по сырому списку, локализуем только отобранное: локализация каждого перка — два getIdentifier().
-        val filteredPerksList = perks.filter { perk -> perk["id"] in selectedSTATSPerksArray }.map { localizePerk(it) }
+        val filteredPerksList = perks.filter { perk -> perk.id in selectedSTATSPerksArray }.map { localizePerk(it) }
         perksRealItemCount = filteredPerksList.size
 
-        val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk["name"] ?: "") }
+        val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk.name) }
         perksAdapter = SidebarMenuAdapter(
             items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
             selectedBackgroundRes = selected_button,
@@ -6396,7 +6379,7 @@ class MainActivity : AppCompatActivity() {
             playSelectSound = {},
             onSelect = { position, item ->
                 // Безусловная синхронизация курсора: syncCursor() чинит его только внутри активного уровня.
-                if (item.payload["id"] == SIDEBAR_BACK_PAYLOAD) {
+                if (item.payload.id == SIDEBAR_BACK_PAYLOAD) {
                     playConfirmAudio()
                     syncStatsEncoderPath("PERKS", emptyList())
                     syncRow2ActiveFromNavigator()
@@ -6414,9 +6397,9 @@ class MainActivity : AppCompatActivity() {
         // Список фильтруется, поэтому дерево пересобирается при каждом изменении, а не только при входе в STATS.
         menuNavigator.replaceChildrenOf("PERKS", perksChildrenNodes())
     }
-    /** Пункт "В меню" для Perks — payload здесь карта полей перка, нужен маркер того же типа. */
-    private fun perksBackSidebarItem(): SidebarMenuItem<Map<String, String>> =
-        SidebarMenuItem(payload = mapOf("id" to SIDEBAR_BACK_PAYLOAD), label = getString(R.string.sidebar_menu_back))
+    /** Пункт "В меню" для Perks — payload того же типа, что у реальных перков, с id-маркером. */
+    private fun perksBackSidebarItem(): SidebarMenuItem<Perk> =
+        SidebarMenuItem(payload = Perk(SIDEBAR_BACK_PAYLOAD, "", "", 0), label = getString(R.string.sidebar_menu_back))
     /** Дети PERKS пересчитываются заново на каждый вызов; onHighlight обновляет превью молча. */
     private fun perksChildrenNodes(): List<MenuNode> {
         return (0 until perksRealItemCount).map { index ->
@@ -6584,7 +6567,7 @@ class MainActivity : AppCompatActivity() {
         // Звуки создаются лениво в момент использования, а не все разом здесь при каждом старте.
 
         //BOTTOM BUTTON SETUP (DEFAULT STATUS)
-        bottomButtonsModify(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
+        setBottomButtons(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
 
 
         // Пункт "В меню" требует отдельной ветки ДО поиска по specialMeta — иначе first{} упал бы с исключением.
@@ -6674,13 +6657,12 @@ class MainActivity : AppCompatActivity() {
         bindingMain.imgScanline.animation = translateAnimation
         bindingMain.imgScanline.alpha = 0.2f
 
-        //Set Selected buttons by default
-        setupSTATS()
-        setupDATA()
-        setupITEMSClock()
+        // Здоров по умолчанию — ни одна из трёх кнопок статуса не выделена; первые пункты
+        // боковых меню подсвечиваются самими адаптерами (initialSelectedPosition = 0).
+        updateWoundButtonsUI()
         selectedSubMenu = bindingMain.incLayoutTabStatsBottom.btnStatsStatus
         findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
-        topLevelButtonsModify("STATS")
+        highlightTopLevelButton("STATS")
 
         // ===== ШАПКА, СТРОКА 1 =====
         // resetToRoot() — обязательная пара к смене верхнего уровня, иначе энкодер продолжит крутить
@@ -7113,7 +7095,7 @@ class MainActivity : AppCompatActivity() {
         // ===== STATS: PERKS =====
         // Строим сразу, а не лениво по клику: к первой сборке statsMenuRoot() список ещё пуст, и узел
         // PERKS навсегда заморозил бы единственный пункт "В меню" — children узла обычный val.
-        STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
+        setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
         bindingMain.incLayoutTabStatsBottom.btnStatsPerks.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabStatsBottom.btnStatsPerks, listBottomButtons)
             bindingMain.incLayoutTabStatsStatus.root.visibility = View.GONE
@@ -7122,7 +7104,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.VISIBLE
             menuNavigator.setRootCursor(3)
             // Свежий адаптер стартует с подсвеченным пунктом 0 — гасим рамку молча до реального провала курсора.
-            STATSPerksSetup(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
+            setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
             perksAdapter.clearSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()

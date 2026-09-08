@@ -281,10 +281,16 @@ class MainActivity : AppCompatActivity() {
             "CPU0 launch EFI0 0x0000A4 0x0000000000000000 1 0 0x000009 0x00000000000E003D\n" +
             "CPU0 starting EFI0 0x0000A4 0x0000000000000000 1 0 0x0000A4 0x0000000000000000\n"
         private val BOOT_CODEWALL_TEXT = BOOT_CODEWALL_BLOCK.repeat(24)
-        // Общий баннер PIP-OS
-        private const val PIP_OS_BANNER = "**************** PIP-OS(R) V7.1.0.8 ****************"
-        // Терминальная печать кадра
-        private const val BOOT_TERMINAL_TEXT = PIP_OS_BANNER + "\n\n" +
+        // Общий баннер PIP-OS — только название/версия, без звёздочек: их число теперь
+        // считается под фактическую ширину терминала (roadmap, доработка после фидбека —
+        // раньше было жёстко зашитое число, 16 с каждой стороны, на других экранах либо не
+        // доставало до края, либо вылезало за него), см. buildPipOsBanner() в конце файла
+        // (секция BOOT SEQUENCE).
+        private const val PIP_OS_LABEL = " PIP-OS(R) V7.1.0.8 "
+        // Текст терминальной печати кадра ПОСЛЕ баннера — сам баннер собирается отдельно
+        // buildBootTerminalText(), т.к. зависит от реальной ширины экрана (недоступна в
+        // constant-контексте companion object).
+        private const val BOOT_TERMINAL_INFO_TEXT =
             "COPYRIGHT 2075 ROBCO(R)\n" +
             "LOADER V1.1\n" +
             "EXEC VERSION 41.10\n" +
@@ -307,7 +313,8 @@ class MainActivity : AppCompatActivity() {
         private const val SHUTDOWN_STAY_DURATION_MS = 2000L
         private const val SHUTDOWN_FADE_TO_BLACK_MS = 500L
         private const val SHUTDOWN_FINAL_FADE_MS = 500L
-        private val SHUTDOWN_HEADER_PREFIX = "$PIP_OS_BANNER\n\n"
+        // Префикс шапки терминала выключения — тоже собирается динамически,
+        // buildShutdownHeaderPrefix(), та же причина, что у BOOT_TERMINAL_INFO_TEXT выше.
         private const val SHUTDOWN_BODY_TEXT = "STOPPING ALL PROCESSES...\n" +
             "DUMPING MEMORY...\n" +
             "DISCONNECTING..."
@@ -3572,10 +3579,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Суммарная длительность всей заставки (кадр 1 + 2 + печать кадра 3 + пауза на
      * блочном курсоре) — считается, а не хардкодится отдельной константой, чтобы не
-     * разъезжаться с реальным временем печати при правке BOOT_TERMINAL_TEXT. */
+     * разъезжаться с реальным временем печати при правке текста терминала. Длина теперь
+     * зависит от ширины экрана (buildBootTerminalText() — динамическое число звёздочек
+     * в баннере), поэтому не константа, а вызов той же функции, что и сама печать. */
     private val bootTotalDurationMs: Long
         get() = BOOT_FRAME_LOGO_DURATION_MS + BOOT_FRAME_CODEWALL_DURATION_MS +
-            BOOT_TERMINAL_TEXT.length * BOOT_TERMINAL_CHAR_DELAY_MS + BOOT_TERMINAL_END_HOLD_MS
+            buildBootTerminalText().length * BOOT_TERMINAL_CHAR_DELAY_MS + BOOT_TERMINAL_END_HOLD_MS
 
     private fun startBootCodewall() {
         val boot = bindingMain.incLayoutBootSequence
@@ -3606,15 +3615,56 @@ class MainActivity : AppCompatActivity() {
         boot.tvBootCodewall.animate().cancel()
         boot.layoutBootFrameCodewall.visibility = View.GONE
         boot.layoutBootFrameTerminal.visibility = View.VISIBLE
-        typeTerminalText("", BOOT_TERMINAL_TEXT, 0, boot.tvBootTerminal) {
+        typeTerminalText("", buildBootTerminalText(), 0, boot.tvBootTerminal) {
             bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishBootSequence() }
         }
     }
 
+    /** Баннер "PIP-OS(R) V7.1.0.8" с числом звёздочек по фактической ширине терминала
+     * загрузки/выключения (roadmap, доработка после фидбека по тесту) — раньше было жёстко
+     * зашитое число (16 с каждой стороны), на экранах шире/уже эталонного либо не доставало
+     * до края, либо вылезало за него. tv_boot_terminal — моноширинный шрифт (pipboy_mono,
+     * layout_boot_sequence.xml). bindingMain.root.width — реальная (не 0 из-за
+     * visibility=gone, как было бы у самого tv_boot_terminal/его контейнера, оба скрыты до
+     * нужного кадра) ширина всего активного окна: обе точки вызова этой функции — глубоко
+     * после onCreate/первого layout-прохода, к этому моменту уже гарантированно измерена.
+     * paddingLeft/Right — на случай выреза камеры (mirrorDisplayCutoutInset() отражает его
+     * отступ на противоположную сторону паддингом root, у него самого нет констрейнтов,
+     * которые это учли бы). 32dp — те же margin'ы, что заданы в XML на tv_boot_terminal
+     * (layout_marginStart/End), считаются здесь же, а не читаются из LayoutParams, чтобы не
+     * тащить сюда сам View раньше времени.
+     * Первая прикидка числа символов — по ширине одного "*" (быстро, обычно уже верно), но
+     * не окончательная: измерение одного символа Paint.measureText() иногда чуть расходится
+     * с реальной шириной уже собранной строки той же длины (найдено на тесте — с виду
+     * "лишняя" звезда справа переносилась на вторую строку). Донадёжный источник истины —
+     * измерить СОБРАННУЮ строку целиком и подрезать, пока она реально не влезет. */
+    private fun buildPipOsBanner(): String {
+        val boot = bindingMain.incLayoutBootSequence
+        val paint = boot.tvBootTerminal.paint
+        val marginsPx = 2 * TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32f, resources.displayMetrics)
+        val availableWidthPx = (
+            bindingMain.root.width - bindingMain.root.paddingLeft - bindingMain.root.paddingRight - marginsPx
+        ).coerceAtLeast(0f)
+        fun assemble(totalChars: Int): String {
+            val starsTotal = (totalChars - PIP_OS_LABEL.length).coerceAtLeast(0)
+            val starsLeft = starsTotal / 2
+            val starsRight = starsTotal - starsLeft
+            return "*".repeat(starsLeft) + PIP_OS_LABEL + "*".repeat(starsRight)
+        }
+        val charWidthPx = paint.measureText("*").coerceAtLeast(1f)
+        var totalChars = (availableWidthPx / charWidthPx).toInt().coerceAtLeast(PIP_OS_LABEL.length)
+        while (totalChars > PIP_OS_LABEL.length && paint.measureText(assemble(totalChars)) > availableWidthPx) {
+            totalChars--
+        }
+        return assemble(totalChars)
+    }
+    private fun buildBootTerminalText(): String = buildPipOsBanner() + "\n\n" + BOOT_TERMINAL_INFO_TEXT
+    private fun buildShutdownHeaderPrefix(): String = buildPipOsBanner() + "\n\n"
+
     /** Посимвольная печать с блочным курсором — курсор всегда сразу за последним
      * напечатанным символом, включая перевод строки как обычный "символ" темпа печати.
      * [prefix] выводится целиком сразу, без анимации (шапка терминала выключения — тот
-     * же приём, что и полностью типизированный [BOOT_TERMINAL_TEXT] для загрузки, где
+     * же приём, что и полностью типизированный [buildBootTerminalText] для загрузки, где
      * [prefix] пустой), печатается только [body]. [onDone] — что делать после того, как
      * курсор допечатал последний символ. */
     private fun typeTerminalText(prefix: String, body: String, charIndex: Int, tv: TextView, onDone: () -> Unit) {
@@ -3773,7 +3823,7 @@ class MainActivity : AppCompatActivity() {
         boot.layoutBootFrameTerminal.visibility = View.VISIBLE
 
         startBootSound()
-        typeTerminalText(SHUTDOWN_HEADER_PREFIX, SHUTDOWN_BODY_TEXT, 0, boot.tvBootTerminal) {
+        typeTerminalText(buildShutdownHeaderPrefix(), SHUTDOWN_BODY_TEXT, 0, boot.tvBootTerminal) {
             stopBootSound()
             bootPostDelayed(BOOT_TERMINAL_END_HOLD_MS) { finishShutdownSequence() }
         }

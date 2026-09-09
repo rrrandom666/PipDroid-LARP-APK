@@ -1620,18 +1620,6 @@ class MainActivity : AppCompatActivity() {
 
 
     // ===== РАЗМЕР ЭКРАНА =====
-    @SuppressLint("DiscouragedApi", "InternalInsetResource")
-    private fun getStatusBarHeight(): Int {
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
-    }
-
-    // Helper function to get the height of the navigation bar
-    @SuppressLint("DiscouragedApi", "InternalInsetResource")
-    private fun getNavigationBarHeight(): Int {
-        val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
-    }
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         private var initialSpanX = 0f
         private var initialSpanY = 0f
@@ -1669,9 +1657,6 @@ class MainActivity : AppCompatActivity() {
                 newHeight = max(newHeight, wizardMinContentHeightPx)
 
                 val displayMetrics = resources.displayMetrics
-                val statusBarHeight = getStatusBarHeight()
-                val navigationBarHeight = getNavigationBarHeight()
-
                 val clampedWidth = min(newWidth, displayMetrics.widthPixels)
                 val clampedHeight = min(newHeight, displayMetrics.heightPixels)
 
@@ -1721,9 +1706,6 @@ class MainActivity : AppCompatActivity() {
                 var newTopMargin = layoutParams.topMargin + dy.toInt()
 
                 val displayMetrics = resources.displayMetrics
-                val statusBarHeight = getStatusBarHeight()
-                val navigationBarHeight = getNavigationBarHeight()
-
                 newLeftMargin = max(0, min(newLeftMargin, displayMetrics.widthPixels - layoutParams.width))
                 newTopMargin = max(0, min(newTopMargin, displayMetrics.heightPixels - layoutParams.height))
 
@@ -5105,15 +5087,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    // Make the function suspendable
+    /** Поднимает сохранённые выборки фильтров из prefs в фоновом потоке. */
     suspend fun loadSelectedItems(){
-        // Switch to a background thread to read and split data
         withContext(Dispatchers.IO) {
             val selectedSTATSPerksArray = sharedPreferences.getString("selectedSTATSPerksArray", "1")
             val selectedDATAMiscArray = sharedPreferences.getString("selectedDATAMiscArray", "1")
 
-            if (!selectedSTATSPerksArray.isNullOrEmpty()) {selectedSTATSPerksArray?.let { selectedFilterSTATSPerks.addAll(it.split(",")) }}
-            if (!selectedDATAMiscArray.isNullOrEmpty()) {selectedDATAMiscArray?.let { selectedFilterDATAMisc.addAll(it.split(",")) }}
+            if (!selectedSTATSPerksArray.isNullOrEmpty()) selectedFilterSTATSPerks.addAll(selectedSTATSPerksArray.split(","))
+            if (!selectedDATAMiscArray.isNullOrEmpty()) selectedFilterDATAMisc.addAll(selectedDATAMiscArray.split(","))
         }
     }
     /** Открывает экран фильтра Perks — точка входа кнопка-воронка на экране Perks. */
@@ -5565,7 +5546,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        bindingMain.titleConstraintLayout.setOnTouchListener{v, event ->
+        bindingMain.titleConstraintLayout.setOnTouchListener{_, event ->
             if(menuSwipeEnabled){
                 menuGestureDetector.onTouchEvent(event)
             }

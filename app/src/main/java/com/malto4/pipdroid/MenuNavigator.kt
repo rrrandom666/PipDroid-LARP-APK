@@ -172,6 +172,32 @@ class MenuNavigator {
         return newStack
     }
 
+    /** Пересобирает все захваченные уровни стека под текущий состав дерева — состав узлов гейтится
+     * режимом работы, а уровень заморожен с момента провала в него. */
+    /** Курсор восстанавливается по id узла, а не по индексу: в режиме с энкодером у корня ITEMS
+     * появляется GEIGER первым пунктом и сдвигает все остальные разделы. */
+    /** onHighlight не зовётся: пересборка идёт после смены режима, когда пользователь смотрит на
+     * другой экран, и подъём подсветки увёл бы вкладку. */
+    fun rebuildLevels(rootNodes: List<MenuNode>) {
+        if (stack.isEmpty() || rootNodes.isEmpty()) return
+        var currentNodes = rootNodes
+        for (index in stack.indices) {
+            val level = stack[index]
+            // Плавающая панель из pushLevel() узла-родителя в дереве не имеет — её состав восстановить неоткуда.
+            if (level.tag != null) return
+            val previousId = level.nodes.getOrNull(level.cursor)?.id
+            val restored = currentNodes.indexOfFirst { it.id == previousId }
+            val cursor = if (restored >= 0) restored else level.cursor.coerceIn(0, currentNodes.size - 1)
+            stack[index] = Level(currentNodes, cursor)
+            currentNodes = currentNodes[cursor].children
+            // Узел стал листом в новом режиме — уровней под ним больше нет.
+            if (currentNodes.isEmpty()) {
+                while (stack.size > index + 1) stack.removeAt(stack.size - 1)
+                return
+            }
+        }
+    }
+
     /** Заменяет узлы верхнего уровня, только если он порождён узлом [parentId], иначе no-op. */
     fun replaceChildrenOf(parentId: String, nodes: List<MenuNode>, cursor: Int = 0) {
         if (stack.size < 2 || nodes.isEmpty()) return

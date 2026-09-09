@@ -178,4 +178,89 @@ class MenuNavigatorTest {
         assertEquals(1, nav.rootCursor())
         assertEquals(listOf("B"), highlighted)
     }
+
+    /** Корень ITEMS в режиме Телефон: GEIGER скрыт, у экранов нет пункта "В меню". */
+    private fun itemsRootPhone() = listOf(
+        node("MAP", children = listOf(node("MARKERS"))),
+        node("JOURNAL", children = listOf(node("JOURNAL_NEW"), node("JOURNAL_ENTRY_1"))),
+        node("CLOCK", children = listOf(node("ALARM"))),
+    )
+
+    /** Тот же корень в режиме с энкодером: GEIGER встал первым и сдвинул всё, у экранов появился MENU. */
+    private fun itemsRootEncoder() = listOf(
+        node("GEIGER", children = listOf(node("RESET"))),
+        node("MAP", children = listOf(node("MARKERS"), node("MENU"))),
+        node("JOURNAL", children = listOf(node("JOURNAL_NEW"), node("JOURNAL_ENTRY_1"), node("MENU"))),
+        node("CLOCK", children = listOf(node("ALARM"), node("MENU"))),
+    )
+
+    /** Смена режима на экране Журнала: боковой список получал пункт "В меню", а замороженный уровень — нет. */
+    @Test
+    fun `пересборка уровней открывает пункт, которого не было в прежнем режиме`() {
+        val nav = MenuNavigator()
+        nav.resetToRoot(itemsRootPhone())
+        nav.moveCursor(1)
+        nav.activateSelected()
+        nav.moveCursor(1)
+        highlighted.clear()
+        nav.rebuildLevels(itemsRootEncoder())
+        assertTrue(highlighted.isEmpty())
+        nav.moveCursor(1)
+        assertEquals(listOf("MENU"), highlighted)
+    }
+
+    /** Курсор корня обязан стоять на НЕнулевом узле: с нулевым восстановление по id неотличимо от сохранения индекса. */
+    @Test
+    fun `курсор корня восстанавливается по id узла, а не по индексу`() {
+        val nav = MenuNavigator()
+        nav.resetToRoot(itemsRootPhone())
+        nav.moveCursor(1)
+        assertEquals(1, nav.rootCursor())
+        nav.rebuildLevels(itemsRootEncoder())
+        // JOURNAL уехал с индекса 1 на 2: перед ним появился GEIGER.
+        assertEquals(2, nav.rootCursor())
+    }
+
+    /** Обратный переход: MENU исчез, а курсор стоял на нём — уровень схлопывать нельзя, но и промахнуться мимо границы тоже. */
+    @Test
+    fun `курсор клампится, когда узла с прежним id в новом составе нет`() {
+        val nav = MenuNavigator()
+        nav.resetToRoot(itemsRootEncoder())
+        nav.moveCursor(2)
+        nav.activateSelected()
+        nav.moveCursor(2)
+        nav.rebuildLevels(itemsRootPhone())
+        highlighted.clear()
+        // В Телефоне у JOURNAL два ребёнка, курсор с третьего (MENU) прижат к последнему.
+        nav.moveCursor(-1)
+        assertEquals(listOf("JOURNAL_NEW"), highlighted)
+    }
+
+    /** Узел стал листом в новом режиме — уровни под ним держать не на чем. */
+    @Test
+    fun `пересборка сбрасывает уровни под узлом, потерявшим детей`() {
+        val nav = MenuNavigator()
+        nav.resetToRoot(listOf(node("A"), node("B", children = listOf(node("X"), node("Y")))))
+        nav.moveCursor(1)
+        nav.activateSelected()
+        nav.rebuildLevels(listOf(node("A"), node("B")))
+        highlighted.clear()
+        // Стек свёрнут до корня: движение идёт по разделам, а не по детям B.
+        nav.moveCursor(1)
+        assertEquals(listOf("A"), highlighted)
+    }
+
+    /** Плавающая панель из pushLevel() родителя в дереве не имеет — восстанавливать её состав неоткуда. */
+    @Test
+    fun `пересборка не трогает запушенный уровень`() {
+        val nav = MenuNavigator()
+        nav.resetToRoot(itemsRootPhone())
+        nav.moveCursor(1)
+        nav.pushLevel(listOf(node("STOP"), node("REROUTE")), tag = "MAP_ROUTE_CONTROLS")
+        highlighted.clear()
+        nav.rebuildLevels(itemsRootEncoder())
+        assertTrue(nav.syncPushedCursor("MAP_ROUTE_CONTROLS", 1))
+        nav.moveCursor(1)
+        assertEquals(listOf("STOP"), highlighted)
+    }
 }

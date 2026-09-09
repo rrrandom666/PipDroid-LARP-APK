@@ -2547,6 +2547,10 @@ class MainActivity : AppCompatActivity() {
         journalController.refreshModeGating()
         mapController.refreshModeGating()
         clockController.refreshModeGating()
+        // Уровни, уже лежащие в стеке навигатора, захвачены прежним режимом: itemsMenuRoot() и
+        // menuBackNode() пересчитываются на каждом обращении, но не задним числом для того уровня,
+        // на котором курсор стоит прямо сейчас. Обязана идти до строки 2 — та читает rootCursor().
+        menuNavigator.rebuildLevels(menuRootNodesFor(curMenu))
         // Строка 2 гейтится режимом так же, как боковые списки, но живёт вне их: без пересборки её
         // пункты остаются от прежнего режима и расходятся с деревом на один индекс.
         // Пустую не трогаем: её первую сборку держит гейт row2Views.isEmpty() на старте.

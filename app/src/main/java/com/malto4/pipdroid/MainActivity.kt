@@ -236,6 +236,39 @@ class MainActivity : AppCompatActivity() {
             isVoiceCommandBusy = { awaitingVoiceCommand },
         )
     }
+    /** Экран выбора режима и мастер настройки PipBoy 2000/3000; сам режим остаётся полем активности. */
+    private val setupWizard by lazy {
+        SetupWizardController(
+            activity = this,
+            binding = bindingMain,
+            currentMode = { pipBoyMode },
+            accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            equalizeButtonWidths = { buttons -> equalizeButtonWidths(*buttons.toTypedArray()) },
+            setWizardButtonState = { button, selected -> setWizardButtonState(button, selected) },
+            setWizardButtonDisabled = { button -> setWizardButtonDisabled(button) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playError = { playErrorAudio() },
+            onModeChosen = { mode -> onPipBoyModeChosen(mode) },
+            hasAllRequiredPermissions = { hasAllRequiredPermissions() },
+            checkPermissions = { checkPermissions() },
+            setupBluetooth = { setupBluetooth() },
+            startPairingScan = { container, status, onSelect -> startPairingScan(container, status, onSelect) },
+            stopPairingScan = { stopPairingScan() },
+            applyPairedDevice = { address -> applyPairedDevice(address) },
+            setPowerOffInstant = { setPowerOffInstant() },
+            updateScreenGlare = { updateScreenGlareVisibility() },
+            resetToFullScreen = { resetToFullScreen() },
+            loadViewState = { loadViewState() },
+            applyTemporaryFullScreenLayout = { applyTemporaryFullScreenLayout() },
+            finishPhoneSetup = { finishPhoneModeSetup() },
+            skipToMainScreenDebug = { skipWizardToMainScreenDebug() },
+            importVoiceModel = { openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+            importMapBundle = { openMapBundleTreeLauncher.launch(null) },
+        )
+    }
     companion object {
         // Отладочная инъекция BLE-команд без реального ESP32, см. registerDebugCommandReceiver().
         private const val ACTION_DEBUG_BLE_COMMAND = "com.malto4.pipdroid.DEBUG_BLE_COMMAND"
@@ -404,13 +437,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun onRequiredPermissionsGranted() {
-        val wizard = bindingMain.incLayoutPipboy2000Wizard
-        val fromWizardPermissions = wizard.root.visibility == View.VISIBLE && wizard.layoutWizardPermissions.visibility == View.VISIBLE
-        // IMPORT — общий следующий шаг обоих режимов, см. btnWizardImportDone.
-        if (fromWizardPermissions) {
-            showWizardStep(PipBoyWizardStep.IMPORT)
-            return
-        }
+        if (setupWizard.showImportIfOnPermissionsStep()) return
         setupBluetooth()
     }
 
@@ -418,10 +445,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private var newWidth = 0
     private var newHeight = 0
-    private var isResizing = false
-    // Доп. минимум размера при пинче на шаге DISPLAY AREA мастера, вне мастера — 0.
-    private var wizardMinContentWidthPx = 0
-    private var wizardMinContentHeightPx = 0
     private var lastX = 0f
     private var lastY = 0f
 
@@ -969,12 +992,7 @@ class MainActivity : AppCompatActivity() {
         stopService(Intent(this, PipBoyBleService::class.java))
     }
 
-    // ===== ЭКРАН ВЫБОРА РЕЖИМА =====
-    private var modeSelectHighlighted = PipBoyMode.PHONE
-    private val modeSelectList = listOf(PipBoyMode.PHONE, PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000)
-    private lateinit var modeSelectAdapter: SidebarMenuAdapter<PipBoyMode>
-
-    /** Акцентный цвет текущей темы оформления. */
+    // ===== ТЕМА ОФОРМЛЕНИЯ =====
     /** Все ресурсы одной темы оформления в одном месте — раньше это же соответствие было
      * размножено по пяти when-блокам, привязанным к playerUIColour_SPKey. */
     private enum class UiTheme(
@@ -999,6 +1017,7 @@ class MainActivity : AppCompatActivity() {
         UiTheme.values().getOrElse(sharedPreferences.getInt(playerUIColour_SPKey, 0)) { UiTheme.GREEN }
     /** Акцентный цвет текущей темы оформления. */
     private fun themeAccentColor(): Int = ContextCompat.getColor(this, currentUiTheme().accentColorRes)
+    /** Вид кнопки в стиле мастера — не только у мастера: тем же красятся кнопки тьюториала. */
     private fun setWizardButtonState(button: Button, selected: Boolean) {
         val accent = themeAccentColor()
         button.backgroundTintList = ColorStateList.valueOf(accent)
@@ -1023,60 +1042,9 @@ class MainActivity : AppCompatActivity() {
         }
         buttons.forEach { it.layoutParams = it.layoutParams.apply { width = widest } }
     }
-    private fun showModeDescription(mode: PipBoyMode) {
-        val ms = bindingMain.incLayoutTabModeSelect
-        modeSelectHighlighted = mode
-        ms.tvModeSelectDescription.text = when (mode) {
-            PipBoyMode.PHONE -> getString(R.string.mode_description_phone)
-            PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_description_pipboy_2000)
-            PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_description_pipboy_3000)
-        }
-        val modeIndex = modeSelectList.indexOf(mode)
-        if (modeIndex >= 0) modeSelectAdapter.setSelectedPositionSilently(modeIndex)
-        // PipBoy 3000 выбрать нельзя, но кнопка кликабельна — чтобы поймать тап и дать звук ошибки.
-        if (mode != PipBoyMode.PIPBOY_3000) {
-            setWizardButtonState(ms.btnModeSelectConfirm, selected = false)
-        } else {
-            setWizardButtonDisabled(ms.btnModeSelectConfirm)
-        }
-    }
-    private fun pipBoyModeDisplayName(mode: PipBoyMode): String = when (mode) {
-        PipBoyMode.PHONE -> getString(R.string.mode_phone)
-        PipBoyMode.PIPBOY_2000 -> getString(R.string.mode_pipboy_2000)
-        PipBoyMode.PIPBOY_3000 -> getString(R.string.mode_pipboy_3000)
-    }
     private fun refreshModeSettingsLabel() {
-        val label = "${getString(R.string.settings_4_name)} ${pipBoyModeDisplayName(pipBoyMode)}"
+        val label = "${getString(R.string.settings_4_name)} ${setupWizard.displayName(pipBoyMode)}"
         bindingMain.incLayoutSettingsGlobal.tvSettings4.text = label
-    }
-    private fun openModeSelectScreen() {
-        showModeDescription(pipBoyMode)
-        bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
-    }
-    private fun setupModeSelectScreen() {
-        val ms = bindingMain.incLayoutTabModeSelect
-
-        ms.tvModeSelectDescription.setTextColor(themeAccentColor())
-
-        ms.recyclerModeSelect.layoutManager = LinearLayoutManager(this)
-        modeSelectAdapter = SidebarMenuAdapter(
-            items = modeSelectList.map { mode -> SidebarMenuItem(payload = mode, label = pipBoyModeDisplayName(mode)) },
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            playSelectSound = { playTickAudio() },
-            onSelect = { _, item -> showModeDescription(item.payload) },
-        )
-        ms.recyclerModeSelect.adapter = modeSelectAdapter
-
-        showModeDescription(PipBoyMode.PHONE)
-        ms.btnModeSelectConfirm.setOnClickListener {
-            if (modeSelectHighlighted == PipBoyMode.PIPBOY_3000) {
-                playErrorAudio()
-                return@setOnClickListener
-            }
-            playButtonAudio()
-            selectPipBoyMode(modeSelectHighlighted)
-        }
     }
     private fun applyModeGating() {
         val header = bindingMain.incLayoutHeaderToplevel
@@ -1084,16 +1052,13 @@ class MainActivity : AppCompatActivity() {
         header.btnHeaderRadio.visibility = visibility
         header.spaceHeaderRadioGap.visibility = visibility
     }
-    /** Режим сознательно спрашивается каждый запуск и на диск не сохраняется: экран выбора —
-     * стартовый безусловно, а между запусками режим переживает только убийство процесса
-     * (savedInstanceState в restoreAppState()). */
-    private fun selectPipBoyMode(mode: PipBoyMode) {
+    /** Глобальная часть выбора режима: сам экран выбора и мастер дальше ведёт SetupWizardController. */
+    private fun onPipBoyModeChosen(mode: PipBoyMode) {
         stopAmbientBackgroundSound()
         pipBoyMode = mode
         refreshModeSettingsLabel()
         applyModeGating()
         refreshSidebarBackItems()
-        bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
 
         // Кнопки шапки/футера здесь НЕ включаем: мастер не перехватывает тач фоном, и они станут кликабельны сквозь него.
         if (bindingMain.incLayoutSettingsGlobal.root.visibility == View.VISIBLE) {
@@ -1102,22 +1067,9 @@ class MainActivity : AppCompatActivity() {
 
         bindingMain.constraintlayoutTutorial.visibility = View.GONE
         bindingMain.constraintlayoutMain.visibility = View.VISIBLE
-
-        when (mode) {
-            PipBoyMode.PHONE -> {
-
-                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
-                showWizardStep(PipBoyWizardStep.PERMISSIONS)
-            }
-            PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
-                setPowerOffInstant()
-                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.VISIBLE
-                showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
-            }
-        }
     }
     private fun finishPhoneModeSetup() {
-        bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        setupWizard.hide()
         // Мастер реально закрылся — возвращаем кнопки шапки/футера и свайп.
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
@@ -1137,7 +1089,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun restoreAppState(savedInstanceState: Bundle) {
         bindingMain.constraintlayoutTutorial.visibility = View.GONE
-        bindingMain.incLayoutTabModeSelect.root.visibility = View.GONE
+        setupWizard.hideModeSelect()
         bindingMain.constraintlayoutMain.visibility = View.VISIBLE
 
         val restoredMode = try {
@@ -1152,7 +1104,7 @@ class MainActivity : AppCompatActivity() {
         when (restoredMode) {
             PipBoyMode.PHONE -> finishPhoneModeSetup()
             PipBoyMode.PIPBOY_2000, PipBoyMode.PIPBOY_3000 -> {
-                bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+                setupWizard.hide()
                 loadViewState()
                 setPowerOffInstant()
                 checkPermissions()
@@ -1196,57 +1148,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== МАСТЕР НАСТРОЙКИ PIPBOY 2000/3000 =====
-    private enum class PipBoyWizardStep { HARDWARE_INSTRUCTIONS, DISPLAY_AREA, PERMISSIONS, IMPORT, PAIRING, POWER_HINT }
-
-    private fun showWizardStep(step: PipBoyWizardStep, allowAutoAdvance: Boolean = true) {
-        val w = bindingMain.incLayoutPipboy2000Wizard
-        w.layoutWizardChromeFrame.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.GONE else View.VISIBLE
-        w.layoutWizardHardware.visibility = if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) View.VISIBLE else View.GONE
-        w.layoutWizardDisplayArea.visibility = if (step == PipBoyWizardStep.DISPLAY_AREA) View.VISIBLE else View.GONE
-        w.layoutWizardPermissions.visibility = if (step == PipBoyWizardStep.PERMISSIONS) View.VISIBLE else View.GONE
-        w.layoutWizardImport.visibility = if (step == PipBoyWizardStep.IMPORT) View.VISIBLE else View.GONE
-        w.layoutWizardPairing.visibility = if (step == PipBoyWizardStep.PAIRING) View.VISIBLE else View.GONE
-        w.layoutWizardPowerHint.visibility = if (step == PipBoyWizardStep.POWER_HINT) View.VISIBLE else View.GONE
-        w.tvWizardPowerHint.visibility = View.VISIBLE
-        w.btnWizardHideHint.visibility = View.VISIBLE
-        updateScreenGlareVisibility()
-
-        // Скан идёт строго по факту показа шага PAIRING, а не по нажатию игрока.
-        if (step == PipBoyWizardStep.PAIRING) {
-            startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
-        } else {
-            stopPairingScan()
-        }
-
-        // Регулировка рабочей области жестом активна только пока реально показан этот шаг.
-        isResizing = (step == PipBoyWizardStep.DISPLAY_AREA)
-        if (step == PipBoyWizardStep.DISPLAY_AREA) {
-            val displayMetrics = resources.displayMetrics
-            wizardMinContentWidthPx = (displayMetrics.widthPixels * 0.6f).toInt()
-            wizardMinContentHeightPx = (displayMetrics.heightPixels * 0.7f).toInt()
-            // Персистентный сброс — стартовая точка регулировки, масштаб прошлой сессии не подхватываем.
-            resetToFullScreen()
-        } else if (step == PipBoyWizardStep.HARDWARE_INSTRUCTIONS) {
-            // До этого шага область не настраивалась в этом прогоне — перезаписывать нечего.
-            wizardMinContentWidthPx = 0
-            wizardMinContentHeightPx = 0
-            applyTemporaryFullScreenLayout()
-        } else if (pipBoyMode == PipBoyMode.PHONE) {
-            wizardMinContentWidthPx = 0
-            wizardMinContentHeightPx = 0
-            resetToFullScreen()
-        } else {
-            wizardMinContentWidthPx = 0
-            wizardMinContentHeightPx = 0
-            loadViewState()
-        }
-
-        if (step == PipBoyWizardStep.PERMISSIONS && allowAutoAdvance && hasAllRequiredPermissions()) {
-            // Разрешения уже выданы — не задерживаем игрока; allowAutoAdvance=false только у явного Back.
-            showWizardStep(PipBoyWizardStep.IMPORT)
-        }
-    }
     private fun applyTemporaryFullScreenLayout() {
         val layoutParams = bindingMain.root.layoutParams as ViewGroup.MarginLayoutParams
         layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
@@ -1358,11 +1259,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun selectPairingDevice(address: String) {
-        applyPairedDevice(address)
-        showWizardStep(PipBoyWizardStep.POWER_HINT)
-    }
-
     private fun selectBluetoothSettingsPairingDevice(address: String) {
         applyPairedDevice(address)
         refreshBluetoothCurrentDevice()
@@ -1389,152 +1285,10 @@ class MainActivity : AppCompatActivity() {
         bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.tvBluetoothCurrentMac.text =
             value ?: getString(R.string.bluetooth_mac_not_set)
     }
-    private fun setupPipBoy2000Wizard() {
-        val w = bindingMain.incLayoutPipboy2000Wizard
-
-        val wizardAccent = themeAccentColor()
-        listOf(
-            w.btnWizardHardwareBack,
-            w.btnWizardHardwareSkipDebug,
-            w.btnWizardHardwareNext,
-            w.btnWizardDone,
-            w.btnWizardReset,
-            w.btnWizardCancel,
-            w.btnWizardPermissionsBack,
-            w.btnWizardGrantPermissions,
-            w.btnWizardImportBack,
-            w.btnWizardImportDone,
-            w.btnWizardImportVoice,
-            w.btnWizardImportMap,
-            w.btnWizardPairingBack,
-            w.btnWizardPairingRescan,
-            w.btnWizardPairingSkipDebug,
-            w.btnWizardHideHint
-        ).forEach { it.backgroundTintList = ColorStateList.valueOf(wizardAccent) }
-
-        // Заголовки и основной текст шагов мастера — тем же акцентом
-        listOf(
-            w.tvWizardHardwareTitle,
-            w.tvWizardHardwareText,
-            w.tvWizardDisplayAreaTitle,
-            w.tvWizardHint,
-            w.tvWizardPermissionsTitle,
-            w.tvWizardPermissionsText,
-            w.tvWizardImportTitle,
-            w.tvWizardImportText,
-            // Статус-строки намеренно не в списке: CNDEFFRADButtonStyle не подмешивает акцент темы.
-            w.tvWizardImportVoiceLabel,
-            w.tvWizardImportMapLabel,
-            w.tvWizardPairingTitle,
-            w.tvWizardPairingStatus,
-            w.tvWizardPowerHint
-        ).forEach { it.setTextColor(wizardAccent) }
-
-        // Шаг 3: одна ширина у [Готово]/[Сбросить]/[Отмена]
-        equalizeButtonWidths(w.btnWizardDone, w.btnWizardReset, w.btnWizardCancel)
-
-        // Шаг 2: Hardware Instructions
-        w.btnWizardHardwareBack.setOnClickListener {
-            playButtonAudio()
-            w.root.visibility = View.GONE
-            bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
-        }
-        w.btnWizardHardwareNext.setOnClickListener {
-            playButtonAudio()
-            showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
-        }
-        // Обход всего мастера и анимации загрузки в debug-сборках.
-        w.btnWizardHardwareSkipDebug.visibility = if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
-        w.btnWizardHardwareSkipDebug.setOnClickListener {
-            playButtonAudio()
-            skipWizardToMainScreenDebug()
-        }
-
-        // Шаг 3: Display Area
-        w.btnWizardDone.setOnClickListener {
-            playButtonAudio()
-            showWizardStep(PipBoyWizardStep.PERMISSIONS)
-        }
-        w.btnWizardReset.setOnClickListener {
-            playButtonAudio()
-            resetToFullScreen()
-        }
-        w.btnWizardCancel.setOnClickListener {
-            playButtonAudio()
-            showWizardStep(PipBoyWizardStep.HARDWARE_INSTRUCTIONS)
-        }
-
-        // Шаг 4: Permissions
-        w.btnWizardPermissionsBack.setOnClickListener {
-            playButtonAudio()
-            if (pipBoyMode == PipBoyMode.PHONE) {
-                w.root.visibility = View.GONE
-                bindingMain.incLayoutTabModeSelect.root.visibility = View.VISIBLE
-            } else {
-                showWizardStep(PipBoyWizardStep.DISPLAY_AREA)
-            }
-        }
-        w.btnWizardGrantPermissions.setOnClickListener {
-            playButtonAudio()
-            checkPermissions()
-        }
-
-        // Шаг Import: кнопки переиспользуют лончеры и репозитории Settings.
-        w.btnWizardImportBack.setOnClickListener {
-            playButtonAudio()
-            // allowAutoAdvance=false, иначе showWizardStep(PERMISSIONS) отскочит обратно на IMPORT.
-            showWizardStep(PipBoyWizardStep.PERMISSIONS, allowAutoAdvance = false)
-        }
-        w.btnWizardImportDone.setOnClickListener {
-            playButtonAudio()
-            // Продолжает независимо от того, импортировано что-то или нет — донастроить можно в Settings.
-            if (pipBoyMode == PipBoyMode.PHONE) {
-                finishPhoneModeSetup()
-            } else {
-                setupBluetooth()
-                showWizardStep(PipBoyWizardStep.PAIRING)
-            }
-        }
-        w.btnWizardImportVoice.setOnClickListener {
-            playButtonAudio()
-            openVoiceModelZipLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
-        }
-        w.btnWizardImportMap.setOnClickListener {
-            playButtonAudio()
-            openMapBundleTreeLauncher.launch(null)
-        }
-
-        // Шаг 5: Pairing
-        w.btnWizardPairingBack.setOnClickListener {
-            playButtonAudio()
-            stopPairingScan()
-            // allowAutoAdvance=false, иначе PERMISSIONS тут же отскочит обратно на PAIRING.
-            showWizardStep(PipBoyWizardStep.PERMISSIONS, allowAutoAdvance = false)
-        }
-        w.btnWizardPairingRescan.setOnClickListener {
-            playButtonAudio()
-            startPairingScan(w.layoutWizardPairingDevices, w.tvWizardPairingStatus) { address -> selectPairingDevice(address) }
-        }
-        // Обход пейринга в debug-сборках
-        w.btnWizardPairingSkipDebug.visibility =
-            if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
-        w.btnWizardPairingSkipDebug.setOnClickListener {
-            playButtonAudio()
-            stopPairingScan()
-            showWizardStep(PipBoyWizardStep.POWER_HINT)
-        }
-
-        // Шаг 6: подсказка про POWER
-        w.btnWizardHideHint.setOnClickListener {
-            playButtonAudio()
-            w.tvWizardPowerHint.visibility = View.GONE
-            w.btnWizardHideHint.visibility = View.GONE
-        }
-    }
     private fun skipWizardToMainScreenDebug() {
         stopPairingScan()
         bootSequence.cancelBootSequence()
-        bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
+        setupWizard.hide()
         // Тот же откат дизейбла кнопок и свайпа, что и в finishPhoneModeSetup().
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
@@ -1587,8 +1341,8 @@ class MainActivity : AppCompatActivity() {
 
                 newWidth = max((originalWidth * 0.5).toInt(), (bindingMain.root.width * scaleX).toInt())
                 newHeight = max((originalHeight * 0.75).toInt(), (bindingMain.root.height * scaleY).toInt())
-                newWidth = max(newWidth, wizardMinContentWidthPx)
-                newHeight = max(newHeight, wizardMinContentHeightPx)
+                newWidth = max(newWidth, setupWizard.minContentWidthPx)
+                newHeight = max(newHeight, setupWizard.minContentHeightPx)
 
                 val displayMetrics = resources.displayMetrics
                 val clampedWidth = min(newWidth, displayMetrics.widthPixels)
@@ -1715,8 +1469,7 @@ class MainActivity : AppCompatActivity() {
     // ===== ИЗМЕНЕНИЯ ИНТЕРФЕЙСА =====
     /** Блик скрывается на выключенных состояниях, иначе просвечивает поверх сплошного чёрного. */
     private fun updateScreenGlareVisibility() {
-        val isOff = bindingMain.viewPowerOff.visibility == View.VISIBLE ||
-            bindingMain.incLayoutPipboy2000Wizard.layoutWizardPowerHint.visibility == View.VISIBLE
+        val isOff = bindingMain.viewPowerOff.visibility == View.VISIBLE || setupWizard.isPowerHintVisible
         bindingMain.imgScreenglare.visibility = if (isOff) View.GONE else View.VISIBLE
     }
     /** Мгновенный выключенный вид без звука и анимации — служебный дефолт при входе в мастер, не applyPowerState(false). */
@@ -1736,10 +1489,8 @@ class MainActivity : AppCompatActivity() {
             bootSequence.cancelBootSequence()
             bootSequence.playBootSequence()
             // Мастер настройки PipBoy 2000/3000 больше не нужен — POWER реально пришёл.
-            val wizardWasOpen = bindingMain.incLayoutPipboy2000Wizard.root.visibility == View.VISIBLE
-            bindingMain.incLayoutPipboy2000Wizard.root.visibility = View.GONE
-            // Гейт по wizardWasOpen: на обычных POWER-переключениях кнопки и так уже включены.
-            if (wizardWasOpen) {
+            // Гейт по факту открытости: на обычных POWER-переключениях кнопки и так уже включены.
+            if (setupWizard.hide()) {
                 enableDisableBottomButtons(true, listBottomButtons)
                 enableDisableTopSwipe(true)
             }
@@ -3494,8 +3245,7 @@ class MainActivity : AppCompatActivity() {
         applyAppTheme(currentUiTheme())
 
         // Экран выбора режима (roadmap, "Видение приложения") — первое, что видит игрок
-        setupModeSelectScreen()
-        setupPipBoy2000Wizard()
+        setupWizard.setup()
         registerDebugCommandReceiver()
 
         //Keep phone screen active
@@ -4293,7 +4043,7 @@ class MainActivity : AppCompatActivity() {
         cancelButtonSettings.setOnClickListener {
             playButtonAudio()
             stopPairingScan()
-            if (!isResizing) {
+            if (!setupWizard.isResizing) {
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
                 enableDisableBottomButtons(true, listBottomButtons)
                 enableDisableTopSwipe(true)
@@ -4352,7 +4102,7 @@ class MainActivity : AppCompatActivity() {
         // Легаси-попап Screen Resize убран: рабочая область настраивается только шагом DISPLAY AREA мастера.
         bindingMain.incLayoutSettingsGlobal.btnSettingsChangeMode.setOnClickListener {
             playButtonAudio()
-            openModeSelectScreen()
+            setupWizard.openModeSelect()
         }
 
         // Слушатель жеста — на корне самого мастера, а не на root: мастер поглощает тач в своих границах,
@@ -4360,7 +4110,7 @@ class MainActivity : AppCompatActivity() {
         scaleGestureDetector = ScaleGestureDetector(this, ScaleListener())
 
         bindingMain.incLayoutPipboy2000Wizard.root.setOnTouchListener { _, event ->
-            if (isResizing) {
+            if (setupWizard.isResizing) {
                 handleTouch(event)
             }
             true

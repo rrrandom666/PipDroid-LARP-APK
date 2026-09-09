@@ -818,6 +818,15 @@ Crash-буфер пуст, `AndroidRuntime` ноль вхождений.
 вместе с ним. Проверять это отдельным проходом при следующей уборке: ни один из двух
 привычных инструментов такое не ловит.
 
+**Следующий на очереди — Журнал, замер уже сделан** (`dev-tools/controller_boundary_measure.py
+--pattern '[Jj]ournal|[Ee]ntr'`): 36 членов / 423 строки, минус чужой `listEntries` (53 строки,
+экран фильтра, притянут словом «Entr») — итого ~370 плюс блок 81 строка в `onCreate`, около
+450. Семь полей состояния, обращений извне без `onCreate` всего **6** в трёх функциях:
+`journalListAdapter` ← `refreshSidebarBackItems`, `journalDictation` ←
+`onRequestPermissionsResult`/`onWakeWordTriggered`, `journalEditorOpenFor` ← `companion object`
+(константа-sentinel `JOURNAL_NEW_ENTRY`). Граница чище, чем у Карты, и размер впервые попадает
+в ориентир 300-800. Диктовка записи уедет внутрь по тому же доводу, что и у Карты.
+
 ### Тесты трёх чистых классов — долг волны 2 закрыт (этап 30)
 
 23 JVM-теста: `MenuNavigator` (12), `GeoReference` (6), `PedestrianRouter` (6). Всего в

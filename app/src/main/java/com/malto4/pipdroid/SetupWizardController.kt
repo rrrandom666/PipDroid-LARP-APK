@@ -347,8 +347,8 @@ internal class SetupWizardController(
         w.btnWizardPairingBack.setOnClickListener {
             playButton()
             stopPairingScan()
-            // allowAutoAdvance=false, иначе PERMISSIONS тут же отскочит обратно на PAIRING.
-            showWizardStep(PipBoyWizardStep.PERMISSIONS, allowAutoAdvance = false)
+            // Предыдущий шаг — IMPORT; автопереход тут не при чём, он бывает только на PERMISSIONS.
+            showWizardStep(PipBoyWizardStep.IMPORT)
         }
         w.btnWizardPairingRescan.setOnClickListener {
             playButton()

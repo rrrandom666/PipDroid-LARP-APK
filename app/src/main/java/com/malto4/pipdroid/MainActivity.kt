@@ -1681,9 +1681,7 @@ class MainActivity : AppCompatActivity() {
         saveViewState(layoutParams)
     }
 
-    // ===== КАРТА =====
-    /** Пеший маршрут с текущей GPS-позиции, расчёт на Dispatchers.Default. */
-    /** [returnPath] — куда вернуть курсор после Cancel/Stop: вызывающий передаёт явно, постфактум контекст не восстановить. */
+    // ===== СТАТУС БАНДЛОВ КАРТЫ И ГОЛОСОВОЙ МОДЕЛИ =====
     /** Обновляет статус бандла карты сразу и в Settings, и на шаге IMPORT мастера. */
     private fun refreshMapBundleStatus() {
         val text = if (!mapBundleRepository.hasBundle()) {
@@ -1957,8 +1955,7 @@ class MainActivity : AppCompatActivity() {
             ) else null,
         )
     }
-    // ===== ITEMS: КАРТА, ЭНКОДЕР =====
-    /** Общая панель Zoom/Center/Pan/Crosshair/Back живёт в двух точках дерева и различается поведением крестика. */
+    // ===== DATA И RADIO: ЭНКОДЕР =====
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
         // HOLOTAPES требует физического корпуса и скрыт в Телефоне; порядок должен совпадать с dataRow2Items().
@@ -2277,7 +2274,6 @@ class MainActivity : AppCompatActivity() {
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
     }
-    /** Тот же приём на панели управления картой: у Zoom и Center один прицел на блок, у пар Pan — два сразу. */
     /** Прицелы на частях тела; setAllCrippledFocusesHidden() — идемпотентная подстраховка при выходе из ветки. */
     private fun setCrippledHeadFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledHeadFocus, focused)

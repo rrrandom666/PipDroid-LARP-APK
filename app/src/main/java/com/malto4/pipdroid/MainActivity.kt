@@ -136,44 +136,9 @@ class MainActivity : AppCompatActivity() {
     private var selectedRowButton = R.drawable.status_row_selected_green
     private var selectedDateFormat = "MM.dd.yy"
     private var trueFullscreen = false
-    private var alarmHour = 7
-    private var alarmMinute = 0
-    private var alarmArmed = false
-    private var clockFiredRingtonePlayer: MediaPlayer? = null
-    private lateinit var alarmHourWheel: ClockWheelPicker
-    private lateinit var alarmMinuteWheel: ClockWheelPicker
-    private enum class TimerState { IDLE, RUNNING, PAUSED }
-    private var timerHours = 0
-    private var timerMinutes = 5
-    private var timerSeconds = 0
-    private var timerState = TimerState.IDLE
-    private lateinit var timerHourWheel: ClockWheelPicker
-    private lateinit var timerMinuteWheel: ClockWheelPicker
-    private lateinit var timerSecondWheel: ClockWheelPicker
-    private var timerTargetEpochMillis = 0L
-    private var timerRemainingSecondsAtPause = 0
-    private enum class StopwatchState { IDLE, RUNNING, PAUSED }
-    private var stopwatchState = StopwatchState.IDLE
-    private var stopwatchStartEpochMillis = 0L
-    private var stopwatchElapsedMillisAtPause = 0L
-    private val selectedRingtone_SPKey = "selectedRingtoneIndex"
-    private var melodyFocusedIndex = 0
-    private var melodyPreviewPlayer: MediaPlayer? = null
-    private var melodyPreviewPlayingIndex: Int? = null
-    /** payload — индекс в ringtoneTracks. */
-    private lateinit var melodyAdapter: SidebarMenuAdapter<Int?>
 
     // ===== СПИСКИ VIEW =====
     private var listBottomButtons = ArrayList<Button>()
-    private data class ClockFeatureMeta(val key: String, val labelRes: Int)
-    private val clockMeta = listOf(
-        ClockFeatureMeta("TIME", R.string.clock_feature_time),
-        ClockFeatureMeta("ALARM", R.string.clock_feature_alarm),
-        ClockFeatureMeta("TIMER", R.string.clock_feature_timer),
-        ClockFeatureMeta("STOPWATCH", R.string.clock_feature_stopwatch),
-        ClockFeatureMeta("MELODY", R.string.clock_feature_melody),
-    )
-    private lateinit var clockAdapter: SidebarMenuAdapter<String>
     private data class DataFileMeta(val key: String, val nameRes: Int, val descriptionRes: Int)
     private val dataFilesMeta = listOf(
         DataFileMeta("ENTRY1", R.string.data_misc_entry1_name, R.string.data_misc_entry1_description),
@@ -241,6 +206,38 @@ class MainActivity : AppCompatActivity() {
             ambient = { start -> if (start) startAmbientBackgroundSound() else stopAmbientBackgroundSound() },
         )
     }
+    /** Экран ITEMS/Часы целиком; общий таймер делится с системой ранений через пять последних колбэков. */
+    private val clockController by lazy {
+        ClockController(
+            activity = this,
+            binding = bindingMain,
+            prefs = sharedPreferences,
+            navigator = menuNavigator,
+            mode = { pipBoyMode },
+            accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            itemsMenuRoot = { itemsMenuRoot() },
+            backSidebarItem = { backSidebarItem() },
+            menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playConfirm = { playConfirmAudio() },
+            suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
+            syncRow2Active = { syncRow2ActiveFromNavigator() },
+            hasAudioPermission = { checkAudioPermission() },
+            requestAudioPermission = { requestAudioPermission() },
+            isWoundActive = { woundPhase != WoundPhase.NONE },
+            timerLabelText = { clockTimerLabelText() },
+            onWoundTimerFired = { fireWoundTimer() },
+            onWoundStopRequested = { stopWoundTimerEarly() },
+            onWoundCountdownTick = { remainingSeconds ->
+                if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
+                    updateWoundCountdownText(remainingSeconds)
+                }
+            },
+        )
+    }
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
     private val REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION = 27
@@ -305,9 +302,6 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_PIPBOY_MODE = "restore_pipBoyMode"
         private const val KEY_WOUND_PHASE = "restore_woundPhase"
         private const val KEY_WOUND_SEVERITY = "restore_woundSeverity"
-        private const val KEY_TIMER_STATE = "restore_timerState"
-        private const val KEY_TIMER_TARGET_EPOCH = "restore_timerTargetEpochMillis"
-        private const val KEY_TIMER_REMAINING_AT_PAUSE = "restore_timerRemainingSecondsAtPause"
         private const val KEY_CRIPPLED_HEAD = "restore_crippledHead"
         private const val KEY_CRIPPLED_TORSO = "restore_crippledTorso"
         private const val KEY_CRIPPLED_LEFT_ARM = "restore_crippledLeftArm"
@@ -315,9 +309,6 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_CRIPPLED_LEFT_LEG = "restore_crippledLeftLeg"
         private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
         private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
-
-        // Пункт "В меню" в боковых списках
-        private const val SIDEBAR_BACK_PAYLOAD = "BACK"
 
         // journalEditorOpenFor
         private const val JOURNAL_NEW_ENTRY_SENTINEL = "JOURNAL_NEW_ENTRY"
@@ -829,28 +820,28 @@ class MainActivity : AppCompatActivity() {
         }
         if (normalized.contains("таймер") && (normalized.contains("стоп") || normalized.contains("останов"))) {
             playButtonAudio()
-            resetTimer()
+            clockController.resetTimer()
             finishVoiceCommand(text)
             return
         }
         if (normalized.contains("пауз") || normalized.contains("продолж") || normalized.contains("возобнов")) {
             val allowed = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
-            if (!allowed || timerState == TimerState.IDLE) {
+            if (!allowed || clockController.isTimerIdle) {
                 playErrorAudio()
             } else {
                 playButtonAudio()
-                pauseResumeTimer()
+                clockController.pauseResumeTimer()
             }
             finishVoiceCommand(text)
             return
         }
         if (normalized.contains("таймер") && normalized.contains("минут")) {
             val minutes = parseRussianNumber(normalized)
-            if (minutes == null || minutes <= 0 || timerState != TimerState.IDLE) {
+            if (minutes == null || minutes <= 0 || !clockController.isTimerIdle) {
                 playErrorAudio()
             } else {
                 playButtonAudio()
-                startPlainTimer(minutes * 60)
+                clockController.startPlainTimer(minutes * 60)
             }
             finishVoiceCommand(text)
             return
@@ -911,12 +902,12 @@ class MainActivity : AppCompatActivity() {
         }
         if (normalized.contains("секундомер")) {
             navigateToItemsSection("CLOCK")
-            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "STOPWATCH" })
+            clockController.selectFeature("STOPWATCH")
             finishVoiceCommand(text); return
         }
         if (normalized.contains("час")) {
             navigateToItemsSection("CLOCK")
-            clockAdapter.selectPosition(clockMeta.indexOfFirst { it.key == "TIME" })
+            clockController.selectFeature("TIME")
             finishVoiceCommand(text); return
         }
     }
@@ -1251,17 +1242,11 @@ class MainActivity : AppCompatActivity() {
         crippledLeftLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_LEG)
         crippledRightLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_LEG)
         statusAdapter.setSelectedPositionSilently(savedInstanceState.getInt(KEY_STATUS_CURSOR_ROW))
-        timerState = try {
-            TimerState.valueOf(savedInstanceState.getString(KEY_TIMER_STATE, TimerState.IDLE.name))
-        } catch (e: IllegalArgumentException) { TimerState.IDLE }
-        timerTargetEpochMillis = savedInstanceState.getLong(KEY_TIMER_TARGET_EPOCH)
-        timerRemainingSecondsAtPause = savedInstanceState.getInt(KEY_TIMER_REMAINING_AT_PAUSE)
 
         applyWoundFace()
         updateWoundButtonsUI()
         updateWoundStatusLine()
-        syncClockTimerScreenVisibility()
-        updateClockTimerLabel()
+        clockController.restoreState(savedInstanceState)
         if (woundPhase == WoundPhase.DEAD) {
             applyDeathVisuals()
         } else {
@@ -1273,7 +1258,6 @@ class MainActivity : AppCompatActivity() {
             applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
             applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
         }
-        // Истёкший за время простоя таймер обработает обычный следующий тик 300мс-цикла.
     }
 
     // ===== МАСТЕР НАСТРОЙКИ PIPBOY 2000/3000 =====
@@ -2838,10 +2822,10 @@ class MainActivity : AppCompatActivity() {
     /** ITEMS: Map, Clock, Journal, Geiger. */
     private fun itemsMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabItemsBottom
-        // Clock — SidebarMenuAdapter, дети clockChildrenNodes().
+        // Clock — SidebarMenuAdapter, дети целиком за ClockController.
         val clockNode = MenuNode(
             id = "CLOCK",
-            children = clockChildrenNodes(),
+            children = clockController.childrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsClock) }
         )
         // GEIGER требует физического корпуса и скрыт в Телефоне; порядок должен совпадать с itemsRow2Items().
@@ -3807,18 +3791,15 @@ class MainActivity : AppCompatActivity() {
             "POWER" -> applyPowerState(value == "1")
             // Оверлей срабатывания глобальный, вне дерева MenuNavigator: пока он виден, ENCBTN закрывает именно его.
             "ENCBTN" -> {
-                if (bindingMain.incLayoutClockFiredOverlay.root.visibility == View.VISIBLE) {
-                    flashButtonPressThenRun(bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop) {
-                        playButtonAudio()
-                        dismissClockFiredOverlay()
-                    }
+                if (clockController.isFiredOverlayVisible) {
+                    clockController.activateFiredOverlayStop()
                 } else {
                     menuNavigator.activateSelected()
                     syncRow2ActiveFromNavigator()
                 }
             }
             "ENC" -> {
-                if (bindingMain.incLayoutClockFiredOverlay.root.visibility != View.VISIBLE) {
+                if (!clockController.isFiredOverlayVisible) {
                     // У RADIO нет второго уровня, поэтому ENC крутит громкость напрямую, без входа в редактирование.
                     if (curMenu == "RADIO") {
                         applyRadioVolumeDelta(value?.toIntOrNull() ?: 0)
@@ -3989,10 +3970,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /** Общий признак "энкодер сфокусирован здесь" — четыре L-уголка на отдельном View рядом с целью. */
-    /** В режиме Телефон прицелы не показываются никогда: там нет энкодера, курсор которого они рисуют. */
-    private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) {
-        bracketsView.visibility = if (visible && pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-    }
+    private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) =
+        applyFocusBrackets(bracketsView, pipBoyMode, visible)
     private fun setSpecialValueEditorFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus, focused)
     }
@@ -4017,93 +3996,6 @@ class MainActivity : AppCompatActivity() {
     }
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
-    }
-    /** Тот же приём на ITEMS/Clock/Alarm (roadmap, этап 27, п.3) — часы/минуты/Set/Back. */
-    private fun setClockAlarmHourFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmHourFocus, focused)
-    }
-    private fun setClockAlarmMinuteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmMinuteFocus, focused)
-    }
-    private fun setClockAlarmSetFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmSetFocus, focused)
-    }
-    private fun setClockAlarmBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.viewClockAlarmBackFocus, focused)
-    }
-    private fun setAllClockAlarmFocusesHidden() {
-        setClockAlarmHourFocused(false)
-        setClockAlarmMinuteFocused(false)
-        setClockAlarmSetFocused(false)
-        setClockAlarmBackFocused(false)
-    }
-    /** Тот же приём на ITEMS/Clock/Timer, панель настройки (roadmap, этап 27, п.4). */
-    private fun setClockTimerHourFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerHourFocus, focused)
-    }
-    private fun setClockTimerMinuteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerMinuteFocus, focused)
-    }
-    private fun setClockTimerSecondFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerSecondFocus, focused)
-    }
-    private fun setClockTimerPreset5Focused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPreset5Focus, focused)
-    }
-    private fun setClockTimerPreset10Focused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPreset10Focus, focused)
-    }
-    private fun setClockTimerStartFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerStartFocus, focused)
-    }
-    private fun setClockTimerSetupBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerSetupBackFocus, focused)
-    }
-    private fun setAllClockTimerSetupFocusesHidden() {
-        setClockTimerHourFocused(false)
-        setClockTimerMinuteFocused(false)
-        setClockTimerSecondFocused(false)
-        setClockTimerPreset5Focused(false)
-        setClockTimerPreset10Focused(false)
-        setClockTimerStartFocused(false)
-        setClockTimerSetupBackFocused(false)
-    }
-    /** Тот же приём на ITEMS/Clock/Timer, панель обратного отсчёта (roadmap, этап 27, п.4). */
-    private fun setClockTimerPauseResumeFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerPauseResumeFocus, focused)
-    }
-    private fun setClockTimerResetFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerResetFocus, focused)
-    }
-    private fun setClockTimerRunningBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.viewClockTimerRunningBackFocus, focused)
-    }
-    private fun setAllClockTimerRunningFocusesHidden() {
-        setClockTimerPauseResumeFocused(false)
-        setClockTimerResetFocused(false)
-        setClockTimerRunningBackFocused(false)
-    }
-    /** Тот же приём на ITEMS/Clock/Stopwatch (roadmap, этап 27, п.4). */
-    private fun setClockStopwatchStartPauseFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchStartPauseFocus, focused)
-    }
-    private fun setClockStopwatchResetFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchResetFocus, focused)
-    }
-    private fun setClockStopwatchBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.viewClockStopwatchBackFocus, focused)
-    }
-    private fun setAllClockStopwatchFocusesHidden() {
-        setClockStopwatchStartPauseFocused(false)
-        setClockStopwatchResetFocused(false)
-        setClockStopwatchBackFocused(false)
-    }
-    /** Тот же приём на ITEMS/Clock/Мелодии — Select и Back под конкретным треком. */
-    private fun setClockMelodySelectFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.viewClockMelodySelectFocus, focused)
-    }
-    private fun setClockMelodyBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.viewClockMelodyBackFocus, focused)
     }
     /** Тот же приём на карточке записи Journal — Edit/Delete/Back. */
     private fun setJournalEntryDetailEditFocused(focused: Boolean) {
@@ -4254,19 +4146,6 @@ class MainActivity : AppCompatActivity() {
         setCrippledRightArmFocused(false)
         setCrippledLeftLegFocused(false)
         setCrippledRightLegFocused(false)
-    }
-    /** Мгновенный флэш нажатия для непрерывных ENC-действий, где пауза читалась бы как лаг. */
-    private fun flashButtonPressImmediate(button: View) {
-        button.isPressed = true
-        button.postDelayed({ button.isPressed = false }, ENCODER_PRESS_FLASH_DURATION_MS)
-    }
-    /** Флэш, затем действие — для ENCBTN-команд, которые сами прячут эту же кнопку. */
-    private fun flashButtonPressThenRun(button: View, action: () -> Unit) {
-        button.isPressed = true
-        button.postDelayed({
-            button.isPressed = false
-            action()
-        }, ENCODER_PRESS_FLASH_DURATION_MS)
     }
     /** Дети STATUS: пока таймер ранения актуален, доступны только Stop и шесть частей тела, список ранений
      * недостижим совсем. */
@@ -4504,418 +4383,12 @@ class MainActivity : AppCompatActivity() {
             onBeforePop = { dataFilesAdapter.flashPressAnimation(dataFilesMeta.size) },
         )
     }
-    /** Позиция пункта часов по ключу — для syncClockEncoderPath(). */
-    private fun clockRootIndex(key: String): Int = clockMeta.indexOfFirst { it.key == key }
-    /** Безусловно ставит курсор энкодера по [path] от детей узла CLOCK. */
-    /** Громкий setPath(), а не Silently: прицел обязан рисоваться там, где реально стоит курсор.
-     * Инвариант для любого нового узла Clock — onHighlight не должен звать громкий selectPosition() своего адаптера. */
-    private fun syncClockEncoderPath(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "CLOCK", path, loud = true)
-    /** Тихий вариант нужен ровно треку в Мелодиях: его onHighlight запускает превью, конфликтующее с тумблером в onSelect. */
-    private fun syncClockEncoderPathSilently(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "CLOCK", path, loud = false)
-    /** ITEMS/Clock — фиксированный список, "В меню" последним пунктом. */
-    private fun clockSidebarItems(): List<SidebarMenuItem<String>> {
-        val items = clockMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) }
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
-    }
-    /** Дети CLOCK: контент следует за курсором, панель показывается на каждый шаг листания. */
-    /** onHighlight зовёт setSelectedPositionSilently(), а не selectPosition(): громкий вариант рекурсивно
-     * продавливал курсор на уровень глубже, чем показано на экране. */
-    private fun clockChildrenNodes(): List<MenuNode> {
-        return clockMeta.mapIndexed { index, meta ->
-            when (meta.key) {
-                "TIME" -> MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        clockAdapter.setSelectedPositionSilently(index)
-                        showClockContentPanel(meta.key)
-                    },
-                    onActivate = {},
-                )
-                "ALARM" -> MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        clockAdapter.setSelectedPositionSilently(index)
-                        showClockContentPanel(meta.key)
-                        // Курсор стоит на самом ALARM — прицел внутреннего узла с прошлого визита должен погаснуть.
-                        setAllClockAlarmFocusesHidden()
-                    },
-                    children = alarmChildrenNodes(),
-                )
-                "TIMER" -> MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        clockAdapter.setSelectedPositionSilently(index)
-                        showClockContentPanel(meta.key)
-                        // Прячем оба набора безусловно — какой из них видим, знает только timerState.
-                        setAllClockTimerSetupFocusesHidden()
-                        setAllClockTimerRunningFocusesHidden()
-                    },
-                    // childrenProvider, а не статичные children: состав детей зависит от timerState.
-                    childrenProvider = { timerChildrenNodes() },
-                )
-                "STOPWATCH" -> MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        clockAdapter.setSelectedPositionSilently(index)
-                        showClockContentPanel(meta.key)
-                        setAllClockStopwatchFocusesHidden()
-                    },
-                    children = stopwatchChildrenNodes(),
-                )
-                else -> MenuNode( // "MELODY"
-                    id = meta.key,
-                    onHighlight = { playTickAudio(); clockAdapter.setSelectedPositionSilently(index) },
-                    children = melodyChildrenNodes(),
-                )
-            }
-        } + menuBackNode(
-            pipBoyMode,
-            onHighlight = { clockAdapter.setSelectedPositionSilently(clockMeta.size) },
-            onBeforePop = { clockAdapter.flashPressAnimation(clockMeta.size) },
-        )
-    }
-    /** Дети ALARM: часы и минуты через ValueEditor, Set, Back; панель коммитит первый ребёнок HOUR. */
-    private fun alarmChildrenNodes(): List<MenuNode> {
-        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
-        return listOfNotNull(
-            MenuNode(
-                id = "HOUR",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockAlarmFocusesHidden()
-                    setClockAlarmHourFocused(true)
-                },
-                valueEditor = ValueEditor(
-                    onAdjust = { delta -> playTickAudio(); alarmHourWheel.scrollToValue(alarmHourWheel.currentValue() + delta) },
-                    onEnter = { playConfirmAudio() },
-                    onExit = { playTickAudio() },
-                ),
-            ),
-            MenuNode(
-                id = "MINUTE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockAlarmFocusesHidden()
-                    setClockAlarmMinuteFocused(true)
-                },
-                valueEditor = ValueEditor(
-                    onAdjust = { delta -> playTickAudio(); alarmMinuteWheel.scrollToValue(alarmMinuteWheel.currentValue() + delta) },
-                    onEnter = { playConfirmAudio() },
-                    onExit = { playTickAudio() },
-                ),
-            ),
-            MenuNode(
-                id = "SET",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockAlarmFocusesHidden()
-                    setClockAlarmSetFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(alarm.btnClockAlarmToggle) {
-                        playButtonAudio()
-                        toggleAlarmArmed()
-                    }
-                },
-            ),
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockAlarmFocusesHidden()
-                    setClockAlarmBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(alarm.btnClockAlarmBack) {
-                        playConfirmAudio()
-                        setClockAlarmBackFocused(false)
-                        menuNavigator.popLevel()
-                    }
-                },
-            ) else null,
-        )
-    }
-    /** Дети TIMER ветвятся по timerState: в IDLE колёса и пресеты, иначе Pause/Resume и Reset. */
-    private fun timerChildrenNodes(): List<MenuNode> {
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        return if (timerState == TimerState.IDLE) {
-            listOfNotNull(
-                MenuNode(
-                    id = "HOUR",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerHourFocused(true)
-                    },
-                    valueEditor = ValueEditor(
-                        onAdjust = { delta -> playTickAudio(); timerHourWheel.scrollToValue(timerHourWheel.currentValue() + delta) },
-                        onEnter = { playConfirmAudio() },
-                        onExit = { playTickAudio() },
-                    ),
-                ),
-                MenuNode(
-                    id = "MINUTE",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerMinuteFocused(true)
-                    },
-                    valueEditor = ValueEditor(
-                        onAdjust = { delta -> playTickAudio(); timerMinuteWheel.scrollToValue(timerMinuteWheel.currentValue() + delta) },
-                        onEnter = { playConfirmAudio() },
-                        onExit = { playTickAudio() },
-                    ),
-                ),
-                MenuNode(
-                    id = "SECOND",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerSecondFocused(true)
-                    },
-                    valueEditor = ValueEditor(
-                        onAdjust = { delta -> playTickAudio(); timerSecondWheel.scrollToValue(timerSecondWheel.currentValue() + delta) },
-                        onEnter = { playConfirmAudio() },
-                        onExit = { playTickAudio() },
-                    ),
-                ),
-                MenuNode(
-                    id = "PRESET5",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerPreset5Focused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerPreset5) {
-                            playButtonAudio()
-                            addTimerPresetMinutes(5)
-                        }
-                    },
-                ),
-                MenuNode(
-                    id = "PRESET10",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerPreset10Focused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerPreset10) {
-                            playButtonAudio()
-                            addTimerPresetMinutes(10)
-                        }
-                    },
-                ),
-                MenuNode(
-                    id = "START",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerStartFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerStart) {
-                            playButtonAudio()
-                            startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
-                        }
-                    },
-                ),
-                if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                    id = "BACK",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerSetupFocusesHidden()
-                        setClockTimerSetupBackFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerSetupBack) {
-                            playConfirmAudio()
-                            setClockTimerSetupBackFocused(false)
-                            menuNavigator.popLevel()
-                        }
-                    },
-                ) else null,
-            )
-        } else {
-            listOfNotNull(
-                MenuNode(
-                    id = "PAUSE_RESUME",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerRunningFocusesHidden()
-                        setClockTimerPauseResumeFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerPauseResume) {
-                            playButtonAudio()
-                            pauseResumeTimer()
-                        }
-                    },
-                ),
-                MenuNode(
-                    id = "RESET",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerRunningFocusesHidden()
-                        setClockTimerResetFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerReset) {
-                            playButtonAudio()
-                            resetTimer()
-                        }
-                    },
-                ),
-                if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                    id = "BACK",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllClockTimerRunningFocusesHidden()
-                        setClockTimerRunningBackFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerRunningBack) {
-                            playConfirmAudio()
-                            setClockTimerRunningBackFocused(false)
-                            menuNavigator.popLevel()
-                        }
-                    },
-                ) else null,
-            )
-        }
-    }
-    /** Живая пересборка узла TIMER при смене timerState; no-op, если курсор сейчас не внутри TIMER. */
-    private fun refreshClockTimerEncoderChildren() {
-        menuNavigator.replaceChildrenOf("TIMER", timerChildrenNodes())
-    }
-    /** Дети STOPWATCH — статичный список, от stopwatchState зависит только текст кнопки. */
-    private fun stopwatchChildrenNodes(): List<MenuNode> {
-        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
-        return listOfNotNull(
-            MenuNode(
-                id = "START_PAUSE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockStopwatchFocusesHidden()
-                    setClockStopwatchStartPauseFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(stopwatch.btnClockStopwatchStartPause) {
-                        playButtonAudio()
-                        toggleStopwatchStartPause()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "RESET",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockStopwatchFocusesHidden()
-                    setClockStopwatchResetFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(stopwatch.btnClockStopwatchReset) {
-                        playButtonAudio()
-                        resetStopwatch()
-                    }
-                },
-            ),
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setAllClockStopwatchFocusesHidden()
-                    setClockStopwatchBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(stopwatch.btnClockStopwatchBack) {
-                        playConfirmAudio()
-                        setClockStopwatchBackFocused(false)
-                        menuNavigator.popLevel()
-                    }
-                },
-            ) else null,
-        )
-    }
-    /** Дети MELODY — трек за треком с автопрослушиванием; ENCBTN проваливается в [Select, Back]. */
-    private fun melodyChildrenNodes(): List<MenuNode> {
-        val trackNodes = ringtoneTracks.indices.map { i ->
-            MenuNode(
-                id = "TRACK_$i",
-                onHighlight = {
-                    // Панель коммитит только первый трек, и через setSelectedPositionSilently() — громкий вариант зациклился бы.
-                    playTickAudio()
-                    if (i == 0) {
-                        clockAdapter.setSelectedPositionSilently(4)
-                        openClockMelodyScreen()
-                    }
-                    melodyAdapter.setSelectedPositionSilently(i)
-                    melodyFocusedIndex = i
-                    startMelodyPreview(i)
-                },
-                children = melodySelectBackChildrenNodes(),
-            )
-        }
-        val backNode = MenuNode(
-            id = "MELODY_LIST_BACK",
-            onHighlight = { playTickAudio(); melodyAdapter.setSelectedPositionSilently(ringtoneTracks.size) },
-            // popLevel() здесь не дублировать: melodyAdapter.selectPosition() уже зовёт его через onSelect.
-            onActivate = {
-                melodyAdapter.selectPosition(ringtoneTracks.size)
-                melodyAdapter.flashPressAnimation(ringtoneTracks.size)
-            },
-        )
-        return trackNodes + backNode
-    }
-    /** Select и Back под треком: Select коммитит melodyFocusedIndex, Back поднимает на уровень. */
-    private fun melodySelectBackChildrenNodes(): List<MenuNode> {
-        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
-        return listOfNotNull(
-            MenuNode(
-                id = "SELECT",
-                onHighlight = {
-                    playTickAudio()
-                    setClockMelodyBackFocused(false)
-                    setClockMelodySelectFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(melody.btnClockMelodySelect) {
-                        playButtonAudio()
-                        commitMelodySelection()
-                    }
-                },
-            ),
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setClockMelodySelectFocused(false)
-                    setClockMelodyBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(melody.btnClockMelodyBack) {
-                        playConfirmAudio()
-                        setClockMelodyBackFocused(false)
-                        menuNavigator.popLevel()
-                    }
-                },
-            ) else null,
-        )
-    }
     /** Пересобирает три списка, когда режим стал известен после onCreate(); нужен setItems целиком, не точечная правка. */
     private fun refreshSidebarBackItems() {
         specialAdapter.setItems(specialSidebarItems(), resetSelection = false)
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
-        clockAdapter.setItems(clockSidebarItems(), resetSelection = false)
         // "Управление картой" тоже под гейтом по режиму.
         mapRootAdapter.setItems(
             mapRootSidebarItems(),
@@ -4928,306 +4401,18 @@ class MainActivity : AppCompatActivity() {
         refreshGeigerMenuButtonVisibility()
         refreshJournalBackButtonVisibility()
         refreshMapMarkerDetailBackButtonVisibility()
-        refreshClockAlarmBackButtonVisibility()
-        refreshClockTimerBackButtonsVisibility()
-        refreshClockStopwatchBackButtonVisibility()
-        refreshClockMelodyBackButtonVisibility()
+        clockController.refreshModeGating()
     }
     /** Menu на Гейгере — обычная кнопка, не элемент адаптера, поэтому видимость обновляется отдельно. */
-    /** Кнопки "назад"/"в меню" на экранах видны только в режимах с физическим энкодером. */
-    private fun setEncoderOnlyVisible(vararg views: View) {
-        val visibility = if (pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-        views.forEach { it.visibility = visibility }
-    }
+    private fun setEncoderOnlyVisible(vararg views: View) = applyEncoderOnlyVisible(pipBoyMode, *views)
     private fun refreshGeigerMenuButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu)
     /** Back на карточке записи Journal — та же схема, что у Menu на Гейгере. */
     private fun refreshJournalBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack)
     /** Back на карточке отметки — тот же гейт и приём. */
     private fun refreshMapMarkerDetailBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsMap.btnMapMarkerDetailBack)
-    /** Back-кнопки ITEMS/Clock — та же схема: обычные кнопки экрана, не элементы адаптера. */
-    private fun refreshClockAlarmBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm.btnClockAlarmBack)
-    private fun refreshClockTimerBackButtonsVisibility() {
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        setEncoderOnlyVisible(timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)
-    }
-    private fun refreshClockStopwatchBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.btnClockStopwatchBack)
-    private fun refreshClockMelodyBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.btnClockMelodyBack)
     private fun setBottomButtons(vararg buttons: Button){
         listBottomButtons.clear()
         listBottomButtons.addAll(buttons)
-    }
-    /** Проверка будильника из того же 300мс-цикла, что и часы; совпадение сразу разоружает его. */
-    private fun updateAlarmStatusViews() {
-        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
-        if (alarmArmed) {
-            alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_on, String.format("%02d:%02d", alarmHour, alarmMinute))
-            alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_cancel)
-        } else {
-            alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
-            alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
-        }
-    }
-    private fun toggleAlarmArmed() {
-        alarmArmed = !alarmArmed
-        updateAlarmStatusViews()
-    }
-    private fun checkAlarmFiring(gameCalendar: Calendar) {
-        if (!alarmArmed) return
-        val hour = gameCalendar.get(Calendar.HOUR_OF_DAY)
-        val minute = gameCalendar.get(Calendar.MINUTE)
-        if (hour == alarmHour && minute == alarmMinute) {
-            fireAlarm()
-        }
-    }
-    private fun fireAlarm() {
-        alarmArmed = false
-        val alarm = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockAlarm
-        alarm.tvClockAlarmStatus.text = getString(R.string.clock_alarm_status_off)
-        alarm.btnClockAlarmToggle.text = getString(R.string.clock_alarm_set)
-        bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_alarm_fired_title)
-        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
-        setClockFiredStopFocused(true)
-        playClockFiredSound()
-    }
-    /** Фокус энкодера на Stop оверлея срабатывания. */
-    private fun setClockFiredStopFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus, focused)
-    }
-    /** Закрытие оверлея — общее для тапа по Stop и для ENCBTN. */
-    private fun dismissClockFiredOverlay() {
-        stopClockFiredSound()
-        setClockFiredStopFocused(false)
-        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.GONE
-    }
-    /** Звук срабатывания — выбранный трек; до первого выбора игроком это индекс 0, а не тишина. */
-    private fun playClockFiredSound() {
-        stopClockFiredSound()
-        val trackIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
-        val uri = Uri.parse("android.resource://$packageName/${ringtoneTracks[trackIndex].rawResId}")
-        // Без AudioAttributes(USAGE_ALARM): тот канал живёт на отдельном системном регуляторе громкости.
-        clockFiredRingtonePlayer = MediaPlayer().apply {
-            setDataSource(this@MainActivity, uri)
-            isLooping = true
-            prepare()
-            start()
-        }
-    }
-    private fun stopClockFiredSound() {
-        clockFiredRingtonePlayer?.stop()
-        clockFiredRingtonePlayer?.release()
-        clockFiredRingtonePlayer = null
-    }
-    /** Проверка таймера из того же 300мс-цикла; отсчёт по целевому epoch, а не декрементом. */
-    private fun checkTimerFiring() {
-        if (timerState != TimerState.RUNNING) return
-        val remainingMs = timerTargetEpochMillis - System.currentTimeMillis()
-        if (remainingMs <= 0) {
-            fireTimer()
-            return
-        }
-        val remainingSeconds = (remainingMs / 1000).toInt()
-        val h = remainingSeconds / 3600
-        val m = (remainingSeconds % 3600) / 60
-        val s = remainingSeconds % 60
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.tvClockTimerCountdown.text =
-            String.format("%02d:%02d:%02d", h, m, s)
-        if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
-            updateWoundCountdownText(remainingSeconds)
-        }
-        updateClockTimerLabel()
-    }
-    /** Подпись над отсчётом: у таймера может быть стадия ранения, для обычного запуска она пустая. */
-    private fun clockTimerLabelText(): String = when (woundPhase) {
-        WoundPhase.STUNNED -> getString(R.string.status_wound_stunned_label)
-        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
-        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
-        else -> ""
-    }
-    private fun updateClockTimerLabel() {
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.tvClockTimerLabel.text = clockTimerLabelText()
-    }
-    /** Общий таймер принадлежит либо запуску с экрана Таймера, либо текущей фазе ранения. */
-    private fun fireTimer() {
-        timerState = TimerState.IDLE
-        if (woundPhase == WoundPhase.NONE) {
-            syncClockTimerScreenVisibility()
-        } else {
-            fireWoundTimer()
-        }
-        bindingMain.incLayoutClockFiredOverlay.tvClockFiredTitle.text = getString(R.string.clock_timer_fired_title)
-        bindingMain.incLayoutClockFiredOverlay.root.visibility = View.VISIBLE
-        setClockFiredStopFocused(true)
-        playClockFiredSound()
-    }
-    /** Панели экрана Таймера следуют timerState независимо от того, кто таймер запустил. */
-    private fun syncClockTimerScreenVisibility() {
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        val running = timerState != TimerState.IDLE
-        timer.layoutClockTimerRunning.visibility = if (running) View.VISIBLE else View.GONE
-        timer.layoutClockTimerSetup.visibility = if (running) View.GONE else View.VISIBLE
-        // Общая точка пересборки дерева для сброса, срабатывания, таймера ранения и восстановления.
-        refreshClockTimerEncoderChildren()
-    }
-    /** Общий старт для кнопки [Старт] и голосовой команды; на нуле секунд — no-op. */
-    private fun startPlainTimer(totalSeconds: Int) {
-        if (totalSeconds <= 0) return
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        timerTargetEpochMillis = System.currentTimeMillis() + totalSeconds * 1000L
-        timerState = TimerState.RUNNING
-        timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-        timer.layoutClockTimerSetup.visibility = View.GONE
-        timer.layoutClockTimerRunning.visibility = View.VISIBLE
-        updateClockTimerLabel() // woundPhase == NONE здесь всегда — очищает подпись от предыдущего таймера ранения
-        // startPlainTimer() — единственный переход IDLE->RUNNING мимо syncClockTimerScreenVisibility().
-        refreshClockTimerEncoderChildren()
-    }
-    /** Пресеты +5/+10 минут; метод класса, а не closure — нужен из timerChildrenNodes(). */
-    private fun addTimerPresetMinutes(minutesToAdd: Int) {
-        val totalMinutes = (timerHours * 60 + timerMinutes + minutesToAdd) % (24 * 60)
-        timerHours = totalMinutes / 60
-        timerMinutes = totalMinutes % 60
-        timerHourWheel.scrollToValue(timerHours)
-        timerMinuteWheel.scrollToValue(timerMinutes)
-    }
-    /** Общая пауза/возобновление — кнопка [Пауза] и голосовая команда "пауза"/"продолжи". */
-    private fun pauseResumeTimer() {
-        val timer = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer
-        when (timerState) {
-            TimerState.RUNNING -> {
-                timerRemainingSecondsAtPause = ((timerTargetEpochMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0).toInt()
-                timerState = TimerState.PAUSED
-                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_resume)
-            }
-            TimerState.PAUSED -> {
-                timerTargetEpochMillis = System.currentTimeMillis() + timerRemainingSecondsAtPause * 1000L
-                timerState = TimerState.RUNNING
-                timer.btnClockTimerPauseResume.text = getString(R.string.clock_timer_pause)
-            }
-            TimerState.IDLE -> {}
-        }
-    }
-    /** Общий сброс: при активном таймере ранения равнозначен [Стоп] на STATUS, а не тихому обрыву. */
-    private fun resetTimer() {
-        if (woundPhase != WoundPhase.NONE) {
-            stopWoundTimerEarly()
-        } else {
-            timerState = TimerState.IDLE
-            syncClockTimerScreenVisibility()
-        }
-    }
-    /** Мелодия звонка — методы класса, а не closure: кнопка регистрируется в onCreate() раньше секции экрана. */
-    private fun updateMelodySelectedLabel() {
-        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
-        val index = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
-        melody.tvClockMelodySelectedName.apply {
-            text = ringtoneTracks[index].displayName
-            isSelected = false // застывшее обрезанное состояние, пока не нажали [Выбрать]
-        }
-    }
-    /** Тело кнопки [Выбрать] — общее для тача и ENCBTN. */
-    private fun commitMelodySelection() {
-        sharedPreferences.edit().putInt(selectedRingtone_SPKey, melodyFocusedIndex).apply()
-        updateMelodySelectedLabel()
-        playMelodySelectedMarqueeOnce()
-    }
-    /** Один проход marquee; сброс isSelected нужен, иначе повторный выбор того же трека не прокрутится. */
-    private fun playMelodySelectedMarqueeOnce() {
-        val nameView = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody.tvClockMelodySelectedName
-        nameView.isSelected = false
-        nameView.post { nameView.isSelected = true }
-    }
-    private fun stopMelodyPreview() {
-        melodyPreviewPlayer?.stop()
-        melodyPreviewPlayer?.release()
-        melodyPreviewPlayer = null
-        melodyPreviewPlayingIndex = null
-    }
-    private fun startMelodyPreview(index: Int) {
-        stopMelodyPreview()
-        melodyPreviewPlayingIndex = index
-        val melody = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockMelody
-        melodyPreviewPlayer = MediaPlayer.create(this, ringtoneTracks[index].rawResId).apply {
-            isLooping = true
-            start()
-        }
-        val audioSessionId = melodyPreviewPlayer?.audioSessionId
-        if (checkAudioPermission() && audioSessionId != null && audioSessionId != -1) {
-            melody.melodyWave.release()
-            melody.melodyWave.setPlayer(audioSessionId)
-            melody.melodyWave.visibility = View.VISIBLE
-        } else if (!checkAudioPermission()) {
-            requestAudioPermission()
-        }
-    }
-    /** Переключает видимую панель справа; MELODY сюда не входит — это отдельный полноэкранный переход. */
-    /** Контейнеры восстанавливаются здесь же: с энкодера можно уйти с Мелодии мимо её кнопки [Назад]. */
-    private fun showClockContentPanel(key: String) {
-        stopMelodyPreview()
-        val clock = bindingMain.incLayoutTabItemsClock
-        clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
-        clock.layoutTabItemsClockContent.visibility = View.VISIBLE
-        clock.incLayoutTabItemsClockTime.root.visibility = if (key == "TIME") View.VISIBLE else View.GONE
-        clock.incLayoutTabItemsClockAlarm.root.visibility = if (key == "ALARM") View.VISIBLE else View.GONE
-        clock.incLayoutTabItemsClockTimer.root.visibility = if (key == "TIMER") View.VISIBLE else View.GONE
-        clock.incLayoutTabItemsClockStopwatch.root.visibility = if (key == "STOPWATCH") View.VISIBLE else View.GONE
-        clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-    }
-    private fun openClockMelodyScreen() {
-        val clock = bindingMain.incLayoutTabItemsClock
-        clock.layoutTabItemsClockButtonsContainer.visibility = View.GONE
-        clock.layoutTabItemsClockContent.visibility = View.GONE
-        clock.incLayoutTabItemsClockMelody.root.visibility = View.VISIBLE
-        // Рамка обязана совпадать с курсором энкодера, а тот при входе в MELODY всегда на первом треке,
-        // а не на ранее подтверждённом.
-        melodyFocusedIndex = 0
-        // Молча (без звука) — восстановление состояния экрана при входе, не выбор игрока.
-        melodyAdapter.setSelectedPositionSilently(melodyFocusedIndex)
-        updateMelodySelectedLabel()
-    }
-    private fun closeClockMelodyScreen() {
-        stopMelodyPreview()
-        val clock = bindingMain.incLayoutTabItemsClock
-        clock.incLayoutTabItemsClockMelody.root.visibility = View.GONE
-        clock.layoutTabItemsClockButtonsContainer.visibility = View.VISIBLE
-        clock.layoutTabItemsClockContent.visibility = View.VISIBLE
-    }
-    /** Методы класса, а не closure — нужны из stopwatchChildrenNodes(). */
-    private fun toggleStopwatchStartPause() {
-        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
-        when (stopwatchState) {
-            StopwatchState.IDLE -> {
-                stopwatchStartEpochMillis = System.currentTimeMillis()
-                stopwatchState = StopwatchState.RUNNING
-                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
-            }
-            StopwatchState.RUNNING -> {
-                stopwatchElapsedMillisAtPause = System.currentTimeMillis() - stopwatchStartEpochMillis
-                stopwatchState = StopwatchState.PAUSED
-                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_resume)
-            }
-            StopwatchState.PAUSED -> {
-                stopwatchStartEpochMillis = System.currentTimeMillis() - stopwatchElapsedMillisAtPause
-                stopwatchState = StopwatchState.RUNNING
-                stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_pause)
-            }
-        }
-    }
-    private fun resetStopwatch() {
-        val stopwatch = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch
-        stopwatchState = StopwatchState.IDLE
-        stopwatchElapsedMillisAtPause = 0L
-        stopwatch.tvClockStopwatchElapsed.text = "00:00:00"
-        stopwatch.btnClockStopwatchStartPause.text = getString(R.string.clock_timer_start)
-    }
-    /** Обновление отображения секундомера — вызывается из общего 300мс-цикла, пока RUNNING. */
-    private fun updateStopwatchDisplay() {
-        if (stopwatchState != StopwatchState.RUNNING) return
-        val elapsedSeconds = (System.currentTimeMillis() - stopwatchStartEpochMillis) / 1000
-        val h = elapsedSeconds / 3600
-        val m = (elapsedSeconds % 3600) / 60
-        val s = elapsedSeconds % 60
-        bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockStopwatch.tvClockStopwatchElapsed.text =
-            String.format("%02d:%02d:%02d", h, m, s)
     }
     /** Строка 1 шапки — подсветка активного верхнего раздела закрашенным фоном. */
     private fun highlightTopLevelButton(menu: String){
@@ -5487,10 +4672,14 @@ class MainActivity : AppCompatActivity() {
             // Через statusSidebarItems(), а не инлайн из statusMeta: пункт "В меню" дописывается только там.
             statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         }
-        // Таймер ранения нельзя ставить на паузу; здесь клик блокируется по-настоящему, звук ошибки не нужен.
-        val pauseResume = bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.btnClockTimerPauseResume
-        pauseResume.isEnabled = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
-        pauseResume.alpha = if (pauseResume.isEnabled) 1.0f else 0.4f
+        clockController.setTimerPauseEnabled(woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD)
+    }
+    /** Подпись над отсчётом на экране Таймера: у таймера может быть стадия ранения, для обычного запуска она пустая. */
+    private fun clockTimerLabelText(): String = when (woundPhase) {
+        WoundPhase.STUNNED -> getString(R.string.status_wound_stunned_label)
+        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
+        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
+        else -> ""
     }
     private fun woundStageLabel(): String = when (woundPhase) {
         WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
@@ -5542,12 +4731,9 @@ class MainActivity : AppCompatActivity() {
         applyWoundFace()
         updateWoundButtonsUI()
         refreshStatusEncoderChildren()
-        timerState = TimerState.RUNNING
-        timerTargetEpochMillis = System.currentTimeMillis() + durationSeconds * 1000L
-        syncClockTimerScreenVisibility()
+        clockController.startWoundTimer(durationSeconds)
         updateWoundStatusLine()
         updateWoundCountdownText(durationSeconds)
-        updateClockTimerLabel()
     }
     /** Вылечен — общий финал для перевязки и оглушения; CRIPPLED снимается со всех шести частей. */
     private fun healWoundsToHealthy() {
@@ -5556,8 +4742,7 @@ class MainActivity : AppCompatActivity() {
         updateWoundButtonsUI()
         refreshStatusEncoderChildren()
         updateWoundStatusLine()
-        timerState = TimerState.IDLE
-        syncClockTimerScreenVisibility()
+        clockController.stopTimer()
         setCrippledHead(false)
         setCrippledTorso(false)
         setCrippledLeftArm(false)
@@ -5594,8 +4779,7 @@ class MainActivity : AppCompatActivity() {
         updateWoundButtonsUI()
         refreshStatusEncoderChildren()
         updateWoundStatusLine()
-        timerState = TimerState.IDLE
-        syncClockTimerScreenVisibility()
+        clockController.stopTimer()
         applyDeathVisuals()
     }
     /** Revive-жест — тап по фигуре, активен только в DEAD; полный сброс, вся система статусов на самоучёте игрока. */
@@ -5718,11 +4902,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /** [Skip] переносит целевой epoch в прошлое, а не дублирует логику срабатывания. */
-    private fun skipWoundTimer() {
-        if (timerState != TimerState.RUNNING) return
-        timerTargetEpochMillis = System.currentTimeMillis()
-        checkTimerFiring()
-    }
+    private fun skipWoundTimer() = clockController.skipTimerToEnd()
     /** Тач по пункту зовёт громкую синхронизацию ради побочных эффектов onHighlight, но тик от неё лишний —
      * Silently не годится, он убрал бы и сами эффекты, поэтому глушим только звук на время вызова. */
     private var suppressTickAudio = false
@@ -6336,12 +5516,8 @@ class MainActivity : AppCompatActivity() {
                             val timess: String = SimpleDateFormat(":ss").format(gameCalendar.time)
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomDateValue.text = dateOnly
                             bindingMain.incLayoutHeaderBottomCommon.tvBottomTimeValue.text = timeHHmm
-                            bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTime.tvClockTimeHm.text = timeHHmm
-                            bindingMain.incLayoutTabItemsClock.incLayoutTabItemsClockTime.tvClockTimeS.text = timess
                             bindingMain.incLayoutHeaderToplevel.tvHeaderBattery.text = getBatteryPercent().toString()
-                            checkAlarmFiring(gameCalendar)
-                            checkTimerFiring()
-                            updateStopwatchDisplay()
+                            clockController.onTick(gameCalendar, timeHHmm, timess)
                         }
                     }
                 } catch (_: InterruptedException) {}
@@ -6988,254 +6164,12 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             stopMapLocationUpdates()
             menuNavigator.setRootCursor(itemsRootIndexFor("CLOCK"))
-            clockAdapter.clearSelection()
+            clockController.clearSidebarSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-
-        // ===== ITEMS: ЧАСЫ — список фичей слева =====
-        val clock = bindingMain.incLayoutTabItemsClock
-        clockAdapter = SidebarMenuAdapter(
-            items = clockSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация плюс один звук на весь тап — тик из onHighlight цели глушится.
-                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    // Путь до самого узла CLOCK — тот же смысл, что popLevel(), но не зависит от прежней позиции курсора.
-                    playConfirmAudio()
-                    syncClockEncoderPath(emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else if (item.payload == "MELODY") {
-                    // "+ 0" — тап равносилен ENCBTN на MELODY: курсор садится на первый трек, и его onHighlight сам откроет экран.
-                    playConfirmAudio()
-                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position, 0)) }
-                } else if (item.payload == "TIME") {
-                    // Единственный лист без детей — проваливаться некуда, курсор остаётся на пункте.
-                    playConfirmAudio()
-                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position)) }
-                    showClockContentPanel(item.payload)
-                } else {
-                    // ALARM/TIMER/STOPWATCH — тоже "+ 0": ожидание игрока попасть сразу на первый орган управления.
-                    playConfirmAudio()
-                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(position, 0)) }
-                    showClockContentPanel(item.payload)
-                }
-            },
-        )
-        clock.incLayoutTabItemsClockButtons.recyclerTabItemsClockButtons.layoutManager = LinearLayoutManager(this)
-        clock.incLayoutTabItemsClockButtons.recyclerTabItemsClockButtons.adapter = clockAdapter
-
-        // ===== ITEMS: ЧАСЫ — БУДИЛЬНИК =====
-        val clockAccentTint = ColorStateList.valueOf(themeAccentColor())
-        val alarm = clock.incLayoutTabItemsClockAlarm
-        alarm.btnClockAlarmToggle.backgroundTintList = clockAccentTint
-        alarm.btnClockAlarmBack.backgroundTintList = clockAccentTint
-        // Была текстовая кнопка, стала иконкой — тот же сброс imageTintList.
-        alarm.btnClockAlarmBack.imageTintList = null
-        alarm.viewClockAlarmHourFocus.backgroundTintList = clockAccentTint
-        alarm.viewClockAlarmMinuteFocus.backgroundTintList = clockAccentTint
-        alarm.viewClockAlarmSetFocus.backgroundTintList = clockAccentTint
-        alarm.viewClockAlarmBackFocus.backgroundTintList = clockAccentTint
-        updateAlarmStatusViews()
-
-        alarmHourWheel = ClockWheelPicker(
-            alarm.rvClockAlarmHour, 0..23, alarmHour,
-            onValueSettled = { value -> alarmHour = value; updateAlarmStatusViews() },
-            // Свайп по колесу подтягивает курсор энкодера на HOUR из любой ветки дерева.
-            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 0)) },
-        )
-        alarmMinuteWheel = ClockWheelPicker(
-            alarm.rvClockAlarmMinute, 0..59, alarmMinute,
-            onValueSettled = { value -> alarmMinute = value; updateAlarmStatusViews() },
-            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 1)) },
-        )
-        alarm.btnClockAlarmToggle.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 2)) }
-            playButtonAudio()
-            toggleAlarmArmed()
-        }
-        alarm.btnClockAlarmBack.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("ALARM"), 3)) }
-            playConfirmAudio()
-            setClockAlarmBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        refreshClockAlarmBackButtonVisibility()
-
-        // ===== ITEMS: ЧАСЫ — ТАЙМЕР =====
-        // Setup и running — вложенные ConstraintLayout, а не <include>: ViewBinding кладёт их id плоско.
-        val timer = clock.incLayoutTabItemsClockTimer
-        for (btn in listOf(timer.btnClockTimerPreset5, timer.btnClockTimerPreset10, timer.btnClockTimerStart,
-            timer.btnClockTimerPauseResume, timer.btnClockTimerReset, timer.btnClockTimerSetupBack, timer.btnClockTimerRunningBack)) {
-            btn.backgroundTintList = clockAccentTint
-        }
-        // Были текстовыми кнопками, стали иконками — тот же сброс imageTintList.
-        timer.btnClockTimerSetupBack.imageTintList = null
-        timer.btnClockTimerRunningBack.imageTintList = null
-        for (view in listOf(timer.viewClockTimerHourFocus, timer.viewClockTimerMinuteFocus, timer.viewClockTimerSecondFocus,
-            timer.viewClockTimerPreset5Focus, timer.viewClockTimerPreset10Focus, timer.viewClockTimerStartFocus, timer.viewClockTimerSetupBackFocus,
-            timer.viewClockTimerPauseResumeFocus, timer.viewClockTimerResetFocus, timer.viewClockTimerRunningBackFocus)) {
-            view.backgroundTintList = clockAccentTint
-        }
-
-        timerHourWheel = ClockWheelPicker(
-            timer.rvClockTimerHour, 0..23, timerHours,
-            onValueSettled = { timerHours = it },
-            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0)) },
-        )
-        timerMinuteWheel = ClockWheelPicker(
-            timer.rvClockTimerMinute, 0..59, timerMinutes,
-            onValueSettled = { timerMinutes = it },
-            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1)) },
-        )
-        timerSecondWheel = ClockWheelPicker(
-            timer.rvClockTimerSecond, 0..59, timerSeconds,
-            onValueSettled = { timerSeconds = it },
-            onUserAdjusted = { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2)) },
-        )
-
-        timer.btnClockTimerPreset5.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 3)) }
-            playButtonAudio()
-            addTimerPresetMinutes(5)
-        }
-        timer.btnClockTimerPreset10.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 4)) }
-            playButtonAudio()
-            addTimerPresetMinutes(10)
-        }
-        timer.btnClockTimerStart.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 5)) }
-            playButtonAudio()
-            startPlainTimer(timerHours * 3600 + timerMinutes * 60 + timerSeconds)
-        }
-        timer.btnClockTimerSetupBack.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 6)) }
-            playConfirmAudio()
-            setClockTimerSetupBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        timer.btnClockTimerPauseResume.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0)) }
-            playButtonAudio()
-            pauseResumeTimer()
-        }
-        timer.btnClockTimerReset.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1)) }
-            playButtonAudio()
-            resetTimer()
-        }
-        timer.btnClockTimerRunningBack.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 2)) }
-            playConfirmAudio()
-            setClockTimerRunningBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        refreshClockTimerBackButtonsVisibility()
-
-        // ===== ITEMS: ЧАСЫ — СЕКУНДОМЕР =====
-        val stopwatch = clock.incLayoutTabItemsClockStopwatch
-        stopwatch.btnClockStopwatchStartPause.backgroundTintList = clockAccentTint
-        stopwatch.btnClockStopwatchReset.backgroundTintList = clockAccentTint
-        stopwatch.btnClockStopwatchBack.backgroundTintList = clockAccentTint
-        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
-        stopwatch.btnClockStopwatchBack.imageTintList = null
-        stopwatch.viewClockStopwatchStartPauseFocus.backgroundTintList = clockAccentTint
-        stopwatch.viewClockStopwatchResetFocus.backgroundTintList = clockAccentTint
-        stopwatch.viewClockStopwatchBackFocus.backgroundTintList = clockAccentTint
-
-        stopwatch.btnClockStopwatchStartPause.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 0)) }
-            playButtonAudio()
-            toggleStopwatchStartPause()
-        }
-        stopwatch.btnClockStopwatchReset.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 1)) }
-            playButtonAudio()
-            resetStopwatch()
-        }
-        stopwatch.btnClockStopwatchBack.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("STOPWATCH"), 2)) }
-            playConfirmAudio()
-            setClockStopwatchBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        refreshClockStopwatchBackButtonVisibility()
-
-        // ===== ITEMS: ЧАСЫ — МЕЛОДИЯ ЗВОНКА =====
-        val melody = clock.incLayoutTabItemsClockMelody
-        melody.btnClockMelodySelect.backgroundTintList = clockAccentTint
-        melody.btnClockMelodyBack.backgroundTintList = clockAccentTint
-        // Была текстовая кнопка, заменена на иконку (roadmap, этап 29).
-        melody.btnClockMelodyBack.imageTintList = null
-        melody.viewClockMelodySelectFocus.backgroundTintList = clockAccentTint
-        melody.viewClockMelodyBackFocus.backgroundTintList = clockAccentTint
-        // applyTextColor() эту LineVisualizer не красит — без явного setColor() линия сливается с фоном.
-        melody.melodyWave.setColor(themeAccentColor())
-        melodyFocusedIndex = sharedPreferences.getInt(selectedRingtone_SPKey, 0)
-
-        // [Назад] — обычный последний пункт того же списка, не отдельная кнопка.
-        val melodyItems: List<SidebarMenuItem<Int?>> = ringtoneTracks.indices.map { index ->
-            SidebarMenuItem<Int?>(payload = index, label = ringtoneTracks[index].displayName)
-        } + SidebarMenuItem(payload = null, label = getString(R.string.wizard_back))
-        melodyAdapter = SidebarMenuAdapter(
-            items = melodyItems,
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            initialSelectedPosition = melodyFocusedIndex,
-            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                val index = item.payload
-                playConfirmAudio()
-                if (index == null) {
-                    // Назад — безусловно на сам узел: тач мог случиться из любой ветки.
-                    suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position)) }
-                    menuNavigator.popLevel()
-                    closeClockMelodyScreen()
-                } else {
-                    // Глубину читаем ДО обновления melodyFocusedIndex, иначе искали бы уже новый трек вместо прежнего.
-                    val childDepth = menuNavigator.cursorIfParent("TRACK_$melodyFocusedIndex")
-                    if (childDepth != null) {
-                        // Цель — Select/Back нового трека: onHighlight красит прицел, глушим только звук.
-                        suppressTickAroundTouchSync {
-                            syncClockEncoderPath(listOf(clockRootIndex("MELODY"), position, childDepth))
-                        }
-                    } else {
-                        // Полностью тихий путь: onHighlight трека сам запускает превью и конфликтует с тумблером ниже.
-                        syncClockEncoderPathSilently(listOf(clockRootIndex("MELODY"), position))
-                    }
-                    melodyFocusedIndex = index
-                    if (melodyPreviewPlayingIndex == index) stopMelodyPreview() else startMelodyPreview(index)
-                }
-            },
-        )
-        melody.recyclerClockMelodyTracks.layoutManager = LinearLayoutManager(this)
-        melody.recyclerClockMelodyTracks.adapter = melodyAdapter
-
-        melody.btnClockMelodySelect.setOnClickListener {
-            // Цель сама играет тик в onHighlight и задвоила бы звук кнопки.
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 0)) }
-            playButtonAudio()
-            commitMelodySelection()
-        }
-        melody.btnClockMelodyBack.setOnClickListener {
-            suppressTickAroundTouchSync { syncClockEncoderPath(listOf(clockRootIndex("MELODY"), melodyFocusedIndex, 1)) }
-            playConfirmAudio()
-            setClockMelodyBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        refreshClockMelodyBackButtonVisibility()
-
-        bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.backgroundTintList = clockAccentTint
-        bindingMain.incLayoutClockFiredOverlay.viewClockFiredStopFocus.backgroundTintList = clockAccentTint
-        bindingMain.incLayoutClockFiredOverlay.btnClockFiredStop.setOnClickListener {
-            playButtonAudio()
-            dismissClockFiredOverlay()
-        }
+        // Сам экран Часов — целиком за ClockController; порядок вызова тот же, что был у его блока.
+        clockController.setup()
 
         // ===== ITEMS: ЖУРНАЛ =====
         bindingMain.incLayoutTabItemsBottom.btnItemsJournal.setOnClickListener {
@@ -7553,9 +6487,7 @@ class MainActivity : AppCompatActivity() {
         outState.putString(KEY_PIPBOY_MODE, pipBoyMode.name)
         outState.putString(KEY_WOUND_PHASE, woundPhase.name)
         outState.putString(KEY_WOUND_SEVERITY, woundSeverity.name)
-        outState.putString(KEY_TIMER_STATE, timerState.name)
-        outState.putLong(KEY_TIMER_TARGET_EPOCH, timerTargetEpochMillis)
-        outState.putInt(KEY_TIMER_REMAINING_AT_PAUSE, timerRemainingSecondsAtPause)
+        clockController.saveState(outState)
         outState.putBoolean(KEY_CRIPPLED_HEAD, crippledHead)
         outState.putBoolean(KEY_CRIPPLED_TORSO, crippledTorso)
         outState.putBoolean(KEY_CRIPPLED_LEFT_ARM, crippledLeftArm)

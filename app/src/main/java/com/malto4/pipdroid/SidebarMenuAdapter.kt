@@ -11,6 +11,9 @@ import androidx.recyclerview.widget.RecyclerView
 /** Длительность имитации тач-нажатия для ENCBTN — общая для пунктов меню и отдельных кнопок. */
 const val ENCODER_PRESS_FLASH_DURATION_MS = 100L
 
+/** Payload пункта "В меню" в боковых списках; общий для активности и контроллеров фич. */
+internal const val SIDEBAR_BACK_PAYLOAD = "BACK"
+
 /** Один пункт бокового меню; [rightValue] только у SPECIAL и Skills. */
 /** [enabled] — только затенение: тап всё равно доезжает до onSelect, исход решает сам экран. */
 data class SidebarMenuItem<T>(

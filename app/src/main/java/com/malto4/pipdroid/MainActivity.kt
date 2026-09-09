@@ -59,7 +59,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
-import androidx.core.widget.ImageViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.CompoundButtonCompat
 import androidx.lifecycle.lifecycleScope
@@ -129,17 +128,6 @@ class MainActivity : AppCompatActivity() {
     // ===== БАНДЛЫ КАРТЫ И ГОЛОСОВОЙ МОДЕЛИ =====
     private val mapBundleRepository by lazy { MapBundleRepository(this) }
     private val voiceModelRepository by lazy { com.malto4.pipdroid.voice.VoiceModelRepository(this) }
-    // ===== ЖУРНАЛ =====
-    private val journalRepository by lazy { JournalRepository(this) }
-    private var journalEntries: MutableList<JournalEntry> = mutableListOf()
-    private var selectedJournalEntryForDetail: JournalEntry? = null
-    private var editingJournalEntryId: String? = null
-    private var journalEditorOpenFor: String? = null
-    private sealed class JournalSidebarEntry {
-        object NewEntry : JournalSidebarEntry()
-        data class Existing(val entry: JournalEntry) : JournalSidebarEntry()
-        object Menu : JournalSidebarEntry()
-    }
     private val voiceDictationService by lazy { com.malto4.pipdroid.voice.VoiceDictationService() }
     /** Анимация включения/выключения и глитч. */
     private val bootSequence by lazy {
@@ -197,25 +185,6 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
     private val REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN = 26
     private val REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION = 27
-    /** Диктовка в редактор записи Журнала — дописывает к уже набранному тексту. */
-    private val journalDictation by lazy {
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
-        DictationController(
-            activity = this,
-            micButton = popup.btnJournalEntryMic,
-            statusView = popup.tvJournalEntryMicStatus,
-            editText = popup.etJournalEntryValue,
-            permissionRequestCode = REQUEST_CODE_PERMISSION_JOURNAL_DICTATION,
-            logTag = "VoiceJournal",
-            dictation = voiceDictationService,
-            models = voiceModelRepository,
-            accentColor = { themeAccentColor() },
-            isVoiceCommandBusy = { awaitingVoiceCommand },
-            replaceFirstSegment = { false },
-            playButtonSound = { playButtonAudio() },
-            playErrorSound = { playErrorAudio() },
-        )
-    }
     /** Экран ITEMS/Карта целиком; диктовка имени отметки живёт внутри контроллера, наружу видна только её занятость. */
     private val mapController by lazy {
         MapController(
@@ -232,6 +201,31 @@ class MainActivity : AppCompatActivity() {
             scrollbarThumbRes = { currentUiTheme().scrollbarRes },
             itemsMenuRoot = { itemsMenuRoot() },
             backSidebarItem = { backSidebarItem() },
+            menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playConfirm = { playConfirmAudio() },
+            playError = { playErrorAudio() },
+            suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
+            syncRow2Active = { syncRow2ActiveFromNavigator() },
+            isVoiceCommandBusy = { awaitingVoiceCommand },
+        )
+    }
+    /** Экран ITEMS/Журнал целиком; диктовка текста записи живёт внутри контроллера, наружу видна только её занятость. */
+    private val journalController by lazy {
+        JournalController(
+            activity = this,
+            binding = bindingMain,
+            navigator = menuNavigator,
+            dictationService = voiceDictationService,
+            voiceModels = voiceModelRepository,
+            dictationPermissionRequestCode = REQUEST_CODE_PERMISSION_JOURNAL_DICTATION,
+            gameYear = { sharedPreferences.getInt(gameYear_SPKey, 2276) },
+            mode = { pipBoyMode },
+            accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            itemsMenuRoot = { itemsMenuRoot() },
             menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
             playTick = { playTickAudio() },
             playButton = { playButtonAudio() },
@@ -265,9 +259,6 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_CRIPPLED_LEFT_LEG = "restore_crippledLeftLeg"
         private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
         private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
-
-        // journalEditorOpenFor
-        private const val JOURNAL_NEW_ENTRY_SENTINEL = "JOURNAL_NEW_ENTRY"
 
         // Прокрутка длинной записи энкодером
         private const val SIDEBAR_RECORD_SCROLL_STEP_DP = 60f
@@ -635,9 +626,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (requestCode == REQUEST_CODE_PERMISSION_JOURNAL_DICTATION) {
-            val popupVisible = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (popupVisible) journalDictation.start()
+                journalController.startDictationIfPopupVisible()
             } else {
                 playErrorAudio()
             }
@@ -684,7 +674,7 @@ class MainActivity : AppCompatActivity() {
     private val VOICE_COMMAND_TIMEOUT_MS = 6000L
     /** Уступает микрофон любой уже идущей диктовке: VoiceDictationService один на все сценарии. */
     private fun onWakeWordTriggered() {
-        if (awaitingVoiceCommand || !journalDictation.isIdle || !mapController.isMarkerDictationIdle) return
+        if (awaitingVoiceCommand || !journalController.isDictationIdle || !mapController.isMarkerDictationIdle) return
         if (!voiceModelRepository.hasModel()) return
         awaitingVoiceCommand = true
         Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()
@@ -815,7 +805,7 @@ class MainActivity : AppCompatActivity() {
         if (normalized.contains("нов") && normalized.contains("запис")) {
             playTickAudio()
             navigateToItemsSection("JOURNAL")
-            showJournalEntryEditorForNew()
+            journalController.openNewEntryEditor()
             finishVoiceCommand(text)
             return
         }
@@ -1692,186 +1682,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ===== КАРТА =====
-    // ===== ITEMS: ЖУРНАЛ =====
-    private fun openJournalScreen() {
-        journalEntries = journalRepository.loadAll().toMutableList()
-        bindJournalListAdapter()
-        hideJournalEntryDetail()
-    }
-    private lateinit var journalListAdapter: SidebarMenuAdapter<JournalSidebarEntry>
-    /** Порядок пунктов обязан совпадать с journalChildrenNodes() дерева энкодера. */
-    private fun journalSidebarItems(): List<SidebarMenuItem<JournalSidebarEntry>> {
-        val items: List<SidebarMenuItem<JournalSidebarEntry>> =
-            listOf(SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.NewEntry, label = getString(R.string.journal_new_entry_button))) +
-                journalEntries.sortedByDescending { it.createdAtEpochMillis }
-                    .map { entry -> SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.Existing(entry), label = formatJournalDate(entry.createdAtEpochMillis)) }
-        return if (pipBoyMode != PipBoyMode.PHONE) {
-            items + SidebarMenuItem<JournalSidebarEntry>(payload = JournalSidebarEntry.Menu, label = getString(R.string.sidebar_menu_back))
-        } else {
-            items
-        }
-    }
-    /** [initialSelectedPosition] — после Save/Delete курсор встаёт на затронутую запись, не на 0. */
-    private fun bindJournalListAdapter(initialSelectedPosition: Int = 0) {
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        val adapter = SidebarMenuAdapter(
-            items = journalSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            initialSelectedPosition = initialSelectedPosition,
-            // Звук даёт onSelect ниже — ровно один на тап.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация курсора: syncCursor() чинит его только внутри активного уровня.
-                when (item.payload) {
-                    // "+ 0" — тап равносилен ENCBTN: курсор садится на первого ребёнка, который сам откроет нужный экран.
-                    is JournalSidebarEntry.NewEntry -> {
-                        playConfirmAudio()
-                        suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(position, 0)) }
-                    }
-                    is JournalSidebarEntry.Existing -> {
-                        playConfirmAudio()
-                        suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(position, 0)) }
-                    }
-                    is JournalSidebarEntry.Menu -> {
-                        playConfirmAudio()
-                        syncJournalEncoderPathSilently(emptyList())
-                        syncRow2ActiveFromNavigator()
-                    }
-                }
-            },
-        )
-        journalListAdapter = adapter
-        journalScreen.rvJournalEntryList.layoutManager = LinearLayoutManager(this)
-        journalScreen.rvJournalEntryList.adapter = adapter
-    }
-    // Подменяется только YEAR — реальные месяц, день и время записи остаются как есть.
-    private fun formatJournalDate(epochMillis: Long): String {
-        val gameCalendar = Calendar.getInstance()
-        gameCalendar.timeInMillis = epochMillis
-        gameCalendar.set(Calendar.YEAR, sharedPreferences.getInt(gameYear_SPKey, 2276))
-        return SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(gameCalendar.time)
-    }
-    /** Карточка записи взаимоисключающа с подсказкой и редактором; сброс в начале — идемпотентная подстраховка. */
-    private fun showJournalEntryDetail(entry: JournalEntry) {
-        selectedJournalEntryForDetail = entry
-        hideJournalEntryEditor()
-        setAllJournalEntryDetailFocusesHidden()
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        journalScreen.tvJournalEntryDetailDate.text = formatJournalDate(entry.createdAtEpochMillis)
-        journalScreen.tvJournalEntryDetailText.text = entry.text
-        journalScreen.tvJournalHint.visibility = View.GONE
-        journalScreen.layoutJournalEntryDetail.visibility = View.VISIBLE
-    }
-    /** Подсказка справа зависит от journalEntries, а не от списка — в списке всегда есть "Новая запись". */
-    private fun hideJournalEntryDetail() {
-        selectedJournalEntryForDetail = null
-        hideJournalEntryEditor()
-        setAllJournalEntryDetailFocusesHidden()
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
-        journalScreen.tvJournalHint.text = getString(
-            if (journalEntries.isEmpty()) R.string.journal_entry_list_empty else R.string.journal_hint
-        )
-        journalScreen.tvJournalHint.visibility = View.VISIBLE
-    }
-    // Клавиатура открывается обычным тапом по EditText, без showSoftInput().
-    /** Ранний выход по journalEditorOpenFor: onHighlight узла MIC зовёт эту функцию на каждый возврат курсора. */
-    private fun showJournalEntryEditorForNew() {
-        if (journalEditorOpenFor == JOURNAL_NEW_ENTRY_SENTINEL) return
-        journalEditorOpenFor = JOURNAL_NEW_ENTRY_SENTINEL
-        editingJournalEntryId = null
-        selectedJournalEntryForDetail = null
-        setAllJournalEntryDetailFocusesHidden()
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        journalScreen.tvJournalHint.visibility = View.GONE
-        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
-        val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
-        popup.etJournalEntryValue.setText("")
-        popup.root.visibility = View.VISIBLE
-        journalDictation.refreshAvailability()
-    }
-    /** То же, что showJournalEntryEditorForNew(), но подменяет собой карточку записи. */
-    private fun showJournalEntryEditorForEdit(entry: JournalEntry) {
-        if (journalEditorOpenFor == entry.id) return
-        journalEditorOpenFor = entry.id
-        editingJournalEntryId = entry.id
-        setAllJournalEntryDetailFocusesHidden()
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        journalScreen.tvJournalHint.visibility = View.GONE
-        journalScreen.layoutJournalEntryDetail.visibility = View.GONE
-        val popup = journalScreen.incLayoutTabItemsJournalEntryPopup
-        popup.etJournalEntryValue.setText(entry.text)
-        popup.root.visibility = View.VISIBLE
-        journalDictation.refreshAvailability()
-    }
-    /** Идемпотентен — зовётся защитно и тогда, когда редактор уже закрыт. */
-    private fun hideJournalEntryEditor() {
-        journalEditorOpenFor = null
-        editingJournalEntryId = null
-        journalDictation.stop()
-        setAllJournalEntryEditorFocusesHidden()
-        bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.root.visibility = View.GONE
-    }
-    /** Сбрасывает микрофон и статус-строку к покою при каждом открытии попапа. */
-    /** Индекс записи со сдвигом на "Новую запись" — общая точка между Save и Delete. */
-    private fun journalEntrySidebarIndex(entryId: String): Int {
-        val sorted = journalEntries.sortedByDescending { it.createdAtEpochMillis }
-        val index = sorted.indexOfFirst { it.id == entryId }
-        return if (index >= 0) index + 1 else 0
-    }
-    /** Путь от узла JOURNAL до Mic/Cancel/Save; editingJournalEntryId читать до того, как Cancel/Save его сбросят. */
-    private fun journalEditorPathPrefix(): List<Int> {
-        val editingId = editingJournalEntryId
-        return if (editingId != null) listOf(journalEntrySidebarIndex(editingId), 0) else listOf(0)
-    }
-    /** Cancel данные не меняет: поднимает курсор на список (новая запись) или на карточку (правка). */
-    private fun performJournalEntryCancel() {
-        val wasEditing = editingJournalEntryId != null
-        hideJournalEntryEditor()
-        menuNavigator.popLevel()
-        if (wasEditing) menuNavigator.popLevel()
-    }
-    /** Save — курсор всегда приземляется на карточку сохранённой записи. */
-    private fun performJournalEntrySave() {
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
-        val text = popup.etJournalEntryValue.text.toString()
-        if (text.isBlank()) {
-            playErrorAudio()
-            return
-        }
-        val editingId = editingJournalEntryId
-        val savedEntryId: String
-        if (editingId != null) {
-            val existing = journalEntries.find { it.id == editingId }
-            if (existing != null) {
-                val updated = existing.copy(text = text, updatedAtEpochMillis = System.currentTimeMillis())
-                journalEntries[journalEntries.indexOf(existing)] = updated
-                journalRepository.update(updated)
-            }
-            savedEntryId = editingId
-        } else {
-            val entry = JournalEntry(UUID.randomUUID().toString(), text, System.currentTimeMillis())
-            journalRepository.add(entry)
-            journalEntries.add(entry)
-            savedEntryId = entry.id
-        }
-        hideJournalEntryEditor()
-        menuNavigator.popLevel()
-        if (editingId != null) menuNavigator.popLevel()
-        val index = journalEntrySidebarIndex(savedEntryId)
-        bindJournalListAdapter(initialSelectedPosition = index)
-        menuNavigator.replaceChildrenOf("JOURNAL", journalChildrenNodes(), cursor = index)
-    }
-    /** Delete без подтверждения; курсор возвращается в список — узла записи больше нет. */
-    private fun performJournalEntryDelete(entry: JournalEntry) {
-        journalRepository.delete(entry.id)
-        journalEntries.removeAll { it.id == entry.id }
-        hideJournalEntryDetail()
-        bindJournalListAdapter()
-        menuNavigator.popLevel()
-        menuNavigator.replaceChildrenOf("JOURNAL", journalChildrenNodes())
-    }
     /** Пеший маршрут с текущей GPS-позиции, расчёт на Dispatchers.Default. */
     /** [returnPath] — куда вернуть курсор после Cancel/Stop: вызывающий передаёт явно, постфактум контекст не восстановить. */
     /** Обновляет статус бандла карты сразу и в Settings, и на шаге IMPORT мастера. */
@@ -2094,7 +1904,7 @@ class MainActivity : AppCompatActivity() {
         // childrenProvider, а не статичные children: itemsMenuRoot() строится до того, как записи подгружены с диска.
         val journalNode = MenuNode(
             id = "JOURNAL",
-            childrenProvider = { journalChildrenNodes() },
+            childrenProvider = { journalController.childrenNodes() },
             onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsJournal) },
         )
         // childrenProvider по той же причине, что у JOURNAL: markers грузятся асинхронно при открытии экрана.
@@ -2112,128 +1922,6 @@ class MainActivity : AppCompatActivity() {
     }
     /** Позиция узла в itemsMenuRoot(): GEIGER скрыт в Телефоне, поэтому индекс нельзя зашить константой. */
     private fun itemsRootIndexFor(id: String): Int = itemsMenuRoot().indexOfFirst { it.id == id }
-    /** Дети JOURNAL; порядок и состав обязаны совпадать с journalSidebarItems() построчно. */
-    private fun journalChildrenNodes(): List<MenuNode> {
-        val sortedEntries = journalEntries.sortedByDescending { it.createdAtEpochMillis }
-        val newEntryNode = MenuNode(
-            id = "JOURNAL_NEW",
-            onHighlight = {
-                playTickAudio()
-                journalListAdapter.setSelectedPositionSilently(0)
-                showJournalEntryEditorForNew()
-            },
-            children = journalEntryEditorChildrenNodes(null),
-        )
-        val entryNodes = sortedEntries.mapIndexed { index, entry ->
-            MenuNode(
-                id = "JOURNAL_ENTRY_${entry.id}",
-                onHighlight = {
-                    playTickAudio()
-                    journalListAdapter.setSelectedPositionSilently(index + 1)
-                    showJournalEntryDetail(entry)
-                },
-                children = journalEntryDetailChildrenNodes(entry),
-            )
-        }
-        return listOf(newEntryNode) + entryNodes + menuBackNode(
-            pipBoyMode,
-            onHighlight = { journalListAdapter.setSelectedPositionSilently(sortedEntries.size + 1) },
-            onBeforePop = { journalListAdapter.flashPressAnimation(sortedEntries.size + 1) },
-        )
-    }
-    /** Дети записи Journal: Edit проваливается глубже, Delete и Back — листья с onActivate. */
-    private fun journalEntryDetailChildrenNodes(entry: JournalEntry): List<MenuNode> {
-        val journal = bindingMain.incLayoutTabItemsJournal
-        return listOfNotNull(
-            MenuNode(
-                id = "JOURNAL_ENTRY_EDIT",
-                onHighlight = {
-                    playTickAudio()
-                    // Пересобирает и карточку, и все три прицела — на случай возврата из редактора по Cancel/Save.
-                    showJournalEntryDetail(entry)
-                    setJournalEntryDetailEditFocused(true)
-                },
-                children = journalEntryEditorChildrenNodes(entry),
-            ),
-            MenuNode(
-                id = "JOURNAL_ENTRY_DELETE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllJournalEntryDetailFocusesHidden()
-                    setJournalEntryDetailDeleteFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(journal.btnJournalEntryDetailDelete) {
-                        playButtonAudio()
-                        performJournalEntryDelete(entry)
-                    }
-                },
-            ),
-            // Только режимы с физическим энкодером: в Телефоне кнопкой нечем пользоваться.
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "JOURNAL_ENTRY_BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setAllJournalEntryDetailFocusesHidden()
-                    setJournalEntryDetailBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(journal.btnJournalEntryDetailBack) {
-                        playConfirmAudio()
-                        menuNavigator.popLevel()
-                    }
-                },
-            ) else null,
-        )
-    }
-    /** Дети редактора записи — общие для создания и правки; onHighlight узла MIC открывает редактор идемпотентно. */
-    private fun journalEntryEditorChildrenNodes(editingEntry: JournalEntry?): List<MenuNode> {
-        val popup = bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup
-        return listOf(
-            MenuNode(
-                id = "JOURNAL_EDITOR_MIC",
-                onHighlight = {
-                    playTickAudio()
-                    if (editingEntry != null) showJournalEntryEditorForEdit(editingEntry) else showJournalEntryEditorForNew()
-                    setAllJournalEntryEditorFocusesHidden()
-                    setJournalEntryEditorMicFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnJournalEntryMic) {
-                        journalDictation.handleMicTap()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "JOURNAL_EDITOR_CANCEL",
-                onHighlight = {
-                    playTickAudio()
-                    setAllJournalEntryEditorFocusesHidden()
-                    setJournalEntryEditorCancelFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnJournalEntryPopupCancel) {
-                        playConfirmAudio()
-                        performJournalEntryCancel()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "JOURNAL_EDITOR_SAVE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllJournalEntryEditorFocusesHidden()
-                    setJournalEntryEditorSaveFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnJournalEntryPopupSave) {
-                        playButtonAudio()
-                        performJournalEntrySave()
-                    }
-                },
-            ),
-        )
-    }
     /** Дети GEIGER: Reset первым, Menu вторым в любом режиме с энкодером. */
     private fun geigerChildrenNodes(): List<MenuNode> {
         val geiger = bindingMain.incLayoutTabItemsGeiger
@@ -2271,12 +1959,6 @@ class MainActivity : AppCompatActivity() {
     }
     // ===== ITEMS: КАРТА, ЭНКОДЕР =====
     /** Общая панель Zoom/Center/Pan/Crosshair/Back живёт в двух точках дерева и различается поведением крестика. */
-    /** То же для экрана Journal: syncCursor() работает, только если энкодер уже стоит на списке записей. */
-    private fun syncJournalEncoderPath(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = true)
-    /** То же без onHighlight — onHighlight узла JOURNAL перезагружает записи с диска. */
-    private fun syncJournalEncoderPathSilently(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = false)
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
         // HOLOTAPES требует физического корпуса и скрыт в Телефоне; порядок должен совпадать с dataRow2Items().
@@ -2595,36 +2277,6 @@ class MainActivity : AppCompatActivity() {
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
     }
-    /** Тот же приём на карточке записи Journal — Edit/Delete/Back. */
-    private fun setJournalEntryDetailEditFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailEditFocus, focused)
-    }
-    private fun setJournalEntryDetailDeleteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailDeleteFocus, focused)
-    }
-    private fun setJournalEntryDetailBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.viewJournalEntryDetailBackFocus, focused)
-    }
-    private fun setAllJournalEntryDetailFocusesHidden() {
-        setJournalEntryDetailEditFocused(false)
-        setJournalEntryDetailDeleteFocused(false)
-        setJournalEntryDetailBackFocused(false)
-    }
-    /** Тот же приём на редакторе записи — Mic/Cancel/Save. */
-    private fun setJournalEntryEditorMicFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryMicFocus, focused)
-    }
-    private fun setJournalEntryEditorCancelFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryPopupCancelFocus, focused)
-    }
-    private fun setJournalEntryEditorSaveFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsJournal.incLayoutTabItemsJournalEntryPopup.viewJournalEntryPopupSaveFocus, focused)
-    }
-    private fun setAllJournalEntryEditorFocusesHidden() {
-        setJournalEntryEditorMicFocused(false)
-        setJournalEntryEditorCancelFocused(false)
-        setJournalEntryEditorSaveFocused(false)
-    }
     /** Тот же приём на панели управления картой: у Zoom и Center один прицел на блок, у пар Pan — два сразу. */
     /** Прицелы на частях тела; setAllCrippledFocusesHidden() — идемпотентная подстраховка при выходе из ветки. */
     private fun setCrippledHeadFocused(focused: Boolean) {
@@ -2895,12 +2547,8 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
-        // journalListAdapter строится не в onCreate(), а при первом заходе на вкладку — отсюда проверка инициализации.
-        if (::journalListAdapter.isInitialized) {
-            journalListAdapter.setItems(journalSidebarItems(), resetSelection = false)
-        }
         refreshGeigerMenuButtonVisibility()
-        refreshJournalBackButtonVisibility()
+        journalController.refreshModeGating()
         mapController.refreshModeGating()
         clockController.refreshModeGating()
         // Строка 2 гейтится режимом так же, как боковые списки, но живёт вне их: без пересборки её
@@ -2914,8 +2562,6 @@ class MainActivity : AppCompatActivity() {
     /** Menu на Гейгере — обычная кнопка, не элемент адаптера, поэтому видимость обновляется отдельно. */
     private fun setEncoderOnlyVisible(vararg views: View) = applyEncoderOnlyVisible(pipBoyMode, *views)
     private fun refreshGeigerMenuButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu)
-    /** Back на карточке записи Journal — та же схема, что у Menu на Гейгере. */
-    private fun refreshJournalBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack)
     private fun setBottomButtons(vararg buttons: Button){
         listBottomButtons.clear()
         listBottomButtons.addAll(buttons)
@@ -4492,73 +4138,13 @@ class MainActivity : AppCompatActivity() {
             mapController.stopLocationUpdates()
             menuNavigator.setRootCursor(itemsRootIndexFor("JOURNAL"))
             // Свежий адаптер стартует с подсвеченным пунктом 0 — гасим рамку молча до реального провала курсора.
-            openJournalScreen()
-            journalListAdapter.clearSelection()
+            journalController.openScreen()
+            journalController.clearSidebarSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-        val journalScreen = bindingMain.incLayoutTabItemsJournal
-        val journalAccentColor = ColorStateList.valueOf(themeAccentColor())
-        journalScreen.tvJournalHint.setTextColor(themeAccentColor())
-        journalScreen.tvJournalEntryDetailDate.setTextColor(themeAccentColor())
-        journalScreen.btnJournalEntryDetailEdit.backgroundTintList = journalAccentColor
-        journalScreen.btnJournalEntryDetailDelete.backgroundTintList = journalAccentColor
-        journalScreen.btnJournalEntryDetailBack.backgroundTintList = journalAccentColor
-        // Были текстовыми кнопками, стали иконками — тот же сброс imageTintList.
-        journalScreen.btnJournalEntryDetailEdit.imageTintList = null
-        journalScreen.btnJournalEntryDetailDelete.imageTintList = null
-        journalScreen.btnJournalEntryDetailBack.imageTintList = null
-        // Прицелы-уголки тонируются по той же схеме, что Reset и Menu на Гейгере.
-        journalScreen.viewJournalEntryDetailEditFocus.backgroundTintList = journalAccentColor
-        journalScreen.viewJournalEntryDetailDeleteFocus.backgroundTintList = journalAccentColor
-        journalScreen.viewJournalEntryDetailBackFocus.backgroundTintList = journalAccentColor
-        journalScreen.btnJournalEntryDetailEdit.setOnClickListener {
-            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            // "+ 0, 0" — тап равносилен ENCBTN на EDIT: курсор садится на MIC, чей onHighlight откроет редактор.
-            playButtonAudio()
-            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 0, 0)) }
-        }
-        journalScreen.btnJournalEntryDetailDelete.setOnClickListener {
-            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 1)) }
-            playButtonAudio()
-            performJournalEntryDelete(entry)
-        }
-        // Back только поднимает курсор в боковое меню; видна лишь в режимах с физическим энкодером.
-        journalScreen.btnJournalEntryDetailBack.setOnClickListener {
-            val entry = selectedJournalEntryForDetail ?: return@setOnClickListener
-            suppressTickAroundTouchSync { syncJournalEncoderPath(listOf(journalEntrySidebarIndex(entry.id), 2)) }
-            playConfirmAudio()
-            menuNavigator.popLevel()
-        }
-        refreshJournalBackButtonVisibility()
-        val journalEntryPopup = journalScreen.incLayoutTabItemsJournalEntryPopup
-        journalEntryPopup.btnJournalEntryMic.backgroundTintList = journalAccentColor
-        // Без сброса глиф иконки красится темой в цвет фона кнопки и сливается с ним.
-        ImageViewCompat.setImageTintList(journalEntryPopup.btnJournalEntryMic, null)
-        journalEntryPopup.viewJournalEntryMicFocus.backgroundTintList = journalAccentColor
-        journalEntryPopup.viewJournalEntryPopupCancelFocus.backgroundTintList = journalAccentColor
-        journalEntryPopup.viewJournalEntryPopupSaveFocus.backgroundTintList = journalAccentColor
-        // Тап 1 старт, тап 2 стоп; тело общее для тача и ENCBTN.
-        journalEntryPopup.btnJournalEntryMic.setOnClickListener {
-            // Синхронизируем только курсор и прицел: громкий путь стёр бы уже набранный или надиктованный текст.
-            syncJournalEncoderPathSilently(journalEditorPathPrefix() + 0)
-            setAllJournalEntryEditorFocusesHidden()
-            setJournalEntryEditorMicFocused(true)
-            journalDictation.handleMicTap()
-        }
-        journalEntryPopup.btnJournalEntryPopupCancel.backgroundTintList = journalAccentColor
-        journalEntryPopup.btnJournalEntryPopupSave.backgroundTintList = journalAccentColor
-        journalEntryPopup.btnJournalEntryPopupCancel.setOnClickListener {
-            suppressTickAroundTouchSync { syncJournalEncoderPath(journalEditorPathPrefix() + 1) }
-            playConfirmAudio()
-            performJournalEntryCancel()
-        }
-        journalEntryPopup.btnJournalEntryPopupSave.setOnClickListener {
-            suppressTickAroundTouchSync { syncJournalEncoderPath(journalEditorPathPrefix() + 2) }
-            playButtonAudio()
-            performJournalEntrySave()
-        }
+        journalController.setup()
+
         bindingMain.incLayoutTabItemsBottom.btnItemsGeiger.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabItemsBottom.btnItemsGeiger, listBottomButtons)
             bindingMain.incLayoutTabItemsMap.root.visibility = View.GONE

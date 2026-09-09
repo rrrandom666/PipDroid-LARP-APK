@@ -5515,28 +5515,26 @@ class MainActivity : AppCompatActivity() {
         }
         tickThread?.start()
 
-        // Initialize the GestureDetector
+        // Горизонтальный свайп по шапке переключает вкладку.
         menuGestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             private val SWIPE_THRESHOLD = 100
             private val SWIPE_VELOCITY_THRESHOLD = 100
 
-            // Detects swiping left or right
             override fun onFling(
                 e1: MotionEvent?,
                 e2: MotionEvent,
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
-                val diffX = e2?.x?.minus(e1!!.x) ?: 0f
-                val diffY = e2?.y?.minus(e1!!.y) ?: 0f
+                // Начальное событие система может не отдать — без него свайпа нет.
+                val start = e1 ?: return false
+                val diffX = e2.x - start.x
+                val diffY = e2.y - start.y
                 if (Math.abs(diffX) > Math.abs(diffY)) {
-                    // Swipe was horizontal
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                         if (diffX > 0) {
-                            // Swiped to the right
                             onMenuSwipeRight()
                         } else {
-                            // Swiped to the left
                             onMenuSwipeLeft()
                         }
                         return true

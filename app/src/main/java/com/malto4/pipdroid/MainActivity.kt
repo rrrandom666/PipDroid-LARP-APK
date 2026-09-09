@@ -23,25 +23,17 @@ import android.text.TextUtils
 import android.os.PowerManager
 import android.provider.Settings
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
-import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.PointF
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.media.MediaPlayer
 import android.os.BatteryManager
 import android.os.Build
@@ -88,7 +80,6 @@ import androidx.core.widget.CompoundButtonCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.github.chrisbanes.photoview.PhotoView
 import com.malto4.pipdroid.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,8 +96,6 @@ import kotlin.jvm.internal.Intrinsics
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
 
@@ -154,25 +143,9 @@ class MainActivity : AppCompatActivity() {
     private val activeSfxPlayers = mutableListOf<MediaPlayer>()
     private var mediaPlayerBackGround: MediaPlayer? = null
 
-    // ===== КАРТА =====
+    // ===== БАНДЛЫ КАРТЫ И ГОЛОСОВОЙ МОДЕЛИ =====
     private val mapBundleRepository by lazy { MapBundleRepository(this) }
     private val voiceModelRepository by lazy { com.malto4.pipdroid.voice.VoiceModelRepository(this) }
-    private var mapGeoReference: GeoReference? = null
-    private var mapLocationListener: LocationListener? = null
-    private var mapHasCenteredOnUser = false
-    private var pedestrianRouter: PedestrianRouter? = null
-    private val markerRepository by lazy { MarkerRepository(this) }
-    private var markers: MutableList<MapMarker> = mutableListOf()
-    private var mapMenuState = MapMenuState.ROOT
-    private var mapMenuListReturnState = MapMenuState.ROOT
-    private var selectedMarkerForDetail: MapMarker? = null
-        set(value) {
-            field = value
-            updateMapMarkerFocus()
-        }
-    private var pendingMarkerLatLon: Pair<Double, Double>? = null
-    private var editingMarkerId: String? = null
-    private var pendingTapChoiceLatLon: Pair<Double, Double>? = null
     // ===== ЖУРНАЛ =====
     private val journalRepository by lazy { JournalRepository(this) }
     private var journalEntries: MutableList<JournalEntry> = mutableListOf()
@@ -260,32 +233,32 @@ class MainActivity : AppCompatActivity() {
             playErrorSound = { playErrorAudio() },
         )
     }
-    /** Диктовка имени отметки — при правке существующей первый сегмент затирает старое имя. */
-    private val mapMarkerDictation by lazy {
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        DictationController(
+    /** Экран ITEMS/Карта целиком; диктовка имени отметки живёт внутри контроллера, наружу видна только её занятость. */
+    private val mapController by lazy {
+        MapController(
             activity = this,
-            micButton = popup.btnMarkerNamePopupMic,
-            statusView = popup.tvMarkerNamePopupMicStatus,
-            editText = popup.etMarkerNameValue,
-            permissionRequestCode = REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION,
-            logTag = "VoiceMapMarker",
-            dictation = voiceDictationService,
-            models = voiceModelRepository,
+            binding = bindingMain,
+            navigator = menuNavigator,
+            bundleRepository = mapBundleRepository,
+            dictationService = voiceDictationService,
+            voiceModels = voiceModelRepository,
+            dictationPermissionRequestCode = REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION,
+            mode = { pipBoyMode },
             accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            itemsMenuRoot = { itemsMenuRoot() },
+            backSidebarItem = { backSidebarItem() },
+            menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playConfirm = { playConfirmAudio() },
+            playError = { playErrorAudio() },
+            suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
+            syncRow2Active = { syncRow2ActiveFromNavigator() },
             isVoiceCommandBusy = { awaitingVoiceCommand },
-            replaceFirstSegment = { editingMarkerId != null },
-            playButtonSound = { playButtonAudio() },
-            playErrorSound = { playErrorAudio() },
         )
     }
-    private enum class MapRouteState { NONE, BUILT, ACTIVE }
-    private var mapRouteState = MapRouteState.NONE
-    private var mapRouteDestination: Pair<Double, Double>? = null
-    private var mapRouteLatLonPath: List<Pair<Double, Double>> = emptyList()
-    private var pendingMapReadyAction: (() -> Unit)? = null
-    private enum class MapTapMode { NONE, PLACE_MARKER, ROUTE_TO_POINT }
-    private var mapTapMode = MapTapMode.NONE
     companion object {
         // Отладочная инъекция BLE-команд без реального ESP32, см. registerDebugCommandReceiver().
         private const val ACTION_DEBUG_BLE_COMMAND = "com.malto4.pipdroid.DEBUG_BLE_COMMAND"
@@ -316,14 +289,6 @@ class MainActivity : AppCompatActivity() {
         // Прокрутка длинной записи энкодером
         private const val SIDEBAR_RECORD_SCROLL_STEP_DP = 60f
 
-        // Карта
-        private const val MAP_ZOOM_STEP_FACTOR = 1.4f
-        private const val MAP_MARKER_TAP_RADIUS_DP = 28f
-        private const val MAP_ROUTE_REROUTE_THRESHOLD_M = 30.0
-        // Отступ от краёв при автоцентрировании на построенном маршруте.
-        private const val MAP_ROUTE_FIT_PADDING_DP = 28f
-        // Шаг панорамирования уголками энкодера, в экранных dp.
-        private const val MAP_PAN_STEP_DP = 80f
 
         // Счётчик радиации
         private const val GEIGER_LETHAL_DOSE_RAD = 1000
@@ -695,9 +660,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (requestCode == REQUEST_CODE_PERMISSION_MAP_MARKER_DICTATION) {
-            val popupVisible = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (popupVisible) mapMarkerDictation.start()
+                mapController.startMarkerDictationIfPopupVisible()
             } else {
                 playErrorAudio()
             }
@@ -737,7 +701,7 @@ class MainActivity : AppCompatActivity() {
     private val VOICE_COMMAND_TIMEOUT_MS = 6000L
     /** Уступает микрофон любой уже идущей диктовке: VoiceDictationService один на все сценарии. */
     private fun onWakeWordTriggered() {
-        if (awaitingVoiceCommand || !journalDictation.isIdle || !mapMarkerDictation.isIdle) return
+        if (awaitingVoiceCommand || !journalDictation.isIdle || !mapController.isMarkerDictationIdle) return
         if (!voiceModelRepository.hasModel()) return
         awaitingVoiceCommand = true
         Toast.makeText(this, getString(R.string.voice_command_listening), Toast.LENGTH_SHORT).show()
@@ -849,19 +813,16 @@ class MainActivity : AppCompatActivity() {
         if (normalized.contains("маршрут")) {
             if (normalized.contains("отмен")) {
                 playButtonAudio()
-                cancelActiveRoute()
+                mapController.cancelRoute()
             } else {
                 val queryTokens = normalized.substringAfter("маршрут").trim()
                     .split(Regex("\\s+"))
                     .filterNot { it.isBlank() || it in ROUTE_FILLER_WORDS }
-                val candidates = markerRepository.loadAll().filter { matchesMarkerQuery(queryTokens, it.name) }
-                if (candidates.size != 1) {
-                    playErrorAudio()
-                } else {
+                if (mapController.prepareVoiceRouteToMarker(queryTokens)) {
                     playTickAudio()
-                    val destination = candidates[0]
-                    pendingMapReadyAction = { routeTo(destination.lat, destination.lon) }
                     navigateToItemsSection("MAP")
+                } else {
+                    playErrorAudio()
                 }
             }
             finishVoiceCommand(text)
@@ -1748,516 +1709,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ===== КАРТА =====
-    private fun openMapScreen() {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        if (!mapBundleRepository.hasBundle()) {
-            mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
-            mapScreen.photoViewMap.visibility = View.GONE
-            mapScreen.viewMapOverlay.visibility = View.GONE
-            mapScreen.layoutMapMenuContainer.visibility = View.GONE
-            pendingMapReadyAction = null
-            return
-        }
-        lifecycleScope.launch(Dispatchers.IO) {
-            val bitmap = BitmapFactory.decodeFile(mapBundleRepository.bundleImageFile().absolutePath)
-            val bounds = mapBundleRepository.loadBounds()
-            val roadGraph = mapBundleRepository.loadRoadGraph()
-            withContext(Dispatchers.Main) {
-                if (bitmap == null || bounds == null) {
-                    mapScreen.tvPermissionsCheckResult.visibility = View.VISIBLE
-                    mapScreen.photoViewMap.visibility = View.GONE
-                    mapScreen.viewMapOverlay.visibility = View.GONE
-                    mapScreen.layoutMapMenuContainer.visibility = View.GONE
-                    pendingMapReadyAction = null
-                    return@withContext
-                }
-                mapGeoReference = GeoReference(bounds, bitmap.width, bitmap.height)
-                pedestrianRouter = roadGraph?.let { PedestrianRouter(it) }
-                if (roadGraph == null) {
-                    Log.w("MainActivity", "map_roads.json не распарсился — маршрутизация недоступна")
-                } else {
-                    Log.d("MainActivity", "Граф дорог загружен: ${roadGraph.nodes.size} узлов")
-                }
-                mapHasCenteredOnUser = false
-                mapTapMode = MapTapMode.NONE
-                pendingTapChoiceLatLon = null
-                mapRouteState = MapRouteState.NONE
-                mapRouteDestination = null
-                mapRouteLatLonPath = emptyList()
-                mapScreen.layoutMapTapChoice.visibility = View.GONE
-                mapScreen.layoutMapRouteControls.visibility = View.GONE
-                markers = markerRepository.loadAll().toMutableList()
-                mapScreen.photoViewMap.setImageBitmap(bitmap)
-                mapScreen.photoViewMap.colorFilter = PorterDuffColorFilter(themeAccentColor(), PorterDuff.Mode.MULTIPLY)
-                mapScreen.photoViewMap.visibility = View.VISIBLE
-                mapScreen.tvPermissionsCheckResult.visibility = View.GONE
-                mapScreen.viewMapOverlay.visibility = View.VISIBLE
-                mapScreen.viewMapOverlay.routePx = emptyList()
-                mapScreen.layoutMapMenuContainer.visibility = View.VISIBLE
-                mapScreen.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
-                // PipWizardButtonStyle-кнопки тонируются вручную кодом, как в Settings.
-                val mapAccentColor = themeAccentColor()
-                val mapAccent = ColorStateList.valueOf(mapAccentColor)
-                listOf(
-                    mapScreen.btnMapMarkerDetailEdit,
-                    mapScreen.btnMapMarkerDetailRoute,
-                    mapScreen.btnMapMarkerDetailDelete,
-                    mapScreen.btnMapMarkerDetailBack,
-                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupCancel,
-                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupSave,
-                    mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic,
-                    mapScreen.btnMapZoomIn,
-                    mapScreen.btnMapZoomOut,
-                    mapScreen.btnMapCenter,
-                    mapScreen.btnMapControlBack,
-                    mapScreen.btnMapTapChoiceRoute,
-                    mapScreen.btnMapTapChoiceMarker,
-                    mapScreen.btnMapTapChoiceCancel,
-                    mapScreen.btnMapRouteStart,
-                    mapScreen.btnMapRouteCancel,
-                    mapScreen.btnMapRouteStop
-                ).forEach { it.backgroundTintList = mapAccent }
-                // Уголки панорамирования — без фона, только цвет текста.
-                listOf(
-                    mapScreen.btnMapPanUp,
-                    mapScreen.btnMapPanDown,
-                    mapScreen.btnMapPanLeft,
-                    mapScreen.btnMapPanRight,
-                ).forEach { it.setTextColor(mapAccentColor) }
-                // Прицелы красятся темой везде, кроме центрального крестовидного и прицела над отметкой — те красные для контраста с картой.
-                val mapFocusAccent = ColorStateList.valueOf(mapAccentColor)
-                listOf(
-                    mapScreen.viewMapZoomFocus,
-                    mapScreen.viewMapCenterFocus,
-                    mapScreen.viewMapPanUpFocus,
-                    mapScreen.viewMapPanDownFocus,
-                    mapScreen.viewMapPanLeftFocus,
-                    mapScreen.viewMapPanRightFocus,
-                    mapScreen.viewMapControlBackFocus,
-                    mapScreen.viewMapMarkerDetailEditFocus,
-                    mapScreen.viewMapMarkerDetailRouteFocus,
-                    mapScreen.viewMapMarkerDetailDeleteFocus,
-                    mapScreen.viewMapMarkerDetailBackFocus,
-                    mapScreen.viewMapTapChoiceRouteFocus,
-                    mapScreen.viewMapTapChoiceMarkerFocus,
-                    mapScreen.viewMapTapChoiceCancelFocus,
-                    mapScreen.viewMapRouteStartFocus,
-                    mapScreen.viewMapRouteCancelFocus,
-                    mapScreen.viewMapRouteStopFocus,
-                    mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupCancelFocus,
-                    mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupSaveFocus,
-                    mapScreen.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupMicFocus,
-                ).forEach { it.backgroundTintList = mapFocusAccent }
-                // ImageButton без своего tint наследует android:tint темы — сбрасываем, иначе стрелка сливается с фоном.
-                mapScreen.btnMapCenter.imageTintList = null
-                // android:tint="@null" в XML недостаточно — глиф сливался с акцентным фоном без явного сброса.
-                ImageViewCompat.setImageTintList(mapScreen.incLayoutTabItemsMapNamePopup.btnMarkerNamePopupMic, null)
-                // Тот же сброс tint для иконок карточки метки и попапа тапа.
-                listOf(
-                    mapScreen.btnMapMarkerDetailEdit,
-                    mapScreen.btnMapMarkerDetailRoute,
-                    mapScreen.btnMapMarkerDetailDelete,
-                    mapScreen.btnMapMarkerDetailBack,
-                    mapScreen.btnMapTapChoiceRoute,
-                    mapScreen.btnMapTapChoiceMarker,
-                ).forEach { it.imageTintList = null }
-                hideMapHint()
-                // Подсветку пункта 0 здесь не трогаем: блок асинхронный, рамкой управляет listener кнопки.
-                showMapMenuState(MapMenuState.ROOT)
-                refreshMarkerPins()
-                // Оверлей рисует в пространстве экрана, а точки хранит в пространстве битмапа — пересчитываем матрицу.
-                mapScreen.photoViewMap.setOnMatrixChangeListener {
-                    val matrix = Matrix()
-                    mapScreen.photoViewMap.getDisplayMatrix(matrix)
-                    mapScreen.viewMapOverlay.displayMatrix = matrix
-                    mapScreen.viewMapOverlay.invalidate()
-                    updateMapMarkerFocus()
-                }
-                mapScreen.photoViewMap.setOnPhotoTapListener { _, xPercent, yPercent ->
-                    val geoReference = mapGeoReference ?: return@setOnPhotoTapListener
-                    val (lat, lon) = geoReference.fractionToLatLon(xPercent, yPercent)
-                    // Тап по сырой карте синхронизирует курсор энкодера и даёт ровно один звук на весь тап.
-                    playConfirmAudio()
-                    when (mapTapMode) {
-                        MapTapMode.PLACE_MARKER -> {
-                            armTapMode(MapTapMode.NONE)
-                            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
-                            showMarkerNamePopupForNewMarker(lat, lon)
-                        }
-                        MapTapMode.ROUTE_TO_POINT -> {
-                            armTapMode(MapTapMode.NONE)
-                            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 0) }
-                            routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
-                        }
-                        MapTapMode.NONE -> {
-                            val tappedPx = geoReference.latLonToPixel(lat, lon)
-                            val marker = findMarkerNearTap(tappedPx)
-                            if (marker != null) {
-                                // Тап по значку ведёт туда же, куда выбор из списка меток — тач и энкодер должны совпадать.
-                                mapMenuListReturnState = MapMenuState.ROOT
-                                showMapMenuState(MapMenuState.MARKER_LIST)
-                                val markerIndex = markers.indexOfFirst { it.id == marker.id }
-                                if (markerIndex != -1) {
-                                    mapMarkerListAdapter.setSelectedPositionSilently(markerIndex)
-                                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MARKER_LIST"), markerIndex, 0)) }
-                                }
-                                showMarkerDetail(marker)
-                            } else {
-                                suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
-                                showMapTapChoice(lat, lon)
-                            }
-                        }
-                    }
-                }
-                startMapLocationUpdates()
-                pendingMapReadyAction?.invoke()
-                pendingMapReadyAction = null
-            }
-        }
-    }
-    @SuppressLint("MissingPermission")
-    private fun startMapLocationUpdates() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return
-        }
-        if (mapLocationListener != null) return
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val listener = LocationListener { location -> onMapLocationUpdate(location) }
-        mapLocationListener = listener
-        try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 3f, listener)
-        } catch (e: Exception) {
-            Log.w("MainActivity", "Не удалось подписаться на обновления геолокации карты", e)
-        }
-        (currentLocationOrNull())?.let { onMapLocationUpdate(it) }
-    }
-    /** Останавливать при уходе с экрана карты. */
-    private fun stopMapLocationUpdates() {
-        val listener = mapLocationListener ?: return
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        locationManager.removeUpdates(listener)
-        mapLocationListener = null
-    }
-    @SuppressLint("MissingPermission")
-    private fun currentLocationOrNull(): Location? {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return null
-        }
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-    }
-    private fun onMapLocationUpdate(location: Location) {
-        val geoReference = mapGeoReference ?: return
-        val overlay = bindingMain.incLayoutTabItemsMap.viewMapOverlay
-        overlay.userLocationPx = geoReference.latLonToPixel(location.latitude, location.longitude)
-        if (!mapHasCenteredOnUser) {
-            mapHasCenteredOnUser = true
-            recenterMapOnUser()
-        }
-        if (mapRouteState == MapRouteState.ACTIVE) {
-            updateActiveNavigation(location)
-        }
-    }
-    /** Строит матрицу вручную. */
-    private fun recenterMapOnUser() {
-        val userPx = bindingMain.incLayoutTabItemsMap.viewMapOverlay.userLocationPx ?: return
-        centerMapOnBitmapPoint(userPx)
-    }
-    /** Нижний слот карты. */
-    private fun mapBottomOverlayHeightPx(): Float {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        return listOf(
-            mapScreen.layoutMapMarkerDetail,
-            mapScreen.layoutMapTapChoice,
-            mapScreen.layoutMapRouteControls,
-            mapScreen.tvMapHint,
-        ).firstOrNull { it.visibility == View.VISIBLE }?.height?.toFloat() ?: 0f
-    }
-    /** Сдвигает PhotoView. */
-    private fun centerMapOnBitmapPoint(targetPx: PointF) {
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        // getDisplayMatrix() отдаёт полную матрицу — по ней находим текущую позицию точки на экране.
-        val fullMatrix = Matrix()
-        photoView.getDisplayMatrix(fullMatrix)
-        val screenPoint = floatArrayOf(targetPx.x, targetPx.y)
-        fullMatrix.mapPoints(screenPoint)
-        val dx = photoView.width / 2f - screenPoint[0]
-        val dy = (photoView.height - mapBottomOverlayHeightPx()) / 2f - screenPoint[1]
-        // setDisplayMatrix() пишет в supp-матрицу, а не в полную: сдвигаем текущую supp на экранную дельту, иначе базовая применяется дважды.
-        val suppMatrix = Matrix()
-        photoView.getSuppMatrix(suppMatrix)
-        suppMatrix.postTranslate(dx, dy)
-        photoView.setDisplayMatrix(suppMatrix)
-    }
-    /** Пересчитывает пиксельные позиции маркеров и отдаёт оверлею; звать после любого изменения списка. */
-    private fun refreshMarkerPins() {
-        val geoReference = mapGeoReference ?: return
-        bindingMain.incLayoutTabItemsMap.viewMapOverlay.markerPins =
-            markers.map { it.name to geoReference.latLonToPixel(it.lat, it.lon) }
-    }
-    /** Прицел над отметкой из списка: позиция считается вручную из displayMatrix — у отметок оверлея нет своего @id. */
-    private fun updateMapMarkerFocus() {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        val focusView = mapScreen.viewMapMarkerFocus
-        val marker = selectedMarkerForDetail
-        val geoReference = mapGeoReference
-        if (marker == null || geoReference == null) {
-            focusView.visibility = View.GONE
-            return
-        }
-        val matrix = Matrix()
-        mapScreen.photoViewMap.getDisplayMatrix(matrix)
-        val screenPoint = floatArrayOf(0f, 0f)
-        geoReference.latLonToPixel(marker.lat, marker.lon).let { screenPoint[0] = it.x; screenPoint[1] = it.y }
-        matrix.mapPoints(screenPoint)
-        focusView.translationX = screenPoint[0] - focusView.width / 2f
-        focusView.translationY = screenPoint[1] - focusView.height / 2f
-        focusView.visibility = View.VISIBLE
-    }
-    /** Три состояния левого меню: корень, подменю маршрута, список отметок. */
-    private enum class MapMenuState { ROOT, ROUTE_SUBMENU, MARKER_LIST }
-    /** Метаданные корня и подменю "Маршрут". */
-    private data class MapMenuItemMeta(val key: String, val labelRes: Int, val action: () -> Unit)
-    private val mapRootMeta: List<MapMenuItemMeta> by lazy {
-        listOf(
-            // Гейт "только режимы с энкодером" не здесь: mapRootMeta кешируется by lazy до того, как pipBoyMode известен.
-            MapMenuItemMeta("MAP_CONTROLS", R.string.map_menu_control_button) {
-                mapControlMode = MapControlMode.ROOT
-                setMapControlOverlayVisible(true)
-            },
-            // "Поставить отметку" открывает ту же панель Crosshair/Pan/Zoom/Center/Back, что и "Управление картой".
-            MapMenuItemMeta("PLACE_MARKER", R.string.map_menu_place_marker_button) {
-                mapControlMode = MapControlMode.PLACE_MARKER
-                setMapControlOverlayVisible(true)
-                armTapMode(MapTapMode.PLACE_MARKER)
-            },
-            MapMenuItemMeta("ROUTE", R.string.map_menu_route_button) {
-                // Провал вглубь — курсор подменю с индекса 0 (см. showMapMenuState()).
-                mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
-                showMapMenuState(MapMenuState.ROUTE_SUBMENU)
-            },
-            MapMenuItemMeta("MARKER_LIST", R.string.map_menu_marker_list_button) {
-                mapMenuListReturnState = MapMenuState.ROOT
-                showMapMenuState(MapMenuState.MARKER_LIST)
-            },
-        )
-    }
-    private val mapRouteSubmenuMeta: List<MapMenuItemMeta> by lazy {
-        listOf(
-            // Не прыгает обратно в ROOT по выбору — сайдбар уходит туда, только когда маршрут построен.
-            MapMenuItemMeta("TO_POINT", R.string.map_route_to_point_button) {
-                mapControlMode = MapControlMode.ROUTE_TO_POINT
-                setMapControlOverlayVisible(true)
-                armTapMode(MapTapMode.ROUTE_TO_POINT)
-            },
-            MapMenuItemMeta("TO_MARKER", R.string.map_route_to_marker_button) {
-                mapMenuListReturnState = MapMenuState.ROUTE_SUBMENU
-                showMapMenuState(MapMenuState.MARKER_LIST)
-            },
-            MapMenuItemMeta("BACK", R.string.wizard_back) { showMapMenuState(MapMenuState.ROOT) },
-        )
-    }
-    /** Пункты бокового меню Map для тача; mapRootChildrenNodes() ищет позиции именно в этом списке. */
-    private fun mapRootSidebarItems(): List<SidebarMenuItem<String>> {
-        val items = mapRootMeta.filter { it.key != "MAP_CONTROLS" || pipBoyMode != PipBoyMode.PHONE }
-            .map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) }
-        // "В меню" последним пунктом — иначе курсор энкодера некуда вернуть на уровень выше.
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
-    }
-    private lateinit var mapRootAdapter: SidebarMenuAdapter<String>
-    private lateinit var mapRouteSubmenuAdapter: SidebarMenuAdapter<String>
-    /** Адаптер списка отметок полем, а не локальным val — нужен mapMarkerListChildrenNodes(). */
-    private lateinit var mapMarkerListAdapter: SidebarMenuAdapter<MapMarker?>
-    /** Какая из двух панелей делит общий набор Zoom/Center/Pan/Crosshair/Back — нужно тачу по крестику. */
-    private var mapControlMode: MapControlMode = MapControlMode.ROOT
-    private fun showMapMenuState(state: MapMenuState) {
-        // Навигация по меню прерывает незавершённый взвод тапа, иначе следующий тап неожиданно поставит отметку.
-        if (mapTapMode != MapTapMode.NONE) {
-            armTapMode(MapTapMode.NONE)
-        }
-        // Переход в любое состояние меню закрывает панель управления и попап имени — они взаимоисключающи.
-        setMapControlOverlayVisible(false)
-        hideMarkerNamePopup()
-        mapMenuState = state
-        val menu = bindingMain.incLayoutTabItemsMap
-        menu.recyclerMapMenuRoot.visibility = if (state == MapMenuState.ROOT) View.VISIBLE else View.GONE
-        menu.recyclerMapMenuRouteSubmenu.visibility = if (state == MapMenuState.ROUTE_SUBMENU) View.VISIBLE else View.GONE
-        menu.layoutMapMenuMarkerList.visibility = if (state == MapMenuState.MARKER_LIST) View.VISIBLE else View.GONE
-        // Курсор не сбрасывается: вглубь — с индекса 0 через действие-триггер, назад — остаётся где был.
-        if (state == MapMenuState.MARKER_LIST) {
-            bindMarkerListAdapter()
-        } else {
-            hideMarkerDetail()
-        }
-        // Навигация по меню отменяет незавершённый выбор [Route]/[Marker].
-        hideMapTapChoice()
-    }
-    /** Пересобирается при каждом входе в MARKER_LIST, поэтому курсор всегда стартует с индекса 0. */
-    private fun bindMarkerListAdapter() {
-        val menu = bindingMain.incLayoutTabItemsMap
-        menu.tvMapMarkerListEmpty.visibility = if (markers.isEmpty()) View.VISIBLE else View.GONE
-        val items: List<SidebarMenuItem<MapMarker?>> = markers.map { marker -> SidebarMenuItem<MapMarker?>(payload = marker, label = marker.name) } +
-            SidebarMenuItem(payload = null, label = getString(R.string.wizard_back))
-        // "До отметки" — выбор сразу строит маршрут; "Список меток" — открывает карточку.
-        val adapter = SidebarMenuAdapter(
-            items = items,
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // Звук даёт onSelect ниже — ровно один на тап, тик глушится на время синхронизации.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Для Back путь останавливается на родителе списка — там курсор окажется после popLevel().
-                val marker = item.payload
-                val path = when {
-                    marker == null -> mapMarkerListParentPath()
-                    mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> mapMarkerListParentPath() + position
-                    else -> mapMarkerListParentPath() + position + 0
-                }
-                playConfirmAudio()
-                suppressTickAroundTouchSync { syncMapEncoderPath(path) }
-                when {
-                    marker == null -> showMapMenuState(mapMenuListReturnState)
-                    // В ROOT сайдбар переводит сама routeTo() по факту построения, не по выбору цели.
-                    mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU -> routeTo(marker.lat, marker.lon, listOf(mapRootIndex("ROUTE")))
-                    else -> {
-                        showMarkerDetail(marker)
-                        centerMapOnMarkerDeferred(marker)
-                    }
-                }
-            },
-        )
-        mapMarkerListAdapter = adapter
-        menu.rvMapMarkerList.layoutManager = LinearLayoutManager(this)
-        menu.rvMapMarkerList.adapter = adapter
-    }
-    /** Карточка деталей отметки делит нижний слот с попапом выбора и панелью маршрута, поэтому прячет обе. */
-    private fun showMarkerDetail(marker: MapMarker) {
-        selectedMarkerForDetail = marker
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        mapScreen.tvMapMarkerDetailName.text = marker.name
-        mapScreen.tvMapMarkerDetailCoords.text = String.format(Locale.getDefault(), "%.5f, %.5f", marker.lat, marker.lon)
-        pendingTapChoiceLatLon = null
-        mapScreen.layoutMapTapChoice.visibility = View.GONE
-        mapScreen.layoutMapRouteControls.visibility = View.GONE
-        mapScreen.layoutMapMarkerDetail.visibility = View.VISIBLE
-    }
-    /** Звать сразу после showMarkerDetail(): центрирование отложено до layout-прохода карточки, иначе её высота 0. */
-    private fun centerMapOnMarkerDeferred(marker: MapMarker) {
-        val geoReference = mapGeoReference ?: return
-        val targetPx = geoReference.latLonToPixel(marker.lat, marker.lon)
-        bindingMain.incLayoutTabItemsMap.layoutMapMarkerDetail.post { centerMapOnBitmapPoint(targetPx) }
-    }
-    private fun hideMarkerDetail() {
-        selectedMarkerForDetail = null
-        bindingMain.incLayoutTabItemsMap.layoutMapMarkerDetail.visibility = View.GONE
-        // Панель маршрута была спрятана визуально, а не сброшена — восстановить, если маршрут ещё есть.
-        updateRouteControlsVisibility()
-    }
-    /** Тап по пустой точке предлагает выбор [Route]/[Marker] вместо предопределённого действия. */
-    private fun showMapTapChoice(lat: Double, lon: Double) {
-        pendingTapChoiceLatLon = lat to lon
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        mapScreen.tvMapTapChoiceCoords.text = String.format(Locale.getDefault(), "%.5f, %.5f", lat, lon)
-        selectedMarkerForDetail = null
-        mapScreen.layoutMapMarkerDetail.visibility = View.GONE
-        mapScreen.layoutMapRouteControls.visibility = View.GONE
-        mapScreen.layoutMapTapChoice.visibility = View.VISIBLE
-        // Кнопка "←" должна прятаться под этой панелью, а не оставаться поверх.
-        refreshMapControlBackButtonVisibility()
-    }
-    private fun hideMapTapChoice() {
-        pendingTapChoiceLatLon = null
-        bindingMain.incLayoutTabItemsMap.layoutMapTapChoice.visibility = View.GONE
-        updateRouteControlsVisibility()
-        refreshMapControlBackButtonVisibility()
-    }
-    /** Ближайший к тапу маркер в экранных координатах, иначе радиус захвата плавал бы с зумом. */
-    private fun findMarkerNearTap(tapBitmapPx: PointF): MapMarker? {
-        if (markers.isEmpty()) return null
-        val geoReference = mapGeoReference ?: return null
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        val matrix = Matrix()
-        photoView.getDisplayMatrix(matrix)
-        val tapScreen = floatArrayOf(tapBitmapPx.x, tapBitmapPx.y)
-        matrix.mapPoints(tapScreen)
-        val thresholdPx = resources.displayMetrics.density * MAP_MARKER_TAP_RADIUS_DP
-        var nearestMarker: MapMarker? = null
-        var nearestDist = Double.MAX_VALUE
-        for (marker in markers) {
-            val markerPx = geoReference.latLonToPixel(marker.lat, marker.lon)
-            val screen = floatArrayOf(markerPx.x, markerPx.y)
-            matrix.mapPoints(screen)
-            val dx = (screen[0] - tapScreen[0]).toDouble()
-            val dy = (screen[1] - tapScreen[1]).toDouble()
-            val dist = sqrt(dx * dx + dy * dy)
-            if (dist < nearestDist) {
-                nearestDist = dist
-                nearestMarker = marker
-            }
-        }
-        return nearestMarker?.takeIf { nearestDist <= thresholdPx }
-    }
-    /** PhotoView.setScale() кидает исключение вне [minimumScale, maximumScale] — клэмпим сами. */
-    private fun zoomMapBy(factor: Float) {
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        val target = (photoView.scale * factor).coerceIn(photoView.minimumScale, photoView.maximumScale)
-        photoView.setScale(target, true)
-    }
-    private fun showMapHint(text: String) {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        // Делит нижний слот с карточкой отметки, попапом и панелью маршрута — прячет их взаимоисключающе.
-        selectedMarkerForDetail = null
-        pendingTapChoiceLatLon = null
-        mapScreen.layoutMapMarkerDetail.visibility = View.GONE
-        mapScreen.layoutMapTapChoice.visibility = View.GONE
-        mapScreen.layoutMapRouteControls.visibility = View.GONE
-        val hintView = mapScreen.tvMapHint
-        hintView.text = text
-        // backgroundTintList = null обязателен: иначе AppCompat подмешает акцент темы поверх любого фона.
-        hintView.backgroundTintList = null
-        hintView.setBackgroundColor(ContextCompat.getColor(this, R.color.pip_background_darker))
-        hintView.setTextColor(themeAccentColor())
-        hintView.visibility = View.VISIBLE
-    }
-    private fun hideMapHint() {
-        bindingMain.incLayoutTabItemsMap.tvMapHint.visibility = View.GONE
-        updateRouteControlsVisibility()
-    }
-    /** Взвод режима тапа по карте — расстановка отметки либо выбор точки маршрута. */
-    private fun armTapMode(mode: MapTapMode) {
-        mapTapMode = mode
-        // Текстовая подсказка только в режиме Телефон: в PipBoy её место занимает прицел и панель управления.
-        when (mode) {
-            MapTapMode.PLACE_MARKER -> if (pipBoyMode == PipBoyMode.PHONE) showMapHint(getString(R.string.map_hint_place_marker))
-            MapTapMode.ROUTE_TO_POINT -> if (pipBoyMode == PipBoyMode.PHONE) showMapHint(getString(R.string.map_hint_route_to_point))
-            MapTapMode.NONE -> hideMapHint()
-        }
-    }
-    // Клавиатура открывается обычным тапом по полю — showSoftInput() вне ответа на касание Android игнорирует.
-    private fun showMarkerNamePopupForNewMarker(lat: Double, lon: Double) {
-        editingMarkerId = null
-        pendingMarkerLatLon = lat to lon
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        popup.etMarkerNameValue.setText("")
-        popup.root.visibility = View.VISIBLE
-        mapMarkerDictation.refreshAvailability()
-    }
-    private fun showMarkerNamePopupForEdit(marker: MapMarker) {
-        editingMarkerId = marker.id
-        pendingMarkerLatLon = marker.lat to marker.lon
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        popup.etMarkerNameValue.setText(marker.name)
-        popup.root.visibility = View.VISIBLE
-        mapMarkerDictation.refreshAvailability()
-    }
-    private fun hideMarkerNamePopup() {
-        pendingMarkerLatLon = null
-        editingMarkerId = null
-        mapMarkerDictation.stop()
-        bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.root.visibility = View.GONE
-    }
-    /** Сбрасывает микрофон и статус-строку к покою при каждом открытии попапа. */
     // ===== ITEMS: ЖУРНАЛ =====
     private fun openJournalScreen() {
         journalEntries = journalRepository.loadAll().toMutableList()
@@ -2440,167 +1891,6 @@ class MainActivity : AppCompatActivity() {
     }
     /** Пеший маршрут с текущей GPS-позиции, расчёт на Dispatchers.Default. */
     /** [returnPath] — куда вернуть курсор после Cancel/Stop: вызывающий передаёт явно, постфактум контекст не восстановить. */
-    private fun routeTo(destLat: Double, destLon: Double, returnPath: List<Int> = listOf(mapRootIndex("MAP_CONTROLS"))) {
-        val router = pedestrianRouter
-        val geoReference = mapGeoReference
-        if (router == null || geoReference == null) {
-            Log.w("MainActivity", "routeTo() без графа дорог/geoReference — бандл без map_roads.json?")
-            return
-        }
-        val start = currentLocationOrNull()
-        if (start == null) {
-            Log.d("MainActivity", "routeTo() — GPS ещё не дал фикс")
-            showMapHint(getString(R.string.map_hint_waiting_gps))
-            return
-        }
-        lifecycleScope.launch(Dispatchers.Default) {
-            val path = router.route(start.latitude, start.longitude, destLat, destLon)
-            withContext(Dispatchers.Main) {
-                if (path == null) {
-                    showMapHint(getString(R.string.map_hint_no_route))
-                    return@withContext
-                }
-                hideMapHint()
-                mapRouteDestination = destLat to destLon
-                applyRoutePath(geoReference, path)
-                mapRouteState = MapRouteState.BUILT
-                // В ROOT сайдбар уходит по факту построения маршрута — единая точка для всех вызовов routeTo().
-                showMapMenuState(MapMenuState.ROOT)
-                // Молча: если returnPath совпадёт с самим узлом MAP, его onHighlight заново открыл бы экран и стёр маршрут.
-                syncMapEncoderPathSilently(returnPath)
-                menuNavigator.pushLevel(mapRouteControlsChildrenNodes(), tag = "MAP_ROUTE_CONTROLS")
-                updateRouteControlsVisibility()
-                // Отложено до layout-прохода панели — иначе mapBottomOverlayHeightPx() прочитает 0.
-                bindingMain.incLayoutTabItemsMap.layoutMapRouteControls.post {
-                    fitMapToRoute(path, destLat, destLon)
-                }
-            }
-        }
-    }
-    /** Пишет путь и в лат/лон для расчётов, и в пиксели битмапа для отрисовки. */
-    private fun applyRoutePath(geoReference: GeoReference, path: List<Pair<Double, Double>>) {
-        mapRouteLatLonPath = path
-        bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx =
-            path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) }
-    }
-    /** Вписывает весь построенный маршрут в видимую область, меняя и пан, и зум. */
-    /** Базовой матрицы нет в паблик API PhotoView — выводим трюком с suppMatrix=identity, дальше
-     * newSupp = targetDraw * base^-1. */
-    private fun fitMapToRoute(path: List<Pair<Double, Double>>, destLat: Double, destLon: Double) {
-        val geoReference = mapGeoReference ?: return
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        if (photoView.width == 0 || photoView.height == 0) return
-        val points = path.map { (lat, lon) -> geoReference.latLonToPixel(lat, lon) } +
-            geoReference.latLonToPixel(destLat, destLon)
-        var minX = Float.MAX_VALUE
-        var minY = Float.MAX_VALUE
-        var maxX = -Float.MAX_VALUE
-        var maxY = -Float.MAX_VALUE
-        for (p in points) {
-            minX = minOf(minX, p.x); maxX = maxOf(maxX, p.x)
-            minY = minOf(minY, p.y); maxY = maxOf(maxY, p.y)
-        }
-        val bboxWidth = (maxX - minX).coerceAtLeast(1f)
-        val bboxHeight = (maxY - minY).coerceAtLeast(1f)
-        val bboxCenterX = (minX + maxX) / 2f
-        val bboxCenterY = (minY + maxY) / 2f
-        val paddingPx = resources.displayMetrics.density * MAP_ROUTE_FIT_PADDING_DP
-        val availableWidth = (photoView.width - paddingPx * 2f).coerceAtLeast(1f)
-        val availableHeight = (photoView.height - mapBottomOverlayHeightPx() - paddingPx * 2f).coerceAtLeast(1f)
-        // Абсолютный масштаб переводим в единицы photoView.scale, чтобы клэмпить в [minimumScale, maximumScale].
-        val baseMatrix = Matrix()
-        run {
-            val savedSupp = Matrix()
-            photoView.getSuppMatrix(savedSupp)
-            photoView.setDisplayMatrix(Matrix())
-            photoView.getDisplayMatrix(baseMatrix)
-            photoView.setDisplayMatrix(savedSupp)
-        }
-        val baseMatrixValues = FloatArray(9)
-        baseMatrix.getValues(baseMatrixValues)
-        val baseScale = baseMatrixValues[Matrix.MSCALE_X]
-        if (baseScale <= 0f) return
-        val requiredAbsoluteScale = minOf(availableWidth / bboxWidth, availableHeight / bboxHeight)
-        val relativeScale = (requiredAbsoluteScale / baseScale).coerceIn(photoView.minimumScale, photoView.maximumScale)
-        val finalAbsoluteScale = relativeScale * baseScale
-        val targetMatrix = Matrix()
-        targetMatrix.setScale(finalAbsoluteScale, finalAbsoluteScale)
-        val desiredCenterX = photoView.width / 2f
-        val desiredCenterY = (photoView.height - mapBottomOverlayHeightPx()) / 2f
-        targetMatrix.postTranslate(desiredCenterX - bboxCenterX * finalAbsoluteScale, desiredCenterY - bboxCenterY * finalAbsoluteScale)
-        val baseInverse = Matrix()
-        if (!baseMatrix.invert(baseInverse)) return
-        val newSuppMatrix = Matrix(targetMatrix)
-        newSuppMatrix.preConcat(baseInverse)
-        photoView.setDisplayMatrix(newSuppMatrix)
-    }
-    /** [Cancel] на построенном маршруте и [Stop] на активном следовании полностью сбрасывают маршрут. */
-    private fun cancelActiveRoute() {
-        mapRouteState = MapRouteState.NONE
-        mapRouteDestination = null
-        mapRouteLatLonPath = emptyList()
-        bindingMain.incLayoutTabItemsMap.viewMapOverlay.routePx = emptyList()
-        updateRouteControlsVisibility()
-    }
-    /** Единая точка правды для панели маршрута; если карточка или попап открыты — не делает ничего, те восстановят её сами. */
-    private fun updateRouteControlsVisibility() {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        if (selectedMarkerForDetail != null || pendingTapChoiceLatLon != null) return
-        if (mapRouteState == MapRouteState.NONE) {
-            mapScreen.layoutMapRouteControls.visibility = View.GONE
-            return
-        }
-        val isActive = mapRouteState == MapRouteState.ACTIVE
-        mapScreen.btnMapRouteStart.visibility = if (isActive) View.GONE else View.VISIBLE
-        mapScreen.btnMapRouteCancel.visibility = if (isActive) View.GONE else View.VISIBLE
-        mapScreen.btnMapRouteStop.visibility = if (isActive) View.VISIBLE else View.GONE
-        mapScreen.tvMapRouteStatus.visibility = if (isActive) View.VISIBLE else View.GONE
-        mapScreen.layoutMapRouteControls.visibility = View.VISIBLE
-    }
-    /** Следование по маршруту: на каждый GPS-фикс обновляет остаток и перестраивает при отклонении. */
-    private fun updateActiveNavigation(location: Location) {
-        val destination = mapRouteDestination ?: return
-        val path = mapRouteLatLonPath
-        if (path.isEmpty()) return
-        // Ближайшая вершина графа, не проекция на отрезок — достаточное приближение для масштаба полигона.
-        var nearestIndex = 0
-        var nearestDist = Double.MAX_VALUE
-        path.forEachIndexed { index, (lat, lon) ->
-            val dist = GeoReference.haversineMeters(location.latitude, location.longitude, lat, lon)
-            if (dist < nearestDist) {
-                nearestDist = dist
-                nearestIndex = index
-            }
-        }
-        if (nearestDist > MAP_ROUTE_REROUTE_THRESHOLD_M) {
-            rerouteActiveNavigation(location, destination)
-            return
-        }
-        var remainingMeters = nearestDist
-        for (i in nearestIndex until path.size - 1) {
-            val (lat1, lon1) = path[i]
-            val (lat2, lon2) = path[i + 1]
-            remainingMeters += GeoReference.haversineMeters(lat1, lon1, lat2, lon2)
-        }
-        bindingMain.incLayoutTabItemsMap.tvMapRouteStatus.text = formatRouteDistance(remainingMeters)
-    }
-    private fun rerouteActiveNavigation(location: Location, destination: Pair<Double, Double>) {
-        val router = pedestrianRouter ?: return
-        val geoReference = mapGeoReference ?: return
-        lifecycleScope.launch(Dispatchers.Default) {
-            val path = router.route(location.latitude, location.longitude, destination.first, destination.second)
-            withContext(Dispatchers.Main) {
-                // Следование могло быть остановлено, пока считался маршрут — не оживлять его.
-                if (path == null || mapRouteState != MapRouteState.ACTIVE) return@withContext
-                applyRoutePath(geoReference, path)
-            }
-        }
-    }
-    private fun formatRouteDistance(meters: Double): String {
-        val unit = if (meters >= 1000) getString(R.string.map_route_unit_km, meters / 1000.0)
-        else getString(R.string.map_route_unit_meters, meters.roundToInt())
-        return getString(R.string.map_route_status_remaining, unit)
-    }
     /** Обновляет статус бандла карты сразу и в Settings, и на шаге IMPORT мастера. */
     private fun refreshMapBundleStatus() {
         val text = if (!mapBundleRepository.hasBundle()) {
@@ -2824,10 +2114,10 @@ class MainActivity : AppCompatActivity() {
             childrenProvider = { journalChildrenNodes() },
             onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsJournal) },
         )
-        // childrenProvider по той же причине, что у JOURNAL: markers грузятся асинхронно в openMapScreen().
+        // childrenProvider по той же причине, что у JOURNAL: markers грузятся асинхронно при открытии экрана.
         val mapNode = MenuNode(
             id = "MAP",
-            childrenProvider = { mapRootChildrenNodes() },
+            childrenProvider = { mapController.childrenNodes() },
             onHighlight = { simulateEncoderTabHighlight(bottom.btnItemsMap) },
         )
         return listOfNotNull(
@@ -2998,671 +2288,12 @@ class MainActivity : AppCompatActivity() {
     }
     // ===== ITEMS: КАРТА, ЭНКОДЕР =====
     /** Общая панель Zoom/Center/Pan/Crosshair/Back живёт в двух точках дерева и различается поведением крестика. */
-    private enum class MapControlMode { ROOT, ROUTE_TO_POINT, PLACE_MARKER }
-    /** Геокоордината центра экрана: карта двигается под фиксированной точкой, поэтому берём инверсию текущей displayMatrix. */
-    private fun mapCrosshairLatLon(): Pair<Double, Double>? {
-        val geoReference = mapGeoReference ?: return null
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        val matrix = Matrix()
-        photoView.getDisplayMatrix(matrix)
-        val inverse = Matrix()
-        if (!matrix.invert(inverse)) return null
-        val screenCenter = floatArrayOf(photoView.width / 2f, photoView.height / 2f)
-        inverse.mapPoints(screenCenter)
-        return geoReference.pixelToLatLon(screenCenter[0], screenCenter[1])
-    }
-    /** Сдвигает видимую область на шаг в экранных пикселях — тот же postTranslate, но относительный. */
-    private fun panMapBy(dxPx: Float, dyPx: Float) {
-        val photoView = bindingMain.incLayoutTabItemsMap.photoViewMap
-        val suppMatrix = Matrix()
-        photoView.getSuppMatrix(suppMatrix)
-        suppMatrix.postTranslate(dxPx, dyPx)
-        photoView.setDisplayMatrix(suppMatrix)
-    }
-    /** Безусловно ставит курсор энкодера по [path] от детей узла MAP. */
-    /** [path] обязан указывать до первого ребёнка тапнутого узла, если тот не лист. */
-    private fun syncMapEncoderPath(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "MAP", path, loud = true)
-    /** То же без onHighlight — onHighlight узла MAP заново открывает экран карты. */
-    private fun syncMapEncoderPathSilently(path: List<Int>) =
-        syncEncoderPath(itemsMenuRoot(), "MAP", path, loud = false)
     /** То же для экрана Journal: syncCursor() работает, только если энкодер уже стоит на списке записей. */
     private fun syncJournalEncoderPath(path: List<Int>) =
         syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = true)
     /** То же без onHighlight — onHighlight узла JOURNAL перезагружает записи с диска. */
     private fun syncJournalEncoderPathSilently(path: List<Int>) =
         syncEncoderPath(itemsMenuRoot(), "JOURNAL", path, loud = false)
-    /** Позиция пункта бокового меню Map по ключу — вынесено для тач-обработчиков. */
-    private fun mapRootIndex(key: String): Int = mapRootSidebarItems().indexOfFirst { it.payload == key }
-    /** Путь до самого узла панели без её детей; ROUTE_TO_POINT на уровень глубже — он вложен в MAP_ROUTE. */
-    private fun mapControlModeRootPath(): List<Int> = when (mapControlMode) {
-        MapControlMode.ROOT -> listOf(mapRootIndex("MAP_CONTROLS"))
-        MapControlMode.PLACE_MARKER -> listOf(mapRootIndex("PLACE_MARKER"))
-        MapControlMode.ROUTE_TO_POINT -> listOf(mapRootIndex("ROUTE"), 0)
-    }
-    /** Путь до бокового меню Map, куда возвращает "←": для ROUTE_TO_POINT — на уровень выше остальных. */
-    private fun mapSidebarRootPathForMode(): List<Int> = when (mapControlMode) {
-        MapControlMode.ROUTE_TO_POINT -> listOf(mapRootIndex("ROUTE"))
-        else -> mapControlModeRootPath()
-    }
-    /** Путь до уровня "Список меток"/"До отметки" — общий вход для двух контекстов. */
-    private fun mapMarkerListParentPath(): List<Int> =
-        if (mapMenuListReturnState == MapMenuState.ROUTE_SUBMENU) listOf(mapRootIndex("ROUTE"), 1) else listOf(mapRootIndex("MARKER_LIST"))
-    /** Путь до попапа имени отметки — два возможных родителя, тот же выбор, что в mapMarkerPopupChildrenNodes(). */
-    private fun mapMarkerPopupParentPath(): List<Int> {
-        // Правка существующей отметки — третья ветка: editingMarkerId читать до того, как Cancel/Save его сбросят.
-        val editingId = editingMarkerId
-        if (editingId != null) {
-            val markerIndex = markers.indexOfFirst { it.id == editingId }
-            if (markerIndex != -1) return mapMarkerListParentPath() + markerIndex + 0
-        }
-        return when (mapControlMode) {
-            MapControlMode.PLACE_MARKER -> mapControlModeRootPath() + 0
-            else -> listOf(mapRootIndex("MAP_CONTROLS"), 0, 1) // ROOT — через "Place Marker" в панели [Route]/[Marker]/[Cancel]
-        }
-    }
-    /** Показывает и прячет всю группу управления картой разом; прицелы энкодера переключаются отдельно. */
-    /** Крестик и уголки — только для режима с энкодером: в Телефоне те же действия делаются жестами и прямым тапом. */
-    private fun setMapControlOverlayVisible(visible: Boolean) {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        val visibility = if (visible && pipBoyMode != PipBoyMode.PHONE) View.VISIBLE else View.GONE
-        listOf(
-            mapScreen.btnMapPanUp, mapScreen.viewMapPanUpBg,
-            mapScreen.btnMapPanDown, mapScreen.viewMapPanDownBg,
-            mapScreen.btnMapPanLeft, mapScreen.viewMapPanLeftBg,
-            mapScreen.btnMapPanRight, mapScreen.viewMapPanRightBg,
-            mapScreen.viewMapCrosshair,
-        ).forEach { it.visibility = visibility }
-        if (!visible) {
-            setAllMapControlFocusesHidden()
-            hideMapTapChoice()
-            hideMarkerNamePopup()
-            if (mapTapMode == MapTapMode.ROUTE_TO_POINT || mapTapMode == MapTapMode.PLACE_MARKER) armTapMode(MapTapMode.NONE)
-        }
-        // Кнопка "←" имеет отдельную видимость: она должна прятаться под панель выбора, а не исчезать синхронно.
-        refreshMapControlBackButtonVisibility()
-    }
-    /** "←" видна, только пока панель управления открыта и поверх неё не висит панель [Route]/[Marker]/[Cancel]. */
-    private fun refreshMapControlBackButtonVisibility() {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        val overlayActive = mapScreen.viewMapCrosshair.visibility == View.VISIBLE
-        val tapChoiceOpen = mapScreen.layoutMapTapChoice.visibility == View.VISIBLE
-        val visible = overlayActive && !tapChoiceOpen
-        mapScreen.btnMapControlBack.visibility = if (visible) View.VISIBLE else View.GONE
-        mapScreen.viewMapControlBackBg.visibility = if (visible) View.VISIBLE else View.GONE
-    }
-    /** Дети всех трёх режимов панели; Crosshair — первый ребёнок, и именно его onHighlight открывает панель,
-     * иначе Back немедленно открывал бы её заново. */
-    private fun mapControlChildrenNodes(mode: MapControlMode): List<MenuNode> {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        fun openOverlayForMode() {
-            mapControlMode = mode
-            setMapControlOverlayVisible(true)
-            when (mode) {
-                MapControlMode.ROUTE_TO_POINT -> armTapMode(MapTapMode.ROUTE_TO_POINT)
-                MapControlMode.PLACE_MARKER -> armTapMode(MapTapMode.PLACE_MARKER)
-                MapControlMode.ROOT -> {}
-            }
-        }
-        val crosshairNode = when (mode) {
-            MapControlMode.ROOT -> MenuNode(
-                id = "MAP_CTRL_CROSSHAIR",
-                onHighlight = {
-                    playTickAudio()
-                    openOverlayForMode()
-                    setAllMapControlFocusesHidden()
-                    setMapCrosshairFocused(true)
-                },
-                // Звук подтверждения на любой ENCBTN по прицелу — узел всё равно проваливается в children следом.
-                onActivate = { playConfirmAudio() },
-                children = mapCrosshairTapChoiceChildrenNodes(),
-            )
-            MapControlMode.PLACE_MARKER -> MenuNode(
-                id = "MAP_CTRL_CROSSHAIR",
-                onHighlight = {
-                    playTickAudio()
-                    openOverlayForMode()
-                    setAllMapControlFocusesHidden()
-                    setMapCrosshairFocused(true)
-                },
-                onActivate = { playConfirmAudio() },
-                children = mapMarkerPopupChildrenNodes { mapCrosshairLatLon() },
-            )
-            MapControlMode.ROUTE_TO_POINT -> MenuNode(
-                id = "MAP_CTRL_CROSSHAIR",
-                onHighlight = {
-                    playTickAudio()
-                    openOverlayForMode()
-                    setAllMapControlFocusesHidden()
-                    setMapCrosshairFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.viewMapCrosshair) {
-                        val (lat, lon) = mapCrosshairLatLon() ?: return@flashButtonPressThenRun
-                        playConfirmAudio()
-                        routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
-                    }
-                },
-            )
-        }
-        return listOf(
-            crosshairNode,
-            MenuNode(
-                id = "MAP_CTRL_PAN_V",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapControlFocusesHidden()
-                    setMapPanVerticalFocused(true)
-                },
-                valueEditor = ValueEditor(
-                    onAdjust = { delta ->
-                        val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
-                        playConfirmAudio()
-                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanUp else mapScreen.btnMapPanDown)
-                        panMapBy(0f, if (delta > 0) stepPx else -stepPx)
-                    },
-                    onEnter = { playConfirmAudio() },
-                    onExit = { playTickAudio() },
-                ),
-            ),
-            MenuNode(
-                id = "MAP_CTRL_PAN_H",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapControlFocusesHidden()
-                    setMapPanHorizontalFocused(true)
-                },
-                valueEditor = ValueEditor(
-                    onAdjust = { delta ->
-                        val stepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
-                        playConfirmAudio()
-                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapPanRight else mapScreen.btnMapPanLeft)
-                        // Право = отрицательный dx; знак обязан совпадать с тач-обработчиками btnMapPanRight/Left.
-                        panMapBy(if (delta > 0) -stepPx else stepPx, 0f)
-                    },
-                    onEnter = { playConfirmAudio() },
-                    onExit = { playTickAudio() },
-                ),
-            ),
-            MenuNode(
-                id = "MAP_CTRL_ZOOM",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapControlFocusesHidden()
-                    setMapZoomFocused(true)
-                },
-                valueEditor = ValueEditor(
-                    onAdjust = { delta ->
-                        playConfirmAudio()
-                        flashButtonPressImmediate(if (delta > 0) mapScreen.btnMapZoomIn else mapScreen.btnMapZoomOut)
-                        zoomMapBy(if (delta > 0) MAP_ZOOM_STEP_FACTOR else 1f / MAP_ZOOM_STEP_FACTOR)
-                    },
-                    onEnter = { playConfirmAudio() },
-                    onExit = { playTickAudio() },
-                ),
-            ),
-            MenuNode(
-                id = "MAP_CTRL_CENTER",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapControlFocusesHidden()
-                    setMapCenterFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapCenter) {
-                        playConfirmAudio()
-                        recenterMapOnUser()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "MAP_CTRL_BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapControlFocusesHidden()
-                    setMapControlBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapControlBack) {
-                        playButtonAudio()
-                        setMapControlBackFocused(false)
-                        setMapControlOverlayVisible(false)
-                        // ROUTE_TO_POINT вложен глубже: одного popLevel() мало, "←" обязан вернуть в боковое меню Map.
-                        menuNavigator.popLevel()
-                        if (mode == MapControlMode.ROUTE_TO_POINT) {
-                            menuNavigator.popLevel()
-                            showMapMenuState(MapMenuState.ROOT)
-                        }
-                    }
-                },
-            ),
-        )
-    }
-    /** Дети CROSSHAIR в режиме ROOT — Route/Marker/Cancel; панель открывает onHighlight первого ребёнка. */
-    private fun mapCrosshairTapChoiceChildrenNodes(): List<MenuNode> {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        return listOf(
-            MenuNode(
-                id = "MAP_CTRL_CROSSHAIR_ROUTE",
-                onHighlight = {
-                    playTickAudio()
-                    // Гасим прицел крестика — курсор только что провалился с него сюда.
-                    setMapCrosshairFocused(false)
-                    mapCrosshairLatLon()?.let { (lat, lon) -> showMapTapChoice(lat, lon) }
-                    setAllMapTapChoiceFocusesHidden()
-                    setMapTapChoiceRouteFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapTapChoiceRoute) {
-                        val (lat, lon) = pendingTapChoiceLatLon ?: return@flashButtonPressThenRun
-                        playButtonAudio()
-                        setMapTapChoiceRouteFocused(false)
-                        hideMapTapChoice()
-                        // Эта панель бывает только в режиме ROOT ("Управление картой").
-                        routeTo(lat, lon, listOf(mapRootIndex("MAP_CONTROLS")))
-                    }
-                },
-            ),
-            MenuNode(
-                id = "MAP_CTRL_CROSSHAIR_MARKER",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapTapChoiceFocusesHidden()
-                    setMapTapChoiceMarkerFocused(true)
-                },
-                // Звук на ENCBTN; сам провал в детей отрабатывает следом как обычно.
-                onActivate = { playButtonAudio() },
-                children = mapMarkerPopupChildrenNodes { pendingTapChoiceLatLon },
-            ),
-            MenuNode(
-                id = "MAP_CTRL_CROSSHAIR_CANCEL",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapTapChoiceFocusesHidden()
-                    setMapTapChoiceCancelFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapTapChoiceCancel) {
-                        playButtonAudio()
-                        setMapTapChoiceCancelFocused(false)
-                        hideMapTapChoice()
-                        menuNavigator.popLevel()
-                    }
-                },
-            ),
-        )
-    }
-    /** Дети попапа имени отметки — общая функция для двух точек входа; попап открывает onHighlight первого ребёнка. */
-    private fun mapMarkerPopupChildrenNodes(
-        editingMarker: MapMarker? = null,
-        latLonProvider: () -> Pair<Double, Double>? = { null },
-    ): List<MenuNode> {
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        return listOf(
-            MenuNode(
-                id = "MAP_MARKER_POPUP_MIC",
-                onHighlight = {
-                    playTickAudio()
-                    if (editingMarker != null) {
-                        // Правка существующей отметки — та же роль, другая функция.
-                        showMarkerNamePopupForEdit(editingMarker)
-                    } else {
-                        // Координату читаем до hideMapTapChoice() — та обнуляет pendingTapChoiceLatLon.
-                        val latLon = latLonProvider()
-                        hideMapTapChoice()
-                        latLon?.let { (lat, lon) -> showMarkerNamePopupForNewMarker(lat, lon) }
-                    }
-                    // Гасим прицелы уровней выше: какой из трёх входов актуален, эта функция не знает.
-                    setMapCrosshairFocused(false)
-                    setAllMapTapChoiceFocusesHidden()
-                    setAllMapMarkerDetailFocusesHidden()
-                    setAllMapMarkerPopupFocusesHidden()
-                    setMapMarkerPopupMicFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnMarkerNamePopupMic) {
-                        mapMarkerDictation.handleMicTap()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "MAP_MARKER_POPUP_CANCEL",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerPopupFocusesHidden()
-                    setMapMarkerPopupCancelFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnMarkerNamePopupCancel) {
-                        playButtonAudio()
-                        setMapMarkerPopupCancelFocused(false)
-                        // popLevel() внутри performMarkerNamePopupCancel(): число уровней зависит от новая это отметка или правка.
-                        performMarkerNamePopupCancel()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "MAP_MARKER_POPUP_SAVE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerPopupFocusesHidden()
-                    setMapMarkerPopupSaveFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(popup.btnMarkerNamePopupSave) {
-                        setMapMarkerPopupSaveFocused(false)
-                        playButtonAudio()
-                        // popLevel() — уже внутри performMarkerNamePopupSave(), см. коммент выше.
-                        performMarkerNamePopupSave()
-                    }
-                },
-            ),
-        )
-    }
-    /** Общее тело Cancel/Save попапа — и для тача, и для ENCBTN. */
-    /** Сколько popLevel() нужно, чтобы вернуться на стабильный узел, а не на одноразовый промежуточный выбор:
-     * правка — 2, PLACE_MARKER — 1, ROOT — 2; [editingId] читать до hideMarkerNamePopup(). */
-    private fun mapMarkerPopupPopLevelCount(editingId: String?): Int = when {
-        editingId != null -> 2
-        mapControlMode == MapControlMode.PLACE_MARKER -> 1
-        else -> 2
-    }
-    /** Cancel — общее тело для тача и ENCBTN. */
-    private fun performMarkerNamePopupCancel() {
-        val popCount = mapMarkerPopupPopLevelCount(editingMarkerId)
-        hideMarkerNamePopup()
-        repeat(popCount) { menuNavigator.popLevel() }
-    }
-    /** Save — курсор идёт на карточку сохранённой отметки, для новой — на крестик. */
-    /** Список обновляем ПОСЛЕ popLevel(): replaceChildrenOf() сверяет родителя верхнего уровня стека и
-     * до подъёма всегда была no-op. */
-    private fun performMarkerNamePopupSave() {
-        val popup = bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup
-        val name = popup.etMarkerNameValue.text.toString().ifBlank { getString(R.string.marker_name_popup_heading) }
-        val editingId = editingMarkerId
-        if (editingId != null) {
-            val existing = markers.find { it.id == editingId }
-            if (existing != null) {
-                val updated = existing.copy(name = name)
-                markers[markers.indexOf(existing)] = updated
-                markerRepository.update(updated)
-            }
-        } else {
-            val (lat, lon) = pendingMarkerLatLon ?: return
-            val marker = MapMarker(UUID.randomUUID().toString(), name, lat, lon, System.currentTimeMillis())
-            markerRepository.add(marker)
-            markers.add(marker)
-        }
-        refreshMarkerPins()
-        bindMarkerListAdapter()
-        val popCount = mapMarkerPopupPopLevelCount(editingId)
-        hideMarkerNamePopup()
-        repeat(popCount) { menuNavigator.popLevel() }
-        menuNavigator.replaceChildrenOf("MAP_MARKER_LIST", mapMarkerListChildrenNodes(MapMenuState.ROOT))
-        menuNavigator.replaceChildrenOf("MAP_ROUTE_TO_MARKER", mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU))
-    }
-    /** Панель построенного или активного маршрута; курсор попадает сюда программным pushLevel() из routeTo(). */
-    private fun mapRouteControlsChildrenNodes(): List<MenuNode> {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        return if (mapRouteState == MapRouteState.ACTIVE) {
-            listOf(
-                MenuNode(
-                    id = "MAP_ROUTE_CTRL_STOP",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllMapRouteControlsFocusesHidden()
-                        setMapRouteStopFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(mapScreen.btnMapRouteStop) {
-                            playButtonAudio()
-                            setMapRouteStopFocused(false)
-                            cancelActiveRoute()
-                            menuNavigator.popLevel()
-                        }
-                    },
-                ),
-            )
-        } else {
-            listOf(
-                MenuNode(
-                    id = "MAP_ROUTE_CTRL_START",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllMapRouteControlsFocusesHidden()
-                        setMapRouteStartFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(mapScreen.btnMapRouteStart) {
-                            playButtonAudio()
-                            mapRouteState = MapRouteState.ACTIVE
-                            updateRouteControlsVisibility()
-                            menuNavigator.replaceTopLevel(mapRouteControlsChildrenNodes())
-                        }
-                    },
-                ),
-                MenuNode(
-                    id = "MAP_ROUTE_CTRL_CANCEL",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllMapRouteControlsFocusesHidden()
-                        setMapRouteCancelFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(mapScreen.btnMapRouteCancel) {
-                            playButtonAudio()
-                            setMapRouteCancelFocused(false)
-                            cancelActiveRoute()
-                            menuNavigator.popLevel()
-                        }
-                    },
-                ),
-            )
-        }
-    }
-    /** Дети узла MAP; порядок и гейт обязаны совпадать с mapRootMeta, панели открывает первый ребёнок. */
-    private fun mapRootChildrenNodes(): List<MenuNode> {
-        // Позиции ищем в mapRootSidebarItems(), уже отфильтрованном по режиму, а не в сыром mapRootMeta.
-        val items = mapRootSidebarItems()
-        fun indexOf(key: String) = items.indexOfFirst { it.payload == key }
-        return listOfNotNull(
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "MAP_CONTROLS",
-                onHighlight = {
-                    playTickAudio()
-                    mapRootAdapter.setSelectedPositionSilently(indexOf("MAP_CONTROLS"))
-                },
-                children = mapControlChildrenNodes(MapControlMode.ROOT),
-            ) else null,
-            // "Поставить отметку" — та же панель, но крестик проваливается прямо в попап ввода имени.
-            MenuNode(
-                id = "MAP_PLACE_MARKER",
-                onHighlight = {
-                    playTickAudio()
-                    mapRootAdapter.setSelectedPositionSilently(indexOf("PLACE_MARKER"))
-                },
-                children = mapControlChildrenNodes(MapControlMode.PLACE_MARKER),
-            ),
-            MenuNode(
-                id = "MAP_ROUTE",
-                onHighlight = {
-                    playTickAudio()
-                    mapRootAdapter.setSelectedPositionSilently(indexOf("ROUTE"))
-                },
-                children = mapRouteChildrenNodes(),
-            ),
-            MenuNode(
-                id = "MAP_MARKER_LIST",
-                onHighlight = {
-                    playTickAudio()
-                    mapRootAdapter.setSelectedPositionSilently(indexOf("MARKER_LIST"))
-                },
-                childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROOT) },
-            ),
-        ) + menuBackNode(
-            pipBoyMode,
-            onHighlight = { mapRootAdapter.setSelectedPositionSilently(indexOf("BACK")) },
-            onBeforePop = { mapRootAdapter.flashPressAnimation(indexOf("BACK")) },
-        )
-    }
-    /** Дети MAP_ROUTE; порядок обязан совпадать с mapRouteSubmenuMeta, подменю показывает первый ребёнок. */
-    private fun mapRouteChildrenNodes(): List<MenuNode> {
-        return listOf(
-            MenuNode(
-                id = "MAP_ROUTE_TO_POINT",
-                onHighlight = {
-                    playTickAudio()
-                    showMapMenuState(MapMenuState.ROUTE_SUBMENU)
-                    mapRouteSubmenuAdapter.setSelectedPositionSilently(0)
-                },
-                children = mapControlChildrenNodes(MapControlMode.ROUTE_TO_POINT),
-            ),
-            MenuNode(
-                id = "MAP_ROUTE_TO_MARKER",
-                onHighlight = {
-                    playTickAudio()
-                    mapRouteSubmenuAdapter.setSelectedPositionSilently(1)
-                },
-                childrenProvider = { mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU) },
-            ),
-            MenuNode(
-                id = "MAP_ROUTE_BACK",
-                onHighlight = {
-                    playTickAudio()
-                    mapRouteSubmenuAdapter.setSelectedPositionSilently(2)
-                },
-                onActivate = {
-                    mapRouteSubmenuAdapter.flashPressAnimation(2)
-                    playConfirmAudio()
-                    showMapMenuState(MapMenuState.ROOT)
-                    menuNavigator.popLevel()
-                },
-            ),
-        )
-    }
-    /** Дети списка меток для обоих входов: из "До отметки" выбор строит маршрут, иначе — провал в карточку. */
-    private fun mapMarkerListChildrenNodes(returnState: MapMenuState): List<MenuNode> {
-        fun openListIfFirst(index: Int) {
-            if (index != 0) return
-            mapMenuListReturnState = returnState
-            showMapMenuState(MapMenuState.MARKER_LIST)
-        }
-        val markerNodes = markers.mapIndexed { index, marker ->
-            MenuNode(
-                id = "MAP_MARKER_${marker.id}",
-                onHighlight = {
-                    playTickAudio()
-                    openListIfFirst(index)
-                    mapMarkerListAdapter.setSelectedPositionSilently(index)
-                    if (returnState != MapMenuState.ROUTE_SUBMENU) {
-                        showMarkerDetail(marker)
-                        // Центрирование раньше срабатывало только по тачу, не по курсору энкодера.
-                        centerMapOnMarkerDeferred(marker)
-                    }
-                },
-                children = if (returnState == MapMenuState.ROUTE_SUBMENU) emptyList() else mapMarkerDetailChildrenNodes(marker),
-                onActivate = if (returnState == MapMenuState.ROUTE_SUBMENU) {
-                    {
-                        mapMarkerListAdapter.flashPressAnimation(index)
-                        routeTo(marker.lat, marker.lon, listOf(mapRootIndex("ROUTE")))
-                    }
-                } else null,
-            )
-        }
-        val backIndex = markers.size
-        val backNode = MenuNode(
-            id = "MAP_MARKER_LIST_BACK",
-            onHighlight = {
-                playTickAudio()
-                openListIfFirst(backIndex)
-                mapMarkerListAdapter.setSelectedPositionSilently(backIndex)
-            },
-            onActivate = {
-                mapMarkerListAdapter.flashPressAnimation(backIndex)
-                playConfirmAudio()
-                showMapMenuState(returnState)
-                menuNavigator.popLevel()
-            },
-        )
-        return markerNodes + backNode
-    }
-    /** Карточка отметки: Edit/Route/Delete/Back; Back — только режимы с физическим энкодером. */
-    private fun mapMarkerDetailChildrenNodes(marker: MapMarker): List<MenuNode> {
-        val mapScreen = bindingMain.incLayoutTabItemsMap
-        return listOfNotNull(
-            MenuNode(
-                id = "MAP_MARKER_EDIT",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerDetailFocusesHidden()
-                    setMapMarkerDetailEditFocused(true)
-                },
-                // children, а не лист: попапу нужно собственное место в дереве, иначе курсору после Save неоткуда подниматься.
-                children = mapMarkerPopupChildrenNodes(editingMarker = marker),
-            ),
-            MenuNode(
-                id = "MAP_MARKER_ROUTE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerDetailFocusesHidden()
-                    setMapMarkerDetailRouteFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailRoute) {
-                        playButtonAudio()
-                        // Гасить свой прицел ПЕРЕД hideMarkerDetail(): иначе он всплывёт вместе со следующим показом карточки.
-                        setMapMarkerDetailRouteFocused(false)
-                        // Карточка отметки всегда достигается через "Список меток" — при входе из "До отметки" её нет.
-                        routeTo(marker.lat, marker.lon, listOf(mapRootIndex("MARKER_LIST")))
-                        hideMarkerDetail()
-                    }
-                },
-            ),
-            MenuNode(
-                id = "MAP_MARKER_DELETE",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerDetailFocusesHidden()
-                    setMapMarkerDetailDeleteFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailDelete) {
-                        playButtonAudio()
-                        performMapMarkerDelete(marker)
-                    }
-                },
-            ),
-            if (pipBoyMode != PipBoyMode.PHONE) MenuNode(
-                id = "MAP_MARKER_BACK",
-                onHighlight = {
-                    playTickAudio()
-                    setAllMapMarkerDetailFocusesHidden()
-                    setMapMarkerDetailBackFocused(true)
-                },
-                onActivate = {
-                    flashButtonPressThenRun(mapScreen.btnMapMarkerDetailBack) {
-                        playButtonAudio()
-                        // Гасить свой прицел ПЕРЕД popLevel(), иначе он остаётся висеть на кнопке после возврата.
-                        setMapMarkerDetailBackFocused(false)
-                        menuNavigator.popLevel()
-                    }
-                },
-            ) else null,
-        )
-    }
-    /** Удаление отметки — общая точка для тача и энкодера; replaceChildrenOf() сам no-op на чужом родителе. */
-    private fun performMapMarkerDelete(marker: MapMarker) {
-        // Гасим прицелы карточки до того, как она исчезнет вместе с удалённой отметкой.
-        setAllMapMarkerDetailFocusesHidden()
-        markerRepository.delete(marker.id)
-        markers.removeAll { it.id == marker.id }
-        refreshMarkerPins()
-        hideMarkerDetail()
-        bindMarkerListAdapter()
-        menuNavigator.popLevel()
-        menuNavigator.replaceChildrenOf("MAP_MARKER_LIST", mapMarkerListChildrenNodes(MapMenuState.ROOT))
-        menuNavigator.replaceChildrenOf("MAP_ROUTE_TO_MARKER", mapMarkerListChildrenNodes(MapMenuState.ROUTE_SUBMENU))
-    }
     private fun dataMenuRoot(): List<MenuNode> {
         val bottom = bindingMain.incLayoutTabDataBottom
         // HOLOTAPES требует физического корпуса и скрыт в Телефоне; порядок должен совпадать с dataRow2Items().
@@ -4012,98 +2643,6 @@ class MainActivity : AppCompatActivity() {
         setJournalEntryEditorSaveFocused(false)
     }
     /** Тот же приём на панели управления картой: у Zoom и Center один прицел на блок, у пар Pan — два сразу. */
-    private fun setMapZoomFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapZoomFocus, focused)
-    }
-    private fun setMapCenterFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapCenterFocus, focused)
-    }
-    private fun setMapPanVerticalFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanUpFocus, focused)
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanDownFocus, focused)
-    }
-    private fun setMapPanHorizontalFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanLeftFocus, focused)
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapPanRightFocus, focused)
-    }
-    private fun setMapCrosshairFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapCrosshairFocus, focused)
-    }
-    private fun setMapControlBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapControlBackFocus, focused)
-    }
-    private fun setAllMapControlFocusesHidden() {
-        setMapZoomFocused(false)
-        setMapCenterFocused(false)
-        setMapPanVerticalFocused(false)
-        setMapPanHorizontalFocused(false)
-        setMapCrosshairFocused(false)
-        setMapControlBackFocused(false)
-    }
-    /** Тот же приём на карточке отметки — Edit/Route/Delete/Back. */
-    private fun setMapMarkerDetailEditFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailEditFocus, focused)
-    }
-    private fun setMapMarkerDetailRouteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailRouteFocus, focused)
-    }
-    private fun setMapMarkerDetailDeleteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailDeleteFocus, focused)
-    }
-    private fun setMapMarkerDetailBackFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapMarkerDetailBackFocus, focused)
-    }
-    private fun setAllMapMarkerDetailFocusesHidden() {
-        setMapMarkerDetailEditFocused(false)
-        setMapMarkerDetailRouteFocused(false)
-        setMapMarkerDetailDeleteFocused(false)
-        setMapMarkerDetailBackFocused(false)
-    }
-    /** Тот же приём на панели выбора [Route]/[Marker]/[Cancel]. */
-    private fun setMapTapChoiceRouteFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapTapChoiceRouteFocus, focused)
-    }
-    private fun setMapTapChoiceMarkerFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapTapChoiceMarkerFocus, focused)
-    }
-    private fun setMapTapChoiceCancelFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapTapChoiceCancelFocus, focused)
-    }
-    private fun setAllMapTapChoiceFocusesHidden() {
-        setMapTapChoiceRouteFocused(false)
-        setMapTapChoiceMarkerFocused(false)
-        setMapTapChoiceCancelFocused(false)
-    }
-    /** Тот же приём на попапе имени отметки — Cancel и Save. */
-    private fun setMapMarkerPopupMicFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupMicFocus, focused)
-    }
-    private fun setMapMarkerPopupCancelFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupCancelFocus, focused)
-    }
-    private fun setMapMarkerPopupSaveFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.incLayoutTabItemsMapNamePopup.viewMarkerNamePopupSaveFocus, focused)
-    }
-    private fun setAllMapMarkerPopupFocusesHidden() {
-        setMapMarkerPopupMicFocused(false)
-        setMapMarkerPopupCancelFocused(false)
-        setMapMarkerPopupSaveFocused(false)
-    }
-    /** Тот же приём на панели маршрута — Start/Cancel/Stop. */
-    private fun setMapRouteStartFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapRouteStartFocus, focused)
-    }
-    private fun setMapRouteCancelFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapRouteCancelFocus, focused)
-    }
-    private fun setMapRouteStopFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabItemsMap.viewMapRouteStopFocus, focused)
-    }
-    private fun setAllMapRouteControlsFocusesHidden() {
-        setMapRouteStartFocused(false)
-        setMapRouteCancelFocused(false)
-        setMapRouteStopFocused(false)
-    }
     /** Прицелы на частях тела; setAllCrippledFocusesHidden() — идемпотентная подстраховка при выходе из ветки. */
     private fun setCrippledHeadFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledHeadFocus, focused)
@@ -4373,18 +2912,13 @@ class MainActivity : AppCompatActivity() {
         skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
-        // "Управление картой" тоже под гейтом по режиму.
-        mapRootAdapter.setItems(
-            mapRootSidebarItems(),
-            resetSelection = false,
-        )
         // journalListAdapter строится не в onCreate(), а при первом заходе на вкладку — отсюда проверка инициализации.
         if (::journalListAdapter.isInitialized) {
             journalListAdapter.setItems(journalSidebarItems(), resetSelection = false)
         }
         refreshGeigerMenuButtonVisibility()
         refreshJournalBackButtonVisibility()
-        refreshMapMarkerDetailBackButtonVisibility()
+        mapController.refreshModeGating()
         clockController.refreshModeGating()
         // Строка 2 гейтится режимом так же, как боковые списки, но живёт вне их: без пересборки её
         // пункты остаются от прежнего режима и расходятся с деревом на один индекс.
@@ -4399,8 +2933,6 @@ class MainActivity : AppCompatActivity() {
     private fun refreshGeigerMenuButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsGeiger.btnGeigerMenu)
     /** Back на карточке записи Journal — та же схема, что у Menu на Гейгере. */
     private fun refreshJournalBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsJournal.btnJournalEntryDetailBack)
-    /** Back на карточке отметки — тот же гейт и приём. */
-    private fun refreshMapMarkerDetailBackButtonVisibility() = setEncoderOnlyVisible(bindingMain.incLayoutTabItemsMap.btnMapMarkerDetailBack)
     private fun setBottomButtons(vararg buttons: Button){
         listBottomButtons.clear()
         listBottomButtons.addAll(buttons)
@@ -4630,7 +3162,7 @@ class MainActivity : AppCompatActivity() {
         sendBLEText(menu)
         // Уход с ITEMS гасит GPS карты; возврат на Map перезапустит апдейты сам.
         if (menu != "ITEMS") {
-            stopMapLocationUpdates()
+            mapController.stopLocationUpdates()
         }
     }
     // ===== СИСТЕМА РАНЕНИЙ =====
@@ -5944,204 +4476,12 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
             // Синхронизация энкодера с тачем по нижним кнопкам; индекс не константа — MAP сдвигается относительно GEIGER.
             menuNavigator.setRootCursor(itemsRootIndexFor("MAP"))
-            openMapScreen()
-            mapRootAdapter.clearSelection()
+            mapController.openScreen()
+            mapController.clearSidebarSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-        val mapMenu = bindingMain.incLayoutTabItemsMap
-        mapRootAdapter = SidebarMenuAdapter(
-            items = mapRootSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
-            playSelectSound = {},
-            onSelect = { _, item ->
-                // Безусловная синхронизация: курсор должен перепрыгнуть сюда даже из другой ветки дерева.
-                playConfirmAudio()
-                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    // Молча: onHighlight узла MAP заново открыл бы экран и стёр текущее состояние карты.
-                    syncMapEncoderPathSilently(emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else {
-                    // "+ 0" — тап равносилен ENCBTN: у всех четырёх пунктов есть дети, курсор садится на первого.
-                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex(item.payload), 0)) }
-                    mapRootMeta.first { it.key == item.payload }.action()
-                }
-            },
-        )
-        mapMenu.recyclerMapMenuRoot.layoutManager = LinearLayoutManager(this)
-        mapMenu.recyclerMapMenuRoot.adapter = mapRootAdapter
-        mapRouteSubmenuAdapter = SidebarMenuAdapter(
-            items = mapRouteSubmenuMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes)) },
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // {} — см. подробный комментарий у specialAdapter (roadmap, этап 28), тот же приём.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // BACK — особый случай: путь останавливается на родителе, там курсор окажется после popLevel().
-                val path = if (item.payload == "BACK") {
-                    listOf(mapRootIndex("ROUTE"))
-                } else {
-                    listOf(mapRootIndex("ROUTE"), position, 0)
-                }
-                playConfirmAudio()
-                suppressTickAroundTouchSync { syncMapEncoderPath(path) }
-                mapRouteSubmenuMeta.first { it.key == item.payload }.action()
-            },
-        )
-        mapMenu.recyclerMapMenuRouteSubmenu.layoutManager = LinearLayoutManager(this)
-        mapMenu.recyclerMapMenuRouteSubmenu.adapter = mapRouteSubmenuAdapter
-        // Тик глушим везде ниже: цель каждой синхронизации играет его сама в своём onHighlight.
-        mapMenu.btnMapMarkerDetailEdit.setOnClickListener {
-            val marker = selectedMarkerForDetail ?: return@setOnClickListener
-            val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            // "+ 0, 0" — EDIT теперь узел с детьми, тап проваливается сразу в первого, MIC.
-            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 0 + 0) }
-            playButtonAudio()
-            showMarkerNamePopupForEdit(marker)
-        }
-        mapMenu.btnMapMarkerDetailRoute.setOnClickListener {
-            val marker = selectedMarkerForDetail ?: return@setOnClickListener
-            val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 1) }
-            playButtonAudio()
-            // Карточка отметки всегда достигается через "Список меток".
-            routeTo(marker.lat, marker.lon, listOf(mapRootIndex("MARKER_LIST")))
-            hideMarkerDetail()
-        }
-        mapMenu.btnMapMarkerDetailDelete.setOnClickListener {
-            val marker = selectedMarkerForDetail ?: return@setOnClickListener
-            val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 2) }
-            playButtonAudio()
-            performMapMarkerDelete(marker)
-        }
-        // Back только поднимает курсор в список отметок, самой отметки не касается.
-        mapMenu.btnMapMarkerDetailBack.setOnClickListener {
-            val marker = selectedMarkerForDetail ?: return@setOnClickListener
-            val markerIndex = markers.indexOfFirst { it.id == marker.id }
-            if (markerIndex != -1) suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerListParentPath() + markerIndex + 3) }
-            playButtonAudio()
-            setMapMarkerDetailBackFocused(false)
-            menuNavigator.popLevel()
-        }
-        refreshMapMarkerDetailBackButtonVisibility()
-        // Zoom и Center видны всегда и не входят в общую группу — поэтому показываем оверлей здесь явно,
-        // иначе курсор переключался, а уголки, крестик и "←" оставались невидимы.
-        mapMenu.btnMapZoomIn.setOnClickListener {
-            playConfirmAudio()
-            setMapControlOverlayVisible(true)
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 3) }
-            zoomMapBy(MAP_ZOOM_STEP_FACTOR)
-        }
-        mapMenu.btnMapZoomOut.setOnClickListener {
-            playConfirmAudio()
-            setMapControlOverlayVisible(true)
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 3) }
-            zoomMapBy(1f / MAP_ZOOM_STEP_FACTOR)
-        }
-        mapMenu.btnMapCenter.setOnClickListener {
-            playConfirmAudio()
-            setMapControlOverlayVisible(true)
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 4) }
-            recenterMapOnUser()
-        }
-        // Уголки, прицел и "←" доступны и тачу — кнопки реально видны на экране, не только энкодеру.
-        val mapPanStepPx = resources.displayMetrics.density * MAP_PAN_STEP_DP
-        mapMenu.btnMapPanUp.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 1) }; panMapBy(0f, mapPanStepPx) }
-        mapMenu.btnMapPanDown.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 1) }; panMapBy(0f, -mapPanStepPx) }
-        mapMenu.btnMapPanLeft.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 2) }; panMapBy(mapPanStepPx, 0f) }
-        mapMenu.btnMapPanRight.setOnClickListener { playConfirmAudio(); suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 2) }; panMapBy(-mapPanStepPx, 0f) }
-        mapMenu.viewMapCrosshair.setOnClickListener {
-            // Полный путь до того, что окажется на экране: тап по крестику равносилен ENCBTN и проваливается в детей.
-            val (lat, lon) = mapCrosshairLatLon() ?: return@setOnClickListener
-            playConfirmAudio()
-            when (mapControlMode) {
-                MapControlMode.ROUTE_TO_POINT -> {
-                    suppressTickAroundTouchSync { syncMapEncoderPath(mapControlModeRootPath() + 0) }
-                    routeTo(lat, lon, listOf(mapRootIndex("ROUTE")))
-                }
-                MapControlMode.PLACE_MARKER -> {
-                    suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 0) }
-                    showMarkerNamePopupForNewMarker(lat, lon)
-                }
-                MapControlMode.ROOT -> {
-                    suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
-                    showMapTapChoice(lat, lon)
-                }
-            }
-        }
-        mapMenu.btnMapControlBack.setOnClickListener {
-            // Для ROUTE_TO_POINT боковое меню нужно явно вернуть в ROOT — его onHighlight этого не делает сам.
-            val wasRouteToPoint = mapControlMode == MapControlMode.ROUTE_TO_POINT
-            playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapSidebarRootPathForMode()) }
-            setMapControlOverlayVisible(false)
-            if (wasRouteToPoint) showMapMenuState(MapMenuState.ROOT)
-        }
-        mapMenu.btnMapTapChoiceRoute.setOnClickListener {
-            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 0)) }
-            val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
-            playButtonAudio()
-            hideMapTapChoice()
-            // Панель [Route]/[Marker]/[Cancel] бывает только в режиме ROOT.
-            routeTo(lat, lon, listOf(mapRootIndex("MAP_CONTROLS")))
-        }
-        mapMenu.btnMapTapChoiceMarker.setOnClickListener {
-            // Координату читаем и звук играем ДО синхронизации: onHighlight цели обнуляет pendingTapChoiceLatLon.
-            val (lat, lon) = pendingTapChoiceLatLon ?: return@setOnClickListener
-            playButtonAudio()
-            // "+ 0" — Marker проваливается в попап (Cancel/Save), не остаётся на себе самой.
-            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 1, 0)) }
-            hideMapTapChoice()
-            showMarkerNamePopupForNewMarker(lat, lon)
-        }
-        mapMenu.btnMapTapChoiceCancel.setOnClickListener {
-            playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(listOf(mapRootIndex("MAP_CONTROLS"), 0, 2)) }
-            hideMapTapChoice()
-        }
-        mapMenu.btnMapRouteStart.setOnClickListener {
-            // syncPushedCursor() вернёт false, если энкодер сейчас не на этой запушенной панели.
-            playButtonAudio()
-            val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 0)
-            mapRouteState = MapRouteState.ACTIVE
-            updateRouteControlsVisibility()
-            if (onThisPanel) menuNavigator.replaceTopLevel(mapRouteControlsChildrenNodes())
-        }
-        mapMenu.btnMapRouteCancel.setOnClickListener {
-            playButtonAudio()
-            val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 1)
-            cancelActiveRoute()
-            if (onThisPanel) menuNavigator.popLevel()
-        }
-        mapMenu.btnMapRouteStop.setOnClickListener {
-            playButtonAudio()
-            val onThisPanel = menuNavigator.syncPushedCursor("MAP_ROUTE_CONTROLS", 0)
-            cancelActiveRoute()
-            if (onThisPanel) menuNavigator.popLevel()
-        }
-        val markerNamePopup = mapMenu.incLayoutTabItemsMapNamePopup
-        // Индексы MIC(0)/CANCEL(1)/SAVE(2) — микрофон стал первым узлом, Cancel и Save сдвинулись.
-        markerNamePopup.btnMarkerNamePopupMic.setOnClickListener {
-            // Синхронизируем только курсор и прицел: громкий путь вызвал бы onHighlight узла MIC,
-            // а тот сбрасывает поле ввода и стёр бы надиктованное.
-            syncMapEncoderPathSilently(mapMarkerPopupParentPath() + 0)
-            setAllMapMarkerPopupFocusesHidden()
-            setMapMarkerPopupMicFocused(true)
-            mapMarkerDictation.handleMicTap()
-        }
-        markerNamePopup.btnMarkerNamePopupCancel.setOnClickListener {
-            playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 1) }
-            performMarkerNamePopupCancel()
-        }
-        markerNamePopup.btnMarkerNamePopupSave.setOnClickListener {
-            playButtonAudio()
-            suppressTickAroundTouchSync { syncMapEncoderPath(mapMarkerPopupParentPath() + 2) }
-            performMarkerNamePopupSave()
-        }
+        mapController.setup()
 
         // ===== ITEMS: ЧАСЫ =====
         bindingMain.incLayoutTabItemsBottom.btnItemsClock.setOnClickListener {
@@ -6150,7 +4490,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsClock.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
-            stopMapLocationUpdates()
+            mapController.stopLocationUpdates()
             menuNavigator.setRootCursor(itemsRootIndexFor("CLOCK"))
             clockController.clearSidebarSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
@@ -6166,7 +4506,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.GONE
-            stopMapLocationUpdates()
+            mapController.stopLocationUpdates()
             menuNavigator.setRootCursor(itemsRootIndexFor("JOURNAL"))
             // Свежий адаптер стартует с подсвеченным пунктом 0 — гасим рамку молча до реального провала курсора.
             openJournalScreen()
@@ -6242,7 +4582,7 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabItemsClock.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsJournal.root.visibility = View.GONE
             bindingMain.incLayoutTabItemsGeiger.root.visibility = View.VISIBLE
-            stopMapLocationUpdates()
+            mapController.stopLocationUpdates()
             menuNavigator.setRootCursor(itemsRootIndexFor("GEIGER"))
             setGeigerResetFocused(false)
             setGeigerMenuFocused(false)
@@ -6489,7 +4829,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         releaseAmbientPlayer()
-        stopMapLocationUpdates()
+        mapController.stopLocationUpdates()
     }
     /** Возврат в приложение; на первом запуске намерение ещё false, поэтому лишнего старта не происходит. */
     override fun onStart() {
@@ -6498,7 +4838,7 @@ class MainActivity : AppCompatActivity() {
             startAmbientBackgroundSound()
         }
         if (bindingMain.incLayoutTabItemsMap.root.visibility == View.VISIBLE) {
-            startMapLocationUpdates()
+            mapController.startLocationUpdates()
         }
     }
 

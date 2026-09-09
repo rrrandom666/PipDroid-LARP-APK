@@ -125,7 +125,6 @@ class MainActivity : AppCompatActivity() {
     val bluetoothSUUID_SPKey = "bluetoothSUUID"
     val bluetoothRUUID_SPKey = "bluetoothRUUID"
     val bluetoothWUUID_SPKey = "bluetoothWUUID"
-    val pipBoyMode_SPKey = "pipBoyMode"
     val appLanguage_SPKey = "appLanguage"
     val geigerDose_SPKey = "geigerDose"
     val radioLastFrequency_SPKey = "radioLastFrequency"
@@ -1151,10 +1150,12 @@ class MainActivity : AppCompatActivity() {
         header.btnHeaderRadio.visibility = visibility
         header.spaceHeaderRadioGap.visibility = visibility
     }
+    /** Режим сознательно спрашивается каждый запуск и на диск не сохраняется: экран выбора —
+     * стартовый безусловно, а между запусками режим переживает только убийство процесса
+     * (savedInstanceState в restoreAppState()). */
     private fun selectPipBoyMode(mode: PipBoyMode) {
         stopAmbientBackgroundSound()
         pipBoyMode = mode
-        sharedPreferences.edit().putString(pipBoyMode_SPKey, mode.name).apply()
         refreshModeSettingsLabel()
         applyModeGating()
         refreshSidebarBackItems()

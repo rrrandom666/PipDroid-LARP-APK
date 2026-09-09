@@ -264,7 +264,7 @@ SPECIAL/Skills (этап 30): список прокручивался, `computeV
 - `getIdentifier` по имени ресурса — `perk_<id>_name`/`perk_<id>_desc` (277 строк
   `strings.xml` выглядят «неиспользуемыми» для любого статического анализа, включая
   `lint`/`UnusedResources` — вслепую его здесь применять нельзя)
-- ключи SharedPreferences: 14 объявлены константами `*_SPKey`, но ещё **10 живут голыми
+- ключи SharedPreferences: 13 объявлены константами `*_SPKey`, но ещё **10 живут голыми
   строковыми литералами** (`selectedSTATSPerksArray`, `selectedDATAMiscArray`,
   `appLanguage`, `ShowTutorial`, `TrueFullscreen`, `AmbientSoundEnabled`, `width`,
   `height`, `leftMargin`, `topMargin`) — опечатка при переносе стирает сохранёнки игрока

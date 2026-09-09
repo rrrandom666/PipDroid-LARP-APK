@@ -13,9 +13,15 @@ class GeoReference(
     private val bitmapWidthPx: Int,
     private val bitmapHeightPx: Int
 ) {
-    fun latLonToPixel(lat: Double, lon: Double): PointF {
+    /** Чистая половина latLonToPixel, без PointF: android.graphics в JVM-тестах кидает "not mocked". */
+    fun latLonToPixelXY(lat: Double, lon: Double): Pair<Double, Double> {
         val x = (lon - bounds.minLon) / (bounds.maxLon - bounds.minLon) * bitmapWidthPx
         val y = (bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat) * bitmapHeightPx
+        return x to y
+    }
+
+    fun latLonToPixel(lat: Double, lon: Double): PointF {
+        val (x, y) = latLonToPixelXY(lat, lon)
         return PointF(x.toFloat(), y.toFloat())
     }
 

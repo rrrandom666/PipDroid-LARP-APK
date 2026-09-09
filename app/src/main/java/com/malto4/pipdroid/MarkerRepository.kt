@@ -6,7 +6,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class MapMarker(
     val id: String,

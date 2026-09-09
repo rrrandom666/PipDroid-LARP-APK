@@ -4402,6 +4402,13 @@ class MainActivity : AppCompatActivity() {
         refreshJournalBackButtonVisibility()
         refreshMapMarkerDetailBackButtonVisibility()
         clockController.refreshModeGating()
+        // Строка 2 гейтится режимом так же, как боковые списки, но живёт вне их: без пересборки её
+        // пункты остаются от прежнего режима и расходятся с деревом на один индекс.
+        // Пустую не трогаем: её первую сборку держит гейт row2Views.isEmpty() на старте.
+        if (row2Views.isNotEmpty()) {
+            setupRow2(curMenu)
+            syncRow2ActiveFromNavigator()
+        }
     }
     /** Menu на Гейгере — обычная кнопка, не элемент адаптера, поэтому видимость обновляется отдельно. */
     private fun setEncoderOnlyVisible(vararg views: View) = applyEncoderOnlyVisible(pipBoyMode, *views)

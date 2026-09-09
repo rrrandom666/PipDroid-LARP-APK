@@ -30,6 +30,7 @@ internal class ClockController(
     private val playTick: () -> Unit,
     private val playButton: () -> Unit,
     private val playConfirm: () -> Unit,
+    private val playError: () -> Unit,
     private val suppressTickAround: (block: () -> Unit) -> Unit,
     private val syncRow2Active: () -> Unit,
     private val hasAudioPermission: () -> Boolean,
@@ -56,6 +57,7 @@ internal class ClockController(
     private lateinit var timerSecondWheel: ClockWheelPicker
     private var timerTargetEpochMillis = 0L
     private var timerRemainingSecondsAtPause = 0
+    private var timerPauseAllowed = true
     private enum class StopwatchState { IDLE, RUNNING, PAUSED }
     private var stopwatchState = StopwatchState.IDLE
     private var stopwatchStartEpochMillis = 0L
@@ -140,11 +142,12 @@ internal class ClockController(
         checkTimerFiring()
     }
 
-    /** Таймер ранения нельзя ставить на паузу; здесь клик блокируется по-настоящему, звук ошибки не нужен. */
-    fun setTimerPauseEnabled(enabled: Boolean) {
-        val pauseResume = binding.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.btnClockTimerPauseResume
-        pauseResume.isEnabled = enabled
-        pauseResume.alpha = if (enabled) 1.0f else 0.4f
+    /** Таймер ранения нельзя ставить на паузу. Затенение — только визуальное, как у пунктов
+     * бокового меню: тап доезжает до обработчика и отвечает звуком ошибки. */
+    fun setTimerPauseAllowed(allowed: Boolean) {
+        timerPauseAllowed = allowed
+        binding.incLayoutTabItemsClock.incLayoutTabItemsClockTimer.btnClockTimerPauseResume.alpha =
+            if (allowed) 1.0f else 0.4f
     }
 
     fun saveState(outState: Bundle) {
@@ -294,8 +297,7 @@ internal class ClockController(
         }
         timer.btnClockTimerPauseResume.setOnClickListener {
             suppressTickAround { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 0)) }
-            playButton()
-            pauseResumeTimer()
+            requestPauseResume()
         }
         timer.btnClockTimerReset.setOnClickListener {
             suppressTickAround { syncClockEncoderPath(listOf(clockRootIndex("TIMER"), 1)) }
@@ -771,10 +773,7 @@ internal class ClockController(
                         setClockTimerPauseResumeFocused(true)
                     },
                     onActivate = {
-                        flashButtonPressThenRun(timer.btnClockTimerPauseResume) {
-                            playButton()
-                            pauseResumeTimer()
-                        }
+                        flashButtonPressThenRun(timer.btnClockTimerPauseResume) { requestPauseResume() }
                     },
                 ),
                 MenuNode(
@@ -1051,6 +1050,16 @@ internal class ClockController(
         timerMinutes = totalMinutes % 60
         timerHourWheel.scrollToValue(timerHours)
         timerMinuteWheel.scrollToValue(timerMinutes)
+    }
+    /** Тело кнопки [Пауза] — общее для тача и ENCBTN; звук выбирается по разрешению паузы.
+     * Голосовая команда сюда не идёт: она проверяет то же условие сама и зовёт pauseResumeTimer(). */
+    private fun requestPauseResume() {
+        if (!timerPauseAllowed) {
+            playError()
+            return
+        }
+        playButton()
+        pauseResumeTimer()
     }
     /** Общая пауза/возобновление — кнопка [Пауза] и голосовая команда "пауза"/"продолжи". */
     fun pauseResumeTimer() {

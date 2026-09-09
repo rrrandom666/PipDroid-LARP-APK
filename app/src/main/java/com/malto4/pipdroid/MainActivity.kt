@@ -223,6 +223,7 @@ class MainActivity : AppCompatActivity() {
             playTick = { playTickAudio() },
             playButton = { playButtonAudio() },
             playConfirm = { playConfirmAudio() },
+            playError = { playErrorAudio() },
             suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
             syncRow2Active = { syncRow2ActiveFromNavigator() },
             hasAudioPermission = { checkAudioPermission() },
@@ -4679,7 +4680,7 @@ class MainActivity : AppCompatActivity() {
             // Через statusSidebarItems(), а не инлайн из statusMeta: пункт "В меню" дописывается только там.
             statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         }
-        clockController.setTimerPauseEnabled(woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD)
+        clockController.setTimerPauseAllowed(woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD)
     }
     /** Подпись над отсчётом на экране Таймера: у таймера может быть стадия ранения, для обычного запуска она пустая. */
     private fun clockTimerLabelText(): String = when (woundPhase) {

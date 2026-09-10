@@ -2147,7 +2147,7 @@ class MainActivity : AppCompatActivity() {
         setupRow2(menu)
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
-        bluetooth.send(menu)
+        // Имя раздела на ESP32 не уходит: прошивке оно не нужно, а на команду от неё же был бы эхо-ответ.
         // Уход с ITEMS гасит GPS карты; возврат на Map перезапустит апдейты сам.
         if (menu != "ITEMS") {
             mapController.stopLocationUpdates()
@@ -3216,7 +3216,6 @@ class MainActivity : AppCompatActivity() {
             playButtonAudio()
             bluetooth.stopPairingScan()
             saveValues(editSettings1.text.toString(), UIColour_Selector, dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
-            bluetooth.send("STATS")
             recreate()
         }
         // Cancel — выход без сохранения; несохранённые правки теряются, при следующем открытии поля перечитаются.

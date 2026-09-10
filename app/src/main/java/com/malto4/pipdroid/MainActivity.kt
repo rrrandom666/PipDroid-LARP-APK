@@ -3,24 +3,14 @@ package com.malto4.pipdroid
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.PowerManager
-import android.provider.Settings
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.media.MediaPlayer
@@ -28,8 +18,6 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.ParcelUuid
-import android.os.IBinder
 import android.os.Looper
 import android.util.DisplayMetrics
 import android.util.Log
@@ -69,7 +57,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import kotlin.jvm.internal.Intrinsics
 import kotlin.math.absoluteValue
 import kotlin.math.max
@@ -88,10 +75,6 @@ class MainActivity : AppCompatActivity() {
     val playerUIColour_SPKey = "playerUIColour"
     val dateFormat_SPKey = "dateFormat"
     val gameYear_SPKey = "gameYear"
-    val bluetoothMAC_SPKey = "bluetoothMAC"
-    val bluetoothSUUID_SPKey = "bluetoothSUUID"
-    val bluetoothRUUID_SPKey = "bluetoothRUUID"
-    val bluetoothWUUID_SPKey = "bluetoothWUUID"
     val appLanguage_SPKey = "appLanguage"
     val geigerDose_SPKey = "geigerDose"
     val radioLastFrequency_SPKey = "radioLastFrequency"
@@ -256,6 +239,20 @@ class MainActivity : AppCompatActivity() {
             enableTopSwipe = { action -> enableDisableTopSwipe(action) },
         )
     }
+    /** Связь с корпусом по BLE и сканер пейринга; разбор пришедших команд остаётся в активности. */
+    // Тип указан явно: контроллер и enableBluetoothLauncher ссылаются друг на друга, и без него вывод типов зацикливается.
+    private val bluetooth: BluetoothController by lazy {
+        BluetoothController(
+            activity = this,
+            binding = bindingMain,
+            prefs = sharedPreferences,
+            scanPermissionRequestCode = REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN,
+            accentColor = { themeAccentColor() },
+            playButton = { playButtonAudio() },
+            requestEnableBluetooth = { enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) },
+            onCommand = { raw -> handleBleCommand(raw) },
+        )
+    }
     /** Экран выбора режима и мастер настройки PipBoy 2000/3000; сам режим остаётся полем активности. */
     private val setupWizard by lazy {
         SetupWizardController(
@@ -274,10 +271,10 @@ class MainActivity : AppCompatActivity() {
             onModeChosen = { mode -> onPipBoyModeChosen(mode) },
             hasAllRequiredPermissions = { hasAllRequiredPermissions() },
             checkPermissions = { checkPermissions() },
-            setupBluetooth = { setupBluetooth() },
-            startPairingScan = { container, status, onSelect -> startPairingScan(container, status, onSelect) },
-            stopPairingScan = { stopPairingScan() },
-            applyPairedDevice = { address -> applyPairedDevice(address) },
+            setupBluetooth = { bluetooth.start() },
+            startPairingScan = { container, status, onSelect -> bluetooth.startPairingScan(container, status, onSelect) },
+            stopPairingScan = { bluetooth.stopPairingScan() },
+            applyPairedDevice = { address -> bluetooth.applyPairedDevice(address) },
             setPowerOffInstant = { setPowerOffInstant() },
             updateScreenGlare = { updateScreenGlareVisibility() },
             resetToFullScreen = { resetToFullScreen() },
@@ -341,22 +338,6 @@ class MainActivity : AppCompatActivity() {
         encoderTabHighlight = false
     }
     private var pipBoyMode: PipBoyMode = PipBoyMode.PHONE
-    private var bleService: PipBoyBleService? = null
-    private var bleServiceBound = false
-    private val bleServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val bound = (service as PipBoyBleService.LocalBinder).getService()
-            bleService = bound
-            bleServiceBound = true
-            bound.onConnectionStateChanged = { status -> runOnUiThread { updateBLEConnected(status) } }
-            bound.onCommandReceived = { raw -> runOnUiThread { handleBleCommand(raw) } }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            bleService = null
-            bleServiceBound = false
-        }
-    }
     private var debugCommandReceiver: BroadcastReceiver? = null
     /** Пускает строки в тот же handleBleCommand(), что и реальный ESP32 по BLE:
      * adb shell am broadcast -p com.malto4.pipdroid -a com.malto4.pipdroid.DEBUG_BLE_COMMAND --es raw "ENC:+1" */
@@ -403,7 +384,7 @@ class MainActivity : AppCompatActivity() {
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        setupBluetooth()
+        bluetooth.start()
     }
     /** Импорт бандла карты. */
     private val openMapBundleTreeLauncher = registerForActivityResult(
@@ -458,7 +439,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun onRequiredPermissionsGranted() {
         if (setupWizard.showImportIfOnPermissionsStep()) return
-        setupBluetooth()
+        bluetooth.start()
     }
 
     // ===== РАЗМЕР ЭКРАНА =====
@@ -605,7 +586,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN) {
             val bluetoothPanelVisible = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root.visibility == View.VISIBLE
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED } && bluetoothPanelVisible) {
-                startBluetoothPairingScan()
+                bluetooth.startSettingsPairingScan()
             }
         }
     }
@@ -870,67 +851,6 @@ class MainActivity : AppCompatActivity() {
             onRequiredPermissionsGranted()
         }
     }
-    private fun setupBluetooth() {
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter
-        if (adapter == null) {
-            Log.e("MainActivity", "Bluetooth is not supported")
-            return
-        }
-        if (!adapter.isEnabled) {
-            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-            return
-        }
-        requestIgnoreBatteryOptimizations()
-        startAndBindBleService()
-    }
-    private fun startAndBindBleService() {
-        val intent = Intent(this, PipBoyBleService::class.java)
-        ContextCompat.startForegroundService(this, intent)
-        bindService(intent, bleServiceConnection, Context.BIND_AUTO_CREATE)
-    }
-    /** Не обязательное разрешение, а рекомендация системы. */
-    private fun requestIgnoreBatteryOptimizations() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-            try {
-                startActivity(
-                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                )
-            } catch (e: Exception) {
-                Log.w("MainActivity", "Battery optimization settings not available", e)
-            }
-        }
-    }
-    private fun sendBLEText(bleText: String) {
-        if (bleService?.isConnected() == true) {
-            bleService?.sendCommand(bleText)
-            Log.i("MainActivity", "Sending text to BLE device")
-        } else {
-            Log.e("MainActivity", "BluetoothGatt is not connected")
-        }
-    }
-    fun updateBLEConnected(status: String){
-        // status — внутренний токен состояния, подпись для показа берётся из строкового ресурса.
-        val displayText = if (status == "CONNECTED") getString(R.string.bluetooth_status_connected) else getString(R.string.bluetooth_status_disconnected)
-        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.textViewBLUETOOTHConnection.text = displayText
-        // Индикатор BLE в углу row1: состояние передаётся альфой, не сменой drawable.
-        bindingMain.incLayoutHeaderToplevel.imgHeaderBleStatus.alpha = if (status == "CONNECTED") 1.0f else 0.35f
-    }
-    private fun disconnectBLE(){
-        updateBLEConnected("DISCONNECTED")
-        bleService?.disconnect()
-    }
-    private fun stopBleService() {
-        disconnectBLE()
-        if (bleServiceBound) {
-            unbindService(bleServiceConnection)
-            bleServiceBound = false
-        }
-        stopService(Intent(this, PipBoyBleService::class.java))
-    }
 
     // ===== ТЕМА ОФОРМЛЕНИЯ =====
     /** Все ресурсы одной темы оформления в одном месте — раньше это же соответствие было
@@ -1017,7 +937,7 @@ class MainActivity : AppCompatActivity() {
         bindingMain.viewPowerOff.animate().cancel()
         bindingMain.viewPowerOff.visibility = View.GONE
         updateScreenGlareVisibility()
-        stopBleService()
+        bluetooth.stop()
         menuChangeBLE("STATS")
         menuNavigator.resetToRoot(statsMenuRoot())
         // Стартовый курсор энкодера — первый дочерний пункт бокового меню, не сам узел строки 2.
@@ -1101,132 +1021,8 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
-    private var pairingScanCallback: ScanCallback? = null
-    private val pairingFoundAddresses = mutableSetOf<String>()
-    private val pairingScanTimeoutRunnable = Runnable { stopPairingScan() }
-    private val pairingScanDurationMs = 15000L
-    private var pairingDevicesContainer: LinearLayout? = null
-    private var pairingStatusView: TextView? = null
-    private var pairingOnSelect: ((String) -> Unit)? = null
-
-    @SuppressLint("MissingPermission")
-    private fun startPairingScan(devicesContainer: LinearLayout, statusView: TextView, onSelect: (String) -> Unit) {
-        stopPairingScan()
-        pairingDevicesContainer = devicesContainer
-        pairingStatusView = statusView
-        pairingOnSelect = onSelect
-        devicesContainer.removeAllViews()
-        pairingFoundAddresses.clear()
-        statusView.text = getString(R.string.wizard_pairing_scanning)
-
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter
-        if (adapter == null || !adapter.isEnabled) {
-            statusView.text = getString(R.string.wizard_pairing_bluetooth_off)
-            return
-        }
-        val scanner = adapter.bluetoothLeScanner
-        if (scanner == null) {
-            statusView.text = getString(R.string.wizard_pairing_scan_failed)
-            return
-        }
-
-        val filter = ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid.fromString(sharedPreferences.getString(bluetoothSUUID_SPKey, "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")))
-            .build()
-        val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-
-        val callback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                addPairingDevice(result.device.address, result.device.name ?: result.scanRecord?.deviceName)
-            }
-            override fun onScanFailed(errorCode: Int) {
-                Log.e("MainActivity", "BLE scan failed: $errorCode")
-                pairingStatusView?.text = getString(R.string.wizard_pairing_scan_failed)
-            }
-        }
-        pairingScanCallback = callback
-        scanner.startScan(listOf(filter), settings, callback)
-        handler.postDelayed(pairingScanTimeoutRunnable, pairingScanDurationMs)
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun stopPairingScan() {
-        handler.removeCallbacks(pairingScanTimeoutRunnable)
-        val callback = pairingScanCallback ?: return
-        pairingScanCallback = null
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter
-        if (adapter?.isEnabled == true) {
-            adapter.bluetoothLeScanner?.stopScan(callback)
-        }
-        if (pairingFoundAddresses.isEmpty()) {
-            pairingStatusView?.text = getString(R.string.wizard_pairing_none_found)
-        }
-    }
-
-    private fun addPairingDevice(address: String, name: String?) {
-        if (!pairingFoundAddresses.add(address)) return
-        val container = pairingDevicesContainer ?: return
-        val statusView = pairingStatusView ?: return
-        statusView.text = getString(R.string.wizard_pairing_found, pairingFoundAddresses.size)
-        val button = Button(this, null, 0, R.style.PipWizardButtonStyle).apply {
-            text = name ?: address
-            backgroundTintList = ColorStateList.valueOf(themeAccentColor())
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = (12 * resources.displayMetrics.density).toInt() }
-            setOnClickListener {
-                playButtonAudio()
-                pairingOnSelect?.invoke(address)
-            }
-        }
-        GlobalTextScale.register(button)
-        container.addView(button)
-    }
-
-    private fun applyPairedDevice(address: String) {
-        stopPairingScan()
-        sharedPreferences.edit().putString(bluetoothMAC_SPKey, address).apply()
-        val service = bleService
-        if (service != null) {
-            service.reconnectWithCurrentSettings()
-        } else {
-            startAndBindBleService()
-        }
-    }
-
-    private fun selectBluetoothSettingsPairingDevice(address: String) {
-        applyPairedDevice(address)
-        refreshBluetoothCurrentDevice()
-    }
-    private fun startBluetoothPairingScan() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT),
-                REQUEST_CODE_PERMISSION_BLUETOOTH_SETTINGS_SCAN
-            )
-            return
-        }
-        val bt = bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth
-        startPairingScan(bt.layoutBluetoothPairingDevices, bt.tvBluetoothPairingStatus) { address ->
-            selectBluetoothSettingsPairingDevice(address)
-        }
-    }
-    /** Показывает сохранённый сейчас MAC (или "не выбрано", если пейринга ещё не было). */
-    private fun refreshBluetoothCurrentDevice() {
-        val value = sharedPreferences.getString(bluetoothMAC_SPKey, null)
-        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.tvBluetoothCurrentMac.text =
-            value ?: getString(R.string.bluetooth_mac_not_set)
-    }
     private fun skipWizardToMainScreenDebug() {
-        stopPairingScan()
+        bluetooth.stopPairingScan()
         bootSequence.cancelBootSequence()
         setupWizard.hide()
         // Тот же откат дизейбла кнопок и свайпа, что и в finishPhoneModeSetup().
@@ -1622,7 +1418,7 @@ class MainActivity : AppCompatActivity() {
             menuNavigator.resetToRoot(radioMenuRoot())
             val freq = sharedPreferences.getInt(radioLastFrequency_SPKey, RADIO_FREQUENCY_DEFAULT)
             updateRadioFrequencyDisplay(freq)
-            sendBLEText("RADIOFREQ:$freq")
+            bluetooth.send("RADIOFREQ:$freq")
         }
         bindingMain.incLayoutTabDataRadio.tvRadioStatus.setText(
             if (on) R.string.radio_status_on else R.string.radio_status_off
@@ -2351,7 +2147,7 @@ class MainActivity : AppCompatActivity() {
         setupRow2(menu)
         enableDisableBottomButtons(true, listBottomButtons)
         enableDisableTopSwipe(true)
-        sendBLEText(menu)
+        bluetooth.send(menu)
         // Уход с ITEMS гасит GPS карты; возврат на Map перезапустит апдейты сам.
         if (menu != "ITEMS") {
             mapController.stopLocationUpdates()
@@ -2934,7 +2730,7 @@ class MainActivity : AppCompatActivity() {
             enableDisableBottomButtons(false, listBottomButtons)
             enableDisableTopSwipe(false)
         }
-        updateBLEConnected(if (bleService?.isConnected() == true) "CONNECTED" else "DISCONNECTED")
+        bluetooth.refreshConnectionIndicator()
 
         // Дата и время — отдельные поля общей нижней панели, а не один комбинированный формат.
         when(sharedPreferences.getInt(dateFormat_SPKey, 0)){
@@ -3396,9 +3192,9 @@ class MainActivity : AppCompatActivity() {
                 settingsSectionPanels.forEach { it.visibility = if (it === item.payload) View.VISIBLE else View.GONE }
                 // Скан идёт, только пока виден раздел Bluetooth; уход на другой раздел останавливает его безусловно.
                 if (item.payload === bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.root) {
-                    startBluetoothPairingScan()
+                    bluetooth.startSettingsPairingScan()
                 } else {
-                    stopPairingScan()
+                    bluetooth.stopPairingScan()
                 }
             },
         )
@@ -3418,15 +3214,15 @@ class MainActivity : AppCompatActivity() {
         // Save пишет все поля и делает recreate(); saveValues() синхронный — apply() обновляет память сразу.
         saveButtonSettings.setOnClickListener {
             playButtonAudio()
-            stopPairingScan()
+            bluetooth.stopPairingScan()
             saveValues(editSettings1.text.toString(), UIColour_Selector, dateFormat_Selector, editSettings6.isChecked(), editSettings7.isChecked(), editSettingsYear.text.toString().toInt(), editSettingsRegion.text.toString(), languageSelector, editSettings8.isChecked())
-            sendBLEText("STATS")
+            bluetooth.send("STATS")
             recreate()
         }
         // Cancel — выход без сохранения; несохранённые правки теряются, при следующем открытии поля перечитаются.
         cancelButtonSettings.setOnClickListener {
             playButtonAudio()
-            stopPairingScan()
+            bluetooth.stopPairingScan()
             if (!setupWizard.isResizing) {
                 bindingMain.incLayoutSettingsGlobal.root.visibility = View.GONE
                 enableDisableBottomButtons(true, listBottomButtons)
@@ -3472,13 +3268,7 @@ class MainActivity : AppCompatActivity() {
 
         // ===== НАСТРОЙКИ: BLUETOOTH =====
 
-        // Интерфейс мастера заменяет старый ручной ввод MAC и UUID целиком: тап по найденному
-        // устройству сам сохраняет адрес и переподключается.
-        refreshBluetoothCurrentDevice()
-        bindingMain.incLayoutSettingsGlobal.incLayoutTabSettingsBluetooth.btnBluetoothRescan.setOnClickListener {
-            playButtonAudio()
-            startBluetoothPairingScan()
-        }
+        bluetooth.setup()
 
 
         // ===== НАСТРОЙКИ: РЕЖИМ РАБОТЫ =====
@@ -3553,10 +3343,7 @@ class MainActivity : AppCompatActivity() {
         wakeWordDetector?.release()
         voiceDictationService.release()
         // Сервис не останавливаем — он держит BLE-связь в фоне; отвязываемся только от локального биндинга.
-        if (bleServiceBound) {
-            unbindService(bleServiceConnection)
-            bleServiceBound = false
-        }
+        bluetooth.unbind()
         debugCommandReceiver?.let {
             unregisterReceiver(it)
             debugCommandReceiver = null

@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
 /** Разделы STATS/SPECIAL, STATS/Skills и STATS/Perks вместе с экраном фильтра перков. */
 /** Контроллер владеет состоянием трёх разделов и ветками их дерева энкодера; MainActivity остаётся
  * слоем навигации — узел STATUS и обёртки узлов SPECIAL/SKILLS/PERKS строит её statsMenuRoot().
- * Экран фильтра принадлежит Perks: живая ветка when(filteringMenu) в нём ровно одна. */
+ * Экран фильтра принадлежит Perks: развилки по разделам в нём больше нет. */
 internal class StatsController(
     private val activity: AppCompatActivity,
     private val binding: ActivityMainBinding,
@@ -49,7 +49,6 @@ internal class StatsController(
 ) {
     // ===== ФИЛЬТР =====
     private lateinit var filterFrame: FrameLayout
-    private lateinit var filteringMenu: String
     private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
     private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
     private val selectedPerks_SPKey = "selectedSTATSPerksArray"
@@ -546,40 +545,30 @@ internal class StatsController(
         binding.incLayoutFilterModification.btnFilterModificationCancel.setOnClickListener{
             playButton()
             // Откатываем несохранённые правки чекбоксов: saveSelectedItems() не вызывается.
-            when(filteringMenu){
-                "PERKS" -> selectedFilterSTATSPerks = filterSelectionSnapshot.toMutableSet()
-            }
+            selectedFilterSTATSPerks = filterSelectionSnapshot.toMutableSet()
             closeFilterScreen()
         }
 
         binding.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
             playButton()
-            when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(binding.incLayoutFilterModification.filterModificationFrame, localizedPerks, true)
-            }
+            selectClearAllCheckBoxes(binding.incLayoutFilterModification.filterModificationFrame, localizedPerks, true)
         }
 
         binding.incLayoutFilterModification.btnFilterModificationClear.setOnClickListener{
             playButton()
-            when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(binding.incLayoutFilterModification.filterModificationFrame, localizedPerks, false)
-            }
+            selectClearAllCheckBoxes(binding.incLayoutFilterModification.filterModificationFrame, localizedPerks, false)
         }
 
         binding.incLayoutFilterModification.btnFilterModificationFilter.setOnClickListener{
             playButton()
             val filterText = binding.incLayoutFilterModification.etFilterModificationValue.text.toString()
 
-            when(filteringMenu){
-                "PERKS" -> filterList(localizedPerks, filterText)
-            }
+            filterList(localizedPerks, filterText)
         }
 
         binding.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
             playButton()
-            when(filteringMenu){
-                "PERKS" -> saveSelectedItems()
-            }
+            saveSelectedItems()
             closeFilterScreen()
         }
     }
@@ -606,18 +595,14 @@ internal class StatsController(
 
             // Set the CheckBox checked state based on whether the item ID is in selectedItems
             val itemId = item.id
-            when(filteringMenu){
-                "PERKS" -> {
-                    checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        playTick()
-                        if (isChecked) {
-                            selectedFilterSTATSPerks.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterSTATSPerks.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
+            checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
+            // Listen for CheckBox state changes to update selectedItems
+            checkBox.setOnCheckedChangeListener { _, isChecked ->
+                playTick()
+                if (isChecked) {
+                    selectedFilterSTATSPerks.add(itemId)  // Add item ID to selected set
+                } else {
+                    selectedFilterSTATSPerks.remove(itemId)  // Remove item ID from selected set
                 }
             }
 
@@ -647,22 +632,12 @@ internal class StatsController(
                     if (action){
                         if (!it.isChecked) {
                             it.isChecked = true
-                            val itemId = items[i].id
-                            when(filteringMenu){
-                                "PERKS" -> {
-                                    selectedFilterSTATSPerks.add(itemId)
-                                }
-                            }
+                            selectedFilterSTATSPerks.add(items[i].id)
                         }
                     } else {
                         if (it.isChecked) {
                             it.isChecked = false
-                            val itemId = items[i].id
-                            when(filteringMenu){
-                                "PERKS" -> {
-                                    selectedFilterSTATSPerks.remove(itemId)
-                                }
-                            }
+                            selectedFilterSTATSPerks.remove(items[i].id)
                         }
                     }
                 }
@@ -699,7 +674,6 @@ internal class StatsController(
     /** Открывает экран фильтра Perks — точка входа кнопка-воронка на экране Perks. */
     private fun openPerksFilter() {
         playButton()
-        filteringMenu = "PERKS"
         filterSelectionSnapshot = selectedFilterSTATSPerks.toMutableSet()
         listEntries(filterFrame, localizedPerks)
         binding.incLayoutFilterModification.root.visibility = View.VISIBLE

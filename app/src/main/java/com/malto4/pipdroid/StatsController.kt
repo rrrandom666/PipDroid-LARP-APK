@@ -51,8 +51,8 @@ internal class StatsController(
     private lateinit var filterFrame: FrameLayout
     private lateinit var filteringMenu: String
     private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterDATAMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
     private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
+    private val selectedPerks_SPKey = "selectedSTATSPerksArray"
 
     // ===== ДОЛГОЕ НАЖАТИЕ +/- =====
     private var delayIterationCount = 0
@@ -481,7 +481,7 @@ internal class StatsController(
         binding.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
     }
     private fun setupStatsPerks(recyclerView: RecyclerView){
-        val selectedSTATSPerksString = prefs.getString("selectedSTATSPerksArray", "1")
+        val selectedSTATSPerksString = prefs.getString(selectedPerks_SPKey, "1")
         val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
         // Фильтруем по сырому списку, локализуем только отобранное: локализация каждого перка — два getIdentifier().
         val filteredPerksList = perks.filter { perk -> perk.id in selectedSTATSPerksArray }.map { localizePerk(it) }
@@ -578,7 +578,7 @@ internal class StatsController(
         binding.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
             playButton()
             when(filteringMenu){
-                "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
+                "PERKS" -> saveSelectedItems()
             }
             closeFilterScreen()
         }
@@ -678,36 +678,22 @@ internal class StatsController(
         // Display the filtered items in the FrameLayout
         listEntries(filterFrame, filteredItems)
     }
-    private fun saveSelectedItems(filterModificationItems: String) {
-        var selectedItemsString = ""
-        when(filterModificationItems){
-            "selectedSTATSPerksArray" -> {
-                selectedFilterSTATSPerks = selectedFilterSTATSPerks.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterSTATSPerks.joinToString(",")
-            }
-            "selectedDATAMiscArray" -> {
-                selectedFilterDATAMisc = selectedFilterDATAMisc.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterDATAMisc.joinToString(",")
-            }
-        }
-        if (selectedItemsString.isNullOrEmpty()){
+    /** Пустая выборка сохраняется как "1": сам ключ должен остаться непустой строкой. */
+    private fun saveSelectedItems() {
+        selectedFilterSTATSPerks = selectedFilterSTATSPerks.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
+        var selectedItemsString = selectedFilterSTATSPerks.joinToString(",")
+        if (selectedItemsString.isEmpty()){
             selectedItemsString = "1"
         }
-        prefs.edit().putString(filterModificationItems, selectedItemsString).apply()
-        when(filterModificationItems){
-            "selectedSTATSPerksArray" -> {
-                setupStatsPerks(binding.incLayoutTabStatsPerks.recyclerTabPerks)
-            }
-        }
+        prefs.edit().putString(selectedPerks_SPKey, selectedItemsString).apply()
+        setupStatsPerks(binding.incLayoutTabStatsPerks.recyclerTabPerks)
     }
-    /** Поднимает сохранённые выборки фильтров из prefs в фоновом потоке. */
+    /** Поднимает сохранённую выборку фильтра из prefs в фоновом потоке. */
     private suspend fun loadSelectedItems(){
         withContext(Dispatchers.IO) {
-            val selectedSTATSPerksArray = prefs.getString("selectedSTATSPerksArray", "1")
-            val selectedDATAMiscArray = prefs.getString("selectedDATAMiscArray", "1")
+            val selectedSTATSPerksArray = prefs.getString(selectedPerks_SPKey, "1")
 
             if (!selectedSTATSPerksArray.isNullOrEmpty()) selectedFilterSTATSPerks.addAll(selectedSTATSPerksArray.split(","))
-            if (!selectedDATAMiscArray.isNullOrEmpty()) selectedFilterDATAMisc.addAll(selectedDATAMiscArray.split(","))
         }
     }
     /** Открывает экран фильтра Perks — точка входа кнопка-воронка на экране Perks. */

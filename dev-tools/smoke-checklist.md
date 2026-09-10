@@ -16,7 +16,6 @@
 - [ ] STATS → Perks: список отфильтрованных перков тот же, что был (`selectedSTATSPerksArray`)
 - [ ] STATS → Perks: **имя и описание перка по-русски**, не английские (резолв `getIdentifier`)
 - [ ] STATS → Perks: иконка перка отображается
-- [ ] DATA → Misc: отмеченные записи на месте (`selectedDATAMiscArray`)
 - [ ] ITEMS → Гейгер: накопленная доза пережила перезапуск (`geigerDose`)
 - [ ] ITEMS → Часы → Мелодия: выбранная мелодия сохранилась (`selectedRingtoneIndex`)
 - [ ] DATA → Радио: последняя частота восстановилась (`radioLastFrequency`)

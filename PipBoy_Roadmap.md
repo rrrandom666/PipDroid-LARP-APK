@@ -1097,6 +1097,26 @@ SPECIAL/Skills остались на своём месте, а фильтр, к�
 в обоих файлах (в активности их стало четыре, убраны тем же коммитом). Замер по шаблону
 `[Ss]pecial|[Ss]kill|[Pp]erk|[Ff]ilter` теперь не находит в `MainActivity.kt` ни одного члена.
 
+**Мёртвая ветка DATA/Misc убрана — отдельным шагом после выноса.** Специально после, а не
+вместе: сверка выноса сличает текст, и вычищенная по дороге ветка выглядела бы в ней ровно как
+потерянная строка. Убраны поле `selectedFilterDATAMisc`, ветка `"selectedDATAMiscArray"` в
+`saveSelectedItems()` и чтение того же ключа в `loadSelectedItems()`. Следом схлопнулись оба
+`when(filterModificationItems)` и сам параметр — он существовал только чтобы разводить STATS и
+DATA. Освободившийся литерал ключа встречался в файле трижды, поэтому стал полем
+`selectedPerks_SPKey` по образцу `selectedRingtone_SPKey` из `ClockController`: минус один из
+десяти незащищённых ключей, которыми CLAUDE.md пугает не зря.
+
+Слепок подтвердил, что правка ровно такая: `members.txt` разошёлся на 6 строк (ушли
+`selectedFilterDATAMisc` и его синтетический аксессор, `saveSelectedItems(String)` стал
+`saveSelectedItems()`, пришёл `selectedPerks_SPKey` со своим аксессором), `res-files`/`res-names`
+идентичны, в `dynamic-names` пропал `"selectedDATAMiscArray"`, а `"selectedSTATSPerksArray"`
+переехал с голого литерала на константу. Из `dev-tools/smoke-checklist.md` убран пункт про
+восстановление отметок DATA/Misc — проверять больше нечего.
+
+**Что осталось мёртвым и сознательно не тронуто:** `filteringMenu` с пятью одноветочными
+`when` — это каркас под перестройку DATA/MISC, и `dmiscs` в `Data.kt`, который давно висит
+кандидатом на удаление в отдельной уборке.
+
 ### Тесты трёх чистых классов — долг волны 2 закрыт (этап 30)
 
 23 JVM-теста: `MenuNavigator` (12), `GeoReference` (6), `PedestrianRouter` (6). Всего в
@@ -2213,11 +2233,11 @@ boot`/`_wizard`/`_welcome`) как последний дочерний элем�
 **Не в этой части, отдельно всплыло по ходу ревью, не сделано:**
 - `drawable/pip_background.png` — неиспользуемая текстура (тёмно-зелёная, со сканлайнами),
   нигде не подключена, кандидат на удаление.
-- Мёртвый путь `DATA/Misc`-фильтра (`selectedFilterDATAMisc`, ветка `"selectedDATAMiscArray"`
-  в `saveSelectedItems()`/`selectClearAllCheckBoxes()`/`listEntries()`) — реально работает
-  только `"PERKS"` ветка `filteringMenu`, Misc-путь висит мёртвым грузом с тех пор как
-  выяснилось, что `dmiscs` в `Data.kt` — фейковые тестовые записи (см. `CLAUDE.md`,
-  "Hidden content sources").
+- ~~Мёртвый путь `DATA/Misc`-фильтра (`selectedFilterDATAMisc`, ветка `"selectedDATAMiscArray"`
+  в `saveSelectedItems()`)~~ — убран после выноса STATS, см. "Мёртвая ветка DATA/Misc убрана"
+  ниже. Остались одноветочные `when(filteringMenu)` в `listEntries()`/
+  `selectClearAllCheckBoxes()` и сам `dmiscs` в `Data.kt` (фейковые тестовые записи, см.
+  `CLAUDE.md`, "Hidden content sources").
 
 ### Реальная карта — находки и открытые хвосты (этап 18)
 

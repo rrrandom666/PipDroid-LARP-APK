@@ -6,7 +6,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class MapMarker(
     val id: String,
@@ -18,12 +17,7 @@ data class MapMarker(
 
 private data class MarkerListFile(val markers: List<MapMarker>)
 
-/**
- * Маркеры игрока на карте — полный локальный функционал (Фаза E). Источник истины —
- * `markers.json` (Gson), не сами `.md`-файлы: `.md` только для экспорта (см.
- * exportToMarkdown), приложение их обратно не читает. Импорт с голодиска — заглушка,
- * см. HolotapeMarkerSource, реальный BLE-интерфейс голодиска ещё не реализован.
- */
+/** Отметки игрока: источник истины — markers.json, .md-файлы только для экспорта. */
 class MarkerRepository(private val context: Context) {
 
     private val gson = Gson()
@@ -43,8 +37,7 @@ class MarkerRepository(private val context: Context) {
         saveAll(updated)
     }
 
-    /** Переименование существующей отметки (Редактировать на карточке деталей) — совпадение
-     * по id, остальные поля берутся из переданного marker как есть. */
+    /** Переименование по совпадению id, остальные поля берутся как есть. */
     fun update(marker: MapMarker) {
         val updated = loadAll().map { if (it.id == marker.id) marker else it }
         saveAll(updated)
@@ -54,10 +47,7 @@ class MarkerRepository(private val context: Context) {
         markersFile.writeText(gson.toJson(MarkerListFile(markers)))
     }
 
-    /**
-     * Простой текстовый формат (не YAML-frontmatter — решение пользователя): заголовок с
-     * именем + список координат/даты. Приложение сейчас его не читает, только пишет.
-     */
+    /** Простой текстовый формат, не YAML-frontmatter; приложение его только пишет. */
     fun exportToMarkdown(marker: MapMarker): File {
         val exportDir = File(context.getExternalFilesDir(null), "exports").apply { mkdirs() }
         val safeName = marker.name.ifBlank { "marker" }.replace(Regex("[^A-Za-z0-9А-Яа-яЁё _-]"), "_")
@@ -80,13 +70,7 @@ class MarkerRepository(private val context: Context) {
     }
 }
 
-/**
- * Заглушка под будущий импорт `.md`-маркеров с голодиска (BLE-протокол,
- * `HOLOTAPE:LIST`/`HOLOTAPE:READ:<n>`, см. PipBoy_BLE_Protocol_v0.2.md) — интерфейс без
- * реализации, реальный голодиск-интерфейс ещё не построен. Резервирует место в UI
- * (задизейбленная кнопка "Импорт с голодиска" в списке маркеров), чтобы позже не
- * перекраивать экран под неё.
- */
+/** Заглушка под импорт отметок с голодиска — резервирует место в UI до реального BLE-интерфейса. */
 interface HolotapeMarkerSource {
     fun listAvailableFiles(): List<String>
     fun readMarkerFile(name: String): String

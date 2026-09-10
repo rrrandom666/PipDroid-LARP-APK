@@ -6,21 +6,22 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/**
- * Привязка map.png к координатам — линейная интерполяция по прямоугольнику
- * min/max lat/lon из map_bounds.json. Полигоны LARP небольшие по площади,
- * полноценная картографическая проекция не нужна. Y инвертирован: строка 0
- * картинки — север (max_lat), см. extract_map_from_osm()/ax.set_ylim() в
- * falloutize_map.py — картинка растеризуется в этой же геометрии.
- */
+/** Линейная интерполяция по прямоугольнику min/max lat/lon; для площади полигона проекция не нужна. */
+/** Y инвертирован: строка 0 картинки — север. */
 class GeoReference(
     private val bounds: MapBounds,
     private val bitmapWidthPx: Int,
     private val bitmapHeightPx: Int
 ) {
-    fun latLonToPixel(lat: Double, lon: Double): PointF {
+    /** Чистая половина latLonToPixel, без PointF: android.graphics в JVM-тестах кидает "not mocked". */
+    fun latLonToPixelXY(lat: Double, lon: Double): Pair<Double, Double> {
         val x = (lon - bounds.minLon) / (bounds.maxLon - bounds.minLon) * bitmapWidthPx
         val y = (bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat) * bitmapHeightPx
+        return x to y
+    }
+
+    fun latLonToPixel(lat: Double, lon: Double): PointF {
+        val (x, y) = latLonToPixelXY(lat, lon)
         return PointF(x.toFloat(), y.toFloat())
     }
 
@@ -30,9 +31,7 @@ class GeoReference(
         return lat to lon
     }
 
-    /** PhotoView.OnPhotoTapListener отдаёт координаты тапа как долю [0,1] от размеров
-     * картинки, не пиксели — этот хелпер избавляет вызывающий код от знания о размере
-     * битмапа (bitmapWidthPx/bitmapHeightPx и так приватные). */
+    /** PhotoView отдаёт координаты тапа долей [0,1], а не пикселями — хелпер прячет размер битмапа. */
     fun fractionToLatLon(xFraction: Float, yFraction: Float): Pair<Double, Double> =
         pixelToLatLon(xFraction * bitmapWidthPx, yFraction * bitmapHeightPx)
 

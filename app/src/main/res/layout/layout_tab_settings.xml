@@ -70,16 +70,10 @@
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_settings_sidebar"
+            style="@style/SidebarListScrollbar"
             android:layout_width="0.0dip"
             android:layout_height="0.0dip"
-            android:fadeScrollbars="false"
             android:overScrollMode="never"
-            android:scrollbarAlwaysDrawVerticalTrack="true"
-            android:scrollbarSize="3dp"
-            android:scrollbarStyle="insideInset"
-            android:scrollbarThumbVertical="@drawable/scrollbar_custom_green"
-            android:scrollbars="vertical"
-            android:verticalScrollbarPosition="left"
             app:layout_constraintBottom_toTopOf="@id/layout_settings_footer"
             app:layout_constraintEnd_toStartOf="@id/layout_settings_content"
             app:layout_constraintStart_toStartOf="parent"

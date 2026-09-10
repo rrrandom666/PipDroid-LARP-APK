@@ -42,8 +42,6 @@ import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.TranslateAnimation
 import android.widget.Button
-import android.widget.CheckBox
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -63,9 +61,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.CompoundButtonCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.malto4.pipdroid.databinding.ActivityMainBinding
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -234,6 +230,30 @@ class MainActivity : AppCompatActivity() {
             suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
             syncRow2Active = { syncRow2ActiveFromNavigator() },
             isVoiceCommandBusy = { awaitingVoiceCommand },
+        )
+    }
+    /** Разделы STATS/SPECIAL, Skills и Perks вместе с экраном фильтра перков. */
+    private val statsController by lazy {
+        StatsController(
+            activity = this,
+            binding = bindingMain,
+            prefs = sharedPreferences,
+            navigator = menuNavigator,
+            mode = { pipBoyMode },
+            accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            statsMenuRoot = { statsMenuRoot() },
+            backSidebarItem = { backSidebarItem() },
+            menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
+            recordScrollValueEditor = { scrollView -> recordScrollValueEditor(scrollView) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playConfirm = { playConfirmAudio() },
+            playError = { playErrorAudio() },
+            syncRow2Active = { syncRow2ActiveFromNavigator() },
+            enableBottomButtons = { action -> enableDisableBottomButtons(action, listBottomButtons) },
+            enableTopSwipe = { action -> enableDisableTopSwipe(action) },
         )
     }
     /** Экран выбора режима и мастер настройки PipBoy 2000/3000; сам режим остаётся полем активности. */
@@ -476,18 +496,9 @@ class MainActivity : AppCompatActivity() {
         R.string.tutorial_page_voice,
     )
 
-    // ===== ФИЛЬТР =====
-    private lateinit var filterFrame: FrameLayout
-    private lateinit var filteringMenu: String
-    private var selectedFilterSTATSPerks = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var selectedFilterDATAMisc = mutableSetOf<String>()  // Set to keep track of selected item IDs
-    private var filterSelectionSnapshot: MutableSet<String> = mutableSetOf()
-
     // ===== ДОЛГИЕ НАЖАТИЯ: пасхалка и урон игрока =====
     private var statsCndPopupIsHolding = false
     private var menuSwipeEnabled = true
-    private var delayIterationCount = 0
-    private var delayModify = 500L
 
     // ===== STATUS =====
     private enum class WoundPhase { NONE, BLEED, BANDAGE, STUNNED, DEAD }
@@ -501,89 +512,18 @@ class MainActivity : AppCompatActivity() {
     private var crippledLeftLeg = false
     private var crippledRightLeg = false
 
-    private var selectedSPECIAL = "STRENGTH"
-    private var isSPECIALValueIncreasing = false
-    private var isSPECIALValueDecreasing = false
-
-    /** Метаданные 7 характеристик SPECIAL — единственный источник для SidebarMenuAdapter. */
-    private data class SpecialMeta(
-        val key: String,
-        val labelRes: Int,
-        val prefKey: String,
-        val imageRes: Int,
-        val descriptionRes: Int,
-    )
-    private val specialMeta = listOf(
-        SpecialMeta("STRENGTH", R.string.stats_special_strength, "SPECIAL_S", R.drawable.special_strength, R.string.special_strength_description),
-        SpecialMeta("PERCEPTION", R.string.special_perception, "SPECIAL_P", R.drawable.special_perception, R.string.special_perception_description),
-        SpecialMeta("ENDURANCE", R.string.special_endurance, "SPECIAL_E", R.drawable.special_endurance, R.string.special_endurance_description),
-        SpecialMeta("CHARISMA", R.string.special_charisma, "SPECIAL_C", R.drawable.special_charisma, R.string.special_charisma_description),
-        SpecialMeta("INTELLIGENCE", R.string.special_intelligence, "SPECIAL_I", R.drawable.special_intelligence, R.string.special_intelligence_description),
-        SpecialMeta("AGILITY", R.string.special_agility, "SPECIAL_A", R.drawable.special_agility, R.string.special_agility_description),
-        SpecialMeta("LUCK", R.string.special_luck, "SPECIAL_L", R.drawable.special_luck, R.string.special_luck_description),
-    )
-    private lateinit var specialAdapter: SidebarMenuAdapter<String>
-
-    private var selectedSKILL = "BARTER"
-    private var isSKILLValueIncreasing = false
-    private var isSKILLValueDecreasing = false
-
-    /** Метаданные 13 навыков Skills. */
-    private data class SkillMeta(
-        val key: String,
-        val labelRes: Int,
-        val prefKey: String,
-        val imageRes: Int,
-        val descriptionRes: Int,
-    )
-    private val skillsMeta = listOf(
-        SkillMeta("BARTER", R.string.skill_barter, "SKILLS_1", R.drawable.skills_barter, R.string.skill_barter_description),
-        SkillMeta("BIGGUNS", R.string.skill_big_guns, "SKILLS_2", R.drawable.skills_big_guns, R.string.skill_big_guns_description),
-        SkillMeta("ENERGYWEAPONS", R.string.skill_energy_weapons, "SKILLS_3", R.drawable.skills_energy_weapons, R.string.skill_energy_weapons_description),
-        SkillMeta("EXPLOSIVES", R.string.skill_explosives, "SKILLS_4", R.drawable.skills_explosives, R.string.skill_explosives_description),
-        SkillMeta("LOCKPICK", R.string.skill_lockpick, "SKILLS_5", R.drawable.skills_lockpick, R.string.skill_lockpick_description),
-        SkillMeta("MEDICINE", R.string.skill_medicine, "SKILLS_6", R.drawable.skills_medicine, R.string.skill_medicine_description),
-        SkillMeta("MELEEWEAPONS", R.string.skill_melee_weapons, "SKILLS_7", R.drawable.skills_melee_weapons, R.string.skill_melee_weapons_description),
-        SkillMeta("REPAIR", R.string.skill_repair, "SKILLS_8", R.drawable.skills_repair, R.string.skill_repair_description),
-        SkillMeta("SCIENCE", R.string.skill_science, "SKILLS_9", R.drawable.skills_science, R.string.skill_science_description),
-        SkillMeta("SMALLGUNS", R.string.skill_small_guns, "SKILLS_10", R.drawable.skills_small_guns, R.string.skill_small_guns_description),
-        SkillMeta("SNEAK", R.string.skill_sneak, "SKILLS_11", R.drawable.skills_sneak, R.string.skill_sneak_description),
-        SkillMeta("SPEECH", R.string.skill_speech, "SKILLS_12", R.drawable.skills_speech, R.string.skill_speech_description),
-        SkillMeta("UNARMED", R.string.skill_unarmed, "SKILLS_13", R.drawable.skills_unarmed, R.string.skill_unarmed_description),
-    )
-    private lateinit var skillsAdapter: SidebarMenuAdapter<String>
-
-    // Perks
-    private lateinit var perksAdapter: SidebarMenuAdapter<Perk>
-    private var perksRealItemCount = 0
-
     private lateinit var selectedSubMenu: Button
 
     private val handler = Handler(Looper.getMainLooper())
     // 300мс-тик часов; ссылка нужна, чтобы onDestroy() его остановил.
     private var tickThread: Thread? = null
-    private val longPressRunnable = object : Runnable {
-        override fun run() {
-            if (statsCndPopupIsHolding) {
-                bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility = View.VISIBLE
-                bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.layoutTabStatusCndContent.visibility = View.GONE
-                bindingMain.incLayoutFilterModification.root.visibility = View.GONE
-                enableDisableBottomButtons(false, listBottomButtons)
-                enableDisableTopSwipe(false)
-            }
-            if(isSPECIALValueIncreasing || isSPECIALValueDecreasing){
-                adjustSelectedSpecial(if (isSPECIALValueIncreasing) 1 else -1)
-                handler.postDelayed(this, 500) // 500 msecond — SPECIAL (1-10) не разгоняется
-            }
-            if(isSKILLValueIncreasing || isSKILLValueDecreasing){
-                adjustSelectedSkill(if (isSKILLValueIncreasing) 1 else -1)
-                if (delayIterationCount % 10 == 0) {
-                    // Decrease the delay every 10 iterations
-                    delayModify = (delayModify * 0.9).toLong().coerceAtLeast(50L) // Minimum delay of 100ms
-                }
-                delayIterationCount++
-                handler.postDelayed(this, delayModify)
-            }
+    private val longPressRunnable = Runnable {
+        if (statsCndPopupIsHolding) {
+            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility = View.VISIBLE
+            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.layoutTabStatusCndContent.visibility = View.GONE
+            bindingMain.incLayoutFilterModification.root.visibility = View.GONE
+            enableDisableBottomButtons(false, listBottomButtons)
+            enableDisableTopSwipe(false)
         }
     }
 
@@ -1542,73 +1482,15 @@ class MainActivity : AppCompatActivity() {
             children = statusChildrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsStatus) }
         )
-        // SPECIAL: onHighlight зовёт setSelectedPositionSilently(), а не громкий selectPosition() — тот сработал бы как ENCBTN.
+        // SPECIAL, Skills и Perks: сами ветки строит StatsController, здесь только обёртки узлов.
         val specialNode = MenuNode(
             id = "SPECIAL",
-            children = specialMeta.mapIndexed { index, meta ->
-                MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        specialAdapter.setSelectedPositionSilently(index)
-                        showSpecialPreview(meta)
-                    },
-                    valueEditor = ValueEditor(
-                        onAdjust = { delta ->
-                            val special = bindingMain.incLayoutTabStatsSpecial
-                            flashButtonPressImmediate(if (delta > 0) special.btnSpecialIncrease else special.btnSpecialDecrease)
-                            adjustSelectedSpecial(delta)
-                        },
-                        onEnter = {
-                            playConfirmAudio()
-                            setSpecialValueEditorFocused(true)
-                        },
-                        onExit = {
-                            // Звук выхода из редактирования должен отличаться от звука входа и нажатий +/-.
-                            playTickAudio()
-                            setSpecialValueEditorFocused(false)
-                        },
-                    ),
-                )
-            } + menuBackNode(
-                pipBoyMode,
-                onHighlight = { specialAdapter.setSelectedPositionSilently(specialMeta.size) },
-                onBeforePop = { specialAdapter.flashPressAnimation(specialMeta.size) },
-            ),
+            children = statsController.specialChildrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsSpecial) }
         )
-        // Skills — тот же приём (onHighlight silently + showSkillPreview()), что у specialNode выше.
         val skillsNode = MenuNode(
             id = "SKILLS",
-            children = skillsMeta.mapIndexed { index, meta ->
-                MenuNode(
-                    id = meta.key,
-                    onHighlight = {
-                        playTickAudio()
-                        skillsAdapter.setSelectedPositionSilently(index)
-                        showSkillPreview(meta)
-                    },
-                    valueEditor = ValueEditor(
-                        onAdjust = { delta ->
-                            val skills = bindingMain.incLayoutTabStatsSkills
-                            flashButtonPressImmediate(if (delta > 0) skills.btnSkillIncrease else skills.btnSkillDecrease)
-                            adjustSelectedSkill(delta)
-                        },
-                        onEnter = {
-                            playConfirmAudio()
-                            setSkillValueEditorFocused(true)
-                        },
-                        onExit = {
-                            playTickAudio()
-                            setSkillValueEditorFocused(false)
-                        },
-                    ),
-                )
-            } + menuBackNode(
-                pipBoyMode,
-                onHighlight = { skillsAdapter.setSelectedPositionSilently(skillsMeta.size) },
-                onBeforePop = { skillsAdapter.flashPressAnimation(skillsMeta.size) },
-            ),
+            children = statsController.skillsChildrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsSkills) }
         )
         val bottom = bindingMain.incLayoutTabStatsBottom
@@ -1618,7 +1500,7 @@ class MainActivity : AppCompatActivity() {
             skillsNode,
             MenuNode(
                 id = "PERKS",
-                children = perksChildrenNodes(),
+                children = statsController.perksChildrenNodes(),
                 onHighlight = { simulateEncoderTabHighlight(bottom.btnStatsPerks) },
             ),
         )
@@ -1954,58 +1836,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    /** Превью SPECIAL при движении курсора; onHighlight зовёт эту функцию, а не громкий selectPosition(). */
-    private fun showSpecialPreview(meta: SpecialMeta) {
-        selectedSPECIAL = meta.key
-        bindingMain.incLayoutTabStatsSpecial.imgSpecialSelected.setImageResource(meta.imageRes)
-        bindingMain.incLayoutTabStatsSpecial.tvSpecialDescriptionsText.setText(meta.descriptionRes)
-    }
-    /** Тот же приём, что у showSpecialPreview() выше, для Skills. */
-    private fun showSkillPreview(meta: SkillMeta) {
-        selectedSKILL = meta.key
-        bindingMain.incLayoutTabStatsSkills.imgSkillSelected.setImageResource(meta.imageRes)
-        bindingMain.incLayoutTabStatsSkills.tvSkillDescriptionsText.setText(meta.descriptionRes)
-    }
-    /** Кнопки +/- SPECIAL и Skills: значения клампятся на границе диапазона, а не зацикливаются. */
-    private fun adjustSelectedSpecial(delta: Int) {
-        val position = specialMeta.indexOfFirst { it.key == selectedSPECIAL }
-        if (position == -1) return
-        val meta = specialMeta[position]
-        val prevValue = sharedPreferences.getInt(meta.prefKey, 5)
-        val curValue = (prevValue + delta).coerceIn(1, 10)
-        sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
-        specialAdapter.updateItemValue(position, curValue.toString())
-        if (curValue == prevValue) playErrorAudio() else playConfirmAudio()
-        // Тап по +/- переставляет курсор на характеристику и входит в её ValueEditor; guard — чтобы не переигрывать onEnter при удержании.
-        if (menuNavigator.editingNodeId() != meta.key) {
-            syncStatsEncoderPathSilently("SPECIAL", listOf(position))
-            menuNavigator.activateSelected()
-        }
-    }
-    private fun adjustSelectedSkill(delta: Int) {
-        val position = skillsMeta.indexOfFirst { it.key == selectedSKILL }
-        if (position == -1) return
-        val meta = skillsMeta[position]
-        val prevValue = sharedPreferences.getInt(meta.prefKey, 10)
-        val curValue = (prevValue + delta).coerceIn(10, 100)
-        sharedPreferences.edit().putInt(meta.prefKey, curValue).apply()
-        skillsAdapter.updateItemValue(position, curValue.toString())
-        if (curValue == prevValue) playErrorAudio() else playConfirmAudio()
-        // Тот же приём, что у adjustSelectedSpecial() выше.
-        if (menuNavigator.editingNodeId() != meta.key) {
-            syncStatsEncoderPathSilently("SKILLS", listOf(position))
-            menuNavigator.activateSelected()
-        }
-    }
     /** Общий признак "энкодер сфокусирован здесь" — четыре L-уголка на отдельном View рядом с целью. */
     private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) =
         applyFocusBrackets(bracketsView, pipBoyMode, visible)
-    private fun setSpecialValueEditorFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus, focused)
-    }
-    private fun setSkillValueEditorFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsSkills.viewSkillValueFocus, focused)
-    }
     private fun setWoundStopButtonFocused(focused: Boolean) {
         setFocusBracketsVisible(
             bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewWoundStopFocus,
@@ -2229,26 +2062,6 @@ class MainActivity : AppCompatActivity() {
             onExit = { playTickAudio() },
         )
     }
-    private fun specialSidebarItems(): List<SidebarMenuItem<String>> {
-        val items = specialMeta.map { meta ->
-            SidebarMenuItem(
-                payload = meta.key,
-                label = getString(meta.labelRes),
-                rightValue = sharedPreferences.getInt(meta.prefKey, 5).toString(),
-            )
-        }
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
-    }
-    private fun skillsSidebarItems(): List<SidebarMenuItem<String>> {
-        val items = skillsMeta.map { meta ->
-            SidebarMenuItem(
-                payload = meta.key,
-                label = getString(meta.labelRes),
-                rightValue = sharedPreferences.getInt(meta.prefKey, 10).toString(),
-            )
-        }
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem() else items
-    }
     private fun statusSidebarItems(): List<SidebarMenuItem<String>> {
         // "В меню" дизейблится вместе со списком ранений; энкодер туда в это время вообще не попадает.
         val enabled = woundPhase == WoundPhase.NONE
@@ -2290,8 +2103,7 @@ class MainActivity : AppCompatActivity() {
     }
     /** Пересобирает три списка, когда режим стал известен после onCreate(); нужен setItems целиком, не точечная правка. */
     private fun refreshSidebarBackItems() {
-        specialAdapter.setItems(specialSidebarItems(), resetSelection = false)
-        skillsAdapter.setItems(skillsSidebarItems(), resetSelection = false)
+        statsController.refreshModeGating()
         statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
         refreshGeigerMenuButtonVisibility()
@@ -2882,231 +2694,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== ЭКРАН ФИЛЬТРА =====
-    private fun listEntries(frameLayout: FrameLayout, items: List<Perk>){
-
-        frameLayout.removeAllViews()
-
-        // Create a LinearLayout to hold the entries
-        val linearLayout = LinearLayout(this)
-        linearLayout.orientation = LinearLayout.VERTICAL
-
-        // Iterate over the items and create CheckBox and TextView for each
-        for (item in items) {
-            val checkBox = CheckBox(this)
-            // Чекбокс тонируется акцентом: Material-дефолт на тёмном фоне почти не виден.
-            CompoundButtonCompat.setButtonTintList(checkBox, ColorStateList.valueOf(themeAccentColor()))
-            val textView = TextView(this).apply {
-                // Set the text for the TextView to the "name" value
-                text = item.name
-                // Set custom font to button
-                typeface = TypefaceCache.getPipboyTypeface(context) // Set the loaded typeface
-            }
-
-            // Set the CheckBox checked state based on whether the item ID is in selectedItems
-            val itemId = item.id
-            when(filteringMenu){
-                "PERKS" -> {
-                    checkBox.isChecked = selectedFilterSTATSPerks.contains(itemId)
-                    // Listen for CheckBox state changes to update selectedItems
-                    checkBox.setOnCheckedChangeListener { _, isChecked ->
-                        playTickAudio()
-                        if (isChecked) {
-                            selectedFilterSTATSPerks.add(itemId)  // Add item ID to selected set
-                        } else {
-                            selectedFilterSTATSPerks.remove(itemId)  // Remove item ID from selected set
-                        }
-                    }
-                }
-            }
-
-            GlobalTextScale.register(textView)
-
-            // Add CheckBox and TextView to a horizontal layout
-            val entryLayout = LinearLayout(this)
-            entryLayout.orientation = LinearLayout.HORIZONTAL
-            entryLayout.addView(checkBox)
-            entryLayout.addView(textView)
-
-            // Add the entry layout to the main LinearLayout
-            linearLayout.addView(entryLayout)
-        }
-
-        // Add the LinearLayout with all entries to the FrameLayout
-        frameLayout.addView(linearLayout)
-    }
-
-    private fun selectClearAllCheckBoxes(frameLayout: FrameLayout, items: List<Perk>, action: Boolean) {
-        val linearLayout = frameLayout.getChildAt(0) as? LinearLayout ?: return
-        for (i in 0 until linearLayout.childCount) {
-            val entryLayout = linearLayout.getChildAt(i) as? LinearLayout
-            entryLayout?.let { layout ->
-                val checkBox = layout.getChildAt(0) as? CheckBox
-                checkBox?.let {
-                    if (action){
-                        if (!it.isChecked) {
-                            it.isChecked = true
-                            val itemId = items[i].id
-                            when(filteringMenu){
-                                "PERKS" -> {
-                                    selectedFilterSTATSPerks.add(itemId)
-                                }
-                            }
-                        }
-                    } else {
-                        if (it.isChecked) {
-                            it.isChecked = false
-                            val itemId = items[i].id
-                            when(filteringMenu){
-                                "PERKS" -> {
-                                    selectedFilterSTATSPerks.remove(itemId)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun filterList(items: List<Perk>, searchText: String) {
-        val filteredItems = items.filter { item ->
-            item.name.split(" ").any { word -> word.contains(searchText, ignoreCase = true) }
-        }
-
-        // Display the filtered items in the FrameLayout
-        listEntries(filterFrame, filteredItems)
-    }
-    private fun saveSelectedItems(filterModificationItems: String) {
-        var selectedItemsString = ""
-        when(filterModificationItems){
-            "selectedSTATSPerksArray" -> {
-                selectedFilterSTATSPerks = selectedFilterSTATSPerks.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterSTATSPerks.joinToString(",")
-            }
-            "selectedDATAMiscArray" -> {
-                selectedFilterDATAMisc = selectedFilterDATAMisc.map { it.toInt() }.sorted().map { it.toString() }.toMutableSet()
-                selectedItemsString = selectedFilterDATAMisc.joinToString(",")
-            }
-        }
-        if (selectedItemsString.isNullOrEmpty()){
-            selectedItemsString = "1"
-        }
-        sharedPreferences.edit().putString(filterModificationItems, selectedItemsString).apply()
-        when(filterModificationItems){
-            "selectedSTATSPerksArray" -> {
-                setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
-            }
-        }
-    }
-    /** Поднимает сохранённые выборки фильтров из prefs в фоновом потоке. */
-    suspend fun loadSelectedItems(){
-        withContext(Dispatchers.IO) {
-            val selectedSTATSPerksArray = sharedPreferences.getString("selectedSTATSPerksArray", "1")
-            val selectedDATAMiscArray = sharedPreferences.getString("selectedDATAMiscArray", "1")
-
-            if (!selectedSTATSPerksArray.isNullOrEmpty()) selectedFilterSTATSPerks.addAll(selectedSTATSPerksArray.split(","))
-            if (!selectedDATAMiscArray.isNullOrEmpty()) selectedFilterDATAMisc.addAll(selectedDATAMiscArray.split(","))
-        }
-    }
-    /** Открывает экран фильтра Perks — точка входа кнопка-воронка на экране Perks. */
-    private fun openPerksFilter() {
-        playButtonAudio()
-        filteringMenu = "PERKS"
-        filterSelectionSnapshot = selectedFilterSTATSPerks.toMutableSet()
-        listEntries(filterFrame, localizedPerks)
-        bindingMain.incLayoutFilterModification.root.visibility = View.VISIBLE
-        bindingMain.layoutStats.visibility = View.GONE
-        bindingMain.layoutItems.visibility = View.GONE
-        bindingMain.layoutData.visibility = View.GONE
-        enableDisableBottomButtons(false, listBottomButtons)
-        enableDisableTopSwipe(false)
-    }
-    /** Закрывает экран фильтра — общая часть для Save и Cancel. */
-    private fun closeFilterScreen() {
-        bindingMain.incLayoutFilterModification.root.visibility = View.GONE
-        bindingMain.layoutStats.visibility = View.VISIBLE
-        bindingMain.layoutItems.visibility = View.VISIBLE
-        bindingMain.layoutData.visibility = View.VISIBLE
-        enableDisableBottomButtons(true, listBottomButtons)
-        enableDisableTopSwipe(true)
-    }
-    /** Локализация перка: Data.kt хранит только английский, перевод резолвится через perk_<id>_name/_desc. */
-    /** Считается один раз: язык меняется только полным рестартом Activity. */
-    private fun localizePerk(perk: Perk): Perk {
-        val nameResId = resources.getIdentifier("perk_${perk.id}_name", "string", packageName)
-        val descResId = resources.getIdentifier("perk_${perk.id}_desc", "string", packageName)
-        return perk.copy(
-            name = if (nameResId != 0) getString(nameResId) else perk.name,
-            desc = if (descResId != 0) getString(descResId) else perk.desc,
-        )
-    }
-    private val localizedPerks: List<Perk> by lazy {
-        perks.map { perk -> localizePerk(perk) }
-    }
-    /** Превью описания и иконки Perks при движении курсора — общее для тапа и для наведения энкодером. */
-    private fun showPerkDescription(perk: Perk) {
-        bindingMain.incLayoutTabStatsPerks.tvPerksDescriptionsText.text = perk.desc
-        bindingMain.incLayoutTabStatsPerks.imgPerksSelected.setImageResource(perk.iconRes)
-        // Сброс прокрутки на новую запись, иначе новый текст покажется со смещения предыдущего.
-        bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText.scrollTo(0, 0)
-    }
-    private fun setupStatsPerks(recyclerView: RecyclerView){
-        val selectedSTATSPerksString = sharedPreferences.getString("selectedSTATSPerksArray", "1")
-        val selectedSTATSPerksArray: Array<String> = selectedSTATSPerksString!!.split(",").toTypedArray()
-        // Фильтруем по сырому списку, локализуем только отобранное: локализация каждого перка — два getIdentifier().
-        val filteredPerksList = perks.filter { perk -> perk.id in selectedSTATSPerksArray }.map { localizePerk(it) }
-        perksRealItemCount = filteredPerksList.size
-
-        val realItems = filteredPerksList.map { perk -> SidebarMenuItem(payload = perk, label = perk.name) }
-        perksAdapter = SidebarMenuAdapter(
-            items = if (pipBoyMode != PipBoyMode.PHONE) realItems + perksBackSidebarItem() else realItems,
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // Звук даёт onSelect ниже — тик отсюда его дублировал.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация курсора: syncCursor() чинит его только внутри активного уровня.
-                if (item.payload.id == SIDEBAR_BACK_PAYLOAD) {
-                    playConfirmAudio()
-                    syncStatsEncoderPath("PERKS", emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else {
-                    showPerkDescription(item.payload)
-                    // Тап равносилен ENCBTN: курсор проваливается сразу в прокрутку описания, превью уже применено выше.
-                    syncStatsEncoderPathSilently("PERKS", listOf(position))
-                    menuNavigator.activateSelected()
-                }
-            },
-        )
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = perksAdapter
-        filteredPerksList.firstOrNull()?.let { showPerkDescription(it) }
-        // Список фильтруется, поэтому дерево пересобирается при каждом изменении, а не только при входе в STATS.
-        menuNavigator.replaceChildrenOf("PERKS", perksChildrenNodes())
-    }
-    /** Пункт "В меню" для Perks — payload того же типа, что у реальных перков, с id-маркером. */
-    private fun perksBackSidebarItem(): SidebarMenuItem<Perk> =
-        SidebarMenuItem(payload = Perk(SIDEBAR_BACK_PAYLOAD, "", "", 0), label = getString(R.string.sidebar_menu_back))
-    /** Дети PERKS пересчитываются заново на каждый вызов; onHighlight обновляет превью молча. */
-    private fun perksChildrenNodes(): List<MenuNode> {
-        return (0 until perksRealItemCount).map { index ->
-            // ENCBTN на перке входит в прокрутку описания, а не поднимает наверх; повторный — обратно к списку.
-            MenuNode(
-                id = "PERK_$index",
-                onHighlight = {
-                    playTickAudio()
-                    perksAdapter.setSelectedPositionSilently(index)
-                    perksAdapter.currentItems().getOrNull(index)?.let { showPerkDescription(it.payload) }
-                },
-                valueEditor = recordScrollValueEditor(bindingMain.incLayoutTabStatsPerks.scrollviewPerksDescriptionsText),
-            )
-        } + menuBackNode(
-            pipBoyMode,
-            onHighlight = { perksAdapter.setSelectedPositionSilently(perksRealItemCount) },
-            onBeforePop = { perksAdapter.flashPressAnimation(perksRealItemCount) },
-        )
-    }
     // ===== SharedPreferences =====
     private fun saveValues(etSettings1: String, uiColourID: Int, dateFormat: Int, showTutorial: Boolean, trueFullscreen: Boolean, gameYear: Int, playerRegion: String, languageID: Int, ambientSoundEnabled: Boolean) {
         sharedPreferences.edit()
@@ -3257,53 +2844,8 @@ class MainActivity : AppCompatActivity() {
         setBottomButtons(bindingMain.incLayoutTabStatsBottom.btnStatsStatus, bindingMain.incLayoutTabStatsBottom.btnStatsSpecial, bindingMain.incLayoutTabStatsBottom.btnStatsSkills, bindingMain.incLayoutTabStatsBottom.btnStatsPerks)
 
 
-        // Пункт "В меню" требует отдельной ветки ДО поиска по specialMeta — иначе first{} упал бы с исключением.
-        specialAdapter = SidebarMenuAdapter(
-            items = specialSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // Звук даёт onSelect ниже; тик остаётся только там, где его играет реальное вращение энкодера.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация курсора: syncCursor() чинит его только внутри активного уровня.
-                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playConfirmAudio()
-                    syncStatsEncoderPath("SPECIAL", emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else {
-                    showSpecialPreview(specialMeta.first { it.key == item.payload })
-                    // Тап равносилен ENCBTN: курсор проваливается сразу в редактирование значения.
-                    syncStatsEncoderPathSilently("SPECIAL", listOf(position))
-                    menuNavigator.activateSelected()
-                }
-            },
-        )
-        bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial.layoutManager = LinearLayoutManager(this)
-        bindingMain.incLayoutTabStatsSpecial.scrollTabSpecial.adapter = specialAdapter
-
-        // Skills — тот же общий компонент вместо 13 скопированных XML-блоков и 13 обработчиков.
-        skillsAdapter = SidebarMenuAdapter(
-            items = skillsSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            // {} — см. подробный комментарий у specialAdapter выше, тот же приём.
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация курсора — тот же приём, что у SPECIAL.
-                if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    playConfirmAudio()
-                    syncStatsEncoderPath("SKILLS", emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else {
-                    showSkillPreview(skillsMeta.first { it.key == item.payload })
-                    // Тап равносилен ENCBTN — тот же приём, что у SPECIAL выше.
-                    syncStatsEncoderPathSilently("SKILLS", listOf(position))
-                    menuNavigator.activateSelected()
-                }
-            },
-        )
-        bindingMain.incLayoutTabStatsSkills.scrollTabSkills.layoutManager = LinearLayoutManager(this)
-        bindingMain.incLayoutTabStatsSkills.scrollTabSkills.adapter = skillsAdapter
+        // Оба списка STATS, экран фильтра и кнопки +/- — за StatsController; порядок блоков внутри тот же.
+        statsController.setup()
 
         // Звук решает сам onSelect; enabled у всех трёх пунктов следует за woundPhase и обновляется
         // в updateWoundButtonsUI(), здесь только начальное состояние.
@@ -3509,70 +3051,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-
-        // ===== ЭКРАН ФИЛЬТРА =====
-
-        filterFrame = bindingMain.incLayoutFilterModification.filterModificationFrame
-        CoroutineScope(Dispatchers.Main).launch {
-            loadSelectedItems()
-            // Any UI updates can be done here after the function completes
-        }
-
-        // Плейсхолдер красится акцентом с тем же затенением, что у соседних пунктов row2 — дефолтный hint слишком блёклый.
-        bindingMain.incLayoutFilterModification.etFilterModificationValue.setHintTextColor(
-            ColorUtils.setAlphaComponent(themeAccentColor(), (0.55f * 255).toInt())
-        )
-
-        // Пять кнопок экрана: нейтральная заливка из стиля, акцент темы — backgroundTintList кодом.
-        val filterAccent = themeAccentColor()
-        listOf(
-            bindingMain.incLayoutFilterModification.btnFilterModificationCancel,
-            bindingMain.incLayoutFilterModification.btnFilterModificationFilter,
-            bindingMain.incLayoutFilterModification.btnFilterModificationSelect,
-            bindingMain.incLayoutFilterModification.btnFilterModificationClear,
-            bindingMain.incLayoutFilterModification.btnFilterModificationSave
-        ).forEach { it.backgroundTintList = ColorStateList.valueOf(filterAccent) }
-
-        bindingMain.incLayoutFilterModification.btnFilterModificationCancel.setOnClickListener{
-            playButtonAudio()
-            // Откатываем несохранённые правки чекбоксов: saveSelectedItems() не вызывается.
-            when(filteringMenu){
-                "PERKS" -> selectedFilterSTATSPerks = filterSelectionSnapshot.toMutableSet()
-            }
-            closeFilterScreen()
-        }
-
-        bindingMain.incLayoutFilterModification.btnFilterModificationSelect.setOnClickListener{
-            playButtonAudio()
-            when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, true)
-            }
-        }
-
-        bindingMain.incLayoutFilterModification.btnFilterModificationClear.setOnClickListener{
-            playButtonAudio()
-            when(filteringMenu){
-                "PERKS" -> selectClearAllCheckBoxes(bindingMain.incLayoutFilterModification.filterModificationFrame, localizedPerks, false)
-            }
-        }
-
-        bindingMain.incLayoutFilterModification.btnFilterModificationFilter.setOnClickListener{
-            playButtonAudio()
-            val filterText = bindingMain.incLayoutFilterModification.etFilterModificationValue.text.toString()
-
-            when(filteringMenu){
-                "PERKS" -> filterList(localizedPerks, filterText)
-            }
-        }
-
-        bindingMain.incLayoutFilterModification.btnFilterModificationSave.setOnClickListener{
-            playButtonAudio()
-            when(filteringMenu){
-                "PERKS" -> saveSelectedItems("selectedSTATSPerksArray")
-            }
-            closeFilterScreen()
-        }
-
         // ===== STATS =====
 
         // ===== STATS: STATUS =====
@@ -3671,52 +3149,10 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.GONE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
             menuNavigator.setRootCursor(1)
-            specialAdapter.clearSelection()
+            statsController.clearSpecialSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-
-        // Клики по пунктам SPECIAL живут внутри specialAdapter.
-
-        // Тап меняет значение на 1, удержание повторяет; у SPECIAL разгона нет — фиксированные 500мс.
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.setOnClickListener {
-            adjustSelectedSpecial(1)
-        }
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isSPECIALValueIncreasing = true
-                    handler.postDelayed(longPressRunnable, 500)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIALValueIncreasing = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.setOnClickListener {
-            adjustSelectedSpecial(-1)
-        }
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isSPECIALValueDecreasing = true
-                    handler.postDelayed(longPressRunnable, 500)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSPECIALValueDecreasing = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-        val specialValueButtonsAccentTint = ColorStateList.valueOf(themeAccentColor())
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialIncrease.backgroundTintList = specialValueButtonsAccentTint
-        bindingMain.incLayoutTabStatsSpecial.btnSpecialDecrease.backgroundTintList = specialValueButtonsAccentTint
-        bindingMain.incLayoutTabStatsSpecial.viewSpecialValueFocus.backgroundTintList = specialValueButtonsAccentTint
-
-
 
         // ===== STATS: SKILLS =====
         bindingMain.incLayoutTabStatsBottom.btnStatsSkills.setOnClickListener {
@@ -3726,60 +3162,12 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsSkills.root.visibility = View.VISIBLE
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.GONE
             menuNavigator.setRootCursor(2)
-            skillsAdapter.clearSelection()
+            statsController.clearSkillsSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
 
-        // Клики по пунктам Skills живут внутри skillsAdapter.
-
-        // У Skills удержание с разгоном 500мс -> 50мс: диапазон 10-100 без него листать неудобно.
-        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.setOnClickListener {
-            adjustSelectedSkill(1)
-        }
-        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isSKILLValueIncreasing = true
-                    delayModify = 500L
-                    delayIterationCount = 0
-                    handler.postDelayed(longPressRunnable, 500)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILLValueIncreasing = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.setOnClickListener {
-            adjustSelectedSkill(-1)
-        }
-        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    isSKILLValueDecreasing = true
-                    delayModify = 500L
-                    delayIterationCount = 0
-                    handler.postDelayed(longPressRunnable, 500)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isSKILLValueDecreasing = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            false
-        }
-        val skillValueButtonsAccentTint = ColorStateList.valueOf(themeAccentColor())
-        bindingMain.incLayoutTabStatsSkills.btnSkillIncrease.backgroundTintList = skillValueButtonsAccentTint
-        bindingMain.incLayoutTabStatsSkills.btnSkillDecrease.backgroundTintList = skillValueButtonsAccentTint
-        bindingMain.incLayoutTabStatsSkills.viewSkillValueFocus.backgroundTintList = skillValueButtonsAccentTint
-
-
         // ===== STATS: PERKS =====
-        // Строим сразу, а не лениво по клику: к первой сборке statsMenuRoot() список ещё пуст, и узел
-        // PERKS навсегда заморозил бы единственный пункт "В меню" — children узла обычный val.
-        setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
         bindingMain.incLayoutTabStatsBottom.btnStatsPerks.setOnClickListener {
             setSelectedButton(bindingMain.incLayoutTabStatsBottom.btnStatsPerks, listBottomButtons)
             bindingMain.incLayoutTabStatsStatus.root.visibility = View.GONE
@@ -3788,15 +3176,11 @@ class MainActivity : AppCompatActivity() {
             bindingMain.incLayoutTabStatsPerks.root.visibility = View.VISIBLE
             menuNavigator.setRootCursor(3)
             // Свежий адаптер стартует с подсвеченным пунктом 0 — гасим рамку молча до реального провала курсора.
-            setupStatsPerks(bindingMain.incLayoutTabStatsPerks.recyclerTabPerks)
-            perksAdapter.clearSelection()
+            statsController.openPerksScreen()
+            statsController.clearPerksSelection()
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-        bindingMain.incLayoutTabStatsPerks.btnPerksFilter.setOnClickListener {
-            openPerksFilter()
-        }
-
 
         // Кнопки Settings: нейтральная заливка из стиля, акцент темы — backgroundTintList кодом.
         val settingsAccent = themeAccentColor()

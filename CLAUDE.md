@@ -124,10 +124,12 @@ PipBoy.** Отдельное носимое устройство на игрок
   шлёт строку **каждый цикл, пока кнопка держится** (не событие изменения)
 - На телефоне: `MainActivity.kt`, `menuChangeBLE()` — `when(menu){"STATS"->...}`.
   `BluetoothGattCallback.onCharacteristicChanged` уже работает
-- Пейринг — ручной: MAC + UUID вводятся в настройках, хранятся в SharedPreferences
-  (`bluetoothMAC_SPKey`, `bluetoothSUUID_SPKey`, `bluetoothRUUID_SPKey`, `bluetoothWUUID_SPKey`)
-- Путь телефон→ESP32 (`writeCharacteristic()`/`sendBLEText()`) есть в коде, но не проверено,
-  привязан ли реально к какому-то действию в UI — **проверить перед тем как полагаться на него**
+- Пейринг — выбор из списка найденных сканом устройств (ручной ввод MAC и UUID убран вместе
+  с редизайном Settings). Сохраняется только MAC (`bluetoothMAC`); UUID сервиса и характеристик
+  берутся из дефолтов NUS, ключи `bluetoothSUUID`/`bluetoothRUUID`/`bluetoothWUUID` читает сам
+  `PipBoyBleService` и никто их не пишет
+- Путь телефон→ESP32 (`writeCharacteristic()`/`BluetoothController.send()`) есть в коде, но не
+  проверено, привязан ли реально к какому-то действию в UI — **проверить перед тем как полагаться**
 
 **Новые команды (см. полный список в `PipBoy_BLE_Protocol_v0.2.md`):**
 `POWER`, `ENCBTN`, `ENC:±N`, `GEIGER:<рад/сек>`, `HOLOTAPE:1/0`, `RADIOFREQ:<val>` (ESP32→телефон);
@@ -317,6 +319,14 @@ SPECIAL/Skills (этап 30): список прокручивался, `computeV
   этого не видит: строк не потеряно, они просто теперь исполняются чаще. Проверять по каждому
   месту вызова отдельно, а не по тому, «одно ли это семейство экранов»
 
+**`registerForActivityResult` остаётся в активности, и это ломает вывод типов у контроллера.**
+Лаунчеры регистрируются до `onStart`, поэтому все четыре живут полями `MainActivity`, а
+контроллеру нужное действие прокидывается колбэком (`requestEnableBluetooth`). Но если колбэк
+лаунчера в ответ зовёт метод контроллера, ссылки замыкаются в кольцо, и `kotlinc` падает с
+`Type checking has run into a recursive problem` на строке лаунчера — хотя ошибка не в нём.
+Лечится явным типом на одной из двух сторон: `private val bluetooth: BluetoothController by lazy`.
+Пара «лаунчер ↔ контроллер» есть и у голоса (`openVoiceModelZipLauncher`), то же ждёт и там.
+
 **Правило комментариев в этом проекте:** одно предложение, объявляющее функциональный блок
 («делаем X»). Не пересказ кода построчно, не история находок, не ссылки на этапы roadmap —
 всё это живёт в `PipBoy_Roadmap.md`. Проверено, что комментарии не влияют на байткод: их
@@ -327,9 +337,10 @@ SPECIAL/Skills (этап 30): список прокручивался, `computeV
 - `getIdentifier` по имени ресурса — `perk_<id>_name`/`perk_<id>_desc` (277 строк
   `strings.xml` выглядят «неиспользуемыми» для любого статического анализа, включая
   `lint`/`UnusedResources` — вслепую его здесь применять нельзя)
-- ключи SharedPreferences: 13 объявлены константами `*_SPKey` в активности, ещё два — в
+- ключи SharedPreferences: 8 объявлены константами `*_SPKey` в активности, ещё четыре — в
   контроллерах (`selectedRingtone_SPKey` в `ClockController`, `selectedPerks_SPKey` в
-  `StatsController`), но **8 по-прежнему живут голыми строковыми литералами**
+  `StatsController`, `bluetoothMAC_SPKey`/`bluetoothSUUID_SPKey` в `BluetoothController`),
+  но **8 по-прежнему живут голыми строковыми литералами**
   (`appLanguage`, `ShowTutorial`, `TrueFullscreen`, `AmbientSoundEnabled`, `width`,
   `height`, `leftMargin`, `topMargin`) — опечатка при переносе стирает сохранёнки игрока
 - текстовые команды BLE — контракт с прошивкой ESP32

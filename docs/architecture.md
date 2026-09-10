@@ -6,8 +6,8 @@ Decisions that shape where new code goes. Traps that bite while writing it are i
 ## Shape
 
 One activity, `MainActivity.kt`, plus controllers that each own a screen: `MapController`,
-`ClockController`, `StatsController`, `JournalController`, `BootSequenceController`,
-`SetupWizardController`, `BluetoothController`. Pure helpers sit outside both:
+`ClockController`, `StatsController`, `StatusController`, `JournalController`,
+`BootSequenceController`, `SetupWizardController`, `BluetoothController`. Pure helpers sit outside both:
 `MenuNavigator`, `TextHelpers`, `GeoReference`, `PedestrianRouter`, `GlobalTextScale`,
 and the repositories. `Data.kt` holds two live lists — the ~130 Fallout NV perks and
 `ringtoneTracks` — not `strings.xml`.
@@ -80,3 +80,16 @@ references form a cycle and `kotlinc` fails with `Type checking has run into a r
 on the launcher line — which is not where the problem is. Break it with an explicit type on one
 side: `private val bluetooth: BluetoothController by lazy`. The same pair exists for voice
 (`openVoiceModelZipLauncher`).
+
+Two controllers that call each other close the same cycle without any launcher involved:
+`ClockController` asks `StatusController` for the wound phase, `StatusController` drives the
+timer back. Same fix, same reason — an explicit type on the `by lazy` field.
+
+## The wound domain has one owner
+
+`StatusController` owns `woundPhase` outright; nothing outside it names the phase. Consumers get
+three predicates — `isWoundActive`, `hasActiveWoundTimer`, `isDead` — and commands. This is the
+shape every cross-cutting screen state should take: the phase is read from six places
+(BLE, voice, state restore, the clock, the encoder tree, the face drawing), and exposing the enum
+instead would have made the controller a renamed monolith. `ClockController` already worked this
+way and was the model for it.

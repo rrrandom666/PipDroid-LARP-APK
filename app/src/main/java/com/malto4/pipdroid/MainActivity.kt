@@ -30,7 +30,6 @@ import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.TranslateAnimation
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -129,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
     /** Экран ITEMS/Часы целиком; общий таймер делится с системой ранений через пять последних колбэков. */
-    private val clockController by lazy {
+    private val clockController: ClockController by lazy {
         ClockController(
             activity = this,
             binding = bindingMain,
@@ -150,15 +149,11 @@ class MainActivity : AppCompatActivity() {
             syncRow2Active = { syncRow2ActiveFromNavigator() },
             hasAudioPermission = { checkAudioPermission() },
             requestAudioPermission = { requestAudioPermission() },
-            isWoundActive = { woundPhase != WoundPhase.NONE },
-            timerLabelText = { clockTimerLabelText() },
-            onWoundTimerFired = { fireWoundTimer() },
-            onWoundStopRequested = { stopWoundTimerEarly() },
-            onWoundCountdownTick = { remainingSeconds ->
-                if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
-                    updateWoundCountdownText(remainingSeconds)
-                }
-            },
+            isWoundActive = { statusController.isWoundActive },
+            timerLabelText = { statusController.timerLabelText() },
+            onWoundTimerFired = { statusController.onTimerFired() },
+            onWoundStopRequested = { statusController.stopWoundEarly() },
+            onWoundCountdownTick = { remainingSeconds -> statusController.onCountdownTick(remainingSeconds) },
         )
     }
     private val REQUEST_CODE_PERMISSION_JOURNAL_DICTATION = 25
@@ -239,6 +234,37 @@ class MainActivity : AppCompatActivity() {
             enableTopSwipe = { action -> enableDisableTopSwipe(action) },
         )
     }
+    /** Раздел STATS/Status и вся система ранений; фаза ранения живёт только внутри контроллера. */
+    // Тип указан явно: контроллер и clockController ссылаются друг на друга, и без него вывод типов зацикливается.
+    private val statusController: StatusController by lazy {
+        StatusController(
+            activity = this,
+            binding = bindingMain,
+            navigator = menuNavigator,
+            mode = { pipBoyMode },
+            accentColor = { themeAccentColor() },
+            selectedButtonRes = { selected_button },
+            scrollbarThumbRes = { currentUiTheme().scrollbarRes },
+            backSidebarItem = { enabled -> backSidebarItem(enabled) },
+            menuBackNode = { onHighlight, onBeforePop -> menuBackNode(pipBoyMode, onHighlight, onBeforePop) },
+            playTick = { playTickAudio() },
+            playButton = { playButtonAudio() },
+            playConfirm = { playConfirmAudio() },
+            playError = { playErrorAudio() },
+            playDamage = { playDamageAudio() },
+            playStimpack = { playStimpackAudio() },
+            suppressTickAround = { block -> suppressTickAroundTouchSync(block) },
+            syncEncoderPath = { path -> syncStatsEncoderPath("STATUS", path) },
+            syncEncoderPathSilently = { path -> syncStatsEncoderPathSilently("STATUS", path) },
+            syncRow2Active = { syncRow2ActiveFromNavigator() },
+            enableBottomButtons = { action -> enableDisableBottomButtons(action, listBottomButtons) },
+            enableTopSwipe = { action -> enableDisableTopSwipe(action) },
+            startTimer = { durationSeconds -> clockController.startWoundTimer(durationSeconds) },
+            stopTimer = { clockController.stopTimer() },
+            skipTimerToEnd = { clockController.skipTimerToEnd() },
+            setTimerPauseAllowed = { allowed -> clockController.setTimerPauseAllowed(allowed) },
+        )
+    }
     /** Связь с корпусом по BLE и сканер пейринга; разбор пришедших команд остаётся в активности. */
     // Тип указан явно: контроллер и enableBluetoothLauncher ссылаются друг на друга, и без него вывод типов зацикливается.
     private val bluetooth: BluetoothController by lazy {
@@ -292,23 +318,10 @@ class MainActivity : AppCompatActivity() {
         private const val EXTRA_DEBUG_BLE_RAW = "raw"
 
 
-        // Система ранений/кровотечения
-        private const val WOUND_BLEED_BANDAGE_DURATION_SECONDS = 600
-        private const val STUN_DURATION_SECONDS = 300
-
         // Восстановление состояния после убийства процесса в фоне
         private const val KEY_CUR_MENU = "restore_curMenu"
         private const val KEY_ROOT_CURSOR = "restore_rootCursor"
         private const val KEY_PIPBOY_MODE = "restore_pipBoyMode"
-        private const val KEY_WOUND_PHASE = "restore_woundPhase"
-        private const val KEY_WOUND_SEVERITY = "restore_woundSeverity"
-        private const val KEY_CRIPPLED_HEAD = "restore_crippledHead"
-        private const val KEY_CRIPPLED_TORSO = "restore_crippledTorso"
-        private const val KEY_CRIPPLED_LEFT_ARM = "restore_crippledLeftArm"
-        private const val KEY_CRIPPLED_RIGHT_ARM = "restore_crippledRightArm"
-        private const val KEY_CRIPPLED_LEFT_LEG = "restore_crippledLeftLeg"
-        private const val KEY_CRIPPLED_RIGHT_LEG = "restore_crippledRightLeg"
-        private const val KEY_STATUS_CURSOR_ROW = "restore_statusCursorRow"
 
         // Прокрутка длинной записи энкодером
         private const val SIDEBAR_RECORD_SCROLL_STEP_DP = 60f
@@ -478,35 +491,13 @@ class MainActivity : AppCompatActivity() {
     )
 
     // ===== ДОЛГИЕ НАЖАТИЯ: пасхалка и урон игрока =====
-    private var statsCndPopupIsHolding = false
     private var menuSwipeEnabled = true
-
-    // ===== STATUS =====
-    private enum class WoundPhase { NONE, BLEED, BANDAGE, STUNNED, DEAD }
-    private enum class WoundSeverity { LIGHT, HEAVY }
-    private var woundPhase = WoundPhase.NONE
-    private var woundSeverity = WoundSeverity.LIGHT
-    private var crippledHead = false
-    private var crippledTorso = false
-    private var crippledLeftArm = false
-    private var crippledRightArm = false
-    private var crippledLeftLeg = false
-    private var crippledRightLeg = false
 
     private lateinit var selectedSubMenu: Button
 
     private val handler = Handler(Looper.getMainLooper())
     // 300мс-тик часов; ссылка нужна, чтобы onDestroy() его остановил.
     private var tickThread: Thread? = null
-    private val longPressRunnable = Runnable {
-        if (statsCndPopupIsHolding) {
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility = View.VISIBLE
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.layoutTabStatusCndContent.visibility = View.GONE
-            bindingMain.incLayoutFilterModification.root.visibility = View.GONE
-            enableDisableBottomButtons(false, listBottomButtons)
-            enableDisableTopSwipe(false)
-        }
-    }
 
     private lateinit var menuGestureDetector: GestureDetector
     private var curMenu = "STATS"
@@ -667,32 +658,32 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         if (woundSeverity != null) {
-            if (woundPhase != WoundPhase.NONE) {
+            if (statusController.isWoundActive) {
                 playErrorAudio()
             } else {
                 playTickAudio()
-                startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-                matchBodyPartSetter(normalized)?.invoke(true)
+                statusController.startWound(woundSeverity)
+                matchBodyPart(normalized)?.let { statusController.setCrippled(it, true) }
             }
             finishVoiceCommand(text)
             return
         }
         // Оглушение/контузия — та же общая система, третья фаза ранения.
         if (normalized.contains("оглуш") || normalized.contains("контуз")) {
-            if (woundPhase != WoundPhase.NONE) {
+            if (statusController.isWoundActive) {
                 playErrorAudio()
             } else {
                 playTickAudio()
-                startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
+                statusController.startStun()
             }
             finishVoiceCommand(text)
             return
         }
         // Возвращение в строй — только пока персонаж мёртв, тот же гвард, что у тач-жеста по фигуре.
         if (normalized.contains("очнул") || normalized.contains("ожил")) {
-            if (woundPhase == WoundPhase.DEAD) {
+            if (statusController.isDead) {
                 playTickAudio()
-                reviveCharacter()
+                statusController.revive()
             } else {
                 playErrorAudio()
             }
@@ -706,8 +697,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (normalized.contains("пауз") || normalized.contains("продолж") || normalized.contains("возобнов")) {
-            val allowed = woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD
-            if (!allowed || clockController.isTimerIdle) {
+            if (statusController.hasActiveWoundTimer || clockController.isTimerIdle) {
                 playErrorAudio()
             } else {
                 playButtonAudio()
@@ -789,14 +779,14 @@ class MainActivity : AppCompatActivity() {
             finishVoiceCommand(text); return
         }
     }
-    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>". */
-    private fun matchBodyPartSetter(normalized: String): ((Boolean) -> Unit)? = when {
-        normalized.contains("голов") -> ::setCrippledHead
-        normalized.contains("торс") || normalized.contains("груд") || normalized.contains("тулов") -> ::setCrippledTorso
-        normalized.contains("рук") && normalized.contains("лев") -> ::setCrippledRightArm
-        normalized.contains("рук") && normalized.contains("прав") -> ::setCrippledLeftArm
-        normalized.contains("ног") && normalized.contains("лев") -> ::setCrippledRightLeg
-        normalized.contains("ног") && normalized.contains("прав") -> ::setCrippledLeftLeg
+    /** Часть тела для команды "лёгкое/тяжёлое ранение в <часть>"; лево и право зеркальны — игрок называет свою сторону. */
+    private fun matchBodyPart(normalized: String): BodyPart? = when {
+        normalized.contains("голов") -> BodyPart.HEAD
+        normalized.contains("торс") || normalized.contains("груд") || normalized.contains("тулов") -> BodyPart.TORSO
+        normalized.contains("рук") && normalized.contains("лев") -> BodyPart.RIGHT_ARM
+        normalized.contains("рук") && normalized.contains("прав") -> BodyPart.LEFT_ARM
+        normalized.contains("ног") && normalized.contains("лев") -> BodyPart.RIGHT_LEG
+        normalized.contains("ног") && normalized.contains("прав") -> BodyPart.LEFT_LEG
         else -> null
     }
     /** Переключение на top-level узел ITEMS по символическому id. */
@@ -977,35 +967,10 @@ class MainActivity : AppCompatActivity() {
         menuChangeBLE(restoredMenu)
         menuNavigator.resetToRootAtIndex(menuRootNodesFor(restoredMenu), restoredRootCursor)
 
-        woundPhase = try {
-            WoundPhase.valueOf(savedInstanceState.getString(KEY_WOUND_PHASE, WoundPhase.NONE.name))
-        } catch (e: IllegalArgumentException) { WoundPhase.NONE }
-        woundSeverity = try {
-            WoundSeverity.valueOf(savedInstanceState.getString(KEY_WOUND_SEVERITY, WoundSeverity.LIGHT.name))
-        } catch (e: IllegalArgumentException) { WoundSeverity.LIGHT }
-        crippledHead = savedInstanceState.getBoolean(KEY_CRIPPLED_HEAD)
-        crippledTorso = savedInstanceState.getBoolean(KEY_CRIPPLED_TORSO)
-        crippledLeftArm = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_ARM)
-        crippledRightArm = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_ARM)
-        crippledLeftLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_LEFT_LEG)
-        crippledRightLeg = savedInstanceState.getBoolean(KEY_CRIPPLED_RIGHT_LEG)
-        statusAdapter.setSelectedPositionSilently(savedInstanceState.getInt(KEY_STATUS_CURSOR_ROW))
-
-        applyWoundFace()
-        updateWoundButtonsUI()
-        updateWoundStatusLine()
+        statusController.restoreState(savedInstanceState)
         clockController.restoreState(savedInstanceState)
-        if (woundPhase == WoundPhase.DEAD) {
-            applyDeathVisuals()
-        } else {
-            val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
-            applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
-        }
+        // Отрисовка частей тела идёт после часов: в DEAD она затирает CRIPPLED общим видом смерти.
+        statusController.restoreVisuals()
     }
 
     private fun applyTemporaryFullScreenLayout() {
@@ -1275,7 +1240,7 @@ class MainActivity : AppCompatActivity() {
         // Status: onHighlight только двигает рамку молча, запуск таймера ранения требует ENCBTN.
         val statusNode = MenuNode(
             id = "STATUS",
-            children = statusChildrenNodes(),
+            children = statusController.childrenNodes(),
             onHighlight = { simulateEncoderTabHighlight(bindingMain.incLayoutTabStatsBottom.btnStatsStatus) }
         )
         // SPECIAL, Skills и Perks: сами ветки строит StatsController, здесь только обёртки узлов.
@@ -1488,7 +1453,7 @@ class MainActivity : AppCompatActivity() {
                 menuChangeBLE(key)
                 menuNavigator.resetToRoot(statsMenuRoot())
                 // Пока таймер ранения актуален, возврат в STATS должен сразу попадать на Stop.
-                if (woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD) {
+                if (statusController.hasActiveWoundTimer) {
                     menuNavigator.activateSelected()
                 }
             }
@@ -1635,194 +1600,12 @@ class MainActivity : AppCompatActivity() {
     /** Общий признак "энкодер сфокусирован здесь" — четыре L-уголка на отдельном View рядом с целью. */
     private fun setFocusBracketsVisible(bracketsView: View, visible: Boolean) =
         applyFocusBrackets(bracketsView, pipBoyMode, visible)
-    private fun setWoundStopButtonFocused(focused: Boolean) {
-        setFocusBracketsVisible(
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewWoundStopFocus,
-            focused,
-        )
-    }
-    private fun setDeadReviveFocused(focused: Boolean) {
-        setFocusBracketsVisible(
-            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewDeadReviveFocus,
-            focused,
-        )
-    }
     /** Тот же приём прицела на ITEMS/Гейгер — Reset и "В меню". */
     private fun setGeigerResetFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerResetFocus, focused)
     }
     private fun setGeigerMenuFocused(focused: Boolean) {
         setFocusBracketsVisible(bindingMain.incLayoutTabItemsGeiger.viewGeigerMenuFocus, focused)
-    }
-    /** Прицелы на частях тела; setAllCrippledFocusesHidden() — идемпотентная подстраховка при выходе из ветки. */
-    private fun setCrippledHeadFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledHeadFocus, focused)
-    }
-    private fun setCrippledTorsoFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledTorsoFocus, focused)
-    }
-    private fun setCrippledLeftArmFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledLeftArmFocus, focused)
-    }
-    private fun setCrippledRightArmFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledRightArmFocus, focused)
-    }
-    private fun setCrippledLeftLegFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledLeftLegFocus, focused)
-    }
-    private fun setCrippledRightLegFocused(focused: Boolean) {
-        setFocusBracketsVisible(bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.viewCrippledRightLegFocus, focused)
-    }
-    private fun setAllCrippledFocusesHidden() {
-        setCrippledHeadFocused(false)
-        setCrippledTorsoFocused(false)
-        setCrippledLeftArmFocused(false)
-        setCrippledRightArmFocused(false)
-        setCrippledLeftLegFocused(false)
-        setCrippledRightLegFocused(false)
-    }
-    /** Дети STATUS: пока таймер ранения актуален, доступны только Stop и шесть частей тела, список ранений
-     * недостижим совсем. */
-    /** Гашение прицелов в обычной ветке — подстраховка идемпотентности при любой пересборке списка. */
-    private fun statusChildrenNodes(): List<MenuNode> {
-        return if (woundPhase == WoundPhase.DEAD) {
-            // В DEAD курсор встаёт на персонажа, ENCBTN воскрешает тем же путём и с тем же звуком, что тап.
-            setWoundStopButtonFocused(false)
-            setAllCrippledFocusesHidden()
-            listOf(
-                MenuNode(
-                    id = "REVIVE",
-                    onHighlight = { setDeadReviveFocused(true) },
-                    onActivate = {
-                        playStimpackAudio()
-                        reviveCharacter()
-                    },
-                )
-            )
-        } else if (woundPhase != WoundPhase.NONE) {
-            listOf(
-                MenuNode(
-                    id = "STOP",
-                    onHighlight = {
-                        playTickAudio()
-                        setAllCrippledFocusesHidden()
-                        setWoundStopButtonFocused(true)
-                    },
-                    onActivate = {
-                        flashButtonPressThenRun(
-                            bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop,
-                        ) {
-                            playButtonAudio()
-                            stopWoundTimerEarly()
-                        }
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_HEAD",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledHeadFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledHead) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledHead()
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_LEFT_ARM",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledLeftArmFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledLeftArm()
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_TORSO",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledTorsoFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledTorso) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledTorso()
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_RIGHT_ARM",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledRightArmFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledRightArm) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledRightArm()
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_LEFT_LEG",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledLeftLegFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledLeftLeg()
-                    },
-                ),
-                MenuNode(
-                    id = "BODYPART_RIGHT_LEG",
-                    onHighlight = {
-                        playTickAudio()
-                        setWoundStopButtonFocused(false)
-                        setAllCrippledFocusesHidden()
-                        setCrippledRightLegFocused(true)
-                    },
-                    onActivate = {
-                        if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
-                        toggleCrippledRightLeg()
-                    },
-                ),
-            )
-        } else {
-            setWoundStopButtonFocused(false)
-            setDeadReviveFocused(false)
-            setAllCrippledFocusesHidden()
-            statusMeta.mapIndexed { index, meta ->
-                MenuNode(
-                    id = meta.key,
-                    // Звук перемещения курсора — тот же тик, что у SPECIAL и Skills, но не через playSelectSound адаптера.
-                    onHighlight = {
-                        playTickAudio()
-                        statusAdapter.setSelectedPositionSilently(index)
-                    },
-                    onActivate = {
-                        statusAdapter.selectPosition(index)
-                        statusAdapter.flashPressAnimation(index)
-                    },
-                )
-            } + menuBackNode(
-                pipBoyMode,
-                onHighlight = { statusAdapter.setSelectedPositionSilently(statusMeta.size) },
-                onBeforePop = { statusAdapter.flashPressAnimation(statusMeta.size) },
-            )
-        }
-    }
-    /** Живая пересборка узла STATUS при смене woundPhase; no-op, если игрок сейчас не внутри списка Status. */
-    private fun refreshStatusEncoderChildren() {
-        menuNavigator.replaceChildrenOf("STATUS", statusChildrenNodes())
     }
     /** Пункт "В меню" — только в режимах с энкодером; общий источник и для onCreate(), и для refreshSidebarBackItems(). */
     private fun backSidebarItem(enabled: Boolean = true): SidebarMenuItem<String> =
@@ -1858,14 +1641,6 @@ class MainActivity : AppCompatActivity() {
             onExit = { playTickAudio() },
         )
     }
-    private fun statusSidebarItems(): List<SidebarMenuItem<String>> {
-        // "В меню" дизейблится вместе со списком ранений; энкодер туда в это время вообще не попадает.
-        val enabled = woundPhase == WoundPhase.NONE
-        val items = statusMeta.map { meta ->
-            SidebarMenuItem(payload = meta.key, label = getString(meta.labelRes), enabled = enabled)
-        }
-        return if (pipBoyMode != PipBoyMode.PHONE) items + backSidebarItem(enabled) else items
-    }
     /** DATA/Files — фиксированный список, "В меню" последним пунктом. */
     private fun dataFilesSidebarItems(): List<SidebarMenuItem<String>> {
         val items = dataFilesMeta.map { meta -> SidebarMenuItem(payload = meta.key, label = getString(meta.nameRes)) }
@@ -1900,7 +1675,7 @@ class MainActivity : AppCompatActivity() {
     /** Пересобирает три списка, когда режим стал известен после onCreate(); нужен setItems целиком, не точечная правка. */
     private fun refreshSidebarBackItems() {
         statsController.refreshModeGating()
-        statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
+        statusController.refreshModeGating()
         dataFilesAdapter.setItems(dataFilesSidebarItems(), resetSelection = false)
         refreshGeigerMenuButtonVisibility()
         journalController.refreshModeGating()
@@ -2153,267 +1928,6 @@ class MainActivity : AppCompatActivity() {
             mapController.stopLocationUpdates()
         }
     }
-    // ===== СИСТЕМА РАНЕНИЙ =====
-    /** woundPhase и woundSeverity — единый источник истины для лица, кнопок статуса и исхода таймера. */
-    private fun woundFaceDrawable(): Int = when (woundPhase) {
-        WoundPhase.NONE -> R.drawable.man_face
-        WoundPhase.BLEED, WoundPhase.BANDAGE -> if (woundSeverity == WoundSeverity.LIGHT) R.drawable.face_02 else R.drawable.face_03
-        WoundPhase.STUNNED, WoundPhase.DEAD -> R.drawable.face_04
-    }
-    private fun applyWoundFace() {
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.imgTabStatusCndPipboyFace.setImageResource(woundFaceDrawable())
-    }
-    /** Курсор двигается независимо от затенения: enabled в адаптере — только визуальное, тап всё равно доедет до onSelect. */
-    private data class StatusWoundMeta(val key: String, val labelRes: Int, val action: () -> Unit)
-    private val statusMeta = listOf(
-        StatusWoundMeta("LIGHT", R.string.title_stats_wound_light) {
-            startWoundTimer(WoundPhase.BLEED, WoundSeverity.LIGHT, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-        },
-        StatusWoundMeta("HEAVY", R.string.title_stats_wound_heavy) {
-            startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-        },
-        StatusWoundMeta("STUNNED", R.string.title_stats_stunned) {
-            startWoundTimer(WoundPhase.STUNNED, null, STUN_DURATION_SECONDS)
-        },
-    )
-    private lateinit var statusAdapter: SidebarMenuAdapter<String>
-    private fun updateWoundButtonsUI() {
-        // Затенение следует за woundPhase и не блокирует тап; курсор не трогаем — его двигают явно.
-        if (::statusAdapter.isInitialized) {
-            // Через statusSidebarItems(), а не инлайн из statusMeta: пункт "В меню" дописывается только там.
-            statusAdapter.setItems(statusSidebarItems(), resetSelection = false)
-        }
-        clockController.setTimerPauseAllowed(woundPhase == WoundPhase.NONE || woundPhase == WoundPhase.DEAD)
-    }
-    /** Подпись над отсчётом на экране Таймера: у таймера может быть стадия ранения, для обычного запуска она пустая. */
-    private fun clockTimerLabelText(): String = when (woundPhase) {
-        WoundPhase.STUNNED -> getString(R.string.status_wound_stunned_label)
-        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
-        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
-        else -> ""
-    }
-    private fun woundStageLabel(): String = when (woundPhase) {
-        WoundPhase.BLEED -> getString(R.string.status_wound_bleeding_label)
-        WoundPhase.BANDAGE -> getString(R.string.status_wound_bandage_label)
-        else -> ""
-    }
-    /** Панель статуса справа от фигуры: статику ставит этот метод, текст с таймером — updateWoundCountdownText(). */
-    private fun updateWoundStatusLine() {
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        when (woundPhase) {
-            WoundPhase.NONE -> {
-                cnd.tvTabStatusWoundText.text = getString(R.string.status_text_healthy)
-                cnd.layoutTabStatusWoundButtons.visibility = View.GONE
-            }
-            WoundPhase.DEAD -> {
-                cnd.tvTabStatusWoundText.text =
-                    getString(R.string.status_text_dead_header) + "\n" + getString(R.string.status_revive_hint)
-                cnd.layoutTabStatusWoundButtons.visibility = View.GONE
-            }
-            else -> {
-                cnd.layoutTabStatusWoundButtons.visibility = View.VISIBLE
-                cnd.btnTabStatusWoundSkip.visibility = if (BuildConfig.DEBUG) View.VISIBLE else View.GONE
-            }
-        }
-    }
-    /** Длительности здесь всегда ≤10 мин, поэтому часовой части нет. */
-    private fun updateWoundCountdownText(remainingSeconds: Int) {
-        val m = remainingSeconds / 60
-        val s = remainingSeconds % 60
-        val timerText = String.format("%02d:%02d", m, s)
-        val text = when (woundPhase) {
-            WoundPhase.STUNNED -> getString(R.string.status_text_stunned) + timerText
-            WoundPhase.BLEED, WoundPhase.BANDAGE -> getString(R.string.status_text_wounded) + woundStageLabel() + ": " + timerText
-            else -> return
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.tvTabStatusWoundText.text = text
-    }
-    /** Общая точка входа для всех переходов, запускающих таймер под новую цель; severity=null оставляет прежнюю. */
-    private fun startWoundTimer(phase: WoundPhase, severity: WoundSeverity?, durationSeconds: Int) {
-        woundPhase = phase
-        if (severity != null) woundSeverity = severity
-        // Курсор идёт за фазой и при автоматических переходах, а не только за тапом игрока.
-        val cursorIndex = when {
-            phase == WoundPhase.STUNNED -> 2
-            woundSeverity == WoundSeverity.LIGHT -> 0
-            else -> 1
-        }
-        statusAdapter.setSelectedPositionSilently(cursorIndex)
-        applyWoundFace()
-        updateWoundButtonsUI()
-        refreshStatusEncoderChildren()
-        clockController.startWoundTimer(durationSeconds)
-        updateWoundStatusLine()
-        updateWoundCountdownText(durationSeconds)
-    }
-    /** Вылечен — общий финал для перевязки и оглушения; CRIPPLED снимается со всех шести частей. */
-    private fun healWoundsToHealthy() {
-        woundPhase = WoundPhase.NONE
-        applyWoundFace()
-        updateWoundButtonsUI()
-        refreshStatusEncoderChildren()
-        updateWoundStatusLine()
-        clockController.stopTimer()
-        setCrippledHead(false)
-        setCrippledTorso(false)
-        setCrippledLeftArm(false)
-        setCrippledRightArm(false)
-        setCrippledLeftLeg(false)
-        setCrippledRightLeg(false)
-    }
-    /** [Стоп] на STATUS и сброс таймера на экране Таймера при активном ранении — те же последствия. */
-    private fun stopWoundTimerEarly() {
-        when (woundPhase) {
-            WoundPhase.BLEED -> startWoundTimer(WoundPhase.BANDAGE, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-            WoundPhase.BANDAGE, WoundPhase.STUNNED -> healWoundsToHealthy()
-            else -> {}
-        }
-    }
-    /** Натуральное истечение — из fireTimer(), когда таймер принадлежит системе ранений. */
-    private fun fireWoundTimer() {
-        when (woundPhase) {
-            WoundPhase.BLEED -> {
-                if (woundSeverity == WoundSeverity.LIGHT) {
-                    startWoundTimer(WoundPhase.BLEED, WoundSeverity.HEAVY, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-                } else {
-                    killCharacter()
-                }
-            }
-            WoundPhase.BANDAGE -> startWoundTimer(WoundPhase.BLEED, woundSeverity, WOUND_BLEED_BANDAGE_DURATION_SECONDS)
-            WoundPhase.STUNNED -> healWoundsToHealthy()
-            else -> {}
-        }
-    }
-    private fun killCharacter() {
-        woundPhase = WoundPhase.DEAD
-        applyWoundFace()
-        updateWoundButtonsUI()
-        refreshStatusEncoderChildren()
-        updateWoundStatusLine()
-        clockController.stopTimer()
-        applyDeathVisuals()
-    }
-    /** Revive-жест — тап по фигуре, активен только в DEAD; полный сброс, вся система статусов на самоучёте игрока. */
-    private fun reviveCharacter() {
-        if (woundPhase != WoundPhase.DEAD) return
-        woundPhase = WoundPhase.NONE
-        applyWoundFace()
-        updateWoundButtonsUI()
-        refreshStatusEncoderChildren()
-        updateWoundStatusLine()
-        applyReviveVisuals()
-    }
-    /** В смерти все шесть частей рисуются сломанными, но подпись остаётся одна — DEAD на туловище. */
-    private fun applyDeathVisuals() {
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        crippledHead = true; crippledTorso = true; crippledLeftArm = true
-        crippledRightArm = true; crippledLeftLeg = true; crippledRightLeg = true
-        cnd.imgTabStatusCndPipboyHead.setImageResource(R.drawable.head_broken)
-        cnd.tvTabStatusCndPipboyHeadHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyTorso.setImageResource(R.drawable.torso_broken)
-        cnd.tvTabStatusCndPipboyTorsoHpCrippled.text = getString(R.string.stats_cnd_status_dead)
-        cnd.tvTabStatusCndPipboyTorsoHpCrippled.visibility = View.VISIBLE
-        cnd.imgTabStatusCndPipboyLeftArm.setImageResource(R.drawable.left_arm_broken)
-        cnd.tvTabStatusCndPipboyLeftArmHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyRightArm.setImageResource(R.drawable.right_arm_broken)
-        cnd.tvTabStatusCndPipboyRightArmHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyLeftLeg.setImageResource(R.drawable.left_leg_broken)
-        cnd.tvTabStatusCndPipboyLeftLegHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyRightLeg.setImageResource(R.drawable.right_leg_broken)
-        cnd.tvTabStatusCndPipboyRightLegHpCrippled.visibility = View.GONE
-    }
-    private fun applyReviveVisuals() {
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        crippledHead = false; crippledTorso = false; crippledLeftArm = false
-        crippledRightArm = false; crippledLeftLeg = false; crippledRightLeg = false
-        cnd.imgTabStatusCndPipboyHead.setImageResource(R.drawable.man_head)
-        cnd.tvTabStatusCndPipboyHeadHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyTorso.setImageResource(R.drawable.torso)
-        cnd.tvTabStatusCndPipboyTorsoHpCrippled.text = getString(R.string.stats_cnd_status_crippled)
-        cnd.tvTabStatusCndPipboyTorsoHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyLeftArm.setImageResource(R.drawable.man_arm_left)
-        cnd.tvTabStatusCndPipboyLeftArmHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyRightArm.setImageResource(R.drawable.man_arm_right)
-        cnd.tvTabStatusCndPipboyRightArmHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyLeftLeg.setImageResource(R.drawable.man_leg_left)
-        cnd.tvTabStatusCndPipboyLeftLegHpCrippled.visibility = View.GONE
-        cnd.imgTabStatusCndPipboyRightLeg.setImageResource(R.drawable.man_leg_right)
-        cnd.tvTabStatusCndPipboyRightLegHpCrippled.visibility = View.GONE
-    }
-    private fun applyCrippledVisual(bodyPart: ImageView, label: TextView, crippled: Boolean, normalRes: Int, brokenRes: Int) {
-        bodyPart.setImageResource(if (crippled) brokenRes else normalRes)
-        label.visibility = if (crippled) View.VISIBLE else View.GONE
-    }
-    /** Независимый тоггл CRIPPLED по одной конечности, не трогает фазу, лицо и остальные части. */
-    // set*() — явная установка для идемпотентных голосовых команд, toggle*() — тонкие обёртки поверх них.
-    private fun setCrippledHead(crippled: Boolean) {
-        crippledHead = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyHead, cnd.tvTabStatusCndPipboyHeadHpCrippled, crippledHead, R.drawable.man_head, R.drawable.head_broken)
-    }
-    private fun toggleCrippledHead() = setCrippledHead(!crippledHead)
-    private fun setCrippledTorso(crippled: Boolean) {
-        crippledTorso = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyTorso, cnd.tvTabStatusCndPipboyTorsoHpCrippled, crippledTorso, R.drawable.torso, R.drawable.torso_broken)
-    }
-    private fun toggleCrippledTorso() = setCrippledTorso(!crippledTorso)
-    private fun setCrippledLeftArm(crippled: Boolean) {
-        crippledLeftArm = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftArm, cnd.tvTabStatusCndPipboyLeftArmHpCrippled, crippledLeftArm, R.drawable.man_arm_left, R.drawable.left_arm_broken)
-    }
-    private fun toggleCrippledLeftArm() = setCrippledLeftArm(!crippledLeftArm)
-    private fun setCrippledRightArm(crippled: Boolean) {
-        crippledRightArm = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyRightArm, cnd.tvTabStatusCndPipboyRightArmHpCrippled, crippledRightArm, R.drawable.man_arm_right, R.drawable.right_arm_broken)
-    }
-    private fun toggleCrippledRightArm() = setCrippledRightArm(!crippledRightArm)
-    private fun setCrippledLeftLeg(crippled: Boolean) {
-        crippledLeftLeg = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyLeftLeg, cnd.tvTabStatusCndPipboyLeftLegHpCrippled, crippledLeftLeg, R.drawable.man_leg_left, R.drawable.left_leg_broken)
-    }
-    private fun toggleCrippledLeftLeg() = setCrippledLeftLeg(!crippledLeftLeg)
-    private fun setCrippledRightLeg(crippled: Boolean) {
-        crippledRightLeg = crippled
-        val cnd = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        applyCrippledVisual(cnd.imgTabStatusCndPipboyRightLeg, cnd.tvTabStatusCndPipboyRightLegHpCrippled, crippledRightLeg, R.drawable.man_leg_right, R.drawable.right_leg_broken)
-    }
-    private fun toggleCrippledRightLeg() = setCrippledRightLeg(!crippledRightLeg)
-    /** Общий тач-обработчик висит и на шести частях тела, и на контейнере: у частей свой клик, он поглощает touch. */
-    /** Короткий тап — revive в DEAD, иначе переданное действие; пятисекундное удержание — пасхалка. */
-    private fun setupFigureTouchTarget(view: View, onShortTap: () -> Unit) {
-        view.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    statsCndPopupIsHolding = true
-                    handler.postDelayed(longPressRunnable, 5000) // 5 seconds
-                }
-                MotionEvent.ACTION_UP -> {
-                    statsCndPopupIsHolding = false
-                    handler.removeCallbacks(longPressRunnable)
-                    val popupShown = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.incLayoutTabStatsCndPopup.root.visibility == View.VISIBLE
-                    if (!popupShown) {
-                        if (woundPhase == WoundPhase.DEAD) {
-                            playStimpackAudio()
-                            reviveCharacter()
-                        } else {
-                            onShortTap()
-                        }
-                    }
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    statsCndPopupIsHolding = false
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-    }
-    /** [Skip] переносит целевой epoch в прошлое, а не дублирует логику срабатывания. */
-    private fun skipWoundTimer() = clockController.skipTimerToEnd()
     /** Тач по пункту зовёт громкую синхронизацию ради побочных эффектов onHighlight, но тик от неё лишний —
      * Silently не годится, он убрал бы и сами эффекты, поэтому глушим только звук на время вызова. */
     private var suppressTickAudio = false
@@ -2643,40 +2157,8 @@ class MainActivity : AppCompatActivity() {
         // Оба списка STATS, экран фильтра и кнопки +/- — за StatsController; порядок блоков внутри тот же.
         statsController.setup()
 
-        // Звук решает сам onSelect; enabled у всех трёх пунктов следует за woundPhase и обновляется
-        // в updateWoundButtonsUI(), здесь только начальное состояние.
-        statusAdapter = SidebarMenuAdapter(
-            items = statusSidebarItems(),
-            selectedBackgroundRes = selected_button,
-            scrollbarThumbRes = currentUiTheme().scrollbarRes,
-            playSelectSound = {},
-            onSelect = { position, item ->
-                // Безусловная синхронизация курсора: он должен доехать сюда, даже если энкодер был в другой ветке.
-                if (woundPhase != WoundPhase.NONE) {
-                    // Пока активен таймер ранения, курсор должен быть на STOP — единственном реальном действии дерева.
-                    playErrorAudio()
-                    // Цель сама играет тик в onHighlight и задвоила бы звук ошибки выше.
-                    suppressTickAroundTouchSync { syncStatsEncoderPath("STATUS", listOf(0)) }
-                } else if (item.payload == SIDEBAR_BACK_PAYLOAD) {
-                    // confirm, а не тик — тач всегда даёт confirm.
-                    playConfirmAudio()
-                    syncStatsEncoderPath("STATUS", emptyList())
-                    syncRow2ActiveFromNavigator()
-                } else {
-                    val meta = statusMeta.first { it.key == item.payload }
-                    // Звук нажатия, тот же что у +/-; листание даёт тик из onHighlight.
-                    playConfirmAudio()
-                    // Silently: startWoundTimer() сама перестроит детей и громко переставит курсор на новый STOP.
-                    syncStatsEncoderPathSilently("STATUS", listOf(position))
-                    meta.action()
-                }
-            },
-        )
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.layoutManager = LinearLayoutManager(this)
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.adapter = statusAdapter
-        // itemAnimator = null: DefaultItemAnimator по окончании кросс-фейда сбрасывает alpha в 1.0 и
-        // затирает затенение недоступных пунктов, которое адаптер ставит тем же alpha.
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusButtons.recyclerTabStatusButtons.itemAnimator = null
+        // Список ранений, кнопки таймера, тач-цели фигуры и тонировка — за StatusController.
+        statusController.setup()
 
         // SCREEN SCAN ANIMATION
         val translateAnimation: Animation = TranslateAnimation(0, 0.0f, 0, 0.0f, 1, -4.0f, 1, 8.0f)
@@ -2685,9 +2167,7 @@ class MainActivity : AppCompatActivity() {
         bindingMain.imgScanline.animation = translateAnimation
         bindingMain.imgScanline.alpha = 0.2f
 
-        // Здоров по умолчанию — ни одна из трёх кнопок статуса не выделена; первые пункты
-        // боковых меню подсвечиваются самими адаптерами (initialSelectedPosition = 0).
-        updateWoundButtonsUI()
+        // Первые пункты боковых меню подсвечиваются самими адаптерами (initialSelectedPosition = 0).
         selectedSubMenu = bindingMain.incLayoutTabStatsBottom.btnStatsStatus
         findViewById<Button>(R.id.btn_stats_status).setBackgroundResource(selected_button)
         highlightTopLevelButton("STATS")
@@ -2859,83 +2339,11 @@ class MainActivity : AppCompatActivity() {
             // Синхронизация энкодера с тачем по нижним кнопкам; индекс — позиция в statsMenuRoot().
             menuNavigator.setRootCursor(0)
             // Курсор сейчас на самом узле STATUS — рамка не должна показывать пункт 0 как уже выбранный.
-            statusAdapter.clearSelection()
-            setWoundStopButtonFocused(false)
-            setDeadReviveFocused(false)
-            setAllCrippledFocusesHidden()
+            statusController.onStatusTabOpened()
             // Реальный тап равносилен ENCBTN; ENC-перебор строки 2 видит encoderTabHighlight и останавливается здесь.
             if (!encoderTabHighlight) menuNavigator.activateSelected()
             syncRow2ActiveFromNavigator()
         }
-
-        // Клики по LIGHT/HEAVY/STUNNED живут внутри statusAdapter, отдельные обработчики не нужны.
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundStop.setOnClickListener {
-            playButtonAudio()
-            stopWoundTimerEarly()
-            // Курсор следует за тачем независимо от того, где он был; тик глушим — цель играет его сама.
-            suppressTickAroundTouchSync { syncStatsEncoderPath("STATUS", listOf(0)) }
-        }
-        bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent.btnTabStatusWoundSkip.setOnClickListener {
-            skipWoundTimer()
-        }
-
-        // Тач-цели на всей фигуре: каждая часть тела и сам контейнер для пустых промежутков.
-        val cndContentSetup = bindingMain.incLayoutTabStatsStatus.incLayoutTabStatsStatusCndContent
-        // Индексы 1-6 жёстко привязаны к порядку узлов statusChildrenNodes() при активном ранении.
-        // Вне ранения этих узлов в дереве нет, и те же индексы указали бы на случайные пункты списка —
-        // поэтому проверка внутри каждого колбэка, а не один раз снаружи: woundPhase меняется позже.
-        fun hasBodyPartNodes() = woundPhase != WoundPhase.NONE && woundPhase != WoundPhase.DEAD
-        // Звук выбирается по состоянию ДО переключения: damage на здоровую часть, stimpack на уже сломанную.
-        setupFigureTouchTarget(cndContentSetup.layoutTabStatusCndPipboy) {}
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyHead) {
-            if (crippledHead) playStimpackAudio() else playDamageAudio()
-            toggleCrippledHead()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(1))
-        }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyTorso) {
-            if (crippledTorso) playStimpackAudio() else playDamageAudio()
-            toggleCrippledTorso()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(3))
-        }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftArm) {
-            if (crippledLeftArm) playStimpackAudio() else playDamageAudio()
-            toggleCrippledLeftArm()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(2))
-        }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightArm) {
-            if (crippledRightArm) playStimpackAudio() else playDamageAudio()
-            toggleCrippledRightArm()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(4))
-        }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyLeftLeg) {
-            if (crippledLeftLeg) playStimpackAudio() else playDamageAudio()
-            toggleCrippledLeftLeg()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(5))
-        }
-        setupFigureTouchTarget(cndContentSetup.imgTabStatusCndPipboyRightLeg) {
-            if (crippledRightLeg) playStimpackAudio() else playDamageAudio()
-            toggleCrippledRightLeg()
-            if (hasBodyPartNodes()) syncStatsEncoderPath("STATUS", listOf(6))
-        }
-        cndContentSetup.incLayoutTabStatsCndPopup.btnTabStatsCndPopupClose.setOnClickListener{
-            cndContentSetup.incLayoutTabStatsCndPopup.root.visibility = View.GONE
-            cndContentSetup.layoutTabStatusCndContent.visibility = View.VISIBLE
-            enableDisableBottomButtons(true, listBottomButtons)
-            enableDisableTopSwipe(true)
-        }
-
-        // Кнопки таймера ранения тонируются текущим акцентом темы.
-        val woundAccentTint = ColorStateList.valueOf(themeAccentColor())
-        cndContentSetup.btnTabStatusWoundStop.backgroundTintList = woundAccentTint
-        cndContentSetup.btnTabStatusWoundSkip.backgroundTintList = woundAccentTint
-        cndContentSetup.viewWoundStopFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewDeadReviveFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledHeadFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledTorsoFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledLeftArmFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledRightArmFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledLeftLegFocus.backgroundTintList = woundAccentTint
-        cndContentSetup.viewCrippledRightLegFocus.backgroundTintList = woundAccentTint
 
         // ===== STATS: SPECIAL =====
         bindingMain.incLayoutTabStatsBottom.btnStatsSpecial.setOnClickListener {
@@ -3305,16 +2713,8 @@ class MainActivity : AppCompatActivity() {
         outState.putString(KEY_CUR_MENU, curMenu)
         outState.putInt(KEY_ROOT_CURSOR, menuNavigator.rootCursor())
         outState.putString(KEY_PIPBOY_MODE, pipBoyMode.name)
-        outState.putString(KEY_WOUND_PHASE, woundPhase.name)
-        outState.putString(KEY_WOUND_SEVERITY, woundSeverity.name)
+        statusController.saveState(outState)
         clockController.saveState(outState)
-        outState.putBoolean(KEY_CRIPPLED_HEAD, crippledHead)
-        outState.putBoolean(KEY_CRIPPLED_TORSO, crippledTorso)
-        outState.putBoolean(KEY_CRIPPLED_LEFT_ARM, crippledLeftArm)
-        outState.putBoolean(KEY_CRIPPLED_RIGHT_ARM, crippledRightArm)
-        outState.putBoolean(KEY_CRIPPLED_LEFT_LEG, crippledLeftLeg)
-        outState.putBoolean(KEY_CRIPPLED_RIGHT_LEG, crippledRightLeg)
-        outState.putInt(KEY_STATUS_CURSOR_ROW, statusAdapter.selectedPosition())
     }
 
     /** Сворачивание или блокировка экрана: эмбиент освобождается по-настоящему, но намерение не трогаем. */

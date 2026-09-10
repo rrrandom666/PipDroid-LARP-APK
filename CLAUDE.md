@@ -433,13 +433,15 @@ strings_ru.csv`, редактируется пользователем в IDE. �
 
 **Реальный список Perks живёт не в `strings.xml`, а в `Data.kt`** (`val perks =
 listOf(...)`, ~130 перков, имя+описание на каждый — лор Fallout NV: V.A.T.S., компаньоны
-Бун/Кэсс/Вероника/Рауль/ED-E/Рекс, наркотики). Экран строится программно (`PerkAdapter`,
-`STATSPerksSetup()`) из `Data.kt`, не из XML. Семь строк `stats_perks_perk1-7` в
-`strings.xml` — мёртвый код (переведены до этой находки, `layout_tab_stats_perks.xml`, где
-они использовались, нигде не показывается — `visibility` всегда `GONE`).
+Бун/Кэсс/Вероника/Рауль/ED-E/Рекс, наркотики). Экран строится программно
+(`StatsController.setupStatsPerks()` поверх общего `SidebarMenuAdapter`) из `Data.kt`, не из
+XML. Семь строк `stats_perks_perk1-7` в `strings.xml` — мёртвый код (переведены до этой
+находки, `layout_tab_stats_perks.xml`, где они использовались, нигде не показывается —
+`visibility` всегда `GONE`).
 
-**`val dmiscs` в `Data.kt`** (5 фейковых записей fruit/nut/bird) — нигде не используется,
-мёртвый код, кандидат на удаление при следующей уборке.
+**В `Data.kt` кроме перков лежит `ringtoneTracks`** (`RingtoneTrack`, мелодии будильника) —
+это живой список, из него `ClockController` строит раздел Часы/Мелодия. Больше в файле нет
+ничего: `val dmiscs` (5 фейковых записей fruit/nut/bird) убран ещё волной 1.
 
 **Язык интерфейса — через `MainActivity.attachBaseContext()`, не
 `AppCompatDelegate.setApplicationLocales()`** — для последнего нужен AppCompat 1.6.0+, а в
